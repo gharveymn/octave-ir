@@ -1,0 +1,333 @@
+/*
+
+Copyright (C) 2019 Gene Harvey
+
+This file is part of Octave.
+
+Octave is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Octave is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Octave; see the file COPYING.  If not, see
+<https://www.gnu.org/licenses/>.
+
+*/
+
+#if ! defined (ir_block_h)
+#define ir_block_h 1
+
+#include "octave-config.h"
+
+#include "ir-common.h"
+#include "ir-variable.h"
+#include <list>
+#include <memory>
+#include <unordered_set>
+#include <unordered_map>
+#include <deque>
+#include <stack>
+#include <vector>
+
+namespace octave
+{
+
+  class ir_phi;
+  class ir_structure;
+
+  // abstract
+  class ir_component
+  {
+  public:
+
+    using comp_list = std::list<std::unique_ptr<ir_component>>;
+    using comp_iter = comp_list::iterator;
+    using comp_citer = comp_list::const_iterator;
+    using comp_ref = comp_list::reference;
+    using comp_cref = comp_list::const_reference;
+
+    using link_vec = std::vector<ir_basic_block *>;
+    using link_iter = link_vec::iterator;
+    using link_citer = link_vec::const_iterator;
+    using link_ref = link_vec::reference;
+    using link_cref = link_vec::const_reference;
+
+    ir_component (ir_module& mod, ir_structure *parent)
+      : m_module (mod),
+        m_parent (parent)
+    { }
+
+    virtual ~ir_component (void) noexcept;
+
+    std::stack<ir_component *> block_sequence (void)
+    {
+      return block_sequence (nullptr);
+    }
+
+    virtual std::stack<ir_component *>
+    block_sequence (ir_component* before)
+    {
+      return { };
+    }
+    
+    constexpr ir_module& get_module (void) const noexcept
+    {
+      return m_module;
+    }
+    
+    constexpr ir_structure * get_parent (void) const noexcept
+    {
+      return m_parent;
+    }
+
+    virtual link_iter leaf_begin (void) = 0;
+    virtual link_citer leaf_begin (void) const noexcept = 0;
+    virtual link_iter leaf_end (void) = 0;
+    virtual link_citer leaf_end (void) const noexcept = 0;
+
+  private:
+    // TODO the module doesn't need to propogate through all ir_components
+    //  optimize using virtuals at some point
+    ir_module& m_module;
+    ir_structure *m_parent;
+
+  };
+
+  class ir_basic_block : public ir_component
+  {
+
+    using def = ir_variable::def;
+    using use = ir_variable::use;
+  public:
+
+    using instr_list_type = std::unique_ptr<ir_instruction>;
+    using instr_list = std::list<std::unique_ptr<ir_instruction>>;
+    using iter = instr_list::iterator;
+    using citer = instr_list::const_iterator;
+    using riter = instr_list::reverse_iterator;
+    using criter = instr_list::const_reverse_iterator;
+    using ref = instr_list::reference;
+    using cref = instr_list::const_reference;
+    using rvref = instr_list_type&&;
+
+  private:
+
+    class def_timeline
+    {
+
+    public:
+      using def = ir_variable::def;
+      using instr_citer = ir_basic_block::citer;
+
+      using element_type = std::pair<instr_citer, def *>;
+      using def_deque = std::deque<element_type>;
+      using iter = def_deque::iterator;
+      using citer = def_deque::const_iterator;
+      using riter = def_deque::reverse_iterator;
+      using criter = def_deque::const_reverse_iterator;
+
+      iter begin (void) { return m_timeline.begin (); }
+      citer begin (void) const { return m_timeline.begin (); }
+      iter end (void) { return m_timeline.end (); }
+      citer end (void) const { return m_timeline.end (); }
+      riter rbegin (void) { return m_timeline.rbegin (); }
+      criter rbegin (void) const { return m_timeline.rbegin (); }
+      riter rend (void) { return m_timeline.rend (); }
+      criter rend (void) const { return m_timeline.rend (); }
+
+
+      constexpr def * fetch_cache (void) const noexcept
+      {
+        return m_cache;
+      }
+
+      void set_cache (def& latest) noexcept
+      {
+        m_cache = &latest;
+      }
+
+      void emplace (citer dt_pos, instr_citer pos, def& d)
+      {
+        if (dt_pos == end ())
+          set_cache (d);
+        m_timeline.emplace (dt_pos, pos, &d);
+      }
+
+      void emplace_front (instr_citer pos, def& d)
+      {
+        if (m_timeline.empty ())
+          set_cache (d);
+        m_timeline.emplace_front (pos, &d);
+      }
+
+      void emplace_back (instr_citer pos, def& d)
+      {
+        m_timeline.emplace_back (pos, &d);
+        set_cache (d);
+      }
+
+      def_deque::size_type size (void) const noexcept
+      {
+        return m_timeline.size ();
+      }
+
+    private:
+
+      //! The latest def (which may or may not have been created here)
+      def * m_cache = nullptr;
+
+      //! A timeline of defs created in this block.
+      def_deque m_timeline;
+
+    };
+
+    using var_timeline_map = std::unordered_map<ir_variable *, def_timeline>;
+    using vtm_iter = var_timeline_map::iterator;
+    using vtm_citer = var_timeline_map::const_iterator;
+
+  public:
+
+    link_iter leaf_begin (void) noexcept override { return m_leaf.begin (); }
+    link_citer leaf_begin (void) const noexcept override { return m_leaf.begin (); }
+    link_iter leaf_end (void) noexcept override { return m_leaf.end (); }
+    link_citer leaf_end (void) const noexcept override { return m_leaf.end (); }
+
+    def * fetch_cached_def (ir_variable& var) const;
+
+    def * fetch_proximate_def (ir_variable& var,
+                                            citer pos) const;
+
+    // side effects!
+    def * get_latest_def (ir_variable& var);
+
+    // side effects!
+    def * get_latest_def_before (ir_variable& var, citer pos);
+
+    virtual def * join_pred_defs (ir_variable& var);
+
+    void set_cached_def (def& d);
+
+    ir_basic_block (ir_module& mod, ir_structure& parent);
+    
+    ~ir_basic_block (void) override;
+
+    // No copying!
+    ir_basic_block (const ir_basic_block &) = delete;
+
+    ir_basic_block& operator=(const ir_basic_block &) = delete;
+
+    // instructions
+
+    iter begin (void);
+    citer begin (void) const;
+    iter end (void);
+    citer end (void) const;
+
+    ref front (void);
+    cref front (void) const;
+    ref back (void);
+    cref back (void) const;
+
+//    iter insert (citer pos, cref val)
+//    {
+//      return m_instrs.insert (pos, val);
+//    }
+//
+//    iter insert (citer pos, rvref instr)
+//    {
+//      return m_instrs.insert (pos, std::forward<instr_list_type> (instr));
+//    }
+
+    // FIXME Maybe make this push to after phi nodes. Otherwise, this might
+    //  invalidate this block.
+//    void push_front (rvref instr)
+//    {
+//      return m_instrs.push_front (std::forward<instr_list_type> (instr));
+//    }
+//
+//    void push_back (rvref instr)
+//    {
+//      return m_instrs.push_back (std::forward<instr_list_type> (instr));
+//    }
+
+    template <typename ...Args>
+    ir_phi * create_phi (Args&&... args);
+
+    template <typename T, typename ...Args>
+    enable_if_t<std::is_base_of<ir_instruction, T>::value, T> *
+    emplace_back (Args&&... args);
+
+    template <typename T, typename ...Args>
+    enable_if_t<std::is_base_of<ir_instruction, T>::value, T> *
+    emplace_before (citer pos, Args&&... args);
+
+    iter erase (citer pos);
+
+    iter erase (citer first, citer last);
+
+    // predecessors
+
+    link_iter pred_begin (void);
+    link_iter pred_end (void);
+    std::size_t num_preds (void);
+    bool has_preds (void);
+    bool has_multiple_preds (void);
+
+    // successors
+    link_iter succ_begin (void);
+    link_iter succ_end (void);
+    std::size_t num_succs (void);
+    bool has_succs (void);
+    bool has_multiple_succs (void);
+
+  protected:
+    
+    void emplace_def (citer pos, def& d);
+    void emplace_back_def (def& d);
+
+  private:
+
+    // list of instructions
+    instr_list m_instrs;
+
+    // map of variables to the def timeline for this block
+
+    // predecessors and successors to this block
+
+    var_timeline_map m_vt_map;
+
+    link_vec m_leaf;
+
+  };
+
+  class ir_condition_block : public ir_basic_block
+  {
+  public:
+    ir_condition_block (ir_module& mod, ir_structure& parent)
+      : ir_basic_block (mod, parent)
+    { }
+  };
+
+  class ir_loop_condition_block : public ir_basic_block
+  {
+  public:
+
+    ir_loop_condition_block (ir_module& mod, ir_structure& parent)
+      : ir_basic_block (mod, parent)
+    { }
+
+    ir_variable::def * join_pred_defs (ir_variable& var) override;
+    
+  private:
+
+  };
+
+}
+
+#endif
