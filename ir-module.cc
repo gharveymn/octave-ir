@@ -29,15 +29,16 @@ along with Octave; see the file COPYING.  If not, see
 namespace octave
 {
   ir_module::ir_module (void)
-    : m_super_sequence (*this)
+    : m_super_sequence (*this),
+      m_entry_block (m_super_sequence.emplace_back<ir_basic_block> ())
   {
     m_super_sequence.emplace_back<ir_basic_block> ();
   }
   
-  ir_basic_block *
+  ir_basic_block&
   ir_module::get_entry_block (void)
   {
-    return static_cast<ir_basic_block *>(m_super_sequence.front ().get ());
+    return m_entry_block;
   }
   
 }

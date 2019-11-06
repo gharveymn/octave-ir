@@ -60,15 +60,9 @@ namespace octave
     ir_operand& operator= (const ir_operand&) noexcept = delete;
     ir_operand& operator= (ir_operand&&) noexcept      = default;
 
-    constexpr explicit ir_operand (ir_type type) noexcept
-      : m_type (type)
-    { }
+    virtual ~ir_operand (void) noexcept = 0;
 
-    virtual ~ir_operand (void) = 0;
-
-    constexpr const ir_type& get_type (void) const { return m_type; }
-
-    void replace_type (ir_type new_type) { m_type = new_type; }
+    virtual ir_type get_type (void) const = 0;
 
     friend struct ir_printer<ir_operand>;
 
@@ -78,8 +72,6 @@ namespace octave
 
   private:
 
-    ir_type m_type = ir_type::get<void> ();
-
   };
 
   template <typename ...Ts>
@@ -87,16 +79,26 @@ namespace octave
   {
   public:
 
-    using value_type = const std::tuple<Ts...>;
+    using value_type = std::tuple<Ts...>;
 
     ir_constant (void) = delete;
 
-    ir_constant (Ts... args)  noexcept;
-    constexpr ir_constant (const ir_constant&) noexcept  = delete;
-    constexpr ir_constant (ir_constant&&) noexcept       = default;
-
-    ir_constant& operator= (const ir_constant&) noexcept = delete;
-    ir_constant& operator= (ir_constant&&) noexcept      = default;
+    ir_constant (Ts... vals) noexcept
+      : m_value {std::move (vals)...}
+    { }
+    
+    ir_constant (const ir_constant&) = default; // change this to default once we really need it
+    ir_constant (ir_constant&& o) noexcept
+      : m_value (std::move (o.m_value))
+    { }
+  
+    ir_constant& operator= (const ir_constant&) = default;
+    ir_constant& operator= (ir_constant&& o) noexcept
+    {
+      m_value = std::move (o.m_value);
+    }
+  
+    ~ir_constant (void) noexcept override = default;
 
     template <std::size_t I>
     constexpr const typename std::tuple_element<I, value_type>::type&
@@ -114,6 +116,8 @@ namespace octave
 
     constexpr value_type&
     get (void) const noexcept { return m_value; }
+    
+    ir_type get_type (void) const override;
 
   protected:
 
@@ -122,28 +126,78 @@ namespace octave
   private:
 
     value_type m_value;
+    
   };
-
+  
   template <typename T>
   class ir_constant<T> : public ir_operand
   {
   public:
+    
+    using value_type = T;
+    
+    ir_constant (void) = delete;
+    
+    ir_constant (value_type val) noexcept
+      : m_value {std::move (val)}
+    { }
+    
+    ir_constant (const ir_constant&) = default;
+    
+    ir_constant (ir_constant&& o) noexcept
+      : m_value (std::move (o.m_value))
+    { }
+    
+    ir_constant& operator= (const ir_constant&) = default;
+    ir_constant& operator= (ir_constant&& o) noexcept
+    {
+      m_value = std::move (o.m_value);
+      return *this;
+    }
+    
+    ~ir_constant (void) noexcept override = default;
+    
+    constexpr value_type& value (void) const noexcept { return m_value; }
+    
+    ir_type get_type (void) const override;
+  
+  protected:
+    
+    std::ostream& print (std::ostream& os) const override;
+  
+  private:
+    
+    value_type m_value;
+    
+  };
 
-    using value_type = typename std::add_const<T>::type;
+  template <typename T>
+  class ir_constant<T&> : public ir_operand
+  {
+  public:
+
+    using value_type = T&;
 
     ir_constant (void) = delete;
 
-    ir_constant (value_type avalue) noexcept;
+    ir_constant (value_type val) noexcept
+      : m_value {val}
+    { }
 
-    ir_constant (const ir_constant&)  = delete;
-    ir_constant (ir_constant&&)       = default;
+    ir_constant (const ir_constant&) = default;
+    
+    ir_constant (ir_constant&& o) noexcept
+      : m_value (o.m_value)
+    { }
 
-    ir_constant& operator= (const ir_constant&) = delete;
-    ir_constant& operator= (ir_constant&&)      = default;
+    ir_constant& operator= (const ir_constant&) = default;
+    ir_constant& operator= (ir_constant&& o) noexcept = default;
 
-    ~ir_constant (void) override = default;
+    ~ir_constant (void) noexcept override = default;
 
     constexpr value_type& value (void) const noexcept { return m_value; }
+  
+    ir_type get_type (void) const override;
 
   protected:
 
@@ -152,6 +206,7 @@ namespace octave
   private:
 
     value_type m_value;
+    
   };
   
   template <>

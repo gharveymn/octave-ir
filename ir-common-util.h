@@ -29,6 +29,10 @@ along with Octave; see the file COPYING.  If not, see
 
 #include <iosfwd>
 #include <memory>
+#include <functional>
+
+#define PRINT_SIZE(TYPE) \
+char (*__fail)(void)[sizeof(TYPE)] = 1;
 
 namespace octave
 {
@@ -117,9 +121,29 @@ namespace octave
       return lhs == rhs;
     }
   };
-
-#define PRINT_SIZE(TYPE) \
-char (*__fail)(void)[sizeof(TYPE)] = 1;
+  
+  template <typename T>
+  class iterator_range
+  {
+  public:
+    
+    constexpr iterator_range (T b, T e)
+      : m_begin (std::move (b)),
+        m_end (std::move (e))
+    { }
+    
+    constexpr iterator_range (iterator_range&& other) noexcept
+      : m_begin (other.begin ()),
+        m_end (other.end ())
+    { }
+    
+    constexpr T    begin (void) const noexcept { return m_begin; }
+    constexpr T    end (void)   const noexcept { return m_end; }
+    constexpr bool empty (void) const noexcept {return m_begin == m_end; }
+  private:
+    T m_begin;
+    T m_end;
+  };
 
 }
 

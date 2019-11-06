@@ -48,38 +48,24 @@ namespace octave
   //
   
   ir_basic_block::ir_basic_block (ir_module& mod, ir_structure& parent)
-    : ir_component (mod, &parent)
+    : ir_component (mod, &parent), m_begin_nonphi (m_instrs.end ())
   {
     m_leaf.push_back (this);
   }
   
-  static_assert(std::is_same<typename std::remove_cv<const ir_basic_block&>::type, const ir_basic_block&>::value, "is const");
-  
   ir_basic_block::~ir_basic_block (void) = default;
   
   ir_basic_block::iter
-  ir_basic_block::begin (void) { return m_instrs.begin (); }
+  ir_basic_block::instr_begin (void) { return m_begin_nonphi; }
   
   ir_basic_block::citer
-  ir_basic_block::begin (void) const { return m_instrs.begin (); }
+  ir_basic_block::instr_begin (void) const { return m_begin_nonphi; }
   
   ir_basic_block::iter
-  ir_basic_block::end (void) { return m_instrs.end (); }
+  ir_basic_block::instr_end (void) { return m_instrs.end (); }
   
   ir_basic_block::citer
-  ir_basic_block::end (void) const { return m_instrs.end (); }
-  
-  ir_basic_block::ref
-  ir_basic_block::front (void) { return m_instrs.front (); }
-  
-  ir_basic_block::cref
-  ir_basic_block::front (void) const { return m_instrs.front (); }
-  
-  ir_basic_block::ref
-  ir_basic_block::back (void) { return m_instrs.back (); }
-  
-  ir_basic_block::cref
-  ir_basic_block::back (void) const { return m_instrs.back (); }
+  ir_basic_block::instr_end (void) const { return m_instrs.end (); }
   
   template <typename ...Args>
   ir_phi *
@@ -89,68 +75,130 @@ namespace octave
                                              std::forward<Args> (args)...);
     ir_phi *ret = uptr.get ();
     m_instrs.push_front (std::move (uptr));
+    ++m_num_phi;
     return ret;
   }
-
+  
   template <typename T, typename ...Args>
-  enable_if_t<std::is_base_of<ir_instruction, T>::value, T> *
-  ir_basic_block::emplace_back (Args&&... args)
-  {
-    std::unique_ptr<T> uptr = make_unique<T> (*this,
-                                              std::forward<Args> (args)...);
-    T *ret = uptr.get ();
-    m_instrs.push_back (std::move (uptr));
-    if (def *d = ret->get_return_def ())
-      emplace_back_def (*d);
-    return ret;
-  }
-
-  template <typename T, typename ...Args>
-  enable_if_t<std::is_base_of<ir_instruction, T>::value, T> *
+  enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+              && std::is_base_of<ir_def_instruction, T>::value, T>&
   ir_basic_block::emplace_before (citer pos, Args&&... args)
   {
     std::unique_ptr<T> u = make_unique<T> (*this,
                                            std::forward<Args> (args)...);
     T *ret = u.get ();
-    citer it = m_instrs.insert (pos, std::move (u));
-    if (ret->has_return ())
-      emplace_def (it, ret->get_return ());
-    return ret;
+    iter it = m_instrs.insert (pos, std::move (u));
+    emplace_def (it, ret->get_return ());
+    if (m_begin_nonphi == pos)
+      m_begin_nonphi = it;
+    return *ret;
+  }
+  
+  template <typename T, typename ...Args>
+  enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+              && ! std::is_base_of<ir_def_instruction, T>::value, T>&
+  ir_basic_block::emplace_before (citer pos, Args&&... args)
+  {
+    std::unique_ptr<T> u = make_unique<T> (*this,
+                                           std::forward<Args> (args)...);
+    T *ret = u.get ();
+    iter it = m_instrs.insert (pos, std::move (u));
+    if (m_begin_nonphi == pos)
+      m_begin_nonphi = it;
+    return *ret;
+  }
+  
+  template <typename T, typename ...Args>
+  enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+              && std::is_base_of<ir_def_instruction, T>::value, T>&
+  ir_basic_block::emplace_front (Args&&... args)
+  {
+    std::unique_ptr<T> u = make_unique<T> (*this,
+                                           std::forward<Args> (args)...);
+    T *ret = u.get ();
+    m_begin_nonphi = m_instrs.insert (m_begin_nonphi, std::move (u));
+    emplace_front_def (ret->get_return ());
+    return *ret;
+  }
+  
+  template <typename T, typename ...Args>
+  enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+              && ! std::is_base_of<ir_def_instruction, T>::value, T>&
+  ir_basic_block::emplace_front (Args&&... args)
+  {
+    std::unique_ptr<T> u = make_unique<T> (*this,
+                                           std::forward<Args> (args)...);
+    T *ret = u.get ();
+    m_begin_nonphi = m_instrs.insert (m_begin_nonphi, std::move (u));
+    return *ret;
+  }
+
+  template <typename T, typename ...Args>
+  enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+              && std::is_base_of<ir_def_instruction, T>::value, T>&
+  ir_basic_block::emplace_back (Args&&... args)
+  {
+    std::unique_ptr<T> u = make_unique<T> (*this,
+                                           std::forward<Args> (args)...);
+    T *ret = u.get ();
+    m_instrs.push_back (std::move (u));
+    emplace_back_def (ret->get_return());
+    if (m_begin_nonphi == m_instrs.end ())
+      m_begin_nonphi = --m_instrs.end ();
+    return *ret;
+  }
+  
+  template <typename T, typename ...Args>
+  enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+              && ! std::is_base_of<ir_def_instruction, T>::value, T>&
+  ir_basic_block::emplace_back (Args&&... args)
+  {
+    std::unique_ptr<T> u = make_unique<T> (*this,
+                                           std::forward<Args> (args)...);
+    T *ret = u.get ();
+    m_instrs.push_back (std::move (u));
+    if (m_begin_nonphi == m_instrs.end ())
+      m_begin_nonphi = --m_instrs.end ();
+    return *ret;
   }
   
   ir_basic_block::iter
   ir_basic_block::erase (citer pos)
   {
+    throw ir_exception ("not safe");
     return m_instrs.erase (pos);
   }
   
   ir_basic_block::iter
   ir_basic_block::erase (citer first, citer last)
   {
+    throw ir_exception ("not safe");
     return m_instrs.erase (first, last);
+  }
+  
+  std::size_t
+  ir_basic_block::num_phi (void) const
+  {
+    return std::distance (phi_begin (), phi_end ());
   }
 
   ir_variable::def *
   ir_basic_block::fetch_cached_def (ir_variable& var) const
   {
-    vtm_citer cit = m_vt_map.find (&var);
-    if (cit == m_vt_map.end ())
-      return nullptr;
-    const def_timeline& dt = cit->second;
-    return dt.fetch_cache ();
+    return fetch_proximate_def (var, end ());
   }
 
   ir_variable::def *
   ir_basic_block::fetch_proximate_def (ir_variable& var, citer pos) const
   {
-    criter rpos (pos);
     vtm_citer vtm_cit = m_vt_map.find (&var);
     if (vtm_cit == m_vt_map.end ())
       return nullptr;
     const def_timeline& dt = vtm_cit->second;
-    if (dt.size () == 0)
+    if (dt.size () == 0 || pos == end ())
       return dt.fetch_cache ();
-
+  
+    criter rpos (pos);
     def_timeline::criter dt_crit = dt.rbegin ();
     for (criter instr_crit = m_instrs.rbegin ();
          instr_crit != m_instrs.rend (); ++instr_crit)
@@ -178,10 +226,7 @@ namespace octave
     def_timeline& dt = m_vt_map[&d.get_var ()];
 
     if (pos == end ())
-      {
-        dt.emplace_back (pos, d);
-        return;
-      }
+      return dt.emplace_back (pos, d);
 
     criter rpos (pos);
     def_timeline::criter dt_crit = dt.rbegin ();
@@ -191,18 +236,18 @@ namespace octave
         if (dt_crit->first == instr_crit.base ())
           {
             if (++dt_crit == dt.rend ())
-              {
-                dt.emplace_front (pos, d);
-                return;
-              }
+              return dt.emplace_front (pos, d);
           }
         if (rpos == instr_crit)
-          {
-            dt.emplace (dt_crit.base (), pos, d);
-            return;
-          }
+          return dt.emplace (dt_crit.base (), pos, d);
       }
     dt.emplace_front (pos, d);
+  }
+  
+  void
+  ir_basic_block::emplace_front_def (def& d)
+  {
+    m_vt_map[&d.get_var ()].emplace_front (m_begin_nonphi, d);
   }
 
   void
@@ -212,34 +257,27 @@ namespace octave
   }
 
   ir_variable::def *
-  ir_basic_block::get_latest_def (ir_variable& var)
+  ir_basic_block::join_defs (ir_variable& var)
   {
-    if (def *d = fetch_cached_def (var))
-      return d;
-    return join_pred_defs (var);
+    return join_defs (var, end ());
   }
 
   ir_variable::def *
-  ir_basic_block::get_latest_def_before (ir_variable& var, citer pos)
+  ir_basic_block::join_defs (ir_variable& var, citer pos)
   {
-    def *ret = nullptr;
-    if (pos == end ())
-      ret = get_latest_def (var);
-    else
-      {
-        ret = fetch_proximate_def (var, pos);
-        if (ret == nullptr)
-          ret = join_pred_defs (var);
-      }
+    def *ret = fetch_proximate_def (var, pos);
+    if (ret == nullptr)
+      ret = join_pred_defs (var);
 
     // if ret is still nullptr then we need to insert a fetch instruction
     if (ret == nullptr)
+      ret = &emplace_before<ir_fetch> (pos, var).get_return ();
+    else
       {
-        ir_fetch *finstr = emplace_before<ir_fetch> (pos, var);
-
+        // if the def was created by a phi node, there may be
       }
 
-    return nullptr;
+    return ret;
   }
 
   ir_variable::def *
@@ -254,7 +292,7 @@ namespace octave
     if (npreds == 1)
       {
         ir_basic_block *pred = *pred_begin ();
-        return pred->get_latest_def (var);
+        return pred->join_defs (var);
       }
 
     ir_variable::block_def_vec pairs;
@@ -264,7 +302,7 @@ namespace octave
       [&pairs, &var](ir_basic_block *pred){
           if (pred == nullptr)
             throw ir_exception ("block was unexpectedly nullptr.");
-          pairs.emplace_back (*pred, pred->get_latest_def (var));
+          pairs.emplace_back (*pred, pred->join_defs (var));
       });
 
     // TODO if we have null returns here we need to create extra diversion
@@ -273,8 +311,10 @@ namespace octave
     def * cmp_def = pairs.front ().second;
     for (const ir_variable::block_def_pair& p : pairs)
       {
+        // check if all the defs found were the same
         if (p.second != cmp_def)
           {
+            // if not then we need to create a phi node
             ir_type ty = ir_variable::normalize_types (pairs);
             ir_phi *phi_node = create_phi (var, ty, pairs);
             return &phi_node->get_return ();
@@ -305,7 +345,7 @@ namespace octave
   bool
   ir_basic_block::has_preds (void)
   {
-    return num_preds () != 0;
+    return pred_begin () != pred_end ();
   }
 
   bool

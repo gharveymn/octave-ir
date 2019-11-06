@@ -30,16 +30,10 @@ namespace octave
 {
   
   template <typename ...Ts>
-  ir_constant<Ts...>::ir_constant (Ts... args)  noexcept
-    : ir_operand (ir_type::get<value_type> ()),
-      m_value {std::move (args)...}
-  { }
-  
-  template <typename T>
-  ir_constant<T>::ir_constant (value_type avalue) noexcept
-  : ir_operand (ir_type::get<value_type> ()),
-  m_value (std::move (avalue))
-  { }
+  ir_type ir_constant<Ts...>::get_type () const
+  {
+    return ir_type::get<value_type> ();
+  }
 
   template <>
   std::ostream&
@@ -47,7 +41,7 @@ namespace octave
   {
     op.print (os);
     if (isa<const ir_variable::def> (op))
-      os << ": " << op.m_type;
+      os << ": " << op.get_type ();
     return os;
   }
 
@@ -55,7 +49,7 @@ namespace octave
   std::ostream&
   ir_printer<ir_operand>::long_print (std::ostream& os, const ir_operand& op)
   {
-    return op.print (os) << ": " << op.m_type;
+    return op.print (os) << ": " << op.get_type ();
   }
 
   template <typename T>

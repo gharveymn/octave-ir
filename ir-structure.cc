@@ -37,17 +37,19 @@ namespace octave
   //
 
   template <typename T, typename ...Args>
-  void
+  enable_if_t<std::is_base_of<ir_component, T>::value, T>&
   ir_component_sequence::emplace_back (Args&&... args)
   {
 
     static_assert (std::is_same<T, ir_component_sequence>::value,
                    "Cannot nest component sequences.");
-    m_body.push_back (make_unique<T> (get_module (), *this,
-                                      std::forward<Args>(args)...));
+    std::unique_ptr<T> u = make_unique<T> (get_module (), *this,
+                                              std::forward<Args> (args)...);
+    T *ret = u.get ();
+    m_body.emplace_back (std::move (u));
     if (auto s = dynamic_cast<ir_fork_component *> (get_parent ()))
       s->invalidate_leaf_cache ();
-
+    return *ret;
   }
 
   ir_component_sequence::comp_citer

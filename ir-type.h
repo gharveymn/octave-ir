@@ -123,7 +123,7 @@ namespace octave
     template <typename ...T>
     static constexpr ir_type get (void) noexcept
     {
-      return {&instance<typename std::remove_cv<T>::type...>::m_impl};
+      return { &instance<typename std::remove_cv<T>::type...>::m_impl };
     }
 
     constexpr bool operator== (const ir_type& ty) const noexcept

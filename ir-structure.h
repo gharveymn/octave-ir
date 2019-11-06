@@ -87,22 +87,8 @@ namespace octave
     link_citer leaf_end (void) const noexcept override;
 
     template <typename T, typename ...Args>
-    void emplace_back (Args&&... args);
-
-    std::stack<ir_component *>
-    block_sequence (ir_component *before) override
-    {
-      std::stack<ir_component *> seq;
-      for (comp_cref comp : m_body)
-        {
-          if (comp.get () == before)
-            return seq;
-          seq.push (comp.get ());
-        }
-      if (before != nullptr)
-        throw ir_exception ("component not found in the parent.");
-      return seq;
-    }
+    enable_if_t<std::is_base_of<ir_component, T>::value, T>&
+    emplace_back (Args&&... args);
 
     friend class ir_module;
 
@@ -135,32 +121,6 @@ namespace octave
     link_citer leaf_begin (void) const noexcept override;
     link_iter leaf_end (void) override;
     link_citer leaf_end (void) const noexcept override;
-
-    std::stack<ir_component *>
-    block_sequence (ir_component *before) override
-    {
-      std::stack<ir_component *> seq;
-
-      if (before == &m_condition)
-        return seq;
-
-      seq.push (&m_condition);
-
-      if (before == nullptr)
-        {
-          for (comp_ref comp : m_subcomponents)
-            seq.push (comp.get ());
-          return seq;
-        }
-
-      // make sure 'before' is in the block list; this might be removed later.
-      for (comp_cref comp : m_subcomponents)
-        {
-          if (comp.get () == before)
-            return seq;
-        }
-      throw ir_exception ("component not found in the parent.");
-    }
 
   private:
 
@@ -197,39 +157,6 @@ namespace octave
     link_iter leaf_end (void) noexcept override;
     link_citer leaf_end (void) const noexcept override;
 
-    std::stack<ir_component *>
-    block_sequence (ir_component *before) override
-    {
-      std::stack<ir_component *> seq;
-
-      if (before == nullptr)
-        {
-          seq.push (&m_condition);
-          seq.push (&m_body);
-          seq.push (&m_update);
-        }
-      else if (before == &m_condition)
-        {
-          seq.push (&m_body);
-          seq.push (&m_update);
-        }
-      else if (before == &m_body)
-        {
-          seq.push (&m_update);
-          seq.push (&m_condition);
-        }
-      else if (before == &m_update)
-        {
-          seq.push (&m_condition);
-          seq.push (&m_body);
-        }
-      else
-        throw ir_exception ("component not found in the parent.");
-
-      return seq;
-
-    }
-
   private:
 
     ir_basic_block m_entry;
@@ -249,127 +176,6 @@ namespace octave
 
     link_vec m_cond_preds;
 
-  };
-
-  class ir_block_stack
-  {
-
-  public:
-    ir_block_stack (ir_basic_block& bl)
-    {
-      m_super_stack.push ({});
-      m_super_stack.top ().push (&bl);
-      pop ();
-    }
-
-    ir_basic_block * top (void)
-    {
-      if (m_super_stack.empty ())
-        return nullptr;
-
-      std::stack<ir_component *>& top_stack = m_super_stack.top ();
-
-      if (top_stack.empty ())
-        throw ir_exception ("Top of the block super-stack was unexpectedly empty");
-
-      ir_basic_block *ret = dynamic_cast<ir_basic_block *> (top_stack.top ());
-      if (ret == nullptr)
-        throw ir_exception ("Top of the block stack was not ir_basic_block.");
-      return ret;
-    }
-
-    void pop (void)
-    {
-      if (m_super_stack.empty ())
-        return;
-
-      std::stack<ir_component *>& top_stack = m_super_stack.top ();
-
-      if (top_stack.empty ())
-        throw ir_exception ("Top of the block stack was unexpectedly empty");
-
-      if (m_super_stack.size () == 1 && top_stack.size () == 1)
-        {
-          ir_component *last = top_stack.top ();
-          top_stack.pop ();
-          for (ir_component *parent = last->get_parent ();
-               parent != nullptr && top_stack.empty ();
-               last = parent, parent = last->get_parent ())
-            {
-              top_stack = std::move (parent->block_sequence (last));
-            }
-        }
-      else if (! top_stack.empty ())
-        top_stack.pop ();
-
-      if (top_stack.empty ())
-        {
-          m_super_stack.pop ();
-
-          // pop the parent from the previous stack
-          pop ();
-
-          // return to avoid running expand_to_next unnecessarily
-          return;
-        }
-
-      expand_to_next ();
-
-    }
-
-  private:
-
-    void expand_to_next (void)
-    {
-      if (m_super_stack.empty ())
-        return;
-
-      std::stack<ir_component *>& top_stack = m_super_stack.top ();
-
-      if (top_stack.empty ())
-        throw ir_exception ("Top of the block stack was unexpectedly empty");
-
-      if (! isa<ir_basic_block>(top_stack.top ()))
-        {
-          m_super_stack.emplace (top_stack.top ()->block_sequence ());
-          expand_to_next ();
-        }
-
-    }
-
-//    class ir_block_node
-//    {
-//    public:
-//
-//      ir_block_node (ir_block_node *parent, const ir_component& component)
-//        : m_parent (parent),
-//          m_component (component)
-//      { }
-//
-//      ir_component * top (void)
-//      {
-//        return m_child_stack.top ();
-//      }
-//
-//      void pop (void)
-//      {
-//        return m_child_stack.pop ();
-//      }
-//
-//    private:
-//      ir_block_node *m_parent;
-//
-//      const ir_component& m_component;
-//
-//      // lazy init
-//      std::stack<ir_component *> m_child_stack;
-//
-//      std::unique_ptr<ir_block_node> m_curr_subnode = nullptr;
-//
-//    };
-
-    // lazy init
-    std::stack<std::stack<ir_component *>> m_super_stack;
   };
 
 }

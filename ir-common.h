@@ -62,6 +62,9 @@ namespace octave
   };
 
   // C++17 needed types
+  
+  template<bool B, typename T = void>
+  using enable_if_t = typename std::enable_if<B, T>::type;
 
   // imitates 'void' as a unit type (added as std::monostate in C++17)
   struct monostate { };
@@ -99,14 +102,14 @@ namespace octave
   template <typename T>
   struct is_char<
     T,
-    typename std::enable_if<
+    enable_if_t<
       disjunction<
         std::is_same<char, typename std::remove_cv<T>::type>,
         std::is_same<wchar_t, typename std::remove_cv<T>::type>,
         std::is_same<char16_t, typename std::remove_cv<T>::type>,
         std::is_same<char32_t, typename std::remove_cv<T>::type>
       >::value
-    >::type
+    >
   > : std::true_type
   { };
 
@@ -131,9 +134,9 @@ namespace octave
   template <template <typename ...> class S, typename ...Ts>
   struct is_string<
     S<Ts...>,
-    typename std::enable_if<
+    enable_if_t<
       std::is_same<std::basic_string<Ts...>, S<Ts...>>::value
-    >::type
+    >
   > : std::true_type
   { };
 
@@ -146,7 +149,7 @@ namespace octave
   template <typename T>
   struct is_string<
     T *,
-    typename std::enable_if<is_char<T>::value>::type
+    enable_if_t<is_char<T>::value>
   > : std::true_type
   { };
 
@@ -154,7 +157,7 @@ namespace octave
   template <typename T>
   struct is_string<
     T[],
-    typename std::enable_if<is_char<T>::value>::type
+    enable_if_t<is_char<T>::value>
   > : std::true_type
   { };
 
@@ -171,9 +174,6 @@ namespace octave
   template <typename T>
   struct map_to_false : std::false_type
   { };
-  
-  template<bool B, typename T = void>
-  using enable_if_t = typename std::enable_if<B, T>::type;
   
 }
 
