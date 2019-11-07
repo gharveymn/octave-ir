@@ -48,24 +48,12 @@ namespace octave
   //
   
   ir_basic_block::ir_basic_block (ir_module& mod, ir_structure& parent)
-    : ir_component (mod, &parent), m_begin_nonphi (m_instrs.end ())
+    : ir_component (mod, &parent), m_body_begin (m_instrs.end ())
   {
     m_leaf.push_back (this);
   }
   
   ir_basic_block::~ir_basic_block (void) = default;
-  
-  ir_basic_block::iter
-  ir_basic_block::instr_begin (void) { return m_begin_nonphi; }
-  
-  ir_basic_block::citer
-  ir_basic_block::instr_begin (void) const { return m_begin_nonphi; }
-  
-  ir_basic_block::iter
-  ir_basic_block::instr_end (void) { return m_instrs.end (); }
-  
-  ir_basic_block::citer
-  ir_basic_block::instr_end (void) const { return m_instrs.end (); }
   
   template <typename ...Args>
   ir_phi *
@@ -75,111 +63,147 @@ namespace octave
                                              std::forward<Args> (args)...);
     ir_phi *ret = uptr.get ();
     m_instrs.push_front (std::move (uptr));
+    try
+      {
+        emplace_front_def (ret->get_return ());
+      }
+    catch (const std::exception& e)
+      {
+        erase (m_instrs.begin ());
+        throw e;
+      }
     ++m_num_phi;
     return ret;
   }
   
   template <typename T, typename ...Args>
   enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
-              && std::is_base_of<ir_def_instruction, T>::value, T>&
-  ir_basic_block::emplace_before (citer pos, Args&&... args)
-  {
-    std::unique_ptr<T> u = make_unique<T> (*this,
-                                           std::forward<Args> (args)...);
-    T *ret = u.get ();
-    iter it = m_instrs.insert (pos, std::move (u));
-    emplace_def (it, ret->get_return ());
-    if (m_begin_nonphi == pos)
-      m_begin_nonphi = it;
-    return *ret;
-  }
-  
-  template <typename T, typename ...Args>
-  enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
-              && ! std::is_base_of<ir_def_instruction, T>::value, T>&
-  ir_basic_block::emplace_before (citer pos, Args&&... args)
-  {
-    std::unique_ptr<T> u = make_unique<T> (*this,
-                                           std::forward<Args> (args)...);
-    T *ret = u.get ();
-    iter it = m_instrs.insert (pos, std::move (u));
-    if (m_begin_nonphi == pos)
-      m_begin_nonphi = it;
-    return *ret;
-  }
-  
-  template <typename T, typename ...Args>
-  enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
-              && std::is_base_of<ir_def_instruction, T>::value, T>&
+              && ir_basic_block::has_return<T>::value, T>&
   ir_basic_block::emplace_front (Args&&... args)
   {
     std::unique_ptr<T> u = make_unique<T> (*this,
                                            std::forward<Args> (args)...);
     T *ret = u.get ();
-    m_begin_nonphi = m_instrs.insert (m_begin_nonphi, std::move (u));
-    emplace_front_def (ret->get_return ());
-    return *ret;
-  }
-  
-  template <typename T, typename ...Args>
-  enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
-              && ! std::is_base_of<ir_def_instruction, T>::value, T>&
-  ir_basic_block::emplace_front (Args&&... args)
-  {
-    std::unique_ptr<T> u = make_unique<T> (*this,
-                                           std::forward<Args> (args)...);
-    T *ret = u.get ();
-    m_begin_nonphi = m_instrs.insert (m_begin_nonphi, std::move (u));
+    m_body_begin = m_instrs.insert (m_body_begin, std::move (u));
+    try
+      {
+        emplace_def (m_body_begin, ret->get_return ());
+      }
+    catch (const std::exception& e)
+      {
+        m_body_begin = erase (m_body_begin);
+        throw e;
+      }
     return *ret;
   }
 
   template <typename T, typename ...Args>
   enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
-              && std::is_base_of<ir_def_instruction, T>::value, T>&
+              && ir_basic_block::has_return<T>::value, T>&
   ir_basic_block::emplace_back (Args&&... args)
   {
     std::unique_ptr<T> u = make_unique<T> (*this,
                                            std::forward<Args> (args)...);
     T *ret = u.get ();
-    m_instrs.push_back (std::move (u));
-    emplace_back_def (ret->get_return());
-    if (m_begin_nonphi == m_instrs.end ())
-      m_begin_nonphi = --m_instrs.end ();
+    iter it = m_instrs.insert (body_end (), std::move (u));
+    try
+      {
+        emplace_def (it, ret->get_return());
+      }
+    catch (const std::exception& e)
+      {
+        erase (it);
+        throw e;
+      }
+    
+    if (m_body_begin == body_end ())
+      --m_body_begin;
     return *ret;
   }
   
   template <typename T, typename ...Args>
   enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
-              && ! std::is_base_of<ir_def_instruction, T>::value, T>&
+              && ir_basic_block::has_return<T>::value, T>&
+  ir_basic_block::emplace_before (citer pos, Args&&... args)
+  {
+    if (pos == end () || isa<ir_phi> (pos->get ()))
+      throw ir_exception ("instruction must be placed within the body");
+    std::unique_ptr<T> u = make_unique<T> (*this,
+                                           std::forward<Args> (args)...);
+    T *ret = u.get ();
+    iter it = m_instrs.insert (pos, std::move (u));
+    try
+      {
+        emplace_def (it, ret->get_return());
+      }
+    catch (const std::exception& e)
+      {
+        erase (it);
+        throw e;
+      }
+    if (m_body_begin == pos)
+      m_body_begin = it;
+    return *ret;
+  }
+  
+  template <typename T, typename ...Args>
+  enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+              && ! ir_basic_block::has_return<T>::value, T>&
+  ir_basic_block::emplace_front (Args&&... args)
+  {
+    std::unique_ptr<T> u = make_unique<T> (*this,
+                                           std::forward<Args> (args)...);
+    T *ret = u.get ();
+    m_body_begin = m_instrs.insert (m_body_begin, std::move (u));
+    return *ret;
+  }
+  
+  template <typename T, typename ...Args>
+  enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+              && ! ir_basic_block::has_return<T>::value, T>&
   ir_basic_block::emplace_back (Args&&... args)
   {
     std::unique_ptr<T> u = make_unique<T> (*this,
                                            std::forward<Args> (args)...);
     T *ret = u.get ();
     m_instrs.push_back (std::move (u));
-    if (m_begin_nonphi == m_instrs.end ())
-      m_begin_nonphi = --m_instrs.end ();
+    if (m_body_begin == body_end ())
+      --m_body_begin;
+    return *ret;
+  }
+  
+  template <typename T, typename ...Args>
+  enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+              && ! ir_basic_block::has_return<T>::value, T>&
+  ir_basic_block::emplace_before (citer pos, Args&&... args)
+  {
+    if (pos == end () || isa<ir_phi> (pos->get ()))
+      throw ir_exception ("instruction must be placed within the body");
+    std::unique_ptr<T> u = make_unique<T> (*this,
+                                           std::forward<Args> (args)...);
+    T *ret = u.get ();
+    iter it = m_instrs.insert (pos, std::move (u));
+    if (m_body_begin == pos)
+      m_body_begin = it;
     return *ret;
   }
   
   ir_basic_block::iter
-  ir_basic_block::erase (citer pos)
+  ir_basic_block::erase (citer pos) noexcept
   {
-    throw ir_exception ("not safe");
     return m_instrs.erase (pos);
   }
   
   ir_basic_block::iter
-  ir_basic_block::erase (citer first, citer last)
+  ir_basic_block::erase (citer first, citer last) noexcept
   {
-    throw ir_exception ("not safe");
     return m_instrs.erase (first, last);
   }
   
-  std::size_t
-  ir_basic_block::num_phi (void) const
+  ir_basic_block&
+  ir_basic_block::split (citer pivot)
   {
-    return std::distance (phi_begin (), phi_end ());
+    m_instrs.splice()
   }
 
   ir_variable::def *
@@ -203,7 +227,7 @@ namespace octave
     for (criter instr_crit = m_instrs.rbegin ();
          instr_crit != m_instrs.rend (); ++instr_crit)
       {
-        if (dt_crit->first == instr_crit.base())
+        if (dt_crit->first == instr_crit.base ())
           {
             if (++dt_crit == dt.rend ())
               return nullptr;
@@ -247,7 +271,7 @@ namespace octave
   void
   ir_basic_block::emplace_front_def (def& d)
   {
-    m_vt_map[&d.get_var ()].emplace_front (m_begin_nonphi, d);
+    m_vt_map[&d.get_var ()].emplace_front (m_instrs.begin (), d);
   }
 
   void

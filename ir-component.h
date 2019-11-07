@@ -215,45 +215,49 @@ namespace octave
   
     // front and back won't throw because the constructor will
     // always emplace a return instruction
-    iter   begin (void)        noexcept { return m_instrs.begin (); }
-    citer  begin (void)  const noexcept { return m_instrs.begin (); }
+    iter   begin (void)         noexcept { return m_instrs.begin (); }
+    citer  begin (void)   const noexcept { return m_instrs.begin (); }
+    citer  cbegin (void)  const noexcept { return m_instrs.cbegin (); }
     
-    iter   end (void)          noexcept { return m_instrs.end ();   }
-    citer  end (void)    const noexcept { return m_instrs.end ();   }
+    iter   end (void)           noexcept { return m_instrs.end ();   }
+    citer  end (void)     const noexcept { return m_instrs.end ();   }
+    citer  cend (void)    const noexcept { return m_instrs.cbegin (); }
     
-    riter  rbegin (void)       noexcept { return m_instrs.rbegin (); }
-    criter rbegin (void) const noexcept { return m_instrs.rbegin (); }
+    riter  rbegin (void)        noexcept { return m_instrs.rbegin (); }
+    criter rbegin (void)  const noexcept { return m_instrs.rbegin (); }
+    criter crbegin (void) const noexcept { return m_instrs.crbegin (); }
     
-    riter  rend (void)         noexcept { return m_instrs.rend (); }
-    criter rend (void)   const noexcept { return m_instrs.rend (); }
+    riter  rend (void)          noexcept { return m_instrs.rend (); }
+    criter rend (void)    const noexcept { return m_instrs.rend (); }
+    criter crend (void)   const noexcept { return m_instrs.crend (); }
     
-    ref    front (void)        noexcept { return m_instrs.front (); }
-    cref   front (void)  const noexcept { return m_instrs.front (); }
+    ref    front (void)         noexcept { return m_instrs.front (); }
+    cref   front (void)   const noexcept { return m_instrs.front (); }
     
-    ref    back (void)         noexcept { return m_instrs.back (); }
-    cref   back (void)   const noexcept { return m_instrs.back (); }
+    ref    back (void)          noexcept { return m_instrs.back (); }
+    cref   back (void)    const noexcept { return m_instrs.back (); }
     
-    size_t size (void)   const noexcept { return m_instrs.size (); }
+    size_t size (void)    const noexcept { return m_instrs.size (); }
     
-    bool   empty (void)  const noexcept { return m_instrs.empty (); }
+    bool   empty (void)   const noexcept { return m_instrs.empty (); }
   
     // phi
   
-    iterator_range<iter> phi_instrs (void) noexcept
+    iterator_range<iter> phis (void) noexcept
     {
-      return { m_instrs.begin (), m_begin_nonphi };
+      return { m_instrs.begin (), m_body_begin};
     }
     
-    iterator_range<citer> phi_instrs (void) const noexcept
+    iterator_range<citer> phis (void) const noexcept
     {
-      return { m_instrs.begin (), m_begin_nonphi };
+      return { m_instrs.begin (), m_body_begin};
     }
     
     iter   phi_begin (void)        noexcept { return m_instrs.begin (); }
     citer  phi_begin (void)  const noexcept { return m_instrs.begin (); }
     
-    iter   phi_end (void)          noexcept { return m_begin_nonphi; }
-    citer  phi_end (void)    const noexcept { return m_begin_nonphi; }
+    iter   phi_end (void)          noexcept { return m_body_begin; }
+    citer  phi_end (void)    const noexcept { return m_body_begin; }
     
     riter  phi_rbegin (void)       noexcept { return riter (phi_end ()); }
     criter phi_rbegin (void) const noexcept { return criter (phi_end ()); }
@@ -263,28 +267,30 @@ namespace octave
     
     size_t num_phi (void)    const noexcept { return m_num_phi; }
     
-    bool has_phi (void) const noexcept { return phi_begin () != phi_end (); }
+    bool   has_phi (void)    const noexcept { return phi_begin () != phi_end (); }
   
-    // nonphi
+    // body
   
-    iter   nonphi_begin (void)        noexcept { return m_begin_nonphi; }
-    citer  nonphi_begin (void)  const noexcept { return m_begin_nonphi; }
+    iter   body_begin (void)        noexcept { return m_body_begin; }
+    citer  body_begin (void)  const noexcept { return m_body_begin; }
   
-    iter   nonphi_end (void)          noexcept { return m_return_instr;   }
-    citer  nonphi_end (void)    const noexcept { return m_return_instr;   }
+    iter   body_end (void)          noexcept { return m_terminator;   }
+    citer  body_end (void)    const noexcept { return m_terminator;   }
   
-    riter  nonphi_rbegin (void)       noexcept { return riter (nonphi_end ()); }
-    criter nonphi_rbegin (void) const noexcept { return criter (nonphi_end ()); }
+    riter  body_rbegin (void)       noexcept { return riter (body_end ()); }
+    criter body_rbegin (void) const noexcept { return criter (body_end ()); }
   
-    riter  nonphi_rend (void)         noexcept { return riter (nonphi_begin ()); }
-    criter nonphi_rend (void)   const noexcept { return criter (nonphi_begin ()); }
+    riter  body_rend (void)         noexcept { return riter (body_begin ()); }
+    criter body_rend (void)   const noexcept { return criter (body_begin ()); }
   
-    size_t num_nonphi (void)    const noexcept { return m_num_phi; }
+    size_t num_body (void)    const noexcept { return size () - m_num_phi - 1; }
   
-    bool has_nonphi (void) const noexcept { return phi_begin () != phi_end (); }
+    bool   has_body (void)    const noexcept { return phi_begin () != phi_end (); }
 
     template <typename ...Args>
     ir_phi * create_phi (Args&&... args);
+  
+    iter remove_phi (citer pos);
     
     template <typename T, typename = void>
     struct is_instruction : std::false_type
@@ -314,40 +320,44 @@ namespace octave
       enable_if_t<is_instruction<T>::value && ! is_phi<T>::value>>
       : std::true_type
     { };
-  
-    template <typename T, typename ...Args>
-    enable_if_t<is_nonphi_instruction<T>::value
-                && std::is_base_of<ir_def_instruction, T>::value, T>&
-    emplace_before (citer pos, Args&&... args);
-  
-    template <typename T, typename ...Args>
-    enable_if_t<is_nonphi_instruction<T>::value
-                && ! std::is_base_of<ir_def_instruction, T>::value, T>&
-    emplace_before (citer pos, Args&&... args);
-  
-    template <typename T, typename ...Args>
-    enable_if_t<is_nonphi_instruction<T>::value
-                && std::is_base_of<ir_def_instruction, T>::value, T>&
-    emplace_front (Args&&... args);
-  
-    template <typename T, typename ...Args>
-    enable_if_t<is_nonphi_instruction<T>::value
-                && ! std::is_base_of<ir_def_instruction, T>::value, T>&
-    emplace_front (Args&&... args);
-
-    template <typename T, typename ...Args>
-    enable_if_t<is_nonphi_instruction<T>::value
-                && std::is_base_of<ir_def_instruction, T>::value, T>&
-    emplace_back (Args&&... args);
-  
-    template <typename T, typename ...Args>
-    enable_if_t<is_nonphi_instruction<T>::value
-                && ! std::is_base_of<ir_def_instruction, T>::value, T>&
-    emplace_back (Args&&... args);
     
-    iter erase (citer pos);
+    template <typename T, typename = void>
+    struct has_return : std::false_type
+    { };
+  
+    template <typename T>
+    struct has_return<T,
+      enable_if_t<std::is_base_of<ir_def_instruction, T>::value>>
+      : std::true_type
+    { };
+  
+    template <typename T, typename ...Args>
+    enable_if_t<is_nonphi_instruction<T>::value && has_return<T>::value, T>&
+    emplace_front (Args&&... args);
+    
+    template <typename T, typename ...Args>
+    enable_if_t<is_nonphi_instruction<T>::value && has_return<T>::value, T>&
+    emplace_back (Args&&... args);
+  
+    template <typename T, typename ...Args>
+    enable_if_t<is_nonphi_instruction<T>::value && has_return<T>::value, T>&
+    emplace_before (citer pos, Args&&... args);
+    
+    template <typename T, typename ...Args>
+    enable_if_t<is_nonphi_instruction<T>::value && ! has_return<T>::value, T>&
+    emplace_front (Args&&... args);
+  
+    template <typename T, typename ...Args>
+    enable_if_t<is_nonphi_instruction<T>::value && ! has_return<T>::value, T>&
+    emplace_back (Args&&... args);
+  
+    template <typename T, typename ...Args>
+    enable_if_t<is_nonphi_instruction<T>::value && ! has_return<T>::value, T>&
+    emplace_before (citer pos, Args&&... args);
+    
+    iter erase (citer pos) noexcept;
 
-    iter erase (citer first, citer last);
+    iter erase (citer first, citer last) noexcept;
 
     // predecessors
 
@@ -369,19 +379,15 @@ namespace octave
     void emplace_def (citer pos, def& d);
     void emplace_front_def (def& d);
     void emplace_back_def (def& d);
-    
 
   private:
 
     // list of instructions
     instr_list m_instrs;
-    
-    iter m_begin_nonphi;
+  
     std::size_t m_num_phi = 0;
-    
-    
-    
-    iter m_return_instr;
+    iter m_body_begin;
+    iter m_terminator;
 
     // map of variables to the def timeline for this block
 

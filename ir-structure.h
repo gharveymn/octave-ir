@@ -32,7 +32,6 @@ along with Octave; see the file COPYING.  If not, see
 namespace octave
 {
 
-  class block;
   class ir_component;
   class ir_module;
 
@@ -69,12 +68,13 @@ namespace octave
     comp_cref front (void) const { return m_body.front (); }
     comp_cref back (void) const { return m_body.back (); }
 
-    comp_citer last (void) const
+    comp_citer last (void)
     {
       if (m_body.empty ())
         throw ir_exception ("Component sequence was empty.");
       return --end ();
     }
+    
 
     comp_citer find (ir_component *blk) const;
 
