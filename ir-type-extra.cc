@@ -20,22 +20,14 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-#if defined (HAVE_CONFIG_H)
-#  include "config.h"
+
+#if defined(HAVE_CONFIG_H)
+#include "config.h"
 #endif
 
-#include "ir-module.h"
+#include "ir-type-std.h"
 
 namespace octave
 {
-  ir_module::ir_module (void)
-    : m_super_sequence (*this)
-  { }
-
-  ir_basic_block *
-  ir_module::get_entry_block (void)
-  {
-    return m_super_sequence.get_entry_block ();
-  }
 
 }

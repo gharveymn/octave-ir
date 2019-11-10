@@ -84,21 +84,29 @@ namespace octave
     ir_constant (void) = delete;
 
     ir_constant (Ts... vals) noexcept
-      : m_value {std::move (vals)...}
+      : m_value { std::move (vals)... }
     { }
-    
+
     ir_constant (const ir_constant&) = default; // change this to default once we really need it
     ir_constant (ir_constant&& o) noexcept
       : m_value (std::move (o.m_value))
     { }
-  
+
     ir_constant& operator= (const ir_constant&) = default;
     ir_constant& operator= (ir_constant&& o) noexcept
     {
       m_value = std::move (o.m_value);
+      return *this;
     }
-  
+
     ~ir_constant (void) noexcept override = default;
+
+    template <std::size_t I>
+    typename std::tuple_element<I, value_type>::type&
+    get(void) noexcept
+    {
+      return std::get<I> (m_value);
+    }
 
     template <std::size_t I>
     constexpr const typename std::tuple_element<I, value_type>::type&
@@ -108,15 +116,24 @@ namespace octave
     }
 
     template <typename T>
+    T&
+    get (void) noexcept
+    {
+      return std::get<T> (m_value);
+    }
+
+    template <typename T>
     constexpr const T&
     get (void) const noexcept
     {
       return std::get<T> (m_value);
     }
 
-    constexpr value_type&
+    value_type& get (void) noexcept { return m_value; }
+
+    constexpr const value_type&
     get (void) const noexcept { return m_value; }
-    
+
     ir_type get_type (void) const override;
 
   protected:
@@ -126,49 +143,51 @@ namespace octave
   private:
 
     value_type m_value;
-    
+
   };
-  
+
   template <typename T>
   class ir_constant<T> : public ir_operand
   {
   public:
-    
+
     using value_type = T;
-    
+
     ir_constant (void) = delete;
-    
+
     ir_constant (value_type val) noexcept
       : m_value {std::move (val)}
     { }
-    
+
     ir_constant (const ir_constant&) = default;
-    
+
     ir_constant (ir_constant&& o) noexcept
       : m_value (std::move (o.m_value))
     { }
-    
+
     ir_constant& operator= (const ir_constant&) = default;
     ir_constant& operator= (ir_constant&& o) noexcept
     {
       m_value = std::move (o.m_value);
       return *this;
     }
-    
+
     ~ir_constant (void) noexcept override = default;
-    
-    constexpr value_type& value (void) const noexcept { return m_value; }
-    
+
+    value_type& value (void) noexcept { return m_value; }
+
+    constexpr const value_type& value (void) const noexcept { return m_value; }
+
     ir_type get_type (void) const override;
-  
+
   protected:
-    
+
     std::ostream& print (std::ostream& os) const override;
-  
+
   private:
-    
+
     value_type m_value;
-    
+
   };
 
   template <typename T>
@@ -185,7 +204,7 @@ namespace octave
     { }
 
     ir_constant (const ir_constant&) = default;
-    
+
     ir_constant (ir_constant&& o) noexcept
       : m_value (o.m_value)
     { }
@@ -196,7 +215,7 @@ namespace octave
     ~ir_constant (void) noexcept override = default;
 
     constexpr value_type& value (void) const noexcept { return m_value; }
-  
+
     ir_type get_type (void) const override;
 
   protected:
@@ -206,9 +225,9 @@ namespace octave
   private:
 
     value_type m_value;
-    
+
   };
-  
+
   template <>
   struct ir_type::instance<ir_operand>
   {
@@ -216,7 +235,7 @@ namespace octave
     static constexpr
     impl m_impl = create_type<type> ("ir_operand");
   };
-  
+
 }
 
 #endif

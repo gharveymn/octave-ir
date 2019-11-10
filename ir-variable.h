@@ -61,7 +61,7 @@ namespace octave
 
     using block_def_pair = std::pair<ir_basic_block&, def *>;
     using block_def_vec  = std::vector<block_def_pair>;
-  
+
     def create_def (ir_type ty, const ir_def_instruction& instr);
 
     //! An ssa variable def. It holds very little information about itself,
@@ -79,7 +79,7 @@ namespace octave
       def& operator= (def&&)      = delete;
 
       ~def (void) noexcept;
-      
+
       void invalidate (void) noexcept { m_var = nullptr; }
 
       //! Get the def. Don't use this within the scope of ir_variable. The
@@ -91,12 +91,12 @@ namespace octave
       use create_use (const ir_instruction& instr);
 
       use_iter track_use (use *u);
-      
+
       void untrack_use (use_citer cit);
-      
+
       template <typename InputIt>
       static ir_type common_type (InputIt first, InputIt last);
-  
+
       use_iter begin (void) noexcept { return m_uses.begin (); }
       use_citer begin (void) const noexcept { return m_uses.begin (); }
       use_iter end (void) noexcept { return m_uses.end (); }
@@ -113,38 +113,38 @@ namespace octave
       std::string get_name (void) const;
 
       std::size_t get_id (void) const;
-  
+
       constexpr bool has_var (void) const noexcept
       {
         return m_var != nullptr;
       }
-      
+
       constexpr ir_type get_type (void) const
       {
         return m_type;
       }
-      
+
       void set_needs_init_check (bool state) noexcept
       {
         m_needs_init_check = state;
       };
-      
+
       bool needs_init_check (void) const noexcept
       {
         return m_needs_init_check;
       }
-      
+
       friend def
       ir_variable::create_def (ir_type ty, const ir_def_instruction& instr);
 
     private:
-  
+
       def (ir_variable& var, ir_type ty, const ir_def_instruction& instr);
-  
+
       ir_variable *m_var;
-      
+
       def_iter m_self_iter;
-  
+
       const ir_type m_type;
 
       // where this def occurs
@@ -152,7 +152,7 @@ namespace octave
 
       // all uses which can be reached from this def
       use_set m_uses;
-      
+
       bool m_needs_init_check;
 
     };
@@ -174,7 +174,7 @@ namespace octave
       use& operator= (use&&)      = delete;
 
       ~use (void) noexcept override;
-  
+
       void invalidate (void) noexcept { m_def = nullptr; }
 
       //! Replace the parent def for this use.
@@ -193,25 +193,25 @@ namespace octave
       std::string get_name (void) const;
 
       std::size_t get_id (void);
-      
+
       constexpr bool
       has_def (void) const noexcept
       {
         return m_def != nullptr;
       }
-      
+
       ir_type get_type (void) const override;
-      
+
       friend use ir_variable::def::create_use (const ir_instruction& instr);
 
     private:
-  
+
       //! Create a use with a parent def.
       use (def& d, const ir_instruction& instr);
 
       //! The def for this use
       def *m_def;
-      
+
       // iterator for position in def list
       use_iter m_self_iter;
 
@@ -225,17 +225,18 @@ namespace octave
     // variables own both defs and uses
     // defs and uses may allow references elsewhere, but these singular
     // and may not be copied or addressed (may be moved).
-  
+
     ir_variable (ir_module& m, std::string name);
 
     ir_variable (void)                          = delete;
-  
+
     ir_variable (const ir_variable&)            = delete;
     ir_variable& operator= (const ir_variable&) = delete;
-    
-    ir_variable (ir_variable&& o) noexcept;
+
+    // can't allow movement because others rely on a pointer
+    ir_variable (ir_variable&& o)               = delete;
     ir_variable& operator= (ir_variable&&)      = delete;
-    
+
     ~ir_variable (void) noexcept;
 
     def_iter track_def (def *u)
@@ -255,18 +256,18 @@ namespace octave
     // these pointers must be adjusted when moving or deleting.
 
     std::size_t get_num_defs (void) const noexcept { return m_defs.size (); }
-  
+
     def_iter begin (void) noexcept { return m_defs.begin (); }
     def_citer begin (void) const noexcept { return m_defs.begin (); }
     def_iter end (void) noexcept { return m_defs.end (); }
     def_citer end (void) const noexcept { return m_defs.end (); }
 
     constexpr const std::string& get_name (void) const { return m_name; }
-    
+
     constexpr ir_module& get_module (void) const { return m_module; }
-    
+
     ir_variable& get_sentinel (void);
-    
+
     std::string get_sentinel_name (void) const;
 
     void mark_uninit (ir_basic_block& blk);
@@ -274,7 +275,7 @@ namespace octave
    private:
 
     def_citer find_def (const def *d) const;
-  
+
     ir_module& m_module;
 
     //! The variable name. The default is a synonym for 'anonymous'.
@@ -288,7 +289,15 @@ namespace octave
     std::unique_ptr<ir_variable> m_uninit_sentinel;
 
   };
-  
+
+  template <>
+  struct ir_type::instance<ir_variable::def>
+  {
+    using type = ir_variable::def;
+    static constexpr
+    impl m_impl = create_type<type> ("def");
+  };
+
   template <>
   struct ir_type::instance<ir_variable::use>
   {

@@ -33,39 +33,32 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace octave
 {
-  
-  //
-  // ir_component
-  //
-  
-  ir_component::~ir_component () noexcept
-  {
-  
-  }
-  
+
+  ir_component::~ir_component (void) noexcept = default;
+
   //
   // ir_basic_block
   //
-  
+
   ir_basic_block::ir_basic_block (ir_module& mod, ir_structure& parent)
-    : ir_component (mod, &parent), m_body_begin (m_instrs.end ())
-  {
-    m_leaf.push_back (this);
-  }
-  
-  ir_basic_block::~ir_basic_block (void) = default;
-  
+    : ir_component (mod),
+      m_parent (parent),
+      m_body_begin (m_instrs.end ())
+  { }
+
+  ir_basic_block::~ir_basic_block (void) noexcept = default;
+
   template <typename ...Args>
   ir_phi *
   ir_basic_block::create_phi (Args&&... args)
   {
-    std::unique_ptr<ir_phi> uptr = make_unique<ir_phi> (*this,
+    std::unique_ptr<ir_phi> uptr = octave::make_unique<ir_phi> (*this,
                                              std::forward<Args> (args)...);
     ir_phi *ret = uptr.get ();
     m_instrs.push_front (std::move (uptr));
     try
       {
-        emplace_front_def (ret->get_return ());
+        def_emplace_front (ret->get_return ());
       }
     catch (const std::exception& e)
       {
@@ -75,19 +68,19 @@ namespace octave
     ++m_num_phi;
     return ret;
   }
-  
+
   template <typename T, typename ...Args>
   enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
               && ir_basic_block::has_return<T>::value, T>&
   ir_basic_block::emplace_front (Args&&... args)
   {
-    std::unique_ptr<T> u = make_unique<T> (*this,
+    std::unique_ptr<T> u = octave::make_unique<T> (*this,
                                            std::forward<Args> (args)...);
     T *ret = u.get ();
     m_body_begin = m_instrs.insert (m_body_begin, std::move (u));
     try
       {
-        emplace_def (m_body_begin, ret->get_return ());
+        def_emplace (m_body_begin, ret->get_return ());
       }
     catch (const std::exception& e)
       {
@@ -102,25 +95,26 @@ namespace octave
               && ir_basic_block::has_return<T>::value, T>&
   ir_basic_block::emplace_back (Args&&... args)
   {
-    std::unique_ptr<T> u = make_unique<T> (*this,
+    std::unique_ptr<T> u = octave::make_unique<T> (*this,
                                            std::forward<Args> (args)...);
     T *ret = u.get ();
     iter it = m_instrs.insert (body_end (), std::move (u));
     try
       {
-        emplace_def (it, ret->get_return());
+        def_emplace (it, ret->get_return());
       }
     catch (const std::exception& e)
       {
         erase (it);
         throw e;
       }
-    
     if (m_body_begin == body_end ())
       --m_body_begin;
     return *ret;
   }
-  
+
+  template ir_convert& ir_basic_block::emplace_back<ir_convert, ir_variable&, ir_type, ir_variable::def&> (ir_variable&, ir_type&&, ir_variable::def&);
+
   template <typename T, typename ...Args>
   enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
               && ir_basic_block::has_return<T>::value, T>&
@@ -128,13 +122,13 @@ namespace octave
   {
     if (pos == end () || isa<ir_phi> (pos->get ()))
       throw ir_exception ("instruction must be placed within the body");
-    std::unique_ptr<T> u = make_unique<T> (*this,
+    std::unique_ptr<T> u = octave::make_unique<T> (*this,
                                            std::forward<Args> (args)...);
     T *ret = u.get ();
     iter it = m_instrs.insert (pos, std::move (u));
     try
       {
-        emplace_def (it, ret->get_return());
+        def_emplace (it, ret->get_return());
       }
     catch (const std::exception& e)
       {
@@ -145,33 +139,33 @@ namespace octave
       m_body_begin = it;
     return *ret;
   }
-  
+
   template <typename T, typename ...Args>
   enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
               && ! ir_basic_block::has_return<T>::value, T>&
   ir_basic_block::emplace_front (Args&&... args)
   {
-    std::unique_ptr<T> u = make_unique<T> (*this,
-                                           std::forward<Args> (args)...);
+    std::unique_ptr<T> u = octave::make_unique<T> (*this,
+                                                std::forward<Args> (args)...);
     T *ret = u.get ();
     m_body_begin = m_instrs.insert (m_body_begin, std::move (u));
     return *ret;
   }
-  
+
   template <typename T, typename ...Args>
   enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
               && ! ir_basic_block::has_return<T>::value, T>&
   ir_basic_block::emplace_back (Args&&... args)
   {
-    std::unique_ptr<T> u = make_unique<T> (*this,
-                                           std::forward<Args> (args)...);
+    std::unique_ptr<T> u = octave::make_unique<T> (*this,
+                                                std::forward<Args> (args)...);
     T *ret = u.get ();
     m_instrs.push_back (std::move (u));
     if (m_body_begin == body_end ())
       --m_body_begin;
     return *ret;
   }
-  
+
   template <typename T, typename ...Args>
   enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
               && ! ir_basic_block::has_return<T>::value, T>&
@@ -179,31 +173,25 @@ namespace octave
   {
     if (pos == end () || isa<ir_phi> (pos->get ()))
       throw ir_exception ("instruction must be placed within the body");
-    std::unique_ptr<T> u = make_unique<T> (*this,
-                                           std::forward<Args> (args)...);
+    std::unique_ptr<T> u = octave::make_unique<T> (*this,
+                                                std::forward<Args> (args)...);
     T *ret = u.get ();
     iter it = m_instrs.insert (pos, std::move (u));
     if (m_body_begin == pos)
       m_body_begin = it;
     return *ret;
   }
-  
+
   ir_basic_block::iter
   ir_basic_block::erase (citer pos) noexcept
   {
     return m_instrs.erase (pos);
   }
-  
+
   ir_basic_block::iter
   ir_basic_block::erase (citer first, citer last) noexcept
   {
     return m_instrs.erase (first, last);
-  }
-  
-  ir_basic_block&
-  ir_basic_block::split (citer pivot)
-  {
-    m_instrs.splice()
   }
 
   ir_variable::def *
@@ -221,7 +209,7 @@ namespace octave
     const def_timeline& dt = vtm_cit->second;
     if (dt.size () == 0 || pos == end ())
       return dt.fetch_cache ();
-  
+
     criter rpos (pos);
     def_timeline::criter dt_crit = dt.rbegin ();
     for (criter instr_crit = m_instrs.rbegin ();
@@ -245,7 +233,7 @@ namespace octave
   }
 
   void
-  ir_basic_block::emplace_def (citer pos, def& d)
+  ir_basic_block::def_emplace (citer pos, def& d)
   {
     def_timeline& dt = m_vt_map[&d.get_var ()];
 
@@ -267,15 +255,15 @@ namespace octave
       }
     dt.emplace_front (pos, d);
   }
-  
+
   void
-  ir_basic_block::emplace_front_def (def& d)
+  ir_basic_block::def_emplace_front (def& d)
   {
     m_vt_map[&d.get_var ()].emplace_front (m_instrs.begin (), d);
   }
 
   void
-  ir_basic_block::emplace_back_def (def& d)
+  ir_basic_block::def_emplace_back (def& d)
   {
     m_vt_map[&d.get_var ()].emplace_back (--m_instrs.end (), d);
   }
@@ -309,7 +297,7 @@ namespace octave
   {
 
     std::size_t npreds = num_preds ();
-    
+
     if (npreds == 0)
       return nullptr;
 
@@ -351,13 +339,13 @@ namespace octave
   ir_component::link_iter
   ir_basic_block::pred_begin (void)
   {
-    return get_parent ()->pred_begin (this);
+    return m_parent.pred_begin (this);
   }
 
   ir_component::link_iter
   ir_basic_block::pred_end (void)
   {
-    return get_parent ()->pred_end (this);
+    return m_parent.pred_end (this);
   }
 
   std::size_t
@@ -377,7 +365,8 @@ namespace octave
   {
     return num_preds () > 1;
   }
-  
-  
+
+  constexpr ir_type::impl ir_type::instance<ir_basic_block>::m_impl;
+  template struct ir_type::instance<ir_basic_block *>;
 
 }

@@ -14,7 +14,11 @@ ADD_LIBRARY(octave_ir_type SHARED
 		ir-type-std.h
 		)
 
-target_compile_options(octave_ir_type PRIVATE -Wall -Wextra -pedantic)
+IF (MSVC)
+#	target_compile_options(octave_ir_type PRIVATE /Wall)
+ELSE()
+#	target_compile_options(octave_ir_type PRIVATE -Wall -Wextra -pedantic)
+ENDIF()
 
 ADD_LIBRARY(octave_ir SHARED
 		ir-common.h
@@ -41,8 +45,13 @@ ADD_LIBRARY(octave_ir SHARED
 		#ir-visitor.cc
 		#ir-visitor.h
 		octave-config.h
-		)
+        ir-type-extra.cc ir-type-extra.h)
 
-target_compile_options(octave_ir PRIVATE -Wall -Wextra -pedantic)
+IF (MSVC)
+#	target_compile_options(octave_ir PRIVATE -Wall)
+ELSE()
+#	target_compile_options(octave_ir PRIVATE -Wall -Wextra -pedantic)
+ENDIF()
+
 
 TARGET_LINK_LIBRARIES(octave_ir octave_ir_type)

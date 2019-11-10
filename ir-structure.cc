@@ -31,178 +31,296 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace octave
 {
+  //
+  // ir_structure
+  //
+
+  ir_structure::~ir_structure (void) noexcept = default;
+
+  void
+  ir_structure::leaf_push_back (ir_basic_block *blk)
+  {
+    m_leaf_cache.push_back (blk);
+  }
+
+  template <typename It>
+  void
+  ir_structure::leaf_push_back (It first, It last)
+  {
+    std::copy (first, last, std::back_inserter (m_leaf_cache));
+  }
+
+  ir_structure::link_iter
+  ir_structure::leaf_begin (void)
+  {
+    if (leaf_cache_empty ())
+      generate_leaf_cache ();
+    return link_iter (m_leaf_cache.begin ());
+  }
+
+  ir_structure::link_iter
+  ir_structure::leaf_end (void)
+  {
+    if (leaf_cache_empty ())
+      generate_leaf_cache ();
+    return link_iter (m_leaf_cache.end ());
+  }
 
   //
-  // ir_component_sequence
+  // ir_sequence
   //
 
-  template <typename T, typename ...Args>
-  enable_if_t<std::is_base_of<ir_component, T>::value, T>&
-  ir_component_sequence::emplace_back (Args&&... args)
-  {
+  ir_sequence::~ir_sequence (void) noexcept = default;
 
-    static_assert (std::is_same<T, ir_component_sequence>::value,
-                   "Cannot nest component sequences.");
-    std::unique_ptr<T> u = make_unique<T> (get_module (), *this,
-                                              std::forward<Args> (args)...);
-    T *ret = u.get ();
-    m_body.emplace_back (std::move (u));
-    if (auto s = dynamic_cast<ir_fork_component *> (get_parent ()))
-      s->invalidate_leaf_cache ();
-    return *ret;
+  ir_sequence::comp_citer
+  ir_sequence::last (void) const
+  {
+    if (empty ())
+      throw ir_exception ("Component sequence was empty.");
+    return --end ();
   }
 
-  ir_component_sequence::comp_citer
-  ir_component_sequence::find (ir_component *blk) const
+  ir_sequence::comp_citer
+  ir_sequence::find (ir_component *c)
   {
-    return std::find_if (m_body.begin (), m_body.end (),
-                         [blk](comp_cref u) { return u.get () == blk; });
+    if (c != m_find_cache.first)
+      m_find_cache = {c,
+                      std::find_if (m_body.begin (), m_body.end (),
+                                  [c](comp_cref u) {return u.get () == c; })};
+    return m_find_cache.second;
+  }
+
+  ir_basic_block *
+  ir_sequence::get_entry_block (void)
+  {
+    if (empty ())
+      throw ir_exception ("sequence was empty");
+    return front ()->get_entry_block ();
   }
 
   ir_component::link_iter
-  ir_component_sequence::pred_begin (ir_component *c)
+  ir_sequence::pred_begin (ir_component *c)
+  {
+    comp_citer cit = must_find (c);
+    if (cit == begin ())
+      return link_iter (nullptr);
+    return link_iter ((*--cit)->leaf_begin ());
+  }
+
+  ir_component::link_iter
+  ir_sequence::pred_end (ir_component *c)
+  {
+    comp_citer cit = must_find (c);
+    if (cit == begin ())
+      return link_iter (nullptr);
+    return ++link_iter ((*--cit)->leaf_end ());
+  }
+
+  ir_component::link_iter
+  ir_sequence::succ_begin (ir_component *c)
+  {
+    comp_citer cit = must_find (c);
+    if (cit == last ())
+        return link_iter (nullptr);
+    return link_iter ((*++cit)->get_entry_block ());
+  }
+
+  ir_component::link_iter
+  ir_sequence::succ_end (ir_component *c)
+  {
+    comp_citer cit = must_find (c);
+    if (cit == last ())
+      return link_iter (nullptr);
+    return ++link_iter ((*++cit)->get_entry_block ());
+  }
+
+  void
+  ir_sequence::invalidate_leaf_cache (void) noexcept
+  {
+    clear_leaf_cache ();
+  }
+
+  bool
+  ir_sequence::is_leaf_component (ir_component *c) noexcept
+  {
+    if (empty ())
+      return false;
+    return c == back ().get ();
+  }
+
+  void
+  ir_sequence::generate_leaf_cache (void)
+  {
+    if (empty ())
+      return invalidate_leaf_cache ();
+    leaf_push_back (back ()->leaf_begin (), back ()->leaf_end ());
+  }
+
+  ir_sequence::comp_citer
+  ir_sequence::must_find (ir_component *c)
   {
     comp_citer cit = find (c);
-    if (cit == m_body.begin ())
+    if (cit == end ())
+      throw ir_exception ("component not found in the structure");
+    return cit;
+  }
+
+  //
+  // ir_subsequence
+  //
+
+  template <typename T>
+  ir_subsequence
+  ir_subsequence::create (ir_module& mod, ir_structure& parent)
+  {
+    return { mod, parent, init_wrapper<T>{} };
+  }
+
+  ir_subsequence::~ir_subsequence (void) noexcept = default;
+
+  ir_component::link_iter
+  ir_subsequence::pred_begin (ir_component *c)
+  {
+    comp_citer cit = must_find (c);
+    if (cit == begin ())
+      return m_parent.pred_begin (this);
+    return (*--cit)->leaf_begin ();
+  }
+
+  ir_component::link_iter
+  ir_subsequence::pred_end (ir_component *c)
+  {
+    comp_citer cit = must_find (c);
+    if (cit == begin ())
+      return m_parent.pred_end (this);
+    return (*--cit)->leaf_end ();
+  }
+
+  ir_component::link_iter
+  ir_subsequence::succ_begin (ir_component *c)
+  {
+    comp_citer cit = must_find (c);
+    if (cit == last ())
+      return m_parent.succ_begin (this);
+    return link_iter ((*++cit)->get_entry_block ());
+  }
+
+  ir_component::link_iter
+  ir_subsequence::succ_end (ir_component *c)
+  {
+    comp_citer cit = must_find (c);
+    if (cit == last ())
+      return m_parent.succ_end (this);
+    return ++link_iter ((*++cit)->get_entry_block ());
+  }
+
+  void
+  ir_subsequence::invalidate_leaf_cache (void) noexcept
+  {
+    if (! leaf_cache_empty ())
       {
-        if (ir_structure *p = get_parent ())
-          return p->pred_begin (this);
-        // condition fails if this is the super-sequence
-        return link_iter (nullptr);
+        clear_leaf_cache ();
+        if (is_leaf_component (this))
+          m_parent.invalidate_leaf_cache ();
       }
-    --cit;
-    // cit now points to one-before c
-    return (*cit)->leaf_begin ();
-  }
-
-  ir_component::link_iter
-  ir_component_sequence::pred_end (ir_component *c)
-  {
-    comp_citer cit = find (c);
-    if (cit == m_body.begin ())
-      {
-        if (ir_structure *p = get_parent ())
-          return p->pred_end (this);
-        // condition fails if this is the super-sequence
-        return link_iter (nullptr);
-      }
-    --cit;
-    // cit now points to one-before c
-    return (*cit)->leaf_end ();
-  }
-
-  ir_component::link_iter
-  ir_component_sequence::leaf_begin (void) noexcept
-  {
-    if (empty ())
-      return link_iter (nullptr);
-    return back ()->leaf_begin ();
-  }
-
-  ir_component::link_citer
-  ir_component_sequence::leaf_begin (void) const noexcept
-  {
-    if (empty ())
-      return link_iter (nullptr);
-    return back ()->leaf_begin ();
-  }
-
-  ir_component::link_iter
-  ir_component_sequence::leaf_end (void) noexcept
-  {
-    if (empty ())
-      return link_iter (nullptr);
-    return back ()->leaf_end ();
-  }
-
-  ir_component::link_citer
-  ir_component_sequence::leaf_end (void) const noexcept
-  {
-    if (empty ())
-      return link_iter (nullptr);
-    return back ()->leaf_end ();
   }
 
   //
   // ir_fork_component
   //
 
+  ir_fork_component::~ir_fork_component (void) noexcept = default;
+
   ir_component::link_iter
   ir_fork_component::pred_begin (ir_component *c)
   {
     if (c == &m_condition)
-      return get_parent ()->pred_begin (this);
-    return m_condition.leaf_begin ();
+      return m_parent.pred_begin (this);
+    return link_iter (&m_condition);
   }
 
   ir_component::link_iter
   ir_fork_component::pred_end (ir_component *c)
   {
     if (c == &m_condition)
-      return get_parent ()->pred_end (this);
-    return m_condition.leaf_end ();
+      return m_parent.pred_end (this);
+    return ++link_iter (&m_condition);
   }
 
-  void
-  ir_fork_component::invalidate_leaf_cache (void) noexcept
+  ir_component::link_iter
+  ir_fork_component::succ_begin (ir_component *c)
   {
-    m_leaf_cache.clear ();
-    if (auto s = dynamic_cast<ir_fork_component *> (get_parent ()))
-      s->invalidate_leaf_cache ();
+    if (c == &m_condition)
+      return sub_entry_begin ();
+    return m_parent.succ_begin (this);
+  }
+
+  ir_component::link_iter
+  ir_fork_component::succ_end (ir_component *c)
+  {
+    if (c == &m_condition)
+      return sub_entry_end ();
+    return m_parent.succ_end (this);
+  }
+
+  ir_basic_block *
+  ir_fork_component::get_entry_block (void) noexcept
+  {
+    return &m_condition;
+  }
+
+  bool
+  ir_fork_component::is_leaf_component (ir_component *c) noexcept
+  {
+    // assumes that c is in the component
+    return c != &m_condition;
   }
 
   void
   ir_fork_component::generate_leaf_cache (void)
   {
-    m_leaf_cache.push_back (&m_condition);
-    for (comp_ref u : m_subcomponents)
-      m_leaf_cache.insert (m_leaf_cache.end (), u->leaf_begin (),
-                           u->leaf_end ());
+    for (comp_ref c_uptr : m_subcomponents)
+      leaf_push_back (c_uptr->leaf_begin (), c_uptr->leaf_end ());
   }
 
   ir_component::link_iter
-  ir_fork_component::leaf_begin (void)
+  ir_fork_component::sub_entry_begin (void)
   {
-    if (m_leaf_cache.empty ())
-      generate_leaf_cache ();
-    return m_leaf_cache.begin ();
-  }
-
-  ir_component::link_citer
-  ir_fork_component::leaf_begin (void) const noexcept
-  {
-    return m_leaf_cache.begin ();
+    if (m_sub_entry_cache.empty ())
+      generate_sub_entry_cache ();
+    return link_iter (m_sub_entry_cache.begin ());
   }
 
   ir_component::link_iter
-  ir_fork_component::leaf_end (void)
+  ir_fork_component::sub_entry_end (void)
   {
-    if (m_leaf_cache.empty ())
-      generate_leaf_cache ();
-    return m_leaf_cache.end ();
+    if (m_sub_entry_cache.empty ())
+      generate_sub_entry_cache ();
+    return link_iter (m_sub_entry_cache.end ());
   }
 
-  ir_component::link_citer
-  ir_fork_component::leaf_end (void) const noexcept
+  void
+  ir_fork_component::generate_sub_entry_cache (void)
   {
-    return m_leaf_cache.end ();
+    for (comp_ref c_uptr : m_subcomponents)
+      leaf_push_back (c_uptr->get_entry_block ());
   }
 
   //
   // ir_loop_component
   //
 
+  ir_loop_component::~ir_loop_component (void) noexcept = default;
+
   ir_component::link_iter
   ir_loop_component::pred_begin (ir_component *c)
   {
     if (c == &m_entry)
-      return get_parent ()->pred_begin (this);
+      return m_parent.pred_begin (this);
     else if (c == &m_condition)
-      return m_cond_preds.begin ();
+      return link_iter (m_cond_preds.begin ());
     else if (c == &m_body)
-      return m_condition.leaf_begin ();
-    else if (c == &m_update)
-      return m_body.leaf_begin ();
+      return link_iter (&m_condition);
     throw ir_exception ("Component was not in the loop component.");
   }
 
@@ -210,37 +328,51 @@ namespace octave
   ir_loop_component::pred_end (ir_component *c)
   {
     if (c == &m_entry)
-      return get_parent ()->pred_end (this);
+      return m_parent.pred_end (this);
     else if (c == &m_condition)
-      return m_cond_preds.end ();
+      return link_iter (m_cond_preds.end ());
     else if (c == &m_body)
-      return m_condition.leaf_end ();
-    else if (c == &m_update)
-      return m_body.leaf_end ();
+      return ++link_iter (&m_condition);
     throw ir_exception ("Component was not in the loop component.");
   }
 
   ir_component::link_iter
-  ir_loop_component::leaf_begin (void) noexcept
+  ir_loop_component::succ_begin (ir_component *c)
   {
-    return m_leaf.begin ();
-  }
-
-  ir_component::link_citer
-  ir_loop_component::leaf_begin (void) const noexcept
-  {
-    return m_leaf.begin ();
+    if (c == &m_entry)
+      return link_iter (&m_condition);
+    else if (c == &m_condition)
+      return cond_succ_begin ();
+    else if (c == &m_body)
+      return link_iter (&m_condition);
+    throw ir_exception ("Component was not in the loop component.");
   }
 
   ir_component::link_iter
-  ir_loop_component::leaf_end (void) noexcept
+  ir_loop_component::succ_end (ir_component *c)
   {
-    return m_leaf.end ();
+    if (c == &m_entry)
+      return m_parent.pred_end (this);
+    else if (c == &m_condition)
+      return cond_succ_end ();
+    else if (c == &m_body)
+      return ++link_iter (&m_condition);
+    throw ir_exception ("Component was not in the loop component.");
   }
 
-  ir_component::link_citer
-  ir_loop_component::leaf_end (void) const noexcept
+
+
+  ir_component::link_iter
+  ir_loop_component::cond_succ_begin (void)
   {
-    return m_leaf.end ();
+    m_succ_cache.front () = m_body.get_entry_block ();
+    return link_iter (m_succ_cache.begin ());
   }
+
+  ir_component::link_iter
+  ir_loop_component::cond_succ_end (void)
+  {
+    return link_iter (m_succ_cache.end ());
+  }
+
 }

@@ -34,11 +34,13 @@ namespace octave
 
     ir_module (void);
 
-    ir_basic_block& get_entry_block (void);
+    // never nullptr
+    ir_basic_block *get_entry_block (void);
 
   private:
-    ir_component_sequence m_super_sequence;
-    ir_basic_block& m_entry_block;
+
+    ir_sequence m_super_sequence;
+
   };
 
 }

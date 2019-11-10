@@ -60,9 +60,9 @@ namespace octave
 
   template <typename>
   struct ir_printer;
-  
-  using ir_block_ref = ir_constant<ir_basic_block&>;
-  
+
+  using ir_block_ref = ir_constant<ir_basic_block *>;
+
   template <>
   struct ir_type::instance<ir_block_ref>
   {
@@ -70,9 +70,9 @@ namespace octave
     static constexpr
     impl m_impl = create_type<type> ("ir_block_ref");
   };
-  
-  using ir_def_ref = ir_constant<ir_variable::def&>;
-  
+
+  using ir_def_ref = ir_constant<ir_variable::def *>;
+
   template <>
   struct ir_type::instance<ir_def_ref>
   {
@@ -80,9 +80,9 @@ namespace octave
     static constexpr
     impl m_impl = create_type<type> ("ir_def_ref");
   };
-  
+
   using ir_phi_arg = ir_constant<ir_block_ref, ir_def_ref>;
-  
+
   template <>
   struct ir_type::instance<ir_phi_arg::value_type>
   {
@@ -92,7 +92,7 @@ namespace octave
         get<ir_block_ref> (),
         get<ir_def_ref> (),
       };
-    
+
     static_assert (ir_type_array (m_members).get_size () == sizeof (type),
                    "Type size is not equal to its IR counterpart.");
     static constexpr
@@ -109,7 +109,7 @@ namespace octave
 
     using use = ir_variable::use;
     using def = ir_variable::def;
-    
+
     // using vector instead of a map because we shouldn't be accessing
     // elements very often (hence this is optimized for memory usage).
     using base_arg_type = std::unique_ptr<ir_operand>;
@@ -136,24 +136,24 @@ namespace octave
     }
 
     // virtual void accept (ir_visitor& visitor) = 0;
-    
+
     virtual bool has_return (void) { return false; };
-  
+
     iter begin (void) { return m_args.begin (); }
     citer begin (void) const { return m_args.begin (); }
     iter end (void) { return m_args.end (); }
     citer end (void) const { return m_args.end (); }
-    
+
     iter erase (citer pos);
 
     friend struct ir_printer<ir_instruction>;
-    
+
   protected:
-  
+
     template <typename T, typename ...Args>
     enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
     emplace_back (Args&&... args);
-  
+
     template <typename T, typename ...Args>
     enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
     emplace_before (citer pos, Args&&... args);
@@ -164,19 +164,19 @@ namespace octave
     arg_list m_args;
 
   };
-  
+
   class ir_def_instruction : public ir_instruction
   {
   public:
     ir_def_instruction (const ir_basic_block& blk, ir_variable& ret_var,
                              ir_type ret_ty);
-    
+
     ~ir_def_instruction (void) override;
-    
+
     bool has_return (void) override { return true; };
-  
+
     def& get_return (void);
-    
+
   private:
     def m_ret;
   };
@@ -185,21 +185,21 @@ namespace octave
   class ir_assign : public ir_def_instruction
   {
   public:
-    
+
     template <typename ...Args>
     ir_assign (const ir_basic_block& blk, ir_variable& ret_var,
                ir_constant<Args...> c);
-  
+
     ir_assign (const ir_basic_block& blk, ir_variable& var, def& src);
-    
-    constexpr const ir_operand& get_assignor (void) const { return **m_src; }
-    
+
+    const ir_operand& get_assignor (void) const { return **m_src; }
+
   private:
-    
+
     // make sure m_src doesnt change type!
-    
+
     const iter m_src;
-    
+
   };
 
   // call a function
@@ -226,17 +226,17 @@ namespace octave
   {
   public:
     ir_branch (const ir_basic_block& blk, ir_basic_block& dst);
-    
+
   private:
     const iter m_dest_block;
   };
-  
+
   class ir_cbranch : public ir_instruction
   {
   public:
     ir_cbranch (const ir_basic_block& blk, def& d,
                 ir_basic_block& tblk, ir_basic_block& fblk);
-    
+
   private:
     const iter m_condvar;
     const iter m_tblock;
@@ -250,7 +250,7 @@ namespace octave
 
     ir_convert (const ir_basic_block& blk, ir_variable& ret_var, ir_type ty,
                 def& d);
-    
+
   private:
     const iter m_src;
   };
@@ -271,7 +271,7 @@ namespace octave
 
     iter erase (const ir_basic_block *blk);
 
-    ir_variable::def& find (const ir_basic_block *blk);
+    ir_variable::def * find (const ir_basic_block *blk);
 
     bool has_undefined_blocks (void) { return ! m_undef_blocks.empty (); }
 
@@ -279,7 +279,7 @@ namespace octave
     {
       return m_undef_blocks;
     }
-    
+
   private:
 
     // blocks where the variable was undefined

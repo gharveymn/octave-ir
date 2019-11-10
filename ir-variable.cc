@@ -39,7 +39,7 @@ namespace octave
   //
   // def
   //
-  
+
   ir_variable::def::def (ir_variable& var, ir_type ty,
                          const ir_def_instruction& instr)
     : m_var (&var),
@@ -48,7 +48,7 @@ namespace octave
       m_instr (instr),
       m_needs_init_check (false)
   { }
-  
+
   ir_variable::def::def (def&& d) noexcept
     : m_var (d.m_var),
       m_self_iter (d.m_self_iter),
@@ -58,39 +58,39 @@ namespace octave
       m_needs_init_check (d.m_needs_init_check)
   {
     *m_self_iter = this;
-    
+
     // invalidate the old def
     d.invalidate ();
     d.m_uses.clear ();
   }
-  
+
   ir_variable::def::~def (void) noexcept
   {
     if (m_var)
       m_var->untrack_def (m_self_iter);
-    
+
     for (use *u : m_uses)
       u->invalidate ();
   }
-  
+
   ir_variable& ir_variable::def::get_var (void) const noexcept (false)
   {
     if (m_var)
       return *m_var;
     throw ir_exception ("def is in an invalid state and has no ir_variable.");
   }
-  
+
   ir_variable::use
   ir_variable::def::create_use (const ir_instruction& instr)
   {
     return { *this, instr };
   }
-  
+
   ir_variable::use_iter ir_variable::def::track_use (use *u)
   {
     return m_uses.insert (m_uses.end (), u);
   }
-  
+
   void ir_variable::def::untrack_use (use_citer cit)
   {
     m_uses.erase (cit);
@@ -107,21 +107,23 @@ namespace octave
           return curr_ty;
         curr_ty = ir_type::lca (curr_ty, *first->get_type ());
       }
+    if (curr_ty == ir_type::get<void> ())
+      throw ir_exception ("no common type");
     return curr_ty;
   }
-  
+
   std::ostream&
   ir_variable::def::print (std::ostream& os) const
   {
     return os << get_name () << get_id ();
   }
-  
+
   std::string
   ir_variable::def::get_name (void) const
   {
     return get_var ().get_name ();
   }
-  
+
   std::size_t
   ir_variable::def::get_id (void) const
   {
@@ -131,13 +133,13 @@ namespace octave
   //
   // use
   //
-  
+
   ir_variable::use::use (def& d, const ir_instruction& instr)
     : m_def (&d),
       m_self_iter (d.track_use (this)),
       m_instr (&instr)
   { }
-  
+
   ir_variable::use::use (use&& u) noexcept
     : m_def (u.m_def),
       m_self_iter (u.m_self_iter),
@@ -148,7 +150,7 @@ namespace octave
     // invalidate the old use
     u.invalidate();
   }
-  
+
   ir_variable::use::~use (void) noexcept
   {
     if (has_def ())
@@ -166,18 +168,18 @@ namespace octave
   {
     return std::distance (get_def ().begin (), m_self_iter);
   }
-  
+
   ir_type
   ir_variable::use::get_type (void) const
   {
     return get_def ().get_type ();
   }
-  
+
   void
   ir_variable::use::replace_def (def& new_def) noexcept (false)
   {
     def& old_def = get_def ();
-    
+
     // check if this is a valid replacement
     if (&new_def.get_var () != &old_def.get_var ())
       throw ir_exception ("ir_variable of replacement def must match the "
@@ -185,13 +187,13 @@ namespace octave
     if (new_def.get_type() != old_def.get_type ())
       throw ir_exception ("ir_type of replacement def must match the "
                           "current ir_type.");
-    
+
     use_iter it = new_def.track_use (this);
     old_def.untrack_use (m_self_iter);
     m_def = &new_def;
     m_self_iter = it;
   }
-  
+
   ir_variable::def&
   ir_variable::use::get_def (void) const noexcept (false)
   {
@@ -203,28 +205,28 @@ namespace octave
   //
   // ir_variable
   //
-  
+
   ir_variable::ir_variable (ir_module& m, std::string name)
     : m_module (m),
       m_name (std::move (name))
   { }
-  
-  ir_variable::ir_variable (ir_variable&& o) noexcept
-    : m_module (o.m_module),
-      m_name (std::move (o.m_name)),
-      m_defs (std::move (o.m_defs)),
-      m_uninit_sentinel (std::move (o.m_uninit_sentinel))
-  {
-    o.m_defs.clear ();
-  }
-  
+
+//  ir_variable::ir_variable (ir_variable&& o) noexcept
+//    : m_module (o.m_module),
+//      m_name (std::move (o.m_name)),
+//      m_defs (std::move (o.m_defs)),
+//      m_uninit_sentinel (std::move (o.m_uninit_sentinel))
+//  {
+//    o.m_defs.clear ();
+//  }
+
   ir_variable::~ir_variable (void) noexcept
   {
     // Remove references to this in the tracked defs and uses
     for (def *d : m_defs)
       d->invalidate ();
   }
-  
+
   ir_variable::def
   ir_variable::create_def (ir_type ty, const ir_def_instruction& instr)
   {
@@ -234,7 +236,6 @@ namespace octave
   ir_type
   ir_variable::normalize_types (block_def_vec& pairs)
   {
-
     if (pairs.empty ())
       throw ir_exception ("block-def pair list unexpectedly empty.");
 
@@ -246,6 +247,8 @@ namespace octave
           break;
         common_ty = ir_type::lca (common_ty, p.second->get_type ());
       }
+    if (common_ty == ir_type::get<void> ())
+      throw ir_exception ("no common type");
 
     for (block_def_pair& p : pairs)
       {
@@ -253,43 +256,46 @@ namespace octave
         def *d = p.second;
         if (d->get_type () != common_ty)
           {
-            ir_convert& instr = blk.emplace_back<ir_convert> (common_ty, d);
+            ir_convert& instr = blk.emplace_back<ir_convert> (d->get_var (),
+                                                              common_ty, d);
             p.second = &instr.get_return ();
           }
       }
-
     return common_ty;
-
   }
-  
+
   ir_variable&
   ir_variable::get_sentinel (void)
   {
     if (m_uninit_sentinel == nullptr)
       {
-        m_uninit_sentinel = make_unique<ir_variable> (get_module (),
-                                                      get_sentinel_name ());
+        m_uninit_sentinel = octave::make_unique<ir_variable> (get_module (),
+                                                        get_sentinel_name ());
         // set false (meaning undecided state) at the beginning of the module.
-        ir_basic_block& entry = m_module.get_entry_block ();
-        entry.emplace_front<ir_assign> (m_uninit_sentinel,
-                                        ir_constant<bool> {false});
+        ir_basic_block *entry = m_module.get_entry_block ();
+        entry->emplace_front<ir_assign> (m_uninit_sentinel,
+                                         ir_constant<bool> {false});
       }
     return *m_uninit_sentinel;
   }
-  
+
   std::string
   ir_variable::get_sentinel_name (void) const
   {
     return "_" + m_name + "_sentinel";
   }
 
-  void
-  ir_variable::mark_uninit (ir_basic_block& blk)
-  {
-    ir_variable& sentinel = get_sentinel ();
-  }
-  
+//  void
+//  ir_variable::mark_uninit (ir_basic_block& blk)
+//  {
+//    ir_variable& sentinel = get_sentinel ();
+//  }
+
+  constexpr ir_type::impl ir_type::instance<ir_variable::def>::m_impl;
+  template struct ir_type::instance<ir_variable::def *>;
+
   constexpr ir_type::impl ir_type::instance<ir_variable::use>::m_impl;
+  template struct ir_type::instance<ir_variable::use *>;
 
 //  ir_variable::use
 //  ir_variable::create_use (ir_basic_block& blk, const ir_instruction& instr)

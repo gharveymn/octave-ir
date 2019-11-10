@@ -330,19 +330,6 @@ namespace octave
     return m_ptr->get_indirection_level ();
   }
 
-  constexpr ir_type::impl_p ir_type::do_lca (impl_p ty1, impl_p ty2)
-  {
-    return ((ty1 == nullptr) || (ty2 == nullptr))
-           ? throw ir_exception ("No common ancestor.")
-           : (ty1 == ty2)
-             ? ty1
-             : (ty1->get_depth () > ty2->get_depth ())
-               ? do_lca (ty1, ty2->get_parent_p ())
-               : (ty1->get_depth () > ty2->get_depth ())
-                 ? do_lca (ty1->get_parent_p (), ty2)
-                 : do_lca (ty1->get_parent_p (), ty2->get_parent_p ());
-  }
-
   /////////
   // any //
   /////////
@@ -426,6 +413,19 @@ namespace octave
     impl m_impl = get<T> ().m_ptr
       ->template create_pointer<T *> (get<any> ());
   };
+
+  constexpr ir_type::impl_p ir_type::do_lca (impl_p ty1, impl_p ty2)
+  {
+    return ((ty1 == nullptr) || (ty2 == nullptr))
+           ? &instance<void>::m_impl
+           : (ty1 == ty2)
+             ? ty1
+             : (ty1->get_depth () > ty2->get_depth ())
+               ? do_lca (ty1, ty2->get_parent_p ())
+               : (ty1->get_depth () > ty2->get_depth ())
+                 ? do_lca (ty1->get_parent_p (), ty2)
+                 : do_lca (ty1->get_parent_p (), ty2->get_parent_p ());
+  }
 
 }
 

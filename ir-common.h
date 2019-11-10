@@ -48,9 +48,15 @@ namespace octave
   class ir_exception : public std::exception
   {
   public:
-    explicit ir_exception (const char *(&&str)) noexcept
+
+    explicit ir_exception (const char *str) noexcept
       : m_str (str)
     { }
+
+//    template <int N>
+//    explicit ir_exception (const char (&&str)[N]) noexcept
+//      : m_str (str)
+//    { }
 
     const char * what () const noexcept override
     {
@@ -62,9 +68,12 @@ namespace octave
   };
 
   // C++17 needed types
-  
+
   template<bool B, typename T = void>
   using enable_if_t = typename std::enable_if<B, T>::type;
+
+  template<class T>
+  using remove_pointer_t = typename std::remove_pointer<T>::type;
 
   // imitates 'void' as a unit type (added as std::monostate in C++17)
   struct monostate { };
@@ -174,7 +183,7 @@ namespace octave
   template <typename T>
   struct map_to_false : std::false_type
   { };
-  
+
 }
 
 #endif

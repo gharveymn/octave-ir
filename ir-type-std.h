@@ -21,15 +21,15 @@ along with Octave; see the file COPYING.  If not, see
 */
 
 
-#if ! defined (ir_type_extra_h)
-#define ir_type_extra_h 1
+#if ! defined (ir_type_std_h)
+#define ir_type_std_h 1
 
 #include "ir-type-base.h"
 #include <string>
 
 namespace octave
 {
-  
+
   template <>
   struct ir_type::instance<std::string>
   {
@@ -37,7 +37,7 @@ namespace octave
     static constexpr
     impl m_impl = create_type<type> ("string");
   };
-  
+
 }
 
 #endif
