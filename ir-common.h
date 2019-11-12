@@ -28,22 +28,12 @@ along with Octave; see the file COPYING.  If not, see
 
 #include <exception>
 #include <string>
-#include <memory>
-#include <list>
 
 class octave_base_value;
 namespace octave
 {
   using any = octave_base_value *;
   using single = float;
-
-  class ir_type;
-  class ir_operand;
-  class ir_variable;
-  class ir_instruction;
-  class ir_basic_block;
-  class ir_component;
-  class ir_module;
 
   class ir_exception : public std::exception
   {

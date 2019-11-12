@@ -23,6 +23,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-operand.h"
 #include "ir-common-util.h"
 #include "ir-component.h"
+#include "ir-block.h"
 #include "ir-variable.h"
 #include "ir-instruction.h"
 #include <ostream>

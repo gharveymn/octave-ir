@@ -20,19 +20,25 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-#if ! defined (ir_component_h)
-#define ir_component_h 1
+#if ! defined (ir_structure_h)
+#define ir_structure_h 1
 
 #include "octave-config.h"
+
 #include "ir-component.h"
+#include "ir-block.h"
 #include "ir-variable.h"
 
+#include <memory>
+#include <list>
 #include <stack>
 
 namespace octave
 {
 
-  class ir_component;
+  class ir_basic_block;
+  class ir_condition_block;
+  class ir_loop_condition_block;
   class ir_module;
 
   class ir_structure : public ir_component
@@ -206,12 +212,7 @@ namespace octave
     { };
 
     template <typename T>
-    ir_sequence (ir_module& mod, init_wrapper<T>)
-      : ir_structure (mod)
-    {
-      m_find_cache.first  = emplace_back<T> ();
-      m_find_cache.second = last ();
-    }
+    ir_sequence (ir_module& mod, init_wrapper<T>);
 
   public:
 
@@ -249,7 +250,7 @@ namespace octave
     // virtual from ir_component
     //
 
-    ir_basic_block *get_entry_block (void) override;
+    ir_basic_block * get_entry_block (void) override;
 
     //
     // virtual from ir_structure
@@ -333,7 +334,7 @@ namespace octave
     link_iter succ_begin (ir_component *c) override;
     link_iter succ_end   (ir_component *c) override;
 
-    ir_basic_block *get_entry_block (void) noexcept override;
+    ir_basic_block * get_entry_block (void) override;
 
     bool is_leaf_component (ir_component *c) noexcept override;
     void generate_leaf_cache (void) override;
@@ -379,7 +380,7 @@ namespace octave
     link_iter succ_begin (ir_component *c) override;
     link_iter succ_end (ir_component *c) override;
 
-    ir_basic_block *get_entry_block (void) noexcept override
+    ir_basic_block *get_entry_block (void) override
     {
       return &m_entry;
     }
@@ -394,10 +395,7 @@ namespace octave
       leaf_push_back (&m_condition);
     }
 
-    ir_basic_block *get_update_block (void) const noexcept
-    {
-      return static_cast<ir_basic_block *> (m_body.back ().get ());
-    }
+    ir_basic_block *get_update_block (void) const noexcept;
 
   private:
 

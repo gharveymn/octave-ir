@@ -26,6 +26,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "ir-structure.h"
 #include "ir-component.h"
+#include "ir-block.h"
 
 #include <algorithm>
 
@@ -34,6 +35,14 @@ namespace octave
   //
   // ir_structure
   //
+  
+  template <typename T>
+  ir_sequence::ir_sequence (ir_module& mod, init_wrapper<T>)
+    : ir_structure (mod)
+  {
+    m_find_cache.first  = emplace_back<T> ();
+  m_find_cache.second = last ();
+  }
 
   ir_structure::~ir_structure (void) noexcept = default;
 
@@ -264,7 +273,7 @@ namespace octave
   }
 
   ir_basic_block *
-  ir_fork_component::get_entry_block (void) noexcept
+  ir_fork_component::get_entry_block (void)
   {
     return &m_condition;
   }
@@ -359,8 +368,12 @@ namespace octave
       return ++link_iter (&m_condition);
     throw ir_exception ("Component was not in the loop component.");
   }
-
-
+  
+  ir_basic_block *
+  ir_loop_component::get_update_block (void) const noexcept
+  {
+    return static_cast<ir_basic_block *> (m_body.back ().get ());
+  }
 
   ir_component::link_iter
   ir_loop_component::cond_succ_begin (void)

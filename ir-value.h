@@ -31,6 +31,8 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace octave
 {
+  
+  class ir_instruction;
 
   class ir_def;
   class ir_use;

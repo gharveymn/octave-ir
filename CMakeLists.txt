@@ -5,21 +5,6 @@ SET(CMAKE_CXX_STANDARD 11)
 
 #SET(CMAKE_CXX_FLAGS "-ftime-report")
 
-ADD_LIBRARY(octave_ir_type SHARED
-		ir-type.cc
-		ir-type.h
-		ir-type-base.cc
-		ir-type-base.h
-		ir-type-std.cc
-		ir-type-std.h
-		)
-
-IF (MSVC)
-#	target_compile_options(octave_ir_type PRIVATE /Wall)
-ELSE()
-#	target_compile_options(octave_ir_type PRIVATE -Wall -Wextra -pedantic)
-ENDIF()
-
 ADD_LIBRARY(octave_ir SHARED
 		ir-common.h
 		ir-common-util.cc
@@ -34,24 +19,24 @@ ADD_LIBRARY(octave_ir SHARED
 		ir-operand.h
 		ir-structure.cc
 		ir-structure.h
-#		ir-type.cc
-#		ir-type.h
-#		ir-type-base.cc
-#		ir-type-base.h
-#		ir-value.cc
-#		ir-value.h
+		ir-type.cc
+		ir-type.h
+		ir-type-base.cc
+		ir-type-base.h
+		ir-value.cc
+		ir-value.h
 		ir-variable.cc
 		ir-variable.h
-		#ir-visitor.cc
-		#ir-visitor.h
+#		ir-visitor.cc
+#		ir-visitor.h
 		octave-config.h
-        ir-type-extra.cc ir-type-extra.h)
+          ir-type-extra.cc
+		ir-type-extra.h
+		ir-block.cc
+		ir-block.h ir-constant.cc ir-constant.h)
 
 IF (MSVC)
 #	target_compile_options(octave_ir PRIVATE -Wall)
 ELSE()
 #	target_compile_options(octave_ir PRIVATE -Wall -Wextra -pedantic)
 ENDIF()
-
-
-TARGET_LINK_LIBRARIES(octave_ir octave_ir_type)

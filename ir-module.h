@@ -24,6 +24,7 @@ along with Octave; see the file COPYING.  If not, see
 #define ir_module_h 1
 
 #include "octave-config.h"
+
 #include "ir-structure.h"
 
 namespace octave

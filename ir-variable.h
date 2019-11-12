@@ -32,12 +32,15 @@ along with Octave; see the file COPYING.  If not, see
 #include <deque>
 #include <memory>
 #include <unordered_set>
+#include <list>
 #include <vector>
 
 namespace octave
 {
   class ir_instruction;
   class ir_def_instruction;
+  class ir_basic_block;
+  class ir_module;
 
   class ir_variable
   {
