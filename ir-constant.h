@@ -79,6 +79,8 @@ namespace octave
     template<std::size_t, typename ...>
     friend class ir_constant_impl;
     
+    using self_type = ir_constant_impl<Idx, Head, Tail...>;
+    
     using base_type = ir_constant_base<Idx, Head>;
     using tail_type  = ir_constant_impl<Idx + 1, Tail...>;
   
@@ -103,32 +105,31 @@ namespace octave
     {
       return r;
     }
-    
-    template <std::size_t N>
-    struct offset;
   
-    template <std::size_t N>
+    template <std::size_t N, typename Dummy = void>
     struct offset : tail_type::template offset<N - 1>
     { };
     
-    template <>
-    struct offset<0>
+    template <typename Dummy>
+    struct offset<0, Dummy>
     {
-      using type = ir_constant_impl<Idx, Head, Tail...>;
+      using type = self_type;
     };
-    
-    template <typename T, typename E = void>
-    struct match;
   
-    template <typename T>
-    struct match<T> : tail_type::template match<T>
+    template <typename T, typename E = void>
+    struct match : tail_type::template match<T>
     { };
     
     template <typename T>
     struct match<T, enable_if_t<std::is_same<value_type, T>::value>>
     {
-      using type = ir_constant_impl<Idx, Head, Tail...>;
+      using type = self_type;
     };
+    
+    template <std::size_t N = 1>
+    struct count_proceeding
+      : tail_type::template count_proceeding<std::size_t, N + 1>
+    { };
     
     constexpr ir_constant_impl (void) = default;
     
@@ -169,26 +170,21 @@ namespace octave
       return base_type::value ();
     }
   
-    template <std::size_t N>
-    struct offset;
-  
-    template <std::size_t N>
+    template <std::size_t N, typename Dummy = void>
     struct offset
     {
-      static_assert (N != 0, "invalid offset");
+      static_assert (N == 0, "invalid offset");
     };
   
-    template <>
-    struct offset<0>
+    template <typename Dummy>
+    struct offset<0, Dummy>
     {
-      using type = ir_constant_impl<Idx, Head>;
+      using type = ir_constant_impl;
     };
+  
   
     template <typename T, typename E = void>
-    struct match;
-  
-    template <typename T>
-    struct match<T>
+    struct match
     {
       static_assert (std::is_same <value_type, T>::value, "type not found");
     };
@@ -196,8 +192,12 @@ namespace octave
     template <typename T>
     struct match<T, enable_if_t<std::is_same<value_type, T>::value>>
     {
-      using type = ir_constant_impl<Idx, Head>;
+      using type = ir_constant_impl;
     };
+  
+    template <std::size_t N = 1>
+    struct count_proceeding : std::integral_constant<std::size_t, N>
+    { };
     
     constexpr ir_constant_impl (void) = default;
     
@@ -256,16 +256,47 @@ namespace octave
       return match_impl_type<T>::base_value ();
     }
     
+    constexpr std::size_t cardinality (void) const noexcept
+    {
+      return impl_begin_type::count_proceeding::value;
+    }
+    
     template <std::size_t N = 0>
-    constexpr ir_type get_type (void) const noexcept
+    constexpr ir_type get_ir_type (void) const noexcept
     {
       return ir_type::get<impl_type<N>::value_type> ();
     }
+    
+    constexpr ir_constant (void)
+      : impl_begin_type ()
+    { }
+    
+    template <typename ...Args>
+    constexpr ir_constant (Args&&... args)
+      : impl_begin_type (std::forward<Args> (args)...)
+    { }
+    
+    constexpr ir_constant (const ir_constant&) = default;
+    
+    constexpr ir_constant (ir_constant&& o)
+      noexcept (std::is_nothrow_move_constructible<impl_begin_type>::value)
+      : impl_begin_type (std::forward <ir_constant_impl> (o))
+    { }
   
   protected:
   
   };
   
+//  constexpr ir_constant<int, long, char *> x;
+//
+//  constexpr decltype(x)::element_t<0> x0 = x.get<0> ();
+//  constexpr decltype(x)::element_t<1> x1 = x.get<1> ();
+//  constexpr decltype(x)::element_t<2> x2 = x.get<2> ();
+//
+//  constexpr int xi    = x.get<int> ();
+//  constexpr long xl   = x.get<long> ();
+//  constexpr char *xcp = x.get<char *> ();
+
 }
 
 #endif

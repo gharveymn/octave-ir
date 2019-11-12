@@ -212,7 +212,12 @@ namespace octave
     { };
 
     template <typename T>
-    ir_sequence (ir_module& mod, init_wrapper<T>);
+    ir_sequence (ir_module& mod, init_wrapper<T>)
+      : ir_structure (mod)
+    {
+      m_find_cache.first  = emplace_back<T> ();
+      m_find_cache.second = last ();
+    }
 
   public:
 
@@ -239,7 +244,7 @@ namespace octave
     emplace_back (Args&&... args)
     {
       std::unique_ptr<T> u = octave::make_unique<T> (get_module (), *this,
-                                                     std::forward<Args> (args)...);
+                                                std::forward<Args> (args)...);
       T *ret = u.get ();
       m_body.emplace_back (std::move (u));
       invalidate_leaf_cache ();

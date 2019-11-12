@@ -72,7 +72,7 @@ namespace octave
   template struct ir_type::instance<uint16_t *>;
   template struct ir_type::instance<uint8_t *>;
   template struct ir_type::instance<char *>;
-	template struct ir_type::instance<const char *>;
+  template struct ir_type::instance<const char *>;
   template struct ir_type::instance<wchar_t *>;
   template struct ir_type::instance<char32_t *>;
   template struct ir_type::instance<char16_t *>;

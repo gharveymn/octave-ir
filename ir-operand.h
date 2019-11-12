@@ -68,8 +68,6 @@ namespace octave
 
   protected:
 
-    virtual std::ostream& print (std::ostream& os) const;
-
   private:
 
   };
@@ -138,7 +136,7 @@ namespace octave
 
   protected:
 
-    std::ostream& print (std::ostream& os) const override;
+    std::ostream& print (std::ostream& os) const;
 
   private:
 
@@ -182,7 +180,7 @@ namespace octave
 
   protected:
 
-    std::ostream& print (std::ostream& os) const override;
+    std::ostream& print (std::ostream& os) const;
 
   private:
 
@@ -219,8 +217,6 @@ namespace octave
     ir_type get_type (void) const override;
 
   protected:
-
-    std::ostream& print (std::ostream& os) const override;
 
   private:
 

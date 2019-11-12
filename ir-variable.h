@@ -191,8 +191,6 @@ namespace octave
       //! @return the parent def
       def& get_def (void) const noexcept (false);
 
-      std::ostream& print (std::ostream& os) const override;
-
       std::string get_name (void) const;
 
       std::size_t get_id (void);

@@ -35,14 +35,6 @@ namespace octave
   //
   // ir_structure
   //
-  
-  template <typename T>
-  ir_sequence::ir_sequence (ir_module& mod, init_wrapper<T>)
-    : ir_structure (mod)
-  {
-    m_find_cache.first  = emplace_back<T> ();
-  m_find_cache.second = last ();
-  }
 
   ir_structure::~ir_structure (void) noexcept = default;
 

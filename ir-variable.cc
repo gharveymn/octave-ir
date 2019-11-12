@@ -35,6 +35,12 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace octave
 {
+  
+  constexpr ir_type::impl ir_type::instance<ir_variable::def>::m_impl;
+  template struct ir_type::instance<ir_variable::def *>;
+  
+  constexpr ir_type::impl ir_type::instance<ir_variable::use>::m_impl;
+  template struct ir_type::instance<ir_variable::use *>;
 
   //
   // def
@@ -290,12 +296,6 @@ namespace octave
 //  {
 //    ir_variable& sentinel = get_sentinel ();
 //  }
-
-  constexpr ir_type::impl ir_type::instance<ir_variable::def>::m_impl;
-  template struct ir_type::instance<ir_variable::def *>;
-
-  constexpr ir_type::impl ir_type::instance<ir_variable::use>::m_impl;
-  template struct ir_type::instance<ir_variable::use *>;
 
 //  ir_variable::use
 //  ir_variable::create_use (ir_basic_block& blk, const ir_instruction& instr)

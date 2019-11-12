@@ -55,7 +55,7 @@ namespace octave
   std::ostream&
   ir_printer<ir_operand>::short_print (std::ostream& os, const ir_operand& op)
   {
-    op.print (os);
+    //op.print (os);
     if (isa<const ir_variable::def> (op))
       os << ": " << op.get_type ();
     return os;
@@ -65,7 +65,8 @@ namespace octave
   std::ostream&
   ir_printer<ir_operand>::long_print (std::ostream& os, const ir_operand& op)
   {
-    return op.print (os) << ": " << op.get_type ();
+//    return op.print (os) << ": " << op.get_type ();
+    return os;
   }
 
   template <typename T>
