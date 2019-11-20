@@ -56,7 +56,7 @@ namespace octave
   ir_printer<ir_operand>::short_print (std::ostream& os, const ir_operand& op)
   {
     //op.print (os);
-    if (isa<const ir_variable::def> (op))
+    if (isa<ir_variable::def> (op))
       os << ": " << op.get_type ();
     return os;
   }

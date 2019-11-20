@@ -29,7 +29,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-type.h"
 #include "ir-instruction.h"
 #include "ir-component.h"
-#include "ir-module.h"
+#include "ir-function.h"
 
 #include <iostream>
 
@@ -212,16 +212,16 @@ namespace octave
   // ir_variable
   //
 
-  ir_variable::ir_variable (ir_module& m, std::string name)
-    : m_module (m),
+  ir_variable::ir_variable (ir_function& m, std::string name)
+    : m_function (m),
       m_name (std::move (name))
   { }
 
 //  ir_variable::ir_variable (ir_variable&& o) noexcept
-//    : m_module (o.m_module),
+//    : m_function (o.m_function),
 //      m_name (std::move (o.m_name)),
 //      m_defs (std::move (o.m_defs)),
-//      m_uninit_sentinel (std::move (o.m_uninit_sentinel))
+//      m_sentinel (std::move (o.m_sentinel))
 //  {
 //    o.m_defs.clear ();
 //  }
@@ -263,7 +263,7 @@ namespace octave
         if (d->get_type () != common_ty)
           {
             ir_convert& instr = blk.emplace_back<ir_convert> (d->get_var (),
-                                                              common_ty, d);
+                                                              common_ty, *d);
             p.second = &instr.get_return ();
           }
       }
@@ -273,22 +273,25 @@ namespace octave
   ir_variable&
   ir_variable::get_sentinel (void)
   {
-    if (m_uninit_sentinel == nullptr)
-      {
-        m_uninit_sentinel = octave::make_unique<ir_variable> (get_module (),
-                                                        get_sentinel_name ());
-        // set false (meaning undecided state) at the beginning of the module.
-        ir_basic_block *entry = m_module.get_entry_block ();
-        entry->emplace_front<ir_assign> (m_uninit_sentinel,
-                                         ir_constant<bool> {false});
-      }
-    return *m_uninit_sentinel;
+    if (! has_sentinel ())
+      initialize_sentinel ();
+    return *m_sentinel;
   }
 
   std::string
   ir_variable::get_sentinel_name (void) const
   {
     return "_" + m_name + "_sentinel";
+  }
+  
+  void ir_variable::initialize_sentinel (void)
+  {
+    m_sentinel = octave::make_unique<ir_variable> (get_module (),
+                                                   get_sentinel_name ());
+    // set false (meaning undecided state) at the beginning of the module.
+    ir_basic_block *entry = get_function ().get_entry_block ();
+    entry->emplace_front<ir_assign> (*m_sentinel,
+                                     ir_constant<bool> {false});
   }
 
 //  void

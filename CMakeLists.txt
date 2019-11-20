@@ -5,6 +5,12 @@ SET(CMAKE_CXX_STANDARD 11)
 
 #SET(CMAKE_CXX_FLAGS "-ftime-report")
 
+SET(OCTAVE_BUILD "/home/gene/workspace/octave/dev/octave/build")
+SET(OCTAVE_SOURCE "/home/gene/workspace/octave/dev/octave/source")
+
+
+INCLUDE_DIRECTORIES(/home/gene/workspace/octave/dev/octave/bin/x86_64-pc-linux-gnu/debug/include/octave-6.0.0/octave/)
+
 ADD_LIBRARY(octave_ir SHARED
 		ir-common.h
 		ir-common-util.cc
@@ -13,8 +19,8 @@ ADD_LIBRARY(octave_ir SHARED
 		ir-component.h
 		ir-instruction.cc
 		ir-instruction.h
-		ir-module.cc
-		ir-module.h
+		ir-function.cc
+		ir-function.h
 		ir-operand.cc
 		ir-operand.h
 		ir-structure.cc
@@ -33,7 +39,12 @@ ADD_LIBRARY(octave_ir SHARED
           ir-type-extra.cc
 		ir-type-extra.h
 		ir-block.cc
-		ir-block.h ir-constant.cc ir-constant.h)
+		ir-block.h
+		ir-constant.cc
+		ir-constant.h
+		ir-build.cc
+		ir-build.h
+		)
 
 IF (MSVC)
 #	target_compile_options(octave_ir PRIVATE -Wall)

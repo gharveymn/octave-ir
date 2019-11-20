@@ -38,23 +38,21 @@ namespace octave
   class ir_exception : public std::exception
   {
   public:
-
-    explicit ir_exception (const char *str) noexcept
-      : m_str (str)
+    explicit ir_exception (const char *str)
+    : m_str (str)
     { }
-
-//    template <int N>
-//    explicit ir_exception (const char (&&str)[N]) noexcept
-//      : m_str (str)
-//    { }
-
-    const char * what () const noexcept override
+  
+    explicit ir_exception (std::string str)
+    : m_str (std::move (str))
+    { }
+  
+    const char* what (void) const noexcept override
     {
-      return m_str;
+      return m_str.c_str ();
     }
 
   private:
-    const char *m_str;
+    std::string m_str;
   };
 
   // C++17 needed types
@@ -67,6 +65,13 @@ namespace octave
 
   // imitates 'void' as a unit type (added as std::monostate in C++17)
   struct monostate { };
+  
+  template<bool v>
+  using bool_constant = std::integral_constant<bool, v>;
+  
+  template<class B>
+  struct negation : bool_constant<! bool (B::value)>
+  { };
 
   template <class...>
   struct conjunction : std::true_type

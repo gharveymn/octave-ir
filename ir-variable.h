@@ -40,7 +40,7 @@ namespace octave
   class ir_instruction;
   class ir_def_instruction;
   class ir_basic_block;
-  class ir_module;
+  class ir_function;
 
   class ir_variable
   {
@@ -227,7 +227,7 @@ namespace octave
     // defs and uses may allow references elsewhere, but these singular
     // and may not be copied or addressed (may be moved).
 
-    ir_variable (ir_module& m, std::string name);
+    ir_variable (ir_function& m, std::string name);
 
     ir_variable (void)                          = delete;
 
@@ -265,19 +265,36 @@ namespace octave
 
     constexpr const std::string& get_name (void) const { return m_name; }
 
-    constexpr ir_module& get_module (void) const { return m_module; }
+    constexpr ir_function& get_module (void) const { return m_function; }
+    
+    bool has_sentinel (void) const noexcept
+    {
+      return m_sentinel != nullptr;
+    }
 
     ir_variable& get_sentinel (void);
 
     std::string get_sentinel_name (void) const;
 
     void mark_uninit (ir_basic_block& blk);
+    
+    constexpr const ir_function& get_function (void) const noexcept
+    {
+      return m_function;
+    }
+    
+    ir_function& get_function (void) noexcept
+    {
+      return m_function;
+    }
 
    private:
+    
+    void initialize_sentinel (void);
 
     def_citer find_def (const def *d) const;
 
-    ir_module& m_module;
+    ir_function& m_function;
 
     //! The variable name. The default is a synonym for 'anonymous'.
     std::string m_name = anonymous_name;
@@ -287,7 +304,7 @@ namespace octave
 
     // Used to indicate if the variable is uninitialized in the current
     // code path. Lazily initialized.
-    std::unique_ptr<ir_variable> m_uninit_sentinel;
+    std::unique_ptr<ir_variable> m_sentinel;
 
   };
 
