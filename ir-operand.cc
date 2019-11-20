@@ -21,11 +21,13 @@ along with Octave; see the file COPYING.  If not, see
 */
 
 #include "ir-operand.h"
+#include "ir-type-std.h"
 #include "ir-common-util.h"
 #include "ir-component.h"
 #include "ir-block.h"
 #include "ir-variable.h"
 #include "ir-instruction.h"
+
 #include <ostream>
 
 namespace octave
@@ -50,13 +52,15 @@ namespace octave
   {
     return ir_type::get<value_type> ();
   }
+  
+  template ir_type ir_constant<bool>::get_type (void) const;
 
   template <>
   std::ostream&
   ir_printer<ir_operand>::short_print (std::ostream& os, const ir_operand& op)
   {
     //op.print (os);
-    if (isa<const ir_variable::def> (op))
+    if (isa<const ir_def> (op))
       os << ": " << op.get_type ();
     return os;
   }
@@ -106,8 +110,9 @@ namespace octave
   }
 
   template class ir_constant<std::string>;
+  template class ir_constant<bool>;
   template class ir_constant<ir_basic_block *>;
-  template class ir_constant<ir_variable::def *>;
+  template class ir_constant<ir_def *>;
   template class ir_constant<ir_block_ref, ir_def_ref>;
 
 }

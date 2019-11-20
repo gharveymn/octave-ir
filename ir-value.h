@@ -104,10 +104,10 @@ namespace octave
 
     use_citer find_use (use_cref u) const { return m_uses.find (u); }
 
-    // where this def occurs
+    // where this ir_def occurs
     const ir_instruction * m_instr;
 
-    // all uses which can be reached from this def
+    // all uses which can be reached from this ir_def
     use_set m_uses;
 
   };
@@ -152,7 +152,7 @@ namespace octave
     ir_def& get_def (void) noexcept (false)
     {
       if (m_def == nullptr)
-        throw ir_exception ("Pointer to def was nullptr.");
+        throw ir_exception ("Pointer to ir_def was nullptr.");
       return *m_def;
     }
 

@@ -71,7 +71,7 @@ namespace octave
     impl m_impl = create_type<type> ("ir_block_ref");
   };
 
-  using ir_def_ref = ir_constant<ir_variable::def *>;
+  using ir_def_ref = ir_constant<ir_def *>;
 
   template <>
   struct ir_type::instance<ir_def_ref>
@@ -106,9 +106,6 @@ namespace octave
   class ir_instruction
   {
   public:
-
-    using use = ir_variable::use;
-    using def = ir_variable::def;
 
     // using vector instead of a map because we shouldn't be accessing
     // elements very often (hence this is optimized for memory usage).
@@ -152,11 +149,18 @@ namespace octave
 
     template <typename T, typename ...Args>
     enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
-    emplace_back (Args&&... args);
+    emplace_back (Args&&... args)
+    {
+      return emplace_before<T> (m_args.end (), std::forward<Args> (args)...);
+    }
 
     template <typename T, typename ...Args>
     enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
-    emplace_before (citer pos, Args&&... args);
+    emplace_before (citer pos, Args&&... args)
+    {
+      return m_args.insert (pos,
+                            octave::make_unique<T> (std::forward<Args> (args)...));
+    }
 
   private:
 
@@ -175,10 +179,10 @@ namespace octave
 
     bool has_return (void) override { return true; };
 
-    def& get_return (void);
+    ir_def& get_return (void);
 
   private:
-    def m_ret;
+    ir_def m_ret;
   };
 
   // assign some variable
@@ -188,9 +192,19 @@ namespace octave
 
     template <typename ...Args>
     ir_assign (const ir_basic_block& blk, ir_variable& ret_var,
-               ir_constant<Args...> c);
+               const ir_constant<Args...>& c)
+      : ir_def_instruction (blk, ret_var, c.get_type ()),
+        m_src (emplace_back<ir_constant<Args...>> (c))
+    { }
+  
+    template <typename ...Args>
+    ir_assign (const ir_basic_block& blk, ir_variable& ret_var,
+               ir_constant<Args...>&& c)
+      : ir_def_instruction (blk, ret_var, c.get_type ()),
+        m_src (emplace_back<ir_constant<Args...>> (std::forward<ir_constant<Args...>> (c)))
+    { }
 
-    ir_assign (const ir_basic_block& blk, ir_variable& var, def& src);
+    ir_assign (const ir_basic_block& blk, ir_variable& var, ir_def& src);
 
     const ir_operand& get_assignor (void) const { return **m_src; }
 
@@ -234,7 +248,7 @@ namespace octave
   class ir_cbranch : public ir_instruction
   {
   public:
-    ir_cbranch (const ir_basic_block& blk, def& d,
+    ir_cbranch (const ir_basic_block& blk, ir_def& d,
                 ir_basic_block& tblk, ir_basic_block& fblk);
 
   private:
@@ -249,7 +263,7 @@ namespace octave
   public:
 
     ir_convert (const ir_basic_block& blk, ir_variable& ret_var, ir_type ty,
-                def& d);
+                ir_def& d);
 
   private:
     const iter m_src;
@@ -259,19 +273,19 @@ namespace octave
   {
   public:
 
-    using input_type = ir_variable::block_def_pair;
-    using input_vec = ir_variable::block_def_vec;
+    using input_type = std::pair<ir_basic_block&, ir_def*>;
+    using input_vect = std::vector<input_type>;
 
     ir_phi (void) = delete;
 
     ir_phi (const ir_basic_block& blk, ir_variable& var, ir_type ty,
-            const input_vec& pairs);
+            const input_vect& pairs);
 
-    void append (ir_basic_block& blk, def& d);
+    void append (ir_basic_block& blk, ir_def& d);
 
     iter erase (const ir_basic_block *blk);
 
-    ir_variable::def * find (const ir_basic_block *blk);
+    ir_def * find (const ir_basic_block *blk);
 
     bool has_undefined_blocks (void) { return ! m_undef_blocks.empty (); }
 

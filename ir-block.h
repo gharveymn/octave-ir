@@ -26,9 +26,9 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "octave-config.h"
 
-#include "ir-common.h"
+#include "ir-common-util.h"
 #include "ir-component.h"
-#include "ir-variable.h"
+#include "ir-type.h"
 
 #include <list>
 #include <memory>
@@ -42,13 +42,15 @@ namespace octave
 {
   class ir_phi;
   class ir_structure;
+  class ir_instruction;
   class ir_def_instruction;
+  
+  class ir_variable;
+  class ir_def;
+  class ir_use;
   
   class ir_basic_block : public ir_component
   {
-    
-    using def = ir_variable::def;
-    using use = ir_variable::use;
   public:
     
     using instr_list_type = std::unique_ptr<ir_instruction>;
@@ -60,16 +62,18 @@ namespace octave
     using ref = instr_list::reference;
     using cref = instr_list::const_reference;
   
+    using block_def_pair = std::pair<ir_basic_block&, ir_def*>;
+    using block_def_vect = std::vector<block_def_pair>;
+  
   private:
     
     class def_timeline
     {
     
     public:
-      using def = ir_variable::def;
       using instr_citer = ir_basic_block::citer;
       
-      using element_type = std::pair<instr_citer, def *>;
+      using element_type = std::pair<instr_citer, ir_def *>;
       using def_deque = std::deque<element_type>;
       using iter = def_deque::iterator;
       using citer = def_deque::const_iterator;
@@ -86,31 +90,31 @@ namespace octave
       criter rend (void) const { return m_timeline.rend (); }
       
       
-      constexpr def * fetch_cache (void) const noexcept
+      constexpr ir_def * fetch_cache (void) const noexcept
       {
         return m_cache;
       }
       
-      void set_cache (def& latest) noexcept
+      void set_cache (ir_def& latest) noexcept
       {
         m_cache = &latest;
       }
       
-      void emplace (citer dt_pos, instr_citer pos, def& d)
+      void emplace (citer dt_pos, instr_citer pos, ir_def& d)
       {
         if (dt_pos == end ())
           set_cache (d);
         m_timeline.emplace (dt_pos, pos, &d);
       }
       
-      void emplace_front (instr_citer pos, def& d)
+      void emplace_front (instr_citer pos, ir_def& d)
       {
         if (m_timeline.empty ())
           set_cache (d);
         m_timeline.emplace_front (pos, &d);
       }
       
-      void emplace_back (instr_citer pos, def& d)
+      void emplace_back (instr_citer pos, ir_def& d)
       {
         m_timeline.emplace_back (pos, &d);
         set_cache (d);
@@ -123,8 +127,8 @@ namespace octave
     
     private:
       
-      //! The latest def (which may or may not have been created here)
-      def * m_cache = nullptr;
+      //! The latest ir_def (which may or may not have been created here)
+      ir_def * m_cache = nullptr;
       
       //! A timeline of defs created in this block.
       def_deque m_timeline;
@@ -137,19 +141,19 @@ namespace octave
   
   public:
     
-    def * fetch_cached_def (ir_variable& var) const;
+    ir_def * fetch_cached_def (ir_variable& var) const;
     
-    def * fetch_proximate_def (ir_variable& var, citer pos) const;
-    
-    // side effects!
-    def * join_defs (ir_variable& var);
+    ir_def * fetch_proximate_def (ir_variable& var, citer pos) const;
     
     // side effects!
-    def * join_defs (ir_variable& var, citer pos);
+    ir_def * join_defs (ir_variable& var);
     
-    virtual def * join_pred_defs (ir_variable& var);
+    // side effects!
+    ir_def * join_defs (ir_variable& var, citer pos);
     
-    void set_cached_def (def& d);
+    virtual ir_def * join_pred_defs (ir_variable& var);
+    
+    void set_cached_def (ir_def& d);
     
     ir_basic_block (ir_module& mod, ir_structure& parent);
     
@@ -226,8 +230,8 @@ namespace octave
     
     bool   has_body (void)    const noexcept { return phi_begin () != phi_end (); }
     
-    template <typename ...Args>
-    ir_phi * create_phi (Args&&... args);
+    ir_phi * create_phi (ir_variable& var, ir_type ty,
+                         const block_def_vect& pairs);
     
     iter remove_phi (citer pos);
     
@@ -269,30 +273,119 @@ namespace octave
       enable_if_t<std::is_base_of<ir_def_instruction, T>::value>>
       : std::true_type
     { };
-    
+  
     template <typename T, typename ...Args>
-    enable_if_t<is_nonphi_instruction<T>::value && has_return<T>::value, T>&
-    emplace_front (Args&&... args);
-    
+    enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+                && ir_basic_block::has_return<T>::value, T>&
+    emplace_front (Args&&... args)
+    {
+      std::unique_ptr<T> u = octave::make_unique<T> (*this,
+                                                     std::forward<Args> (args)...);
+      T *ret = u.get ();
+      m_body_begin = m_instrs.insert (m_body_begin, std::move (u));
+      try
+        {
+          def_emplace (m_body_begin, ret->get_return ());
+        }
+      catch (const std::exception& e)
+        {
+          m_body_begin = erase (m_body_begin);
+          throw e;
+        }
+      return *ret;
+    }
+  
     template <typename T, typename ...Args>
-    enable_if_t<is_nonphi_instruction<T>::value && has_return<T>::value, T>&
-    emplace_back (Args&&... args);
-    
+    enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+                && ir_basic_block::has_return<T>::value, T>&
+    emplace_back (Args&&... args)
+    {
+      std::unique_ptr<T> u = octave::make_unique<T> (*this,
+                                                     std::forward<Args> (args)...);
+      T *ret = u.get ();
+      iter it = m_instrs.insert (body_end (), std::move (u));
+      try
+        {
+          def_emplace (it, ret->get_return());
+        }
+      catch (const std::exception& e)
+        {
+          erase (it);
+          throw e;
+        }
+      if (m_body_begin == body_end ())
+        --m_body_begin;
+      return *ret;
+    }
+  
     template <typename T, typename ...Args>
-    enable_if_t<is_nonphi_instruction<T>::value && has_return<T>::value, T>&
-    emplace_before (citer pos, Args&&... args);
-    
+    enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+                && ir_basic_block::has_return<T>::value, T>&
+    emplace_before (citer pos, Args&&... args)
+    {
+      if (! is_normal_instruction (pos))
+        throw ir_exception ("instruction must be placed within the body");
+      std::unique_ptr<T> u = octave::make_unique<T> (*this,
+                                                     std::forward<Args> (args)...);
+      T *ret = u.get ();
+      iter it = m_instrs.insert (pos, std::move (u));
+      try
+        {
+          def_emplace (it, ret->get_return());
+        }
+      catch (const std::exception& e)
+        {
+          erase (it);
+          throw e;
+        }
+      if (m_body_begin == pos)
+        m_body_begin = it;
+      return *ret;
+    }
+  
     template <typename T, typename ...Args>
-    enable_if_t<is_nonphi_instruction<T>::value && ! has_return<T>::value, T>&
-    emplace_front (Args&&... args);
-    
+    enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+                && ! ir_basic_block::has_return<T>::value, T>&
+    emplace_front (Args&&... args)
+    {
+      std::unique_ptr<T> u = octave::make_unique<T> (*this,
+                                                     std::forward<Args> (args)...);
+      T *ret = u.get ();
+      m_body_begin = m_instrs.insert (m_body_begin, std::move (u));
+      return *ret;
+    }
+  
     template <typename T, typename ...Args>
-    enable_if_t<is_nonphi_instruction<T>::value && ! has_return<T>::value, T>&
-    emplace_back (Args&&... args);
-    
+    enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+                && ! ir_basic_block::has_return<T>::value, T>&
+    emplace_back (Args&&... args)
+    {
+      std::unique_ptr<T> u = octave::make_unique<T> (*this,
+                                                     std::forward<Args> (args)...);
+      T *ret = u.get ();
+      m_instrs.push_back (std::move (u));
+      if (m_body_begin == body_end ())
+        --m_body_begin;
+      return *ret;
+    }
+  
     template <typename T, typename ...Args>
-    enable_if_t<is_nonphi_instruction<T>::value && ! has_return<T>::value, T>&
-    emplace_before (citer pos, Args&&... args);
+    enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
+                && ! ir_basic_block::has_return<T>::value, T>&
+    emplace_before (citer pos, Args&&... args)
+    {
+      if (! is_normal_instruction (pos))
+        throw ir_exception ("instruction must be placed within the body");
+      std::unique_ptr<T> u = octave::make_unique<T> (*this,
+                                                     std::forward<Args> (args)...);
+      T *ret = u.get ();
+      iter it = m_instrs.insert (pos, std::move (u));
+      if (m_body_begin == pos)
+        m_body_begin = it;
+      return *ret;
+    }
+    
+    bool is_normal_instruction (citer pos) const;
     
     iter erase (citer pos) noexcept;
     
@@ -321,9 +414,9 @@ namespace octave
   
   protected:
     
-    void def_emplace (citer pos, def& d);
-    void def_emplace_front (def& d);
-    void def_emplace_back (def& d);
+    void def_emplace (citer pos, ir_def& d);
+    void def_emplace_front (ir_def& d);
+    void def_emplace_back (ir_def& d);
   
   private:
     
@@ -336,11 +429,11 @@ namespace octave
     iter m_body_begin;
     iter m_terminator;
     
-    // map of variables to the def timeline for this block
+    // map of variables to the ir_def timeline for this block
     
     // predecessors and successors to this block
     
-    // map from ir_variable to def-timeline structs
+    // map from ir_variable to ir_def-timeline structs
     var_timeline_map m_vt_map;
     
   };
@@ -351,6 +444,8 @@ namespace octave
     ir_condition_block (ir_module& mod, ir_structure& parent)
       : ir_basic_block (mod, parent)
     { }
+  
+    ~ir_condition_block (void) noexcept override;
   };
   
   class ir_loop_condition_block : public ir_basic_block
@@ -361,18 +456,20 @@ namespace octave
       : ir_basic_block (mod, parent)
     { }
     
-    ir_variable::def * join_pred_defs (ir_variable& var) override;
+    ~ir_loop_condition_block (void) noexcept override;
+    
+//    ir_def * join_pred_defs (ir_variable& var) override;
   
   private:
   
   };
   
   template <>
-  struct ir_type::instance<ir_basic_block>
+  struct ir_type::instance<ir_basic_block *>
   {
     using type = ir_basic_block;
     static constexpr
-    impl m_impl = create_type<type> ("block");
+    impl m_impl = create_type<type> ("block_ptr");
   };
 }
 

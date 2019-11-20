@@ -26,8 +26,13 @@ along with Octave; see the file COPYING.  If not, see
 #endif
 
 #include "ir-type-std.h"
+#include "ir-variable.h"
 
 namespace octave
 {
-
+//  constexpr ir_type::impl ir_type::instance<ir_def>::m_impl;
+//  template struct ir_type::instance<ir_def *>;
+//
+//  constexpr ir_type::impl ir_type::instance<ir_use>::m_impl;
+//  template struct ir_type::instance<ir_use *>;
 }

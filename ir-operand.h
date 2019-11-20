@@ -44,9 +44,6 @@ namespace octave
   template <typename T>
   class ir_constant<T>;
 
-  class ir_def;
-  class ir_use;
-
   //! An abstract base class for ir_instruction operands.
   class ir_operand
   {

@@ -23,6 +23,8 @@ ADD_LIBRARY(octave_ir SHARED
 		ir-type.h
 		ir-type-base.cc
 		ir-type-base.h
+		ir-type-std.cc
+		ir-type-std.h
 		ir-value.cc
 		ir-value.h
 		ir-variable.cc

@@ -135,6 +135,12 @@ namespace octave
     {
       return m_ptr == nullptr;
     }
+    
+    friend constexpr bool
+    operator== (std::nullptr_t, const ir_type& ty) noexcept
+    {
+      return ty == nullptr;
+    }
 
     constexpr bool operator!= (const ir_type& ty) const noexcept
     {
@@ -145,12 +151,17 @@ namespace octave
     {
       return m_ptr != nullptr;
     }
+  
+    friend constexpr bool
+    operator!= (std::nullptr_t, const ir_type& ty) noexcept
+    {
+      return ty != nullptr;
+    }
 
     friend struct ir_printer<ir_type>;
 
   private:
-
-
+    
     //! Implicit!
     constexpr ir_type (impl_p impl_ptr) noexcept
       : m_ptr (impl_ptr)
@@ -255,8 +266,8 @@ namespace octave
     static constexpr impl
     create_type (const char *name, ir_type parent) noexcept
     {
-      return {name, parent, nullptr, sizeof (T),
-              std::is_integral<T>::value, {}};
+      return { name, parent, nullptr, sizeof (T),
+               std::is_integral<T>::value, {} };
     }
 
     template <typename T>
@@ -264,16 +275,16 @@ namespace octave
     create_compound_type (const char *name, ir_type_array members,
                           ir_type parent) noexcept
     {
-      return {name, parent, nullptr, sizeof (T),
-              std::is_integral<T>::value, members};
+      return { name, parent, nullptr, sizeof (T),
+               std::is_integral<T>::value, members };
     }
 
     template <typename T>
     constexpr impl
     create_pointer (ir_type ptr_parent) const noexcept
     {
-      return {m_base_name, ptr_parent, this, sizeof (T),
-              std::is_integral<T>::value, {}};
+      return { m_base_name, ptr_parent, this, sizeof (T),
+               std::is_integral<T>::value, {} };
     }
 
   private:
