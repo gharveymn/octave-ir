@@ -29,6 +29,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-block.h"
 #include "ir-variable.h"
 
+#include <algorithm>
 #include <memory>
 #include <list>
 #include <stack>
@@ -39,14 +40,12 @@ namespace octave
   class ir_basic_block;
   class ir_condition_block;
   class ir_loop_condition_block;
-  class ir_module;
+  class ir_function;
 
   class ir_structure : public ir_component
   {
   public:
-    explicit ir_structure (ir_module& mod)
-      : ir_component (mod)
-    { }
+    ir_structure (void) noexcept = default;
 
     ~ir_structure (void) noexcept override = 0;
 
@@ -56,16 +55,12 @@ namespace octave
     using comp_ref = comp_list::reference;
     using comp_cref = comp_list::const_reference;
 
-    virtual link_iter pred_begin (ir_component *c)  = 0;
-
-    virtual link_iter pred_end (ir_component *c) = 0;
-
+    virtual link_iter pred_begin (ir_component *c) = 0;
+    virtual link_iter pred_end (ir_component *c)   = 0;
     virtual link_iter succ_begin (ir_component *c) = 0;
-
-    virtual link_iter succ_end (ir_component *c) = 0;
+    virtual link_iter succ_end (ir_component *c)   = 0;
 
     link_iter leaf_begin (void) override;
-
     link_iter leaf_end (void) override;
 
     virtual void invalidate_leaf_cache (void) noexcept = 0;
@@ -82,9 +77,8 @@ namespace octave
       return m_leaf_cache.empty ();
     }
 
-    virtual bool is_leaf_component (ir_component *c) noexcept = 0;
-
-    virtual void generate_leaf_cache (void) = 0;
+    virtual bool is_leaf_component   (ir_component *c) noexcept = 0;
+    virtual void generate_leaf_cache (void)                     = 0;
 
 #if 0
     class leaf_iterator
@@ -200,52 +194,118 @@ namespace octave
 
   private:
     link_cache_vec m_leaf_cache;
-
   };
-
+  
+  template <typename T>
   class ir_sequence : public ir_structure
   {
-  protected:
-
-    template <typename T>
-    struct init_wrapper
-    { };
-
-    template <typename T>
-    ir_sequence (ir_module& mod, init_wrapper<T>)
-      : ir_structure (mod)
+  
+  public:
+    
+    using entry_type = T;
+  
+    using iter  = comp_iter;
+    using citer = comp_citer;
+    using ref   = comp_ref;
+    using cref  = comp_cref;
+    
+  private:
+    
+    class find_cache
     {
-      m_find_cache.first  = emplace_back<T> ();
-      m_find_cache.second = last ();
-    }
-
+    public:
+      
+      explicit find_cache (citer cit) noexcept
+        : m_ptr (cit->get ()),
+          m_cit (cit)
+      { }
+      
+      find_cache (const find_cache&) noexcept         = default;
+      find_cache (find_cache&& o) noexcept            = default;
+      
+      find_cache& operator= (const find_cache& o)     = delete;
+      find_cache& operator= (find_cache&& o)          = delete;
+      
+      void set (citer cit) noexcept
+      {
+        m_ptr = cit->get ();
+        m_cit = cit;
+      }
+      
+      constexpr bool compare (ir_component *p) const noexcept
+      {
+        return p == m_ptr;
+      }
+      
+      constexpr const citer& retrieve (void) const noexcept
+      {
+        return m_cit;
+      }
+      
+    private:
+      const ir_component *m_ptr;
+      citer               m_cit;
+    };
+    
   public:
 
-    explicit ir_sequence (ir_module& mod)
-      : ir_sequence (mod, init_wrapper<ir_basic_block>{})
+    explicit ir_sequence (void)
+      : m_cache (emplace<entry_type> (end ()))
     { }
+    
+    ir_sequence (ir_sequence&& o) noexcept
+      : m_body (std::move (o.m_body)),
+        m_cache (std::move (o.m_cache))
+    { }
+    
+    ir_sequence (const ir_sequence&) = delete;
+    
+    ir_sequence& operator= (const ir_sequence&) = delete;
+    ir_sequence& operator= (ir_sequence&& o)    = delete;
+    
+    void reset (void) noexcept override
+    {
+      citer begin_cit = m_body.erase (++m_body.begin (), m_body.end ());
+      (*begin_cit)->reset ();
+      set_cache (begin_cit);
+      invalidate_leaf_cache ();
+    }
 
-    ~ir_sequence (void) noexcept override;
-
-    comp_citer begin (void) const noexcept { return m_body.begin (); }
-    comp_citer end (void)   const noexcept { return m_body.end (); }
-
-    comp_cref front (void) const { return m_body.front (); }
-    comp_cref back (void)   const { return m_body.back (); }
+    citer begin (void) const noexcept { return m_body.begin (); }
+    citer end   (void) const noexcept { return m_body.end (); }
+    cref  front (void) const          { return m_body.front (); }
+    cref  back  (void) const          { return m_body.back (); }
 
     bool empty (void) const { return m_body.empty (); }
 
-    comp_citer last (void) const;
-
-    comp_citer find (ir_component *c);
-
-    template <typename T, typename ...Args>
-    enable_if_t<std::is_base_of<ir_component, T>::value, T> *
-    emplace_back (Args&&... args)
+    citer last (void) const
     {
-      std::unique_ptr<T> u = octave::make_unique<T> (get_module (), *this,
-                                                std::forward<Args> (args)...);
-      T *ret = u.get ();
+      return --end ();
+    }
+
+    citer find (ir_component *c)
+    {
+      if (! is_cached (c))
+        set_cache (std::find_if (m_body.begin (), m_body.end (),
+                                 [c](comp_cref u) {return u.get () == c; }));
+      return retrieve_cache ();
+    }
+    
+    template <typename S, typename ...Args,
+              typename = enable_if_t<is_component<S>::value>>
+    citer emplace (citer cit, Args&&... args)
+    {
+      return m_body.emplace (cit,
+        create_component<S> (std::forward<Args> (args)...));
+    }
+
+    template <typename S, typename ...Args,
+              typename = enable_if_t<is_component<S>::value>>
+    S * emplace_back (Args&&... args)
+    {
+      std::unique_ptr<S> u =
+        create_component<S> (std::forward<Args> (args)...);
+      S *ret = u.get ();
       m_body.emplace_back (std::move (u));
       invalidate_leaf_cache ();
       return ret;
@@ -255,66 +315,137 @@ namespace octave
     // virtual from ir_component
     //
 
-    ir_basic_block * get_entry_block (void) override;
+    ir_basic_block * get_entry_block (void) noexcept override
+    {
+      return front ()->get_entry_block ();
+    }
 
     //
     // virtual from ir_structure
     //
 
-    // public
-    link_iter pred_begin (ir_component *c) override;
-    link_iter pred_end   (ir_component *c) override;
-    link_iter succ_begin (ir_component *c) override;
-    link_iter succ_end   (ir_component *c) override;
-    void invalidate_leaf_cache (void) noexcept override;
-
     // protected
-    bool is_leaf_component (ir_component *c) noexcept override;
-    void generate_leaf_cache (void) override;
+    bool is_leaf_component (ir_component *c) noexcept override
+    {
+      return c == back ().get ();
+    }
+    
+    void generate_leaf_cache (void) override
+    {
+      leaf_push_back (back ()->leaf_begin (), back ()->leaf_end ());
+    }
 
   protected:
 
-    comp_citer must_find (ir_component *c);
+    citer must_find (ir_component *c)
+    {
+      citer cit = find (c);
+      if (cit == end ())
+        throw ir_exception ("component not found in the structure");
+      return cit;
+    }
 
   private:
+    
+    template <typename S, typename ...Args,
+              typename = enable_if_t<is_component<S>::value>>
+    std::unique_ptr<S> create_component (Args&&... args)
+    {
+      return octave::make_unique<S> (*this, std::forward<Args> (args)...);
+    }
+    
+    void set_cache (citer cit) noexcept
+    {
+      return m_cache.set (cit);
+    }
+    
+    constexpr bool is_cached (ir_component *p) const
+    {
+      return m_cache.compare (p);
+    }
+    
+    citer retrieve_cache (void)
+    {
+      return m_cache.retrieve ();
+    }
 
     comp_list m_body;
 
-    std::pair<ir_component *, comp_citer> m_find_cache = {nullptr, { }};
+    find_cache m_cache;
 
   };
-
-  class ir_subsequence : public ir_sequence
+  
+  template <typename T>
+  class ir_subsequence : public ir_sequence<T>
   {
+    
+    using base_type = ir_sequence<T>;
+  
   public:
-
-    template <typename T>
-    static ir_subsequence create (ir_module& mod, ir_structure& parent);
-
-    ir_subsequence (ir_module& mod, ir_structure& parent)
-      : ir_sequence (mod, init_wrapper<ir_basic_block>{}),
-        m_parent (parent)
+    
+    explicit ir_subsequence (ir_structure& parent)
+      : m_parent (parent)
     { }
 
-    ~ir_subsequence () noexcept override;
+    ~ir_subsequence (void) noexcept override = default;
 
     //
     // virtual from ir_structure
     //
-
-    link_iter pred_begin (ir_component *c) override;
-    link_iter pred_end   (ir_component *c) override;
-    link_iter succ_begin (ir_component *c) override;
-    link_iter succ_end   (ir_component *c) override;
-    void invalidate_leaf_cache (void) noexcept override;
-
-  protected:
-
-    template <typename T>
-    ir_subsequence (ir_module& mod, ir_structure& parent, init_wrapper<T>)
-      : ir_sequence (mod, init_wrapper<T>{}),
-        m_parent (parent)
-    { }
+  
+    void reset (void) noexcept override
+    {
+      base_type::reset ();
+      invalidate_leaf_cache ();
+    }
+  
+    ir_structure::link_iter pred_begin (ir_component *c) override
+    {
+      ir_structure::comp_citer cit = base_type::must_find (c);
+      if (cit == base_type::begin ())
+        return m_parent.pred_begin (this);
+      return (*--cit)->leaf_begin ();
+    }
+  
+    ir_structure::link_iter pred_end (ir_component *c) override
+    {
+      ir_structure::comp_citer cit = base_type::must_find (c);
+      if (cit == base_type::begin ())
+        return m_parent.pred_end (this);
+      return (*--cit)->leaf_end ();
+    }
+  
+    ir_structure::link_iter succ_begin (ir_component *c) override
+    {
+      ir_structure::comp_citer cit = base_type::must_find (c);
+      if (cit == base_type::last ())
+        return m_parent.succ_begin (this);
+      return ir_component::link_iter ((*++cit)->get_entry_block ());
+    }
+  
+    ir_structure::link_iter succ_end (ir_component *c) override
+    {
+      ir_structure::comp_citer cit = base_type::must_find (c);
+      if (cit == base_type::last ())
+        return m_parent.succ_end (this);
+      return ++ir_component::link_iter ((*++cit)->get_entry_block ());
+    }
+    
+    void invalidate_leaf_cache (void) noexcept override
+    {
+      if (base_type::is_leaf_component (this))
+        m_parent.invalidate_leaf_cache ();
+    }
+  
+    ir_function& get_function (void) noexcept override
+    {
+      return m_parent.get_function ();
+    }
+  
+    const ir_function& get_function (void) const noexcept override
+    {
+      return m_parent.get_function ();
+    }
 
   private:
 
@@ -326,10 +457,9 @@ namespace octave
   {
   public:
 
-    ir_fork_component (ir_module& mod, ir_structure& parent)
-      : ir_structure (mod),
-        m_parent (parent),
-        m_condition (mod, parent)
+    ir_fork_component (ir_structure& parent)
+      : m_parent (parent),
+        m_condition (parent)
     { }
 
     ~ir_fork_component () noexcept override;
@@ -339,10 +469,40 @@ namespace octave
     link_iter succ_begin (ir_component *c) override;
     link_iter succ_end   (ir_component *c) override;
 
-    ir_basic_block * get_entry_block (void) override;
+    ir_basic_block * get_entry_block (void) noexcept override
+    {
+      return &m_condition;
+    }
 
     bool is_leaf_component (ir_component *c) noexcept override;
+    
     void generate_leaf_cache (void) override;
+  
+    void invalidate_leaf_cache (void) noexcept override
+    {
+      if (! leaf_cache_empty ())
+        {
+          clear_leaf_cache ();
+          if (is_leaf_component (this))
+            m_parent.invalidate_leaf_cache ();
+        }
+    }
+    
+    void reset (void) noexcept override
+    {
+      m_subcomponents.clear ();
+      
+    }
+  
+    ir_function& get_function (void) noexcept override
+    {
+      return m_parent.get_function ();
+    }
+  
+    const ir_function& get_function (void) const noexcept override
+    {
+      return m_parent.get_function ();
+    }
 
   private:
 
@@ -367,13 +527,12 @@ namespace octave
   {
   public:
 
-    ir_loop_component (ir_module& mod, ir_structure& parent)
-      : ir_structure (mod),
-        m_parent (parent),
-        m_entry (mod, *this),
-        m_body (mod, *this),
-        m_condition (mod, *this),
-        m_exit (mod, *this),
+    ir_loop_component (ir_structure& parent)
+      : m_parent (parent),
+        m_entry (*this),
+        m_body (*this),
+        m_condition (*this),
+        m_exit (*this),
         m_cond_preds { &m_entry, get_update_block () },
         m_succ_cache { m_body.get_entry_block (), &m_exit }
     { }
@@ -384,8 +543,18 @@ namespace octave
     link_iter pred_end (ir_component *c) override;
     link_iter succ_begin (ir_component *c) override;
     link_iter succ_end (ir_component *c) override;
+  
+    link_iter leaf_begin (void) override
+    {
+      return link_iter (&m_condition);
+    }
+    
+    link_iter leaf_end (void) override
+    {
+      return ++leaf_begin ();
+    }
 
-    ir_basic_block *get_entry_block (void) override
+    ir_basic_block *get_entry_block (void) noexcept override
     {
       return &m_entry;
     }
@@ -397,10 +566,30 @@ namespace octave
 
     void generate_leaf_cache (void) override
     {
-      leaf_push_back (&m_condition);
+      throw ir_exception ("this should not run");
     }
 
     ir_basic_block *get_update_block (void) const noexcept;
+  
+    void invalidate_leaf_cache (void) noexcept override
+    {
+      if (! leaf_cache_empty ())
+        {
+          clear_leaf_cache ();
+          if (is_leaf_component (this))
+            m_parent.invalidate_leaf_cache ();
+        }
+    }
+  
+    ir_function& get_function (void) noexcept override
+    {
+      return m_parent.get_function ();
+    }
+  
+    const ir_function& get_function (void) const noexcept override
+    {
+      return m_parent.get_function ();
+    }
 
   private:
 
@@ -411,8 +600,8 @@ namespace octave
     ir_structure& m_parent;
 
     ir_basic_block m_entry;
-
-    ir_subsequence m_body;
+  
+    ir_subsequence<ir_basic_block> m_body;
 
     // preds: entry, update
     ir_loop_condition_block m_condition;

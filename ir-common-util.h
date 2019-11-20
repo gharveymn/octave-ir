@@ -50,17 +50,44 @@ namespace octave
   };
 
   std::ostream& operator<< (std::ostream& os, const ir_type& ty);
-
+  
+  template <typename T>
+  using is_pointer_ref
+    = std::is_pointer<typename std::remove_reference<T>::type>;
+  
   template <typename T, typename S>
-  constexpr bool isa (S* x)
+  constexpr bool isa (const S* x)
   {
-    return dynamic_cast<T*> (x) != nullptr;
+    return dynamic_cast<const T*> (x) != nullptr;
   }
+  
+//  template <typename T, typename S, typename>
+//  bool isa (const S& x);
 
-  template <typename T, typename S>
-  constexpr bool isa (S& x)
+//  template <typename T, typename S>
+//  constexpr bool isa (const enable_if_t<! std::is_pointer<S>::value, S>& x)
+//  {
+//    return dynamic_cast<const T*> (&x) != nullptr;
+//  }
+//
+//  template <typename T, typename S>
+//  constexpr bool isa (const enable_if_t<std::is_pointer<S>::value, S>& x)
+//  {
+//    return dynamic_cast<const T*> (x) != nullptr;
+//  }
+  
+  template <typename T, typename S,
+            enable_if_t<! std::is_pointer<S>::value>* = nullptr>
+  constexpr bool isa (const S& x)
   {
-    return dynamic_cast<T*> (&x) != nullptr;
+    return dynamic_cast<const T*> (&x) != nullptr;
+  }
+  
+  template <typename T, typename S,
+            enable_if_t<std::is_pointer<S>::value>* = nullptr>
+  constexpr bool isa (const S& x)
+  {
+    return dynamic_cast<const T*> (x) != nullptr;
   }
 
   template <class T>

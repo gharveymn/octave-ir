@@ -54,13 +54,22 @@ namespace octave
   public:
     
     using instr_list_type = std::unique_ptr<ir_instruction>;
-    using instr_list = std::list<std::unique_ptr<ir_instruction>>;
-    using iter = instr_list::iterator;
-    using citer = instr_list::const_iterator;
-    using riter = instr_list::reverse_iterator;
-    using criter = instr_list::const_reverse_iterator;
-    using ref = instr_list::reference;
-    using cref = instr_list::const_reference;
+    using instr_list      = std::list<std::unique_ptr<ir_instruction>>;
+    using instr_iter      = instr_list::iterator;
+    using instr_citer     = instr_list::const_iterator;
+    using instr_riter     = instr_list::reverse_iterator;
+    using instr_criter    = instr_list::const_reverse_iterator;
+    using instr_ref       = instr_list::reference;
+    using instr_cref      = instr_list::const_reference;
+  
+    using phi_list_type = ir_phi;
+    using phi_list      = std::list<ir_phi>;
+    using phi_iter      = phi_list::iterator;
+    using phi_citer     = phi_list::const_iterator;
+    using phi_riter     = phi_list::reverse_iterator;
+    using phi_criter    = phi_list::const_reverse_iterator;
+    using phi_ref       = phi_list::reference;
+    using phi_cref      = phi_list::const_reference;
   
     using block_def_pair = std::pair<ir_basic_block&, ir_def*>;
     using block_def_vect = std::vector<block_def_pair>;
@@ -71,8 +80,6 @@ namespace octave
     {
     
     public:
-      using instr_citer = ir_basic_block::citer;
-      
       using element_type = std::pair<instr_citer, ir_def *>;
       using def_deque = std::deque<element_type>;
       using iter = def_deque::iterator;
@@ -80,15 +87,14 @@ namespace octave
       using riter = def_deque::reverse_iterator;
       using criter = def_deque::const_reverse_iterator;
       
-      iter begin (void) { return m_timeline.begin (); }
-      citer begin (void) const { return m_timeline.begin (); }
-      iter end (void) { return m_timeline.end (); }
-      citer end (void) const { return m_timeline.end (); }
-      riter rbegin (void) { return m_timeline.rbegin (); }
-      criter rbegin (void) const { return m_timeline.rbegin (); }
-      riter rend (void) { return m_timeline.rend (); }
-      criter rend (void) const { return m_timeline.rend (); }
-      
+      iter   begin  (void)       noexcept { return m_timeline.begin (); }
+      citer  begin  (void) const noexcept { return m_timeline.begin (); }
+      iter   end    (void)       noexcept { return m_timeline.end (); }
+      citer  end    (void) const noexcept { return m_timeline.end (); }
+      riter  rbegin (void)       noexcept { return m_timeline.rbegin (); }
+      criter rbegin (void) const noexcept { return m_timeline.rbegin (); }
+      riter  rend   (void)       noexcept { return m_timeline.rend (); }
+      criter rend   (void) const noexcept { return m_timeline.rend (); }
       
       constexpr ir_def * fetch_cache (void) const noexcept
       {
@@ -120,6 +126,18 @@ namespace octave
         set_cache (d);
       }
       
+      void track_phi_def (phi_citer pos, ir_def& d)
+      {
+        if (has_phi_def ())
+          throw ir_exception ("block already has a phi def for the variable");
+        m_phi_def = std::make_pair (pos, &d);
+      }
+      
+      constexpr bool has_phi_def (void) const noexcept
+      {
+        return m_phi_def.second != nullptr;
+      }
+      
       def_deque::size_type size (void) const noexcept
       {
         return m_timeline.size ();
@@ -129,6 +147,8 @@ namespace octave
       
       //! The latest ir_def (which may or may not have been created here)
       ir_def * m_cache = nullptr;
+      
+      std::pair<phi_citer, ir_def *> m_phi_def = {{}, nullptr};
       
       //! A timeline of defs created in this block.
       def_deque m_timeline;
@@ -143,19 +163,19 @@ namespace octave
     
     ir_def * fetch_cached_def (ir_variable& var) const;
     
-    ir_def * fetch_proximate_def (ir_variable& var, citer pos) const;
+    ir_def * fetch_proximate_def (ir_variable& var, instr_citer pos) const;
     
     // side effects!
     ir_def * join_defs (ir_variable& var);
     
     // side effects!
-    ir_def * join_defs (ir_variable& var, citer pos);
+    ir_def * join_defs (ir_variable& var, instr_citer pos);
     
     virtual ir_def * join_pred_defs (ir_variable& var);
     
     void set_cached_def (ir_def& d);
     
-    ir_basic_block (ir_module& mod, ir_structure& parent);
+    explicit ir_basic_block (ir_structure& parent);
     
     ~ir_basic_block (void) noexcept override;
     
@@ -168,149 +188,127 @@ namespace octave
     
     // front and back won't throw because the constructor will
     // always emplace a return instruction
-    iter   begin (void)         noexcept { return m_instrs.begin (); }
-    citer  begin (void)   const noexcept { return m_instrs.begin (); }
-    citer  cbegin (void)  const noexcept { return m_instrs.cbegin (); }
-    
-    iter   end (void)           noexcept { return m_instrs.end ();   }
-    citer  end (void)     const noexcept { return m_instrs.end ();   }
-    citer  cend (void)    const noexcept { return m_instrs.cbegin (); }
-    
-    riter  rbegin (void)        noexcept { return m_instrs.rbegin (); }
-    criter rbegin (void)  const noexcept { return m_instrs.rbegin (); }
-    criter crbegin (void) const noexcept { return m_instrs.crbegin (); }
-    
-    riter  rend (void)          noexcept { return m_instrs.rend (); }
-    criter rend (void)    const noexcept { return m_instrs.rend (); }
-    criter crend (void)   const noexcept { return m_instrs.crend (); }
-    
-    ref    front (void)         noexcept { return m_instrs.front (); }
-    cref   front (void)   const noexcept { return m_instrs.front (); }
-    
-    ref    back (void)          noexcept { return m_instrs.back (); }
-    cref   back (void)    const noexcept { return m_instrs.back (); }
+    instr_iter begin (void)         noexcept { return m_instrs.begin (); }
+    instr_citer begin (void)   const noexcept { return m_instrs.begin (); }
+    instr_citer cbegin (void)  const noexcept { return m_instrs.cbegin (); }
+
+    instr_iter end (void)           noexcept { return m_instrs.end ();   }
+    instr_citer end (void)     const noexcept { return m_instrs.end ();   }
+    instr_citer cend (void)    const noexcept { return m_instrs.cbegin (); }
+
+    instr_riter rbegin (void)        noexcept { return m_instrs.rbegin (); }
+    instr_criter rbegin (void)  const noexcept { return m_instrs.rbegin (); }
+    instr_criter crbegin (void) const noexcept { return m_instrs.crbegin (); }
+
+    instr_riter rend (void)          noexcept { return m_instrs.rend (); }
+    instr_criter rend (void)    const noexcept { return m_instrs.rend (); }
+    instr_criter crend (void)   const noexcept { return m_instrs.crend (); }
+
+    instr_ref front (void)         noexcept { return m_instrs.front (); }
+    instr_cref front (void)   const noexcept { return m_instrs.front (); }
+
+    instr_ref back (void)          noexcept { return m_instrs.back (); }
+    instr_cref back (void)    const noexcept { return m_instrs.back (); }
     
     size_t size (void)    const noexcept { return m_instrs.size (); }
-    
     bool   empty (void)   const noexcept { return m_instrs.empty (); }
     
     // phi
-    
-    iter   phi_begin (void)        noexcept { return m_instrs.begin (); }
-    citer  phi_begin (void)  const noexcept { return m_instrs.begin (); }
-    
-    iter   phi_end (void)          noexcept { return m_body_begin; }
-    citer  phi_end (void)    const noexcept { return m_body_begin; }
-    
-    riter  phi_rbegin (void)       noexcept { return riter (phi_end ()); }
-    criter phi_rbegin (void) const noexcept { return criter (phi_end ()); }
-    
-    riter  phi_rend (void)         noexcept { return riter (phi_begin ()); }
-    criter phi_rend (void)   const noexcept { return criter (phi_begin ()); }
+  
+    template <typename ...Args>
+    ir_phi * create_phi (Args&&... args);
+
+    instr_iter phi_begin (void)        noexcept { return m_instrs.begin (); }
+    instr_citer phi_begin (void)  const noexcept { return m_instrs.begin (); }
+
+    instr_iter phi_end (void)          noexcept { return m_body_begin; }
+    instr_citer phi_end (void)    const noexcept { return m_body_begin; }
+
+    instr_riter phi_rbegin (void)       noexcept { return instr_riter (phi_end ()); }
+    instr_criter phi_rbegin (void) const noexcept { return instr_criter (phi_end ()); }
+
+    instr_riter phi_rend (void)         noexcept { return instr_riter (phi_begin ()); }
+    instr_criter phi_rend (void)   const noexcept { return instr_criter (phi_begin ()); }
     
     size_t num_phi (void)    const noexcept { return m_num_phi; }
-    
     bool   has_phi (void)    const noexcept { return phi_begin () != phi_end (); }
+
+    instr_iter erase_phi (instr_citer pos);
     
     // body
-    
-    iter   body_begin (void)        noexcept { return m_body_begin; }
-    citer  body_begin (void)  const noexcept { return m_body_begin; }
-    
-    iter   body_end (void)          noexcept { return m_terminator;   }
-    citer  body_end (void)    const noexcept { return m_terminator;   }
-    
-    riter  body_rbegin (void)       noexcept { return riter (body_end ()); }
-    criter body_rbegin (void) const noexcept { return criter (body_end ()); }
-    
-    riter  body_rend (void)         noexcept { return riter (body_begin ()); }
-    criter body_rend (void)   const noexcept { return criter (body_begin ()); }
+
+    instr_iter body_begin (void)        noexcept { return m_body_begin; }
+    instr_citer body_begin (void)  const noexcept { return m_body_begin; }
+
+    instr_iter body_end (void)          noexcept { return m_terminator;   }
+    instr_citer body_end (void)    const noexcept { return m_terminator;   }
+
+    instr_riter body_rbegin (void)       noexcept { return instr_riter (body_end ()); }
+    instr_criter body_rbegin (void) const noexcept { return instr_criter (body_end ()); }
+
+    instr_riter body_rend (void)         noexcept { return instr_riter (body_begin ()); }
+    instr_criter body_rend (void)   const noexcept { return instr_criter (body_begin ()); }
     
     size_t num_body (void)    const noexcept { return size () - m_num_phi - 1; }
     
     bool   has_body (void)    const noexcept { return phi_begin () != phi_end (); }
     
-    ir_phi * create_phi (ir_variable& var, ir_type ty,
-                         const block_def_vect& pairs);
-    
-    iter remove_phi (citer pos);
-    
-    template <typename T, typename = void>
-    struct is_instruction : std::false_type
-    { };
+    template <typename T>
+    using is_instruction = std::is_base_of<ir_instruction, T>;
     
     template <typename T>
-    struct is_instruction<T, enable_if_t<std::is_base_of<ir_instruction,
-      T>::value>>
-      : std::true_type
-    { };
-    
-    template <typename T, typename = void>
-    struct is_phi : std::false_type
-    { };
-    
-    template <typename T>
-    struct is_phi<T, enable_if_t<std::is_same<ir_phi, T>::value>>
-      : std::true_type
-    { };
-    
-    template <typename T, typename = void>
-    struct is_nonphi_instruction : std::false_type
-    { };
-    
-    template <typename T>
-    struct is_nonphi_instruction<T,
-      enable_if_t<is_instruction<T>::value && ! is_phi<T>::value>>
-      : std::true_type
-    { };
-    
-    template <typename T, typename = void>
-    struct has_return : std::false_type
-    { };
-    
-    template <typename T>
-    struct has_return<T,
-      enable_if_t<std::is_base_of<ir_def_instruction, T>::value>>
-      : std::true_type
-    { };
+    using is_phi = std::is_same<ir_phi, T>;
   
-    template <typename T, typename ...Args>
-    enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
-                && ir_basic_block::has_return<T>::value, T>&
-    emplace_front (Args&&... args)
+    template <typename T>
+    using is_nonphi = negation<is_phi<T>>;
+    
+    template <typename T>
+    using is_nonphi_instruction = conjunction<is_nonphi<T>, is_instruction<T>>;
+    
+    template <typename T>
+    using has_return = std::is_base_of<ir_def_instruction, T>;
+    
+    template <typename T>
+    using is_nonphi_return_instruction
+      = conjunction<is_nonphi_instruction<T>, has_return<T>>;
+  
+    template <typename T>
+    using is_nonphi_nonreturn_instruction
+      = conjunction<is_nonphi_instruction<T>, negation<has_return<T>>>;
+    
+    template <typename T, typename ...Args,
+      enable_if_t<is_nonphi_return_instruction<T>::value>* = nullptr>
+    T& emplace_front (Args&&... args)
     {
-      std::unique_ptr<T> u = octave::make_unique<T> (*this,
-                                                     std::forward<Args> (args)...);
+      std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
       T *ret = u.get ();
-      m_body_begin = m_instrs.insert (m_body_begin, std::move (u));
+      m_body_begin = m_instrs.insert (body_begin (), std::move (u));
       try
         {
           def_emplace (m_body_begin, ret->get_return ());
         }
       catch (const std::exception& e)
         {
-          m_body_begin = erase (m_body_begin);
+          m_body_begin = m_instrs.erase (m_body_begin);
           throw e;
         }
       return *ret;
     }
   
-    template <typename T, typename ...Args>
-    enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
-                && ir_basic_block::has_return<T>::value, T>&
-    emplace_back (Args&&... args)
+    template <typename T, typename ...Args,
+      enable_if_t<is_nonphi_return_instruction<T>::value>* = nullptr>
+    T& emplace_back (Args&&... args)
     {
-      std::unique_ptr<T> u = octave::make_unique<T> (*this,
-                                                     std::forward<Args> (args)...);
+      std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
       T *ret = u.get ();
-      iter it = m_instrs.insert (body_end (), std::move (u));
+      instr_iter it = m_instrs.insert (body_end (), std::move (u));
       try
         {
           def_emplace (it, ret->get_return());
         }
       catch (const std::exception& e)
         {
-          erase (it);
+          m_instrs.erase (it);
           throw e;
         }
       if (m_body_begin == body_end ())
@@ -318,24 +316,22 @@ namespace octave
       return *ret;
     }
   
-    template <typename T, typename ...Args>
-    enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
-                && ir_basic_block::has_return<T>::value, T>&
-    emplace_before (citer pos, Args&&... args)
+    template <typename T, typename ...Args,
+      enable_if_t<is_nonphi_return_instruction<T>::value>* = nullptr>
+    T& emplace_before (instr_citer pos, Args&&... args)
     {
-      if (! is_normal_instruction (pos))
+      if (pos == m_instrs.end () || is_phi_iter (pos))
         throw ir_exception ("instruction must be placed within the body");
-      std::unique_ptr<T> u = octave::make_unique<T> (*this,
-                                                     std::forward<Args> (args)...);
+      std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
       T *ret = u.get ();
-      iter it = m_instrs.insert (pos, std::move (u));
+      instr_iter it = m_instrs.insert (pos, std::move (u));
       try
         {
           def_emplace (it, ret->get_return());
         }
       catch (const std::exception& e)
         {
-          erase (it);
+          m_instrs.erase (it);
           throw e;
         }
       if (m_body_begin == pos)
@@ -343,25 +339,21 @@ namespace octave
       return *ret;
     }
   
-    template <typename T, typename ...Args>
-    enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
-                && ! ir_basic_block::has_return<T>::value, T>&
-    emplace_front (Args&&... args)
+    template <typename T, typename ...Args,
+      enable_if_t<is_nonphi_nonreturn_instruction<T>::value>* = nullptr>
+    T& emplace_front (Args&&... args)
     {
-      std::unique_ptr<T> u = octave::make_unique<T> (*this,
-                                                     std::forward<Args> (args)...);
+      std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
       T *ret = u.get ();
       m_body_begin = m_instrs.insert (m_body_begin, std::move (u));
       return *ret;
     }
   
-    template <typename T, typename ...Args>
-    enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
-                && ! ir_basic_block::has_return<T>::value, T>&
-    emplace_back (Args&&... args)
+    template <typename T, typename ...Args,
+      enable_if_t<is_nonphi_nonreturn_instruction<T>::value>* = nullptr>
+    T& emplace_back (Args&&... args)
     {
-      std::unique_ptr<T> u = octave::make_unique<T> (*this,
-                                                     std::forward<Args> (args)...);
+      std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
       T *ret = u.get ();
       m_instrs.push_back (std::move (u));
       if (m_body_begin == body_end ())
@@ -369,27 +361,23 @@ namespace octave
       return *ret;
     }
   
-    template <typename T, typename ...Args>
-    enable_if_t<ir_basic_block::is_nonphi_instruction<T>::value
-                && ! ir_basic_block::has_return<T>::value, T>&
-    emplace_before (citer pos, Args&&... args)
+    template <typename T, typename ...Args,
+      enable_if_t<is_nonphi_nonreturn_instruction<T>::value>* = nullptr>
+    T& emplace_before (instr_citer pos, Args&&... args)
     {
-      if (! is_normal_instruction (pos))
+      if (pos == end () || is_phi_iter (pos))
         throw ir_exception ("instruction must be placed within the body");
-      std::unique_ptr<T> u = octave::make_unique<T> (*this,
-                                                     std::forward<Args> (args)...);
+      std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
       T *ret = u.get ();
-      iter it = m_instrs.insert (pos, std::move (u));
+      instr_iter it = m_instrs.insert (pos, std::move (u));
       if (m_body_begin == pos)
         m_body_begin = it;
       return *ret;
     }
-    
-    bool is_normal_instruction (citer pos) const;
-    
-    iter erase (citer pos) noexcept;
-    
-    iter erase (citer first, citer last) noexcept;
+
+    instr_iter erase (instr_citer pos) noexcept;
+
+    instr_iter erase (instr_citer first, instr_citer last) noexcept;
     
     // predecessors
     
@@ -410,24 +398,40 @@ namespace octave
     
     link_iter leaf_end (void) noexcept override { return ++link_iter (this); }
     
-    ir_basic_block * get_entry_block (void) override { return this; }
+    ir_basic_block * get_entry_block (void) noexcept override { return this; }
+    
+    ir_function& get_function (void) noexcept override;
+  
+    const ir_function& get_function (void) const noexcept override;
+    
+    void reset (void) noexcept override;
   
   protected:
     
-    void def_emplace (citer pos, ir_def& d);
+    void def_emplace (instr_citer pos, ir_def& d);
     void def_emplace_front (ir_def& d);
     void def_emplace_back (ir_def& d);
   
   private:
     
+    static bool is_phi_iter (instr_citer cit);
+    
+    template <typename T, typename ...Args>
+    std::unique_ptr<T> create_instruction (Args&&... args)
+    {
+      return octave::make_unique<T> (*this, std::forward<Args> (args)...);
+    }
+    
     ir_structure& m_parent;
+    
+    
     
     // list of instructions
     instr_list m_instrs;
     
     std::size_t m_num_phi = 0;
-    iter m_body_begin;
-    iter m_terminator;
+    instr_iter m_body_begin;
+    instr_iter m_terminator;
     
     // map of variables to the ir_def timeline for this block
     
@@ -441,20 +445,14 @@ namespace octave
   class ir_condition_block : public ir_basic_block
   {
   public:
-    ir_condition_block (ir_module& mod, ir_structure& parent)
-      : ir_basic_block (mod, parent)
-    { }
-  
-    ~ir_condition_block (void) noexcept override;
+    using ir_basic_block::ir_basic_block;
   };
   
   class ir_loop_condition_block : public ir_basic_block
   {
   public:
     
-    ir_loop_condition_block (ir_module& mod, ir_structure& parent)
-      : ir_basic_block (mod, parent)
-    { }
+    using ir_basic_block::ir_basic_block;
     
     ~ir_loop_condition_block (void) noexcept override;
     

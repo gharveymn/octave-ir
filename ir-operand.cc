@@ -52,15 +52,13 @@ namespace octave
   {
     return ir_type::get<value_type> ();
   }
-  
-  template ir_type ir_constant<bool>::get_type (void) const;
 
   template <>
   std::ostream&
   ir_printer<ir_operand>::short_print (std::ostream& os, const ir_operand& op)
   {
     //op.print (os);
-    if (isa<const ir_def> (op))
+    if (isa<ir_def> (op))
       os << ": " << op.get_type ();
     return os;
   }

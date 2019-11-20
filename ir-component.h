@@ -33,7 +33,7 @@ namespace octave
 {
 
   class ir_basic_block;
-  class ir_module;
+  class ir_function;
 
   // abstract
   class ir_component
@@ -44,16 +44,9 @@ namespace octave
     using link_cache_iter = link_cache_vec::iterator;
     using link_cache_citer = link_cache_vec::const_iterator;
 
-    ir_component (ir_module& mod)
-      : m_module (mod)
-    { }
+    constexpr ir_component (void) noexcept = default;
 
     virtual ~ir_component (void) noexcept = 0;
-
-    constexpr ir_module& get_module (void) const noexcept
-    {
-      return m_module;
-    }
 
     template <typename It, typename E = void>
     class union_iterator;
@@ -61,21 +54,31 @@ namespace octave
     template <typename It>
     class union_iterator<It, enable_if_t<std::is_pointer<typename It::value_type>::value>>
     {
-      using iter = It;
+      using iter_type = It;
     public:
 
-      using difference_type   = typename iter::difference_type;
-      using value_type        = typename iter::value_type;
-      using pointer           = typename iter::pointer;
-      using reference         = typename iter::reference;
-      using iterator_category = typename iter::iterator_category;
+      using difference_type   = typename iter_type::difference_type;
+      using value_type        = typename iter_type::value_type;
+      using pointer           = typename iter_type::pointer;
+      using reference         = typename iter_type::reference;
+      using iterator_category = typename iter_type::iterator_category;
 
-      explicit union_iterator (iter it) noexcept
+      explicit union_iterator (const iter_type& it) noexcept
         : m_iter (it),
           m_type (tag::iterator)
       { }
+  
+      explicit union_iterator (iter_type&& it) noexcept
+        : m_iter (std::move (it)),
+          m_type (tag::iterator)
+      { }
 
-      explicit constexpr union_iterator (value_type val) noexcept
+      explicit constexpr union_iterator (const value_type& val) noexcept
+        : m_value (val),
+          m_type (tag::value)
+      { }
+  
+      explicit constexpr union_iterator (value_type&& val) noexcept
         : m_value (std::move (val)),
           m_type (tag::value)
       { }
@@ -84,7 +87,7 @@ namespace octave
         : m_value (nullptr),
           m_type (tag::value)
       { }
-
+      
       union_iterator (const union_iterator& o)
         : m_type (o.m_type)
       {
@@ -93,8 +96,16 @@ namespace octave
         else
           this->m_value = o.m_value;
       }
-
-
+  
+      union_iterator (union_iterator&& o) noexcept
+        : m_type (o.m_type)
+      {
+        if (o.is_iterator ())
+          this->m_iter = std::move (o.m_iter);
+        else
+          this->m_value = std::move (o.m_value);
+      }
+      
       union_iterator& operator= (const union_iterator& o)
       {
         this->m_type = o.m_type;
@@ -104,13 +115,21 @@ namespace octave
           this->m_value = o.m_value;
       }
 
-      union_iterator (union_iterator&& o) noexcept = default;
-      union_iterator& operator= (union_iterator&&) noexcept = default;
+      union_iterator& operator= (union_iterator&& o) noexcept
+      {
+        this->m_type = o.m_type;
+        if (o.is_iterator ())
+          this->m_iter = std::move (o.m_iter);
+        else
+          this->m_value = std::move (o.m_value);
+      }
 
       ~union_iterator (void) noexcept
       {
         if (is_iterator ())
-          m_iter.~iter ();
+          m_iter.~iter_type ();
+        else
+          m_value.~value_type ();
       }
 
       union_iterator& operator++ (void) noexcept
@@ -297,7 +316,7 @@ namespace octave
 
       union
       {
-        iter m_iter;
+        iter_type m_iter;
         value_type m_value;
       };
 
@@ -313,15 +332,19 @@ namespace octave
 
     static_assert (std::is_same<link_cache_citer::pointer, ir_basic_block * const *>::value, "");
     static_assert (std::is_same<link_cache_vec::const_pointer, ir_basic_block * const *>::value, "");
-
-    virtual link_iter leaf_begin  (void) = 0;
-    virtual link_iter leaf_end    (void) = 0;
-    virtual ir_basic_block * get_entry_block (void) = 0;
+  
+  
+    virtual void               reset           (void)       noexcept = 0;
+    virtual link_iter          leaf_begin      (void)                = 0;
+    virtual link_iter          leaf_end        (void)                = 0;
+    virtual ir_basic_block *   get_entry_block (void)       noexcept = 0;
+    virtual ir_function&       get_function    (void)       noexcept = 0;
+    virtual const ir_function& get_function    (void) const noexcept = 0;
+    
+    template <typename T>
+    using is_component = std::is_base_of<ir_component, T>;
 
   private:
-    // TODO the module doesn't need to propogate through all ir_components
-    //  optimize using virtuals at some point
-    ir_module& m_module;
 
   };
 
