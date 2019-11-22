@@ -44,9 +44,19 @@ namespace octave
   class ir_def_instruction;
   class ir_basic_block;
   class ir_function;
+  class ir_basic_block;
   
   class ir_def;
   class ir_use;
+  
+  using instr_list_type = std::unique_ptr<ir_instruction>;
+  using instr_list      = std::list<std::unique_ptr<ir_instruction>>;
+  using instr_iter      = instr_list::iterator;
+  using instr_citer     = instr_list::const_iterator;
+  using instr_riter     = instr_list::reverse_iterator;
+  using instr_criter    = instr_list::const_reverse_iterator;
+  using instr_ref       = instr_list::reference;
+  using instr_cref      = instr_list::const_reference;
   
   using def_list = std::list<ir_def *>;
   using def_iter = def_list::iterator;
@@ -136,12 +146,16 @@ namespace octave
     {
       return m_function;
     }
+    
+    ir_def& join (ir_basic_block& blk);
+    
+    ir_def& join (ir_basic_block& blk, instr_citer pos);
 
    private:
     
     void initialize_sentinel (void);
 
-    def_citer find_def (const ir_def*d) const;
+    def_citer find_def (const ir_def *d) const;
 
     ir_function& m_function;
 
@@ -218,7 +232,7 @@ namespace octave
       return ! m_uses.empty ();
     }
     
-    void transfer_uses (ir_def& new_def);
+    void transfer_uses (ir_def& from);
     
     constexpr ir_type get_type (void) const
     {

@@ -54,11 +54,16 @@ namespace octave
     using comp_citer = comp_list::const_iterator;
     using comp_ref = comp_list::reference;
     using comp_cref = comp_list::const_reference;
-
+    
     virtual link_iter pred_begin (ir_component *c) = 0;
-    virtual link_iter pred_end (ir_component *c)   = 0;
+    virtual link_iter pred_end   (ir_component *c) = 0;
     virtual link_iter succ_begin (ir_component *c) = 0;
-    virtual link_iter succ_end (ir_component *c)   = 0;
+    virtual link_iter succ_end   (ir_component *c) = 0;
+  
+    ir_basic_block * pred_front (ir_component *c) { return *pred_begin (c); }
+    ir_basic_block * pred_back  (ir_component *c) { return *(--pred_end (c)); }
+    ir_basic_block * succ_front (ir_component *c) { return *succ_begin (c); }
+    ir_basic_block * succ_back  (ir_component *c) { return *(--succ_end (c)); }
 
     link_iter leaf_begin (void) override;
     link_iter leaf_end (void) override;
@@ -540,9 +545,9 @@ namespace octave
     ~ir_loop_component (void) noexcept override;
 
     link_iter pred_begin (ir_component *c) override;
-    link_iter pred_end (ir_component *c) override;
+    link_iter pred_end   (ir_component *c) override;
     link_iter succ_begin (ir_component *c) override;
-    link_iter succ_end (ir_component *c) override;
+    link_iter succ_end   (ir_component *c) override;
   
     link_iter leaf_begin (void) override
     {

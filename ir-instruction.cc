@@ -65,7 +65,7 @@ namespace octave
   ir_def_instruction::unlink_propagate (instr_citer pos)
   {
     if (m_ret.has_uses ())
-      m_ret.transfer_uses (get_block ().join_defs (m_ret.get_var (), pos));
+      m_ret.transfer_uses(m_ret.get_var ().join (get_block (), pos));
   }
 
   //

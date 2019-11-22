@@ -52,5 +52,5 @@ ADD_LIBRARY(octave_ir SHARED
 IF (MSVC)
 #	target_compile_options(octave_ir PRIVATE -Wall)
 ELSE()
-	target_compile_options(octave_ir PRIVATE -Wall -Wextra -pedantic)
+#	target_compile_options(octave_ir PRIVATE -Wall -Wextra -pedantic)
 ENDIF()

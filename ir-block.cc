@@ -168,53 +168,22 @@ namespace octave
     m_vt_map[&d.get_var ()].emplace_back (--m_instrs.end (), d);
   }
 
-  ir_def&
-  ir_basic_block::join_defs (ir_variable& var)
-  {
-    return join_defs (var, end ());
-  }
-  
-  ir_def&
-  ir_basic_block::join_defs (ir_variable& var, instr_citer pos)
-  {
-    ir_def *ret = fetch_proximate_def (var, pos);
-    if (ret == nullptr)
-      ret = join_pred_defs (var);
-    
-    // if ret is still nullptr then we need to insert a fetch instruction
-    if (ret == nullptr)
-      ret = &emplace_before<ir_fetch> (pos, var).get_return ();
-    else
-      {
-        // if the ir_def was created by a phi node, there may be
-      }
-    
-    return *ret;
-  }
-
   ir_def *
   ir_basic_block::join_pred_defs (ir_variable& var)
   {
-    
     std::size_t npreds = num_preds ();
-    
     if (npreds == 0)
       return nullptr;
-    
     if (npreds == 1)
-      {
-        ir_basic_block *pred = *pred_begin ();
-        return &pred->join_defs (var);
-      }
-
+      return &var.join (*pred_front ());
+    
     block_def_vect pairs;
     pairs.reserve (npreds);
     
     std::for_each (pred_begin (), pred_end (),
-                   [&pairs, &var](ir_basic_block *pred){
-                     if (pred == nullptr)
-                       throw ir_exception ("block was unexpectedly nullptr.");
-                     pairs.emplace_back (*pred, &pred->join_defs (var));
+                   [&pairs, &var] (ir_basic_block *pred)
+                   {
+                     pairs.emplace_back (*pred, &var.join (*pred));
                    });
     
     // TODO if we have null returns here we need to create extra diversion

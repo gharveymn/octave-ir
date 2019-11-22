@@ -116,7 +116,32 @@ namespace octave
     return "_" + m_name + "_sentinel";
   }
   
-  void ir_variable::initialize_sentinel (void)
+  ir_def&
+  ir_variable::join (ir_basic_block& blk)
+  {
+    return join (blk, blk.body_end ());
+  }
+  
+  ir_def&
+  ir_variable::join (ir_basic_block& blk, instr_citer pos)
+  {
+    ir_def *ret = blk.fetch_proximate_def (*this, pos);
+    if (ret == nullptr)
+      ret = blk.join_pred_defs (*this);
+  
+    // if ret is still nullptr then we need to insert a fetch instruction
+    if (ret == nullptr)
+      return blk.emplace_before<ir_fetch> (pos, *this).get_return ();
+    else
+      {
+        // if the ir_def was created by a phi node, there may be
+      }
+  
+    return *ret;
+  }
+  
+  void
+  ir_variable::initialize_sentinel (void)
   {
     m_sentinel = octave::make_unique<ir_variable> (get_module (),
                                                    get_sentinel_name ());
@@ -268,10 +293,10 @@ namespace octave
   }
   
   void
-  ir_def::transfer_uses (ir_def& new_def)
+  ir_def::transfer_uses (ir_def& to)
   {
     for (ir_use *u : m_uses)
-      u->supplant_def (new_def);
+      u->supplant_def (to);
     m_uses.clear ();
   }
   

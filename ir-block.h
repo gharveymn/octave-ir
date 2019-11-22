@@ -166,14 +166,6 @@ namespace octave
     
     ir_def * fetch_proximate_def (ir_variable& var, instr_citer pos) const;
     
-    // side effects!
-    // guaranteed return if no throw
-    ir_def& join_defs (ir_variable& var);
-    
-    // side effects!
-    // guaranteed return if no throw
-    ir_def& join_defs (ir_variable& var, instr_citer pos);
-    
     virtual ir_def * join_pred_defs (ir_variable& var);
     
     void set_cached_def (ir_def& d);
@@ -385,7 +377,9 @@ namespace octave
     // predecessors
     
     link_iter pred_begin (void);
-    link_iter pred_end (void);
+    link_iter pred_end   (void);
+    ir_basic_block * pred_front (void) { return *pred_begin (); }
+    ir_basic_block * pred_back (void) { return *(--pred_end ()); }
     std::size_t num_preds (void);
     bool has_preds (void);
     bool has_multiple_preds (void);
@@ -393,6 +387,8 @@ namespace octave
     // successors
     link_iter succ_begin (void);
     link_iter succ_end (void);
+    ir_basic_block * succ_front (void) { return *succ_begin (); }
+    ir_basic_block * succ_back (void) { return *(--succ_end ()); }
     std::size_t num_succs (void);
     bool has_succs (void);
     bool has_multiple_succs (void);
