@@ -28,6 +28,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-common-util.h"
 #include "ir-operand.h"
 #include "ir-type-base.h"
+#include "ir-block.h"
 
 #include <deque>
 #include <memory>
@@ -47,17 +48,17 @@ namespace octave
   class ir_def;
   class ir_use;
   
-  using def_list = std::list<ir_def*>;
+  using def_list = std::list<ir_def *>;
   using def_iter = def_list::iterator;
   using def_citer = def_list::const_iterator;
   using def_ref = def_list::reference;
   using def_cref = def_list::const_reference;
   
-  using use_set = std::list<ir_use*>;
-  using use_iter = use_set::iterator;
-  using use_citer = use_set::const_iterator;
-  using use_ref = use_set::reference;
-  using use_cref = use_set::const_reference;
+  using use_list = std::list<ir_use *>;
+  using use_iter = use_list::iterator;
+  using use_citer = use_list::const_iterator;
+  using use_ref = use_list::reference;
+  using use_cref = use_list::const_reference;
 
   class ir_variable
   {
@@ -189,16 +190,17 @@ namespace octave
     template <typename InputIt>
     static ir_type common_type (InputIt first, InputIt last);
     
-    use_iter begin (void) noexcept { return m_uses.begin (); }
+    use_iter  begin (void)       noexcept { return m_uses.begin (); }
     use_citer begin (void) const noexcept { return m_uses.begin (); }
-    use_iter end (void) noexcept { return m_uses.end (); }
-    use_citer end (void) const noexcept { return m_uses.end (); }
+    use_iter  end (void)         noexcept { return m_uses.end (); }
+    use_citer end (void)   const noexcept { return m_uses.end (); }
     
-    constexpr const ir_def_instruction&
-    get_instruction (void) const
+    constexpr const ir_def_instruction& get_instruction (void) const
     {
       return m_instr;
     }
+  
+    constexpr ir_basic_block& get_block (void) const;
     
     std::ostream& print (std::ostream& os) const;
     
@@ -210,6 +212,13 @@ namespace octave
     {
       return m_var != nullptr;
     }
+    
+    bool has_uses (void) const noexcept
+    {
+      return ! m_uses.empty ();
+    }
+    
+    void transfer_uses (ir_def& new_def);
     
     constexpr ir_type get_type (void) const
     {
@@ -241,7 +250,7 @@ namespace octave
     const ir_def_instruction& m_instr;
     
     // all uses which can be reached from this ir_def
-    use_set m_uses;
+    use_list m_uses;
     
     bool m_needs_init_check;
     
@@ -255,7 +264,7 @@ namespace octave
     // They may not be copied, but they may be moved.
     // defs maintain a pointer to each use it created
     
-    constexpr ir_use (void)        = delete;
+    constexpr ir_use (void)           = delete;
 
     ir_use (const ir_use&)            = delete;
     ir_use& operator= (const ir_use&) = delete;
@@ -269,8 +278,9 @@ namespace octave
     
     //! Replace the parent def for this use.
     //! @param new_def the replacement
-    //! @return a reference to this use
     void replace_def (ir_def& new_def) noexcept (false);
+    
+    void supplant_def (ir_def& new_def) noexcept (false);
     
     //! Get the def. Don't use this within the scope of ir_variable. The
     //! def pointer is only nullptr when it is in an invalid state. It
@@ -282,11 +292,7 @@ namespace octave
     
     std::size_t get_id (void);
     
-    constexpr bool
-    has_def (void) const noexcept
-    {
-      return m_def != nullptr;
-    }
+    constexpr bool has_def (void) const noexcept { return m_def != nullptr; }
     
     ir_type get_type (void) const override;
     
@@ -298,7 +304,7 @@ namespace octave
     ir_use (ir_def& d, const ir_instruction& instr);
     
     //! The def for this use
-    ir_def*m_def;
+    ir_def *m_def;
     
     // iterator for position in ir_def list
     use_iter m_self_iter;

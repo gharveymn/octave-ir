@@ -77,7 +77,7 @@ namespace octave
       
   {
     template<std::size_t, typename ...>
-    friend class ir_constant_impl;
+    friend struct ir_constant_impl;
     
     using self_type = ir_constant_impl<Idx, Head, Tail...>;
     
@@ -154,7 +154,7 @@ namespace octave
     : private ir_constant_base<Idx, Head>
   {
     template<std::size_t, typename ...>
-    friend class ir_constant_impl;
+    friend struct ir_constant_impl;
   
     using base_type = ir_constant_base<Idx, Head>;
   

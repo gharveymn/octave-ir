@@ -29,6 +29,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-variable.h"
 #include "ir-type-base.h"
 #include <unordered_map>
+#include <list>
 #include <vector>
 
 namespace octave
@@ -106,6 +107,15 @@ namespace octave
   class ir_instruction
   {
   public:
+    
+    using instr_list_type = std::unique_ptr<ir_instruction>;
+    using instr_list      = std::list<std::unique_ptr<ir_instruction>>;
+    using instr_iter      = instr_list::iterator;
+    using instr_citer     = instr_list::const_iterator;
+    using instr_riter     = instr_list::reverse_iterator;
+    using instr_criter    = instr_list::const_reverse_iterator;
+    using instr_ref       = instr_list::reference;
+    using instr_cref      = instr_list::const_reference;
 
     // using vector instead of a map because we shouldn't be accessing
     // elements very often (hence this is optimized for memory usage).
@@ -116,7 +126,9 @@ namespace octave
     using ref = arg_list::reference;
     using cref = arg_list::const_reference;
 
-    explicit ir_instruction (const ir_basic_block& blk);
+    explicit ir_instruction (ir_basic_block& blk)
+      : m_block (blk)
+    { }
 
     virtual ~ir_instruction (void) = default;
 
@@ -127,21 +139,23 @@ namespace octave
     //! @return the output stream
     // virtual std::ostream& print (std::ostream& os) const = 0;
 
-    const ir_basic_block& get_block (void) const
+    constexpr ir_basic_block& get_block (void) const
     {
       return m_block;
     }
 
     // virtual void accept (ir_visitor& visitor) = 0;
 
-    virtual bool has_return (void) { return false; };
-
-    iter begin (void) { return m_args.begin (); }
+    iter  begin (void)       { return m_args.begin (); }
     citer begin (void) const { return m_args.begin (); }
-    iter end (void) { return m_args.end (); }
-    citer end (void) const { return m_args.end (); }
+    iter  end   (void)       { return m_args.end (); }
+    citer end   (void) const { return m_args.end (); }
 
     iter erase (citer pos);
+    
+    // relink objects connected to contents of this instruction to
+    // objects before the specified iterator.
+    virtual void unlink_propagate (instr_citer) { };
 
     friend struct ir_printer<ir_instruction>;
 
@@ -164,7 +178,7 @@ namespace octave
 
   private:
 
-    const ir_basic_block& m_block;
+    ir_basic_block& m_block;
     arg_list m_args;
 
   };
@@ -172,14 +186,16 @@ namespace octave
   class ir_def_instruction : public ir_instruction
   {
   public:
-    ir_def_instruction (const ir_basic_block& blk, ir_variable& ret_var,
-                             ir_type ret_ty);
+    ir_def_instruction (ir_basic_block& blk, ir_variable& ret_var,
+                        ir_type ret_ty);
 
     ~ir_def_instruction (void) override;
+    
+    void unlink_propagate (instr_citer pos) override;
 
-    bool has_return (void) override { return true; };
-
-    ir_def& get_return (void);
+    constexpr const ir_def& get_return (void) const noexcept { return m_ret; }
+    
+    ir_def& get_return (void) noexcept { return m_ret; }
 
   private:
     ir_def m_ret;
@@ -191,20 +207,20 @@ namespace octave
   public:
 
     template <typename ...Args>
-    ir_assign (const ir_basic_block& blk, ir_variable& ret_var,
+    ir_assign (ir_basic_block& blk, ir_variable& ret_var,
                const ir_constant<Args...>& c)
       : ir_def_instruction (blk, ret_var, c.get_type ()),
         m_src (emplace_back<ir_constant<Args...>> (c))
     { }
   
     template <typename ...Args>
-    ir_assign (const ir_basic_block& blk, ir_variable& ret_var,
+    ir_assign (ir_basic_block& blk, ir_variable& ret_var,
                ir_constant<Args...>&& c)
       : ir_def_instruction (blk, ret_var, c.get_type ()),
         m_src (emplace_back<ir_constant<Args...>> (std::forward<ir_constant<Args...>> (c)))
     { }
 
-    ir_assign (const ir_basic_block& blk, ir_variable& var, ir_def& src);
+    ir_assign (ir_basic_block& blk, ir_variable& var, ir_def& src);
 
     const ir_operand& get_assignor (void) const { return **m_src; }
 
@@ -229,7 +245,7 @@ namespace octave
     // this is used if the variable is not defined in a code path
 
   public:
-    ir_fetch (const ir_basic_block& blk, ir_variable& ret_var);
+    ir_fetch (ir_basic_block& blk, ir_variable& ret_var);
 
   private:
     const iter m_name;
@@ -239,7 +255,7 @@ namespace octave
   class ir_branch : public ir_instruction
   {
   public:
-    ir_branch (const ir_basic_block& blk, ir_basic_block& dst);
+    ir_branch (ir_basic_block& blk, ir_basic_block& dst);
 
   private:
     const iter m_dest_block;
@@ -248,7 +264,7 @@ namespace octave
   class ir_cbranch : public ir_instruction
   {
   public:
-    ir_cbranch (const ir_basic_block& blk, ir_def& d,
+    ir_cbranch (ir_basic_block& blk, ir_def& d,
                 ir_basic_block& tblk, ir_basic_block& fblk);
 
   private:
@@ -262,7 +278,7 @@ namespace octave
 
   public:
 
-    ir_convert (const ir_basic_block& blk, ir_variable& ret_var, ir_type ty,
+    ir_convert (ir_basic_block& blk, ir_variable& ret_var, ir_type ty,
                 ir_def& d);
 
   private:
@@ -278,7 +294,7 @@ namespace octave
 
     ir_phi (void) = delete;
 
-    ir_phi (const ir_basic_block& blk, ir_variable& var, ir_type ty,
+    ir_phi (ir_basic_block& blk, ir_variable& var, ir_type ty,
             const input_vect& pairs);
 
     void append (ir_basic_block& blk, ir_def& d);

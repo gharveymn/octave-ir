@@ -91,6 +91,7 @@ namespace octave
       citer  begin  (void) const noexcept { return m_timeline.begin (); }
       iter   end    (void)       noexcept { return m_timeline.end (); }
       citer  end    (void) const noexcept { return m_timeline.end (); }
+      
       riter  rbegin (void)       noexcept { return m_timeline.rbegin (); }
       criter rbegin (void) const noexcept { return m_timeline.rbegin (); }
       riter  rend   (void)       noexcept { return m_timeline.rend (); }
@@ -166,10 +167,12 @@ namespace octave
     ir_def * fetch_proximate_def (ir_variable& var, instr_citer pos) const;
     
     // side effects!
-    ir_def * join_defs (ir_variable& var);
+    // guaranteed return if no throw
+    ir_def& join_defs (ir_variable& var);
     
     // side effects!
-    ir_def * join_defs (ir_variable& var, instr_citer pos);
+    // guaranteed return if no throw
+    ir_def& join_defs (ir_variable& var, instr_citer pos);
     
     virtual ir_def * join_pred_defs (ir_variable& var);
     
@@ -188,70 +191,70 @@ namespace octave
     
     // front and back won't throw because the constructor will
     // always emplace a return instruction
-    instr_iter begin (void)         noexcept { return m_instrs.begin (); }
-    instr_citer begin (void)   const noexcept { return m_instrs.begin (); }
-    instr_citer cbegin (void)  const noexcept { return m_instrs.cbegin (); }
+    instr_iter   begin (void)         noexcept { return m_instrs.begin (); }
+    instr_citer  begin (void)   const noexcept { return m_instrs.begin (); }
+    instr_citer  cbegin (void)  const noexcept { return m_instrs.cbegin (); }
 
-    instr_iter end (void)           noexcept { return m_instrs.end ();   }
-    instr_citer end (void)     const noexcept { return m_instrs.end ();   }
-    instr_citer cend (void)    const noexcept { return m_instrs.cbegin (); }
+    instr_iter   end (void)           noexcept { return m_instrs.end ();   }
+    instr_citer  end (void)     const noexcept { return m_instrs.end ();   }
+    instr_citer  cend (void)    const noexcept { return m_instrs.cbegin (); }
 
-    instr_riter rbegin (void)        noexcept { return m_instrs.rbegin (); }
+    instr_riter  rbegin (void)        noexcept { return m_instrs.rbegin (); }
     instr_criter rbegin (void)  const noexcept { return m_instrs.rbegin (); }
     instr_criter crbegin (void) const noexcept { return m_instrs.crbegin (); }
 
-    instr_riter rend (void)          noexcept { return m_instrs.rend (); }
+    instr_riter  rend (void)          noexcept { return m_instrs.rend (); }
     instr_criter rend (void)    const noexcept { return m_instrs.rend (); }
     instr_criter crend (void)   const noexcept { return m_instrs.crend (); }
 
-    instr_ref front (void)         noexcept { return m_instrs.front (); }
-    instr_cref front (void)   const noexcept { return m_instrs.front (); }
+    instr_ref    front (void)         noexcept { return m_instrs.front (); }
+    instr_cref   front (void)   const noexcept { return m_instrs.front (); }
 
-    instr_ref back (void)          noexcept { return m_instrs.back (); }
-    instr_cref back (void)    const noexcept { return m_instrs.back (); }
+    instr_ref    back (void)          noexcept { return m_instrs.back (); }
+    instr_cref   back (void)    const noexcept { return m_instrs.back (); }
     
-    size_t size (void)    const noexcept { return m_instrs.size (); }
-    bool   empty (void)   const noexcept { return m_instrs.empty (); }
+    size_t       size (void)    const noexcept { return m_instrs.size (); }
+    bool         empty (void)   const noexcept { return m_instrs.empty (); }
     
     // phi
   
     template <typename ...Args>
     ir_phi * create_phi (Args&&... args);
 
-    instr_iter phi_begin (void)        noexcept { return m_instrs.begin (); }
-    instr_citer phi_begin (void)  const noexcept { return m_instrs.begin (); }
+    instr_iter   phi_begin (void)        noexcept { return m_instrs.begin (); }
+    instr_citer  phi_begin (void)  const noexcept { return m_instrs.begin (); }
 
-    instr_iter phi_end (void)          noexcept { return m_body_begin; }
-    instr_citer phi_end (void)    const noexcept { return m_body_begin; }
+    instr_iter   phi_end (void)          noexcept { return m_body_begin; }
+    instr_citer  phi_end (void)    const noexcept { return m_body_begin; }
 
-    instr_riter phi_rbegin (void)       noexcept { return instr_riter (phi_end ()); }
+    instr_riter  phi_rbegin (void)       noexcept { return instr_riter (phi_end ()); }
     instr_criter phi_rbegin (void) const noexcept { return instr_criter (phi_end ()); }
 
-    instr_riter phi_rend (void)         noexcept { return instr_riter (phi_begin ()); }
+    instr_riter  phi_rend (void)         noexcept { return instr_riter (phi_begin ()); }
     instr_criter phi_rend (void)   const noexcept { return instr_criter (phi_begin ()); }
     
-    size_t num_phi (void)    const noexcept { return m_num_phi; }
-    bool   has_phi (void)    const noexcept { return phi_begin () != phi_end (); }
+    size_t       num_phi (void)    const noexcept { return m_num_phi; }
+    bool         has_phi (void)    const noexcept { return phi_begin () != phi_end (); }
 
-    instr_iter erase_phi (instr_citer pos);
+    instr_iter   erase_phi (instr_citer pos);
     
     // body
 
-    instr_iter body_begin (void)        noexcept { return m_body_begin; }
-    instr_citer body_begin (void)  const noexcept { return m_body_begin; }
+    instr_iter   body_begin (void)        noexcept { return m_body_begin; }
+    instr_citer  body_begin (void)  const noexcept { return m_body_begin; }
 
-    instr_iter body_end (void)          noexcept { return m_terminator;   }
-    instr_citer body_end (void)    const noexcept { return m_terminator;   }
+    instr_iter   body_end (void)          noexcept { return m_terminator;   }
+    instr_citer  body_end (void)    const noexcept { return m_terminator;   }
 
-    instr_riter body_rbegin (void)       noexcept { return instr_riter (body_end ()); }
+    instr_riter  body_rbegin (void)       noexcept { return instr_riter (body_end ()); }
     instr_criter body_rbegin (void) const noexcept { return instr_criter (body_end ()); }
 
-    instr_riter body_rend (void)         noexcept { return instr_riter (body_begin ()); }
+    instr_riter  body_rend (void)         noexcept { return instr_riter (body_begin ()); }
     instr_criter body_rend (void)   const noexcept { return instr_criter (body_begin ()); }
     
-    size_t num_body (void)    const noexcept { return size () - m_num_phi - 1; }
+    size_t       num_body (void)    const noexcept { return size () - m_num_phi - 1; }
     
-    bool   has_body (void)    const noexcept { return phi_begin () != phi_end (); }
+    bool         has_body (void)    const noexcept { return phi_begin () != phi_end (); }
     
     template <typename T>
     using is_instruction = std::is_base_of<ir_instruction, T>;
@@ -375,7 +378,7 @@ namespace octave
       return *ret;
     }
 
-    instr_iter erase (instr_citer pos) noexcept;
+    instr_iter erase (instr_citer pos);
 
     instr_iter erase (instr_citer first, instr_citer last) noexcept;
     

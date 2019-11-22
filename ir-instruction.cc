@@ -42,10 +42,6 @@ namespace octave
   // ir_instruction
   //
 
-  ir_instruction::ir_instruction (const ir_basic_block& blk)
-    : m_block (blk)
-  { }
-
   ir_instruction::iter
   ir_instruction::erase (citer pos)
   {
@@ -56,7 +52,7 @@ namespace octave
   // ir_def_instruction
   //
 
-  ir_def_instruction::ir_def_instruction (const ir_basic_block& blk,
+  ir_def_instruction::ir_def_instruction (ir_basic_block& blk,
                                           ir_variable& ret_var,
                                           ir_type ret_ty)
     : ir_instruction (blk),
@@ -64,18 +60,19 @@ namespace octave
   { }
 
   ir_def_instruction::~ir_def_instruction (void) = default;
-
-  ir_def&
-  ir_def_instruction::get_return (void)
+  
+  void
+  ir_def_instruction::unlink_propagate (instr_citer pos)
   {
-    return m_ret;
+    if (m_ret.has_uses ())
+      m_ret.transfer_uses (get_block ().join_defs (m_ret.get_var (), pos));
   }
 
   //
   // ir_assign
   //
 
-  ir_assign::ir_assign (const ir_basic_block& blk, ir_variable& var, ir_def& src)
+  ir_assign::ir_assign (ir_basic_block& blk, ir_variable& var, ir_def& src)
     : ir_def_instruction (blk, var, src.get_type ()),
       m_src (emplace_back<ir_use> (src.create_use (*this)))
   { }
@@ -84,7 +81,7 @@ namespace octave
   // ir_fetch
   //
 
-  ir_fetch::ir_fetch (const ir_basic_block& blk, ir_variable& ret_var)
+  ir_fetch::ir_fetch (ir_basic_block& blk, ir_variable& ret_var)
     : ir_def_instruction (blk, ret_var, ir_type::get<any> ()),
       m_name (emplace_back<ir_constant<std::string>> (ret_var.get_name ()))
   { }
@@ -93,7 +90,7 @@ namespace octave
   // ir_branch
   //
 
-  ir_branch::ir_branch (const ir_basic_block& blk, ir_basic_block& dst)
+  ir_branch::ir_branch (ir_basic_block& blk, ir_basic_block& dst)
     : ir_instruction (blk),
       m_dest_block (emplace_back<ir_block_ref> (&dst))
   { }
@@ -102,7 +99,7 @@ namespace octave
   // ir_cbranch
   //
 
-  ir_cbranch::ir_cbranch (const ir_basic_block& blk, ir_def& d,
+  ir_cbranch::ir_cbranch (ir_basic_block& blk, ir_def& d,
                           ir_basic_block& tblk, ir_basic_block& fblk)
     : ir_instruction (blk),
       m_condvar (emplace_back<ir_use> (d.create_use (*this))),
@@ -114,7 +111,7 @@ namespace octave
   // ir_convert
   //
 
-  ir_convert::ir_convert (const ir_basic_block& blk, ir_variable& ret_var,
+  ir_convert::ir_convert (ir_basic_block& blk, ir_variable& ret_var,
                           ir_type ty, ir_def& d)
     : ir_def_instruction (blk, ret_var, ty),
       m_src (emplace_back<ir_use> (d.create_use (*this)))
@@ -124,7 +121,7 @@ namespace octave
   // ir_phi
   //
 
-  ir_phi::ir_phi (const ir_basic_block& blk, ir_variable& var, ir_type ty,
+  ir_phi::ir_phi (ir_basic_block& blk, ir_variable& var, ir_type ty,
     const input_vect& pairs)
     : ir_def_instruction (blk, var, ty)
   {

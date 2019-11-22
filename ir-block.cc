@@ -38,6 +38,7 @@ namespace octave
   // ir_basic_block
   //
   
+  
   ir_basic_block::ir_basic_block (ir_structure& parent)
     : m_parent (parent),
       m_body_begin (m_instrs.end ())
@@ -81,18 +82,21 @@ namespace octave
   }
   
   ir_basic_block::instr_iter
-  ir_basic_block::erase (instr_citer pos) noexcept
+  ir_basic_block::erase (instr_citer pos)
   {
+    (*pos)->unlink_propagate (pos);
     return m_instrs.erase (pos);
   }
   
   ir_basic_block::instr_iter
   ir_basic_block::erase (instr_citer first, instr_citer last) noexcept
   {
+    for (instr_criter crit (last); crit != instr_criter (first); ++crit)
+      (*crit)->unlink_propagate (first);
     return m_instrs.erase (first, last);
   }
 
-  ir_def*
+  ir_def *
   ir_basic_block::fetch_cached_def (ir_variable& var) const
   {
     return fetch_proximate_def (var, end ());
@@ -110,15 +114,14 @@ namespace octave
 
     instr_criter rpos (pos);
     def_timeline::criter dt_crit = dt.rbegin ();
-    for (instr_criter instr_crit = m_instrs.rbegin ();
-         instr_crit != m_instrs.rend (); ++instr_crit)
+    for (instr_criter in_crit = rbegin (); in_crit != rend (); ++in_crit)
       {
-        if (dt_crit->first == instr_crit.base ())
+        if (dt_crit->first == in_crit.base ())
           {
             if (++dt_crit == dt.rend ())
               return nullptr;
           }
-        if (rpos == instr_crit)
+        if (rpos == in_crit)
           return dt_crit->second;
       }
     return nullptr;
@@ -134,7 +137,6 @@ namespace octave
   ir_basic_block::def_emplace (instr_citer pos, ir_def& d)
   {
     def_timeline& dt = m_vt_map[&d.get_var ()];
-    
     if (pos == end ())
       return dt.emplace_back (pos, d);
 
@@ -166,13 +168,13 @@ namespace octave
     m_vt_map[&d.get_var ()].emplace_back (--m_instrs.end (), d);
   }
 
-  ir_def*
+  ir_def&
   ir_basic_block::join_defs (ir_variable& var)
   {
     return join_defs (var, end ());
   }
   
-  ir_def *
+  ir_def&
   ir_basic_block::join_defs (ir_variable& var, instr_citer pos)
   {
     ir_def *ret = fetch_proximate_def (var, pos);
@@ -187,10 +189,10 @@ namespace octave
         // if the ir_def was created by a phi node, there may be
       }
     
-    return ret;
+    return *ret;
   }
 
-  ir_def*
+  ir_def *
   ir_basic_block::join_pred_defs (ir_variable& var)
   {
     
@@ -202,7 +204,7 @@ namespace octave
     if (npreds == 1)
       {
         ir_basic_block *pred = *pred_begin ();
-        return pred->join_defs (var);
+        return &pred->join_defs (var);
       }
 
     block_def_vect pairs;
@@ -212,7 +214,7 @@ namespace octave
                    [&pairs, &var](ir_basic_block *pred){
                      if (pred == nullptr)
                        throw ir_exception ("block was unexpectedly nullptr.");
-                     pairs.emplace_back (*pred, pred->join_defs (var));
+                     pairs.emplace_back (*pred, &pred->join_defs (var));
                    });
     
     // TODO if we have null returns here we need to create extra diversion

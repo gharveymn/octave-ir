@@ -32,8 +32,8 @@ ADD_LIBRARY(octave_ir SHARED
 		ir-type-base.h
 		ir-type-std.cc
 		ir-type-std.h
-		ir-value.cc
-		ir-value.h
+#		ir-value.cc
+#		ir-value.h
 		ir-variable.cc
 		ir-variable.h
 #		ir-visitor.cc
@@ -52,5 +52,5 @@ ADD_LIBRARY(octave_ir SHARED
 IF (MSVC)
 #	target_compile_options(octave_ir PRIVATE -Wall)
 ELSE()
-#	target_compile_options(octave_ir PRIVATE -Wall -Wextra -pedantic)
+	target_compile_options(octave_ir PRIVATE -Wall -Wextra -pedantic)
 ENDIF()

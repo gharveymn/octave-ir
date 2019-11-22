@@ -41,175 +41,6 @@ namespace octave
   constexpr ir_type::impl ir_type::instance<ir_use *>::m_impl;
 
   //
-  // ir_def
-  //
-
-  ir_def::ir_def (ir_variable& var, ir_type ty,
-                         const ir_def_instruction& instr)
-    : m_var (&var),
-      m_self_iter (var.track_def (this)),
-      m_type (ty),
-      m_instr (instr),
-      m_needs_init_check (false)
-  { }
-
-  ir_def::ir_def (ir_def&& d) noexcept
-    : m_var (d.m_var),
-      m_self_iter (d.m_self_iter),
-      m_type (d.m_type),
-      m_instr (d.m_instr),
-      m_uses (std::move (d.m_uses)),
-      m_needs_init_check (d.m_needs_init_check)
-  {
-    *m_self_iter = this;
-
-    // invalidate the old ir_def
-    d.invalidate ();
-    d.m_uses.clear ();
-  }
-
-  ir_def::~ir_def (void) noexcept
-  {
-    if (m_var)
-      m_var->untrack_def (m_self_iter);
-
-    for (ir_use*u : m_uses)
-      u->invalidate ();
-  }
-
-  ir_variable&
-  ir_def::get_var (void) const noexcept (false)
-  {
-    if (m_var)
-      return *m_var;
-    throw ir_exception ("ir_def is in an invalid state and has no ir_variable.");
-  }
-
-  ir_use
-  ir_def::create_use (const ir_instruction& instr)
-  {
-    return { *this, instr };
-  }
-
-  use_iter
-  ir_def::track_use (ir_use*u)
-  {
-    return m_uses.insert (m_uses.end (), u);
-  }
-
-  void
-  ir_def::untrack_use (use_citer cit)
-  {
-    m_uses.erase (cit);
-  }
-
-  template <typename InputIt>
-  ir_type
-  ir_def::common_type (InputIt first, InputIt last)
-  {
-    ir_type curr_ty = *first->get_type ();
-    for (; first != last; ++first)
-      {
-        if (curr_ty == ir_type::get<any> ())
-          return curr_ty;
-        curr_ty = ir_type::lca (curr_ty, *first->get_type ());
-      }
-    if (curr_ty == ir_type::get<void> ())
-      throw ir_exception ("no common type");
-    return curr_ty;
-  }
-
-  std::ostream&
-  ir_def::print (std::ostream& os) const
-  {
-    return os << get_name () << get_id ();
-  }
-
-  std::string
-  ir_def::get_name (void) const
-  {
-    return get_var ().get_name ();
-  }
-
-  std::size_t
-  ir_def::get_id (void) const
-  {
-    return std::distance (get_var ().begin (), m_self_iter);
-  }
-
-  //
-  // ir_use
-  //
-
-  ir_use::ir_use (ir_def& d, const ir_instruction& instr)
-    : m_def (&d),
-      m_self_iter (d.track_use (this)),
-      m_instr (&instr)
-  { }
-
-  ir_use::ir_use (ir_use&& u) noexcept
-    : m_def (u.m_def),
-      m_self_iter (u.m_self_iter),
-      m_instr (u.m_instr)
-  {
-    *m_self_iter = this;
-
-    // invalidate the old use
-    u.invalidate();
-  }
-
-  ir_use::~ir_use (void) noexcept
-  {
-    if (has_def ())
-      m_def->untrack_use (m_self_iter);
-  }
-
-  std::string
-  ir_use::get_name (void) const
-  {
-    return get_def ().get_name ();
-  }
-
-  std::size_t
-  ir_use::get_id (void)
-  {
-    return std::distance (get_def ().begin (), m_self_iter);
-  }
-
-  ir_type
-  ir_use::get_type (void) const
-  {
-    return get_def ().get_type ();
-  }
-
-  void
-  ir_use::replace_def (ir_def& new_def) noexcept (false)
-  {
-    ir_def& old_def = get_def ();
-
-    // check if this is a valid replacement
-    if (&new_def.get_var () != &old_def.get_var ())
-      throw ir_exception ("ir_variable of replacement ir_def must match the "
-                          "current ir_variable.");
-    if (new_def.get_type() != old_def.get_type ())
-      throw ir_exception ("ir_type of replacement ir_def must match the "
-                          "current ir_type.");
-
-    use_iter it = new_def.track_use (this);
-    old_def.untrack_use (m_self_iter);
-    m_def = &new_def;
-    m_self_iter = it;
-  }
-
-  ir_def&
-  ir_use::get_def (void) const noexcept (false)
-  {
-    if (m_def)
-      return *m_def;
-    throw ir_exception ("ir_use is in an invalid state and has no ir_def.");
-  }
-
-  //
   // ir_variable
   //
 
@@ -330,6 +161,208 @@ namespace octave
 //    return {*d_latest, instr};
 //
 //  }
+
+//
+  // ir_def
+  //
+  
+  ir_def::ir_def (ir_variable& var, ir_type ty,
+                  const ir_def_instruction& instr)
+    : m_var (&var),
+      m_self_iter (var.track_def (this)),
+      m_type (ty),
+      m_instr (instr),
+      m_needs_init_check (false)
+  { }
+  
+  ir_def::ir_def (ir_def&& d) noexcept
+    : m_var (d.m_var),
+      m_self_iter (d.m_self_iter),
+      m_type (d.m_type),
+      m_instr (d.m_instr),
+      m_uses (std::move (d.m_uses)),
+      m_needs_init_check (d.m_needs_init_check)
+  {
+    *m_self_iter = this;
+    
+    // invalidate the old ir_def
+    d.invalidate ();
+    d.m_uses.clear ();
+  }
+  
+  ir_def::~ir_def (void) noexcept
+  {
+    if (m_var)
+      m_var->untrack_def (m_self_iter);
+    
+    // cannot join defs here to replace uses
+    
+    for (ir_use *u : m_uses)
+      u->invalidate ();
+  }
+  
+  ir_variable&
+  ir_def::get_var (void) const noexcept (false)
+  {
+    if (m_var)
+      return *m_var;
+    throw ir_exception ("ir_def is in an invalid state and has no ir_variable.");
+  }
+  
+  ir_use
+  ir_def::create_use (const ir_instruction& instr)
+  {
+    return { *this, instr };
+  }
+  
+  use_iter
+  ir_def::track_use (ir_use*u)
+  {
+    return m_uses.insert (m_uses.end (), u);
+  }
+  
+  void
+  ir_def::untrack_use (use_citer cit)
+  {
+    m_uses.erase (cit);
+  }
+  
+  template <typename InputIt>
+  ir_type
+  ir_def::common_type (InputIt first, InputIt last)
+  {
+    ir_type curr_ty = *first->get_type ();
+    for (; first != last; ++first)
+      {
+        if (curr_ty == ir_type::get<any> ())
+          return curr_ty;
+        curr_ty = ir_type::lca (curr_ty, *first->get_type ());
+      }
+    if (curr_ty == ir_type::get<void> ())
+      throw ir_exception ("no common type");
+    return curr_ty;
+  }
+  
+  constexpr ir_basic_block&
+  ir_def::get_block () const
+  {
+    return get_instruction ().get_block ();
+  }
+  
+  std::ostream&
+  ir_def::print (std::ostream& os) const
+  {
+    return os << get_name () << get_id ();
+  }
+  
+  std::string
+  ir_def::get_name (void) const
+  {
+    return get_var ().get_name ();
+  }
+  
+  std::size_t
+  ir_def::get_id (void) const
+  {
+    return std::distance (get_var ().begin (), m_self_iter);
+  }
+  
+  void
+  ir_def::transfer_uses (ir_def& new_def)
+  {
+    for (ir_use *u : m_uses)
+      u->supplant_def (new_def);
+    m_uses.clear ();
+  }
+  
+  //
+  // ir_use
+  //
+  
+  ir_use::ir_use (ir_def& d, const ir_instruction& instr)
+    : m_def (&d),
+      m_self_iter (d.track_use (this)),
+      m_instr (&instr)
+  { }
+  
+  ir_use::ir_use (ir_use&& u) noexcept
+    : m_def (u.m_def),
+      m_self_iter (u.m_self_iter),
+      m_instr (u.m_instr)
+  {
+    *m_self_iter = this;
+    
+    // invalidate the old use
+    u.invalidate ();
+  }
+  
+  ir_use::~ir_use (void) noexcept
+  {
+    if (has_def ())
+      m_def->untrack_use (m_self_iter);
+  }
+  
+  std::string
+  ir_use::get_name (void) const
+  {
+    return get_def ().get_name ();
+  }
+  
+  std::size_t
+  ir_use::get_id (void)
+  {
+    return std::distance (get_def ().begin (), m_self_iter);
+  }
+  
+  ir_type
+  ir_use::get_type (void) const
+  {
+    return get_def ().get_type ();
+  }
+  
+  void
+  ir_use::replace_def (ir_def& new_def) noexcept (false)
+  {
+    ir_def& old_def = get_def ();
+    
+    // check if this is a valid replacement
+    if (&new_def.get_var () != &old_def.get_var ())
+      throw ir_exception ("ir_variable of replacement ir_def must match the "
+                          "current ir_variable.");
+    if (new_def.get_type () != old_def.get_type ())
+      throw ir_exception ("ir_type of replacement ir_def must match the "
+                          "current ir_type.");
+    
+    use_iter it = new_def.track_use (this);
+    old_def.untrack_use (m_self_iter);
+    m_def = &new_def;
+    m_self_iter = it;
+  }
+  
+  void
+  ir_use::supplant_def (ir_def& new_def) noexcept (false)
+  {
+    ir_def& old_def = get_def ();
+  
+    // check if this is a valid replacement
+    if (&new_def.get_var () != &old_def.get_var ())
+      throw ir_exception ("ir_variable of replacement ir_def must match the "
+                          "current ir_variable.");
+    if (new_def.get_type () != old_def.get_type ())
+      throw ir_exception ("ir_type of replacement ir_def must match the "
+                          "current ir_type.");
+  
+    m_def = &new_def;
+    m_self_iter = new_def.track_use (this);
+  }
+  
+  ir_def&
+  ir_use::get_def (void) const noexcept (false)
+  {
+    if (m_def)
+      return *m_def;
+    throw ir_exception ("ir_use is in an invalid state and has no ir_def.");
+  }
 
 }
 
