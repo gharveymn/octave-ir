@@ -48,11 +48,14 @@ namespace octave
 
     virtual ~ir_component (void) noexcept = 0;
 
-    template <typename It, typename E = void>
+    template <typename It, typename T, typename E = void>
     class union_iterator;
 
-    template <typename It>
-    class union_iterator<It, enable_if_t<std::is_pointer<typename It::value_type>::value>>
+    template <typename It, typename T>
+    class union_iterator<It, T,
+      enable_if_t<
+        conjunction<std::is_pointer<T>,
+                    std::is_same<typename It::value_type, T>>::value>>
     {
       using iter_type = It;
     public:
@@ -327,12 +330,8 @@ namespace octave
       } m_type;
     };
 
-    using link_iter = union_iterator<link_cache_iter>;
-    using link_citer = union_iterator<link_cache_citer>;
-
-    static_assert (std::is_same<link_cache_citer::pointer, ir_basic_block * const *>::value, "");
-    static_assert (std::is_same<link_cache_vec::const_pointer, ir_basic_block * const *>::value, "");
-  
+    using link_iter = union_iterator<link_cache_iter, ir_basic_block *>;
+    using link_citer = union_iterator<link_cache_citer, ir_basic_block *>;
   
     virtual void               reset           (void)       noexcept = 0;
     virtual link_iter          leaf_begin      (void)                = 0;

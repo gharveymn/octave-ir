@@ -9,7 +9,7 @@ SET(OCTAVE_BUILD "/home/gene/workspace/octave/dev/octave/build")
 SET(OCTAVE_SOURCE "/home/gene/workspace/octave/dev/octave/source")
 
 
-INCLUDE_DIRECTORIES(/home/gene/workspace/octave/dev/octave/bin/x86_64-pc-linux-gnu/debug/include/octave-6.0.0/octave/)
+INCLUDE_DIRECTORIES(/home/gene/workspace/octave/dev/octave/bin/x86_64-pc-linux-gnu/debug/include/octave-6.0.0/octave)
 #INCLUDE_DIRECTORIES("C:\\Octave\\Octave-5.1.0.0\\mingw64\\include\\octave-5.1.0\\octave")
 
 ADD_LIBRARY(octave_ir SHARED
@@ -47,7 +47,7 @@ ADD_LIBRARY(octave_ir SHARED
 		ir-constant.h
 		ir-build.cc
 		ir-build.h
-		)
+		observable.h)
 
 IF (MSVC)
 #	target_compile_options(octave_ir PRIVATE -Wall)

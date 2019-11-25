@@ -241,7 +241,7 @@ namespace octave
   }
   
   use_iter
-  ir_def::track_use (ir_use*u)
+  ir_def::track_use (ir_use *u)
   {
     return m_uses.insert (m_uses.end (), u);
   }

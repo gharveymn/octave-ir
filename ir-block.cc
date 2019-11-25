@@ -38,6 +38,37 @@ namespace octave
   // ir_basic_block
   //
   
+  void
+  ir_basic_block::def_timeline::remove (instr_citer instr_cit)
+  {
+    citer pos = find (instr_cit);
+    if (pos->second == m_cache)
+      {
+        if (pos == m_timeline.begin ())
+          {
+            m_timeline.erase (pos);
+            clear_cache ();
+          }
+        else
+          m_cache = m_timeline.erase (pos)->second;
+      }
+    else
+      m_timeline.erase (pos);
+  }
+  
+  ir_basic_block::def_timeline::citer
+  ir_basic_block::def_timeline::find (instr_citer instr_cit) const
+  {
+    citer pos = std::find (m_timeline.cbegin (), m_timeline.cend (),
+                           [&instr_cit] (element_type& p)
+                           {
+                             return p.first == instr_cit;
+                           });
+    if (pos == m_timeline.end ())
+      throw ir_exception ("instruction not found in the timeline.");
+    return pos;
+  }
+  
   
   ir_basic_block::ir_basic_block (ir_structure& parent)
     : m_parent (parent),
@@ -105,13 +136,16 @@ namespace octave
   ir_def*
   ir_basic_block::fetch_proximate_def (ir_variable& var, instr_citer pos) const
   {
+    if (pos == begin ())
+      return nullptr;
+    
     vtm_citer vtm_cit = m_vt_map.find (&var);
     if (vtm_cit == m_vt_map.end ())
       return nullptr;
     const def_timeline& dt = vtm_cit->second;
     if (dt.size () == 0 || pos == end ())
       return dt.fetch_cache ();
-
+    
     instr_criter rpos (pos);
     def_timeline::criter dt_crit = dt.rbegin ();
     for (instr_criter in_crit = rbegin (); in_crit != rend (); ++in_crit)
@@ -151,7 +185,7 @@ namespace octave
               return dt.emplace_front (pos, d);
           }
         if (rpos == instr_crit)
-          return dt.emplace (dt_crit.base (), pos, d);
+          return dt.emplace_before (dt_crit.base (), pos, d);
       }
     dt.emplace_front (pos, d);
   }
@@ -189,7 +223,7 @@ namespace octave
     // TODO if we have null returns here we need to create extra diversion
     //  blocks for those code paths. Otherwise the code will crash.
     
-    ir_def * cmp_def = pairs.front ().second;
+    ir_def *cmp_def = pairs.front ().second;
     for (const block_def_pair& p : pairs)
       {
         // check if all the defs found were the same
@@ -280,7 +314,15 @@ namespace octave
   void
   ir_basic_block::reset (void) noexcept
   {
-    m_instrs.clear ();
+    erase (begin (), end ());
+    m_num_phi = 0;
+    m_body_begin = end ();
+    m_terminator = end ();
+    // TODO remove when verified
+    for (const std::pair<ir_variable *, def_timeline>& p : m_vt_map)
+    {
+    
+    }
   }
   
   constexpr ir_type::impl ir_type::instance<ir_basic_block *>::m_impl;

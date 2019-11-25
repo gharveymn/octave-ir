@@ -30,6 +30,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <iosfwd>
 #include <memory>
 #include <functional>
+#include <unordered_set>
 
 #define PRINT_SIZE(TYPE) \
 char (*__fail)(void)[sizeof(TYPE)] = 1;
@@ -171,6 +172,74 @@ namespace octave
     T m_begin;
     T m_end;
   };
+  
+  template <typename T>
+  class observable_parent;
+  
+  template <typename T>
+  class observable_child;
+  
+  template <typename T>
+  class observable_parent<observable_child<T>>
+  {
+  public:
+    
+    using child_type = observable_child<T>;
+    
+  private:
+    
+    class child_ptr
+    {
+    public:
+      
+      ~child_ptr (void) noexcept;
+      
+    private:
+      child_type *m_ptr;
+    };
+    
+  public:
+    using child_set = std::unordered_set<child_ptr>;
+    using iter = typename child_set::iterator;
+    using citer = typename child_set::const_iterator;
+    
+    void remove (child_type *ptr)
+    {
+      m_children.erase (ptr);
+    }
+    
+  private:
+    
+    child_set m_children;
+    
+  };
+  
+  template <typename T>
+  class observable_child
+  {
+  public:
+    using self_type = T;
+    
+    ~observable_child (void) noexcept
+    {
+      if (m_parent != nullptr)
+        m_parent->remove (this);
+    }
+    
+    void reset (void) noexcept
+    {
+      m_parent = nullptr;
+    }
+    
+  private:
+    observable_parent<self_type> *m_parent;
+  };
+  
+  template <typename T>
+  observable_parent<observable_child<T>>::child_ptr::~child_ptr (void) noexcept
+  {
+    m_ptr->reset ();
+  }
 
 }
 

@@ -177,12 +177,12 @@ namespace octave
   {
   
   public:
-    ir_def (void)                  = delete;
+    ir_def (void)                     = delete;
 
     ir_def (const ir_def&)            = delete;
-    ir_def& operator= (const ir_def&) = delete;
-
     ir_def (ir_def&& d) noexcept;
+    
+    ir_def& operator= (const ir_def&) = delete;
     ir_def& operator= (ir_def&&)      = delete;
     
     ~ir_def (void) noexcept;
@@ -197,7 +197,7 @@ namespace octave
 
     ir_use create_use (const ir_instruction& instr);
     
-    use_iter track_use (ir_use*u);
+    use_iter track_use (ir_use *u);
     
     void untrack_use (use_citer cit);
     

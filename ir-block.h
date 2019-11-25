@@ -71,10 +71,8 @@ namespace octave
     using phi_ref       = phi_list::reference;
     using phi_cref      = phi_list::const_reference;
   
-    using block_def_pair = std::pair<ir_basic_block&, ir_def*>;
+    using block_def_pair = std::pair<ir_basic_block&, ir_def *>;
     using block_def_vect = std::vector<block_def_pair>;
-  
-  private:
     
     class def_timeline
     {
@@ -107,13 +105,6 @@ namespace octave
         m_cache = &latest;
       }
       
-      void emplace (citer dt_pos, instr_citer pos, ir_def& d)
-      {
-        if (dt_pos == end ())
-          set_cache (d);
-        m_timeline.emplace (dt_pos, pos, &d);
-      }
-      
       void emplace_front (instr_citer pos, ir_def& d)
       {
         if (m_timeline.empty ())
@@ -125,6 +116,22 @@ namespace octave
       {
         m_timeline.emplace_back (pos, &d);
         set_cache (d);
+      }
+  
+      void emplace_before (citer dt_pos, instr_citer pos, ir_def& d)
+      {
+        if (dt_pos == end ())
+          set_cache (d);
+        m_timeline.emplace (dt_pos, pos, &d);
+      }
+      
+      void remove (instr_citer instr_cit);
+      
+      citer find (instr_citer instr_cit) const;
+      
+      void clear_lookback_cache (void) noexcept
+      {
+        m_cache = nullptr;
       }
       
       void track_phi_def (phi_citer pos, ir_def& d)
@@ -143,11 +150,10 @@ namespace octave
       {
         return m_timeline.size ();
       }
-    
+      
     private:
       
-      //! The latest ir_def (which may or may not have been created here)
-      ir_def * m_cache = nullptr;
+      ir_def *m_lookback_cache = nullptr;
       
       std::pair<phi_citer, ir_def *> m_phi_def = {{}, nullptr};
       
@@ -155,6 +161,8 @@ namespace octave
       def_deque m_timeline;
       
     };
+    
+  private:
     
     using var_timeline_map = std::unordered_map<ir_variable *, def_timeline>;
     using vtm_iter = var_timeline_map::iterator;
@@ -422,8 +430,6 @@ namespace octave
     }
     
     ir_structure& m_parent;
-    
-    
     
     // list of instructions
     instr_list m_instrs;
