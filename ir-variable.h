@@ -217,6 +217,13 @@ namespace octave
     {
       return m_needs_init_check;
     }
+    
+    template <typename ...Args>
+    void transfer_from (ir_def& src, Args&&... args)
+    {
+      return m_use_tracker.transfer_from (src.m_use_tracker,
+                                          std::forward<Args> (args)...);
+    }
 
     friend ir_def ir_variable::create_def (ir_type ty, const ir_def_instruction& instr);
 

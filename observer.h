@@ -425,7 +425,7 @@ namespace octave
     }
 
     //! only use after using has_parent
-    constexpr observer_type *get_observer (void) const noexcept
+    constexpr observer_type *get_base_observer (void) const noexcept
     {
       return m_observer;
     }
@@ -491,6 +491,11 @@ namespace octave
     {
       base_type::operator= (std::move (other));
       return *this;
+    }
+    
+    constexpr observer_type *get_observer (void) const noexcept
+    {
+      return static_cast<observer_type *> (this->get_base_observer ());
     }
 
     constexpr bool has_parent (void) const noexcept
