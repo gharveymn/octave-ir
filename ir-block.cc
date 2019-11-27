@@ -37,46 +37,46 @@ namespace octave
   //
   // ir_basic_block
   //
-  
+
   void
   ir_basic_block::def_timeline::remove (instr_citer instr_cit)
   {
     citer pos = find (instr_cit);
-    if (pos->second == m_cache)
+    if (pos->second == m_lookback_cache)
       {
         if (pos == m_timeline.begin ())
           {
             m_timeline.erase (pos);
-            clear_cache ();
+            clear_lookback_cache ();
           }
         else
-          m_cache = m_timeline.erase (pos)->second;
+          m_lookback_cache = m_timeline.erase (pos)->second;
       }
     else
       m_timeline.erase (pos);
   }
-  
+
   ir_basic_block::def_timeline::citer
   ir_basic_block::def_timeline::find (instr_citer instr_cit) const
   {
-    citer pos = std::find (m_timeline.cbegin (), m_timeline.cend (),
-                           [&instr_cit] (element_type& p)
-                           {
-                             return p.first == instr_cit;
-                           });
+    citer pos = std::find_if (m_timeline.cbegin (), m_timeline.cend (),
+                              [&instr_cit] (const element_type& p)
+                              {
+                                return p.first == instr_cit;
+                              });
     if (pos == m_timeline.end ())
       throw ir_exception ("instruction not found in the timeline.");
     return pos;
   }
-  
-  
+
+
   ir_basic_block::ir_basic_block (ir_structure& parent)
     : m_parent (parent),
       m_body_begin (m_instrs.end ())
   { }
-  
+
   ir_basic_block::~ir_basic_block (void) noexcept = default;
-  
+
   template <typename ...Args>
   ir_phi *
   ir_basic_block::create_phi (Args&&... args)
@@ -97,7 +97,7 @@ namespace octave
     ++m_num_phi;
     return ret;
   }
-  
+
   ir_basic_block::instr_iter
   ir_basic_block::erase_phi (instr_citer pos)
   {
@@ -106,19 +106,19 @@ namespace octave
     --m_num_phi;
     return m_instrs.erase (pos);
   }
-  
+
   bool ir_basic_block::is_phi_iter (instr_citer cit)
   {
     return isa<ir_phi> (cit->operator-> ());
   }
-  
+
   ir_basic_block::instr_iter
   ir_basic_block::erase (instr_citer pos)
   {
     (*pos)->unlink_propagate (pos);
     return m_instrs.erase (pos);
   }
-  
+
   ir_basic_block::instr_iter
   ir_basic_block::erase (instr_citer first, instr_citer last) noexcept
   {
@@ -132,20 +132,20 @@ namespace octave
   {
     return fetch_proximate_def (var, end ());
   }
-  
+
   ir_def*
   ir_basic_block::fetch_proximate_def (ir_variable& var, instr_citer pos) const
   {
     if (pos == begin ())
       return nullptr;
-    
+
     vtm_citer vtm_cit = m_vt_map.find (&var);
     if (vtm_cit == m_vt_map.end ())
       return nullptr;
     const def_timeline& dt = vtm_cit->second;
     if (dt.size () == 0 || pos == end ())
       return dt.fetch_cache ();
-    
+
     instr_criter rpos (pos);
     def_timeline::criter dt_crit = dt.rbegin ();
     for (instr_criter in_crit = rbegin (); in_crit != rend (); ++in_crit)
@@ -160,13 +160,13 @@ namespace octave
       }
     return nullptr;
   }
-  
+
   void
   ir_basic_block::set_cached_def (ir_def& d)
   {
     m_vt_map[&d.get_var ()].set_cache (d);
   }
-  
+
   void
   ir_basic_block::def_emplace (instr_citer pos, ir_def& d)
   {
@@ -189,13 +189,13 @@ namespace octave
       }
     dt.emplace_front (pos, d);
   }
-  
+
   void
   ir_basic_block::def_emplace_front (ir_def& d)
   {
     m_vt_map[&d.get_var ()].emplace_front (m_instrs.begin (), d);
   }
-  
+
   void
   ir_basic_block::def_emplace_back (ir_def& d)
   {
@@ -210,19 +210,19 @@ namespace octave
       return nullptr;
     if (npreds == 1)
       return &var.join (*pred_front ());
-    
+
     block_def_vect pairs;
     pairs.reserve (npreds);
-    
+
     std::for_each (pred_begin (), pred_end (),
                    [&pairs, &var] (ir_basic_block *pred)
                    {
                      pairs.emplace_back (*pred, &var.join (*pred));
                    });
-    
+
     // TODO if we have null returns here we need to create extra diversion
     //  blocks for those code paths. Otherwise the code will crash.
-    
+
     ir_def *cmp_def = pairs.front ().second;
     for (const block_def_pair& p : pairs)
       {
@@ -235,82 +235,82 @@ namespace octave
             return &phi_node->get_return ();
           }
       }
-    
+
     return cmp_def;
   }
-  
+
   ir_component::link_iter
   ir_basic_block::pred_begin (void)
   {
     return m_parent.pred_begin (this);
   }
-  
+
   ir_component::link_iter
   ir_basic_block::pred_end (void)
   {
     return m_parent.pred_end (this);
   }
-  
+
   std::size_t
   ir_basic_block::num_preds (void)
   {
     return std::distance (pred_begin (), pred_end ());
   }
-  
+
   bool
   ir_basic_block::has_preds (void)
   {
     return pred_begin () != pred_end ();
   }
-  
+
   bool
   ir_basic_block::has_multiple_preds (void)
   {
     return num_preds () > 1;
   }
-  
+
   ir_component::link_iter
   ir_basic_block::succ_begin (void)
   {
     return m_parent.succ_begin (this);
   }
-  
+
   ir_component::link_iter
   ir_basic_block::succ_end (void)
   {
     return m_parent.succ_end (this);
   }
-  
+
   std::size_t
   ir_basic_block::num_succs (void)
   {
     return std::distance (succ_begin (), succ_end ());
   }
-  
+
   bool
   ir_basic_block::has_succs (void)
   {
     return succ_begin () != succ_end ();
   }
-  
+
   bool
   ir_basic_block::has_multiple_succs (void)
   {
     return num_succs () > 1;
   }
-  
+
   ir_function&
   ir_basic_block::get_function (void) noexcept
   {
     return m_parent.get_function ();
   }
-  
+
   const ir_function&
   ir_basic_block::get_function (void) const noexcept
   {
     return m_parent.get_function ();
   }
-  
+
   void
   ir_basic_block::reset (void) noexcept
   {
@@ -321,10 +321,10 @@ namespace octave
     // TODO remove when verified
     for (const std::pair<ir_variable *, def_timeline>& p : m_vt_map)
     {
-    
+
     }
   }
-  
+
   constexpr ir_type::impl ir_type::instance<ir_basic_block *>::m_impl;
-  
+
 }
