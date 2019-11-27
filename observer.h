@@ -165,7 +165,7 @@ namespace octave
 
       self_type operator++ (int) noexcept
       {
-        self_type tmp = *this;
+        const self_type tmp = *this;
         ++m_citer;
         return tmp;
       }
@@ -178,7 +178,7 @@ namespace octave
 
       self_type operator-- (int) noexcept
       {
-        self_type tmp = *this;
+        const self_type tmp = *this;
         --m_citer;
         return tmp;
       }
@@ -226,22 +226,22 @@ namespace octave
       return m_children.size ();
     }
 
-    void transfer (observer&& src, citer pos)
+    void transfer_from (observer&& src, citer pos)
     {
       for (internal_ref c_ptr : src.m_children)
         c_ptr->replace_observer (this);
       return m_children.splice (pos.m_citer, src.m_children);
     }
 
-    void transfer (observer& src, citer pos)
+    void transfer_from (observer& src, citer pos)
     {
-      return transfer (std::move (src), pos);
+      return transfer_from (std::move (src), pos);
     }
 
     template <typename T>
-    void transfer (T&& src)
+    void transfer_from (T&& src)
     {
-      return transfer (std::forward<T> (src), m_children.cend ());
+      return transfer_from (std::forward<T> (src), m_children.cend ());
     }
 
     iter   begin   (void)       noexcept { return m_children.begin (); }
@@ -281,12 +281,12 @@ namespace octave
 
   private:
 
-    internal_iter track_child (child_base_type *ptr)
+    internal_iter track (child_base_type *ptr)
     {
       return m_children.emplace (m_children.end (), ptr);
     }
 
-    internal_iter untrack_child (internal_citer cit)
+    internal_iter untrack (internal_citer cit)
     {
       return m_children.erase (cit);
     }
@@ -304,100 +304,9 @@ namespace octave
     using parent_type     = Parent;
     using base_type       = observer<Child>;
     using self_type       = observer<Child, Parent>;
-
     using child_base_type = observee<child_type, parent_type>;
 
     friend child_base_type;
-
-  private:
-    using element_type    = child_ptr<child_type>;
-    using child_list      = std::list<element_type>;
-    using internal_iter   = typename child_list::iterator;
-    using internal_citer  = typename child_list::const_iterator;
-    using internal_riter  = typename child_list::reverse_iterator;
-    using internal_criter = typename child_list::const_reverse_iterator;
-    using internal_ref    = typename child_list::reference;
-    using internal_cref   = typename child_list::const_reference;
-
-  public:
-
-    // pretend like child_ptr doesn't exist
-    struct const_iterator
-    {
-      using self_type         = const_iterator;
-
-      using difference_type   = typename internal_citer::difference_type;
-      using iterator_category = std::bidirectional_iterator_tag;
-      using value_type        = child_type;
-      using pointer           = child_type *;
-      using const_pointer     = const child_type *;
-      using reference         = child_type&;
-      using const_reference   = const child_type&;
-
-      const_iterator (internal_citer cit)
-        : m_citer (cit)
-      { }
-
-      const_iterator (internal_iter it)
-        : const_iterator (internal_citer (it))
-      { }
-
-      constexpr reference operator* (void) const noexcept
-      {
-        return static_cast<reference> (m_citer->operator* ());
-      }
-
-      constexpr pointer operator-> (void) const noexcept
-      {
-        return static_cast<pointer> (m_citer->operator-> ());
-      }
-
-      self_type& operator++ (void) noexcept
-      {
-        ++m_citer;
-        return *this;
-      }
-
-      self_type operator++ (int) noexcept
-      {
-        self_type tmp = *this;
-        ++m_citer;
-        return tmp;
-      }
-
-      self_type& operator-- (void) noexcept
-      {
-        --m_citer;
-        return *this;
-      }
-
-      self_type operator-- (int) noexcept
-      {
-        self_type tmp = *this;
-        --m_citer;
-        return tmp;
-      }
-
-      friend bool operator== (const self_type& x, const self_type& y) noexcept
-      {
-        return x.m_citer == y.m_citer;
-      }
-
-      friend bool operator!= (const self_type& x, const self_type& y) noexcept
-      {
-        return x.m_citer != y.m_citer;
-      }
-
-    private:
-      internal_citer m_citer;
-    };
-
-    using iter   = const_iterator;
-    using citer  = const_iterator;
-    using riter  = std::reverse_iterator<iter>;
-    using criter = std::reverse_iterator<citer>;
-    using ref    = typename const_iterator::reference;
-    using cref   = typename const_iterator::const_reference;
 
     explicit observer (parent_type *parent)
       : m_parent (parent)
@@ -435,104 +344,27 @@ namespace octave
 
   };
 
-//template <template <typename...> class Pack, typename ...Children,
-//          typename Parent>
-//class observer<Pack<Children...>, Parent>
-//{
-//  template <typename Child>
-//  using sub_type = observer<Child, Parent>;
-//
-//private:
-//
-//  template <std::size_t I, typename T, typename Head, typename ...Tail>
-//  struct type_offset : type_offset<I + 1, T, Tail...>
-//  { };
-//
-//  template <std::size_t I, typename T, typename ...Tail>
-//  struct type_offset<I, T, T, Tail...> : std::integral_constant<std::size_t, I>
-//  { };
-//
-//  template <typename T>
-//  using type_index = type_offset<0, T, observer<Children, Parent>...>;
-//
-//public:
-//
-//  using tuple_type = std::tuple<observer<Children, Parent>...>;
-//
-//  template <typename T>
-//  typename sub_type<T>::iter begin (void) noexcept
-//  {
-//    return get<T> ().begin ();
-//  }
-//
-//  template <typename T>
-//  typename sub_type<T>::citer begin (void) const noexcept
-//  {
-//    return get<T> ().begin ();
-//  }
-//
-//  template <typename T>
-//  typename sub_type<T>::citer cbegin (void) const noexcept
-//  {
-//    return get<T> ().cbegin ();
-//  }
-//
-//  template <typename T>
-//  typename sub_type<T>::iter end (void) noexcept
-//  {
-//    return get<T> ().end ();
-//  }
-//
-//  template <typename T>
-//  typename sub_type<T>::citer end (void) const noexcept
-//  {
-//    return get<T> ().end ();
-//  }
-//
-//  template <typename T>
-//  typename sub_type<T>::citer cend (void) const noexcept
-//  {
-//    return get<T> ().cend ();
-//  }
-//
-//  template <typename T>
-//  sub_type<T>& get (void) noexcept
-//  {
-//    return std::get<type_index<T>> (m_subs);
-//  }
-//
-//  template <typename T>
-//  const sub_type<T>& get (void) const noexcept
-//  {
-//    return std::get<type_index<T>> (m_subs);
-//  }
-//
-//private:
-//
-//  std::tuple<observer<Children, Parent>...> m_subs;
-//
-//};
-
   template <typename Child>
   class observee<Child>
   {
   public:
 
-    using derived_type    = Child;
-    using self_type       = observee<Child>;
-    using observer_type   = observer<Child>;
-    using self_iter_type  = typename std::list<child_ptr<Child>>::iterator;
+    using derived_type   = Child;
+    using self_type      = observee<Child>;
+    using observer_type  = observer<Child>;
+    using ext_citer_type = typename observer<Child>::citer;
+    using self_iter_type = typename std::list<child_ptr<Child>>::iterator;
 
     observee (void) noexcept = default;
 
     explicit observee (observer_type& parent)
       : m_observer (&parent),
-        m_self_iter (m_observer->track_child (this))
+        m_self_iter (m_observer->track (this))
     { }
 
     observee (const observee& other)
       : m_observer (other.m_observer),
-        m_self_iter (has_observer () ? m_observer->track_child (this)
+        m_self_iter (has_observer () ? m_observer->track (this)
                                      : self_iter_type { })
     { }
 
@@ -552,12 +384,12 @@ namespace octave
       if (&other != this)
         {
           if (has_observer ())
-            m_observer->untrack_child (m_self_iter);
+            m_observer->untrack (m_self_iter);
 
           m_observer = other.m_observer;
 
           if (has_observer ())
-            m_self_iter = m_observer->track_child (this);
+            m_self_iter = m_observer->track (this);
         }
       return *this;
     }
@@ -567,7 +399,7 @@ namespace octave
       if (this != &other)
         {
           if (has_observer ())
-            m_observer->untrack_child (m_self_iter);
+            m_observer->untrack (m_self_iter);
 
           m_observer = other.m_observer;
           m_self_iter = other.m_self_iter;
@@ -584,7 +416,7 @@ namespace octave
     ~observee (void) noexcept
     {
       if (has_observer ())
-        m_observer->untrack_child (m_self_iter);
+        m_observer->untrack (m_self_iter);
     }
 
     constexpr bool has_observer (void) const noexcept
@@ -598,10 +430,17 @@ namespace octave
       return m_observer;
     }
 
-    friend void observer<Child>::transfer (observer<Child>&& src,
-                                           typename observer<Child>::citer pos);
+    std::size_t get_position (void) const noexcept
+    {
+      if (! has_observer ())
+        return 0;
+      return std::distance (m_observer->m_children.begin (), m_self_iter);
+    }
 
-    friend child_ptr<Child>::~child_ptr (void) noexcept;
+    friend void observer<Child>::transfer_from (observer<Child>&& src,
+                                                ext_citer_type pos);
+
+    friend child_ptr<Child>::~child_ptr<Child> (void) noexcept;
 
   private:
 
