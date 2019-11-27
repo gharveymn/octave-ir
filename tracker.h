@@ -21,8 +21,8 @@ along with Octave; see the file COPYING.  If not, see
 */
 
 //! standalone
-#if ! defined (octave_ir_observable_h)
-#define octave_ir_observable_h 1
+#if ! defined (octave_tracker_h)
+#define octave_tracker_h 1
 
 #include "octave-config.h"
 #include <utility>
@@ -31,20 +31,26 @@ along with Octave; see the file COPYING.  If not, see
 namespace octave
 {
   template <typename Child, typename Parent = void>
-  class observer;
+  class tracker;
 
-  template <typename Child, typename Parent = observer<Child>>
-  class observee;
+  template <typename Child>
+  class reporter_base;
+
+  template <typename Child, typename Parent>
+  class intrusive_reporter;
+
+  template <typename Parent, typename Tracker = tracker<Parent>>
+  class reporter;
 
   template <typename Child>
   class child_ptr
   {
   public:
 
-    friend observer<Child>;
-    friend observee<Child>;
+    friend tracker<Child>;
+    friend reporter_base<Child>;
 
-    using element_type   = observee<Child>;
+    using element_type   = reporter_base<Child>;
     using self_type      = child_ptr<Child>;
     using reference_type = element_type&;
     using pointer_type   = element_type *;
@@ -58,18 +64,11 @@ namespace octave
     child_ptr& operator= (const child_ptr&)           = delete;
     child_ptr& operator= (child_ptr&& other) noexcept = delete;
 
-    ~child_ptr (void) noexcept;
-
-//  /* implicitly convertible to pointer_type */
-//  operator pointer_type (void) const noexcept
-//  {
-//    return m_ptr;
-//  }
-//
-//  operator reference_type (void) const
-//  {
-//    return *m_ptr;
-//  }
+    ~child_ptr (void) noexcept
+    {
+      if (m_ptr != nullptr)
+        m_ptr->replace_tracker ();
+    }
 
     constexpr pointer_type get (void) const noexcept
     {
@@ -78,18 +77,38 @@ namespace octave
 
     constexpr reference_type operator* (void) const
     {
-      return *get ();
+      return *m_ptr;
     }
 
     constexpr pointer_type operator-> (void) const
     {
-      return get ();
+      return m_ptr;
+    }
+
+    friend bool operator== (child_ptr<Child> c, pointer_type p) noexcept
+    {
+      return c.m_ptr == p;
+    }
+
+    friend bool operator== (pointer_type p, child_ptr<Child> c) noexcept
+    {
+      return p == c.m_ptr;
+    }
+
+    friend bool operator!= (child_ptr<Child> c, pointer_type p) noexcept
+    {
+      return c.m_ptr != p;
+    }
+
+    friend bool operator!= (pointer_type p, child_ptr<Child> c) noexcept
+    {
+      return p != c.m_ptr;
     }
 
   private:
 
-    // access available only to self_type observer<T>, and
-    // observee<T>
+    // access available only to self_type tracker<T>, and
+    // reporter<T>
     void reset (pointer_type ptr = pointer_type ()) noexcept
     {
       m_ptr = ptr;
@@ -99,20 +118,16 @@ namespace octave
 
   };
 
-// the SFINAE here prevents usage with classes which don't inherit observee.
   template <typename Child>
-  class observer<Child>
+  class tracker<Child>
   {
   public:
 
-//  static_assert (std::is_base_of<observee<Child>, Child>::value,
-//                 "observee<Child> was not inherited by Child");
-
     using child_type      = Child;
-    using self_type       = observer<child_type>;
-    using child_base_type = observee<child_type>;
+    using self_type       = tracker<child_type>;
+    using child_base_type = reporter_base<child_type>;
 
-    friend child_base_type;
+    friend reporter_base<child_type>;
 
   private:
     using element_type    = child_ptr<child_type>;
@@ -193,7 +208,7 @@ namespace octave
         return x.m_citer != y.m_citer;
       }
 
-      friend class observer;
+      friend class tracker;
 
     private:
       internal_citer m_citer;
@@ -206,16 +221,16 @@ namespace octave
     using ref    = typename const_iterator::reference;
     using cref   = typename const_iterator::const_reference;
 
-    observer (void) = default;
+    tracker (void) = default;
 
-    observer (const observer&) = delete;
+    tracker (const tracker&) = delete;
 
-    observer (observer&& other) noexcept
+    tracker (tracker&& other) noexcept
       : m_children (std::move (other.m_children))
     { }
 
-    observer& operator= (const observer&) = delete;
-    observer& operator= (observer&& other) noexcept
+    tracker& operator= (const tracker&) = delete;
+    tracker& operator= (tracker&& other) noexcept
     {
       m_children = std::move (other.m_children);
       return *this;
@@ -226,14 +241,14 @@ namespace octave
       return m_children.size ();
     }
 
-    void transfer_from (observer&& src, citer pos)
+    void transfer_from (tracker&& src, citer pos)
     {
       for (internal_ref c_ptr : src.m_children)
-        c_ptr->replace_observer (this);
+        c_ptr->replace_tracker (this);
       return m_children.splice (pos.m_citer, src.m_children);
     }
 
-    void transfer_from (observer& src, citer pos)
+    void transfer_from (tracker& src, citer pos)
     {
       return transfer_from (std::move (src), pos);
     }
@@ -296,32 +311,32 @@ namespace octave
   };
 
   template <typename Child, typename Parent>
-  class observer : public observer<Child>
+  class tracker : public tracker<Child>
   {
   public:
 
     using child_type      = Child;
     using parent_type     = Parent;
-    using base_type       = observer<Child>;
-    using self_type       = observer<Child, Parent>;
-    using child_base_type = observee<child_type, parent_type>;
+    using base_type       = tracker<Child>;
+    using self_type       = tracker<Child, Parent>;
+    using child_base_type = intrusive_reporter<child_type, parent_type>;
 
     friend child_base_type;
 
-    explicit observer (parent_type *parent)
+    explicit tracker (parent_type *parent)
       : m_parent (parent)
     { }
 
-    observer (const observer&) = delete;
+    tracker (const tracker&) = delete;
 
-    observer (observer&& other) noexcept
+    tracker (tracker&& other) noexcept
       : base_type (std::move (other)),
         m_parent (other.m_parent)
     { }
 
-    observer& operator= (const observer&) = delete;
+    tracker& operator= (const tracker&) = delete;
 
-    observer& operator= (observer&& other) noexcept
+    tracker& operator= (tracker&& other) noexcept
     {
       base_type::operator= (std::move (other));
       m_parent = other.m_parent;
@@ -345,177 +360,226 @@ namespace octave
   };
 
   template <typename Child>
-  class observee<Child>
+  class reporter_base
   {
   public:
 
-    using derived_type   = Child;
-    using self_type      = observee<Child>;
-    using observer_type  = observer<Child>;
-    using ext_citer_type = typename observer<Child>::citer;
+    using child_type   = Child;
+    using self_type      = reporter_base<Child>;
+    using tracker_type   = tracker<Child>;
+    using ext_citer_type = typename tracker<Child>::citer;
     using self_iter_type = typename std::list<child_ptr<Child>>::iterator;
 
-    observee (void) noexcept = default;
+    reporter_base (void) noexcept = default;
 
-    explicit observee (observer_type& parent)
-      : m_observer (&parent),
-        m_self_iter (m_observer->track (this))
+    explicit reporter_base (tracker_type& tkr)
+      : m_tracker (&tkr),
+        m_self_iter (m_tracker->track (this))
     { }
 
-    observee (const observee& other)
-      : m_observer (other.m_observer),
-        m_self_iter (has_observer () ? m_observer->track (this)
+    reporter_base (const reporter_base& other)
+      : m_tracker (other.m_tracker),
+        m_self_iter (has_tracker () ? m_tracker->track (this)
                                      : self_iter_type { })
     { }
 
-    observee (observee&& other) noexcept
-      : m_observer (other.m_observer),
+    reporter_base (reporter_base&& other) noexcept
+      : m_tracker (other.m_tracker),
         m_self_iter (other.m_self_iter)
     {
-      if (has_observer ())
+      if (has_tracker ())
         {
           m_self_iter->reset (this);
-          other.replace_observer ();
+          other.replace_tracker ();
         }
     }
 
-    observee& operator= (const observee& other)
+    reporter_base& operator= (const reporter_base& other)
     {
-      if (&other != this)
+      if (this != &other)
         {
-          if (has_observer ())
-            m_observer->untrack (m_self_iter);
+          if (has_tracker ())
+            m_tracker->untrack (m_self_iter);
 
-          m_observer = other.m_observer;
+          m_tracker = other.m_tracker;
 
-          if (has_observer ())
-            m_self_iter = m_observer->track (this);
+          if (has_tracker ())
+            m_self_iter = m_tracker->track (this);
         }
       return *this;
     }
 
-    observee& operator= (observee&& other) noexcept
+    reporter_base& operator= (reporter_base&& other) noexcept
     {
       if (this != &other)
         {
-          if (has_observer ())
-            m_observer->untrack (m_self_iter);
+          if (has_tracker ())
+            m_tracker->untrack (m_self_iter);
 
-          m_observer = other.m_observer;
+          m_tracker = other.m_tracker;
           m_self_iter = other.m_self_iter;
 
-          if (has_observer ())
+          if (has_tracker ())
             {
               m_self_iter->reset (this);
-              other.replace_observer ();
+              other.replace_tracker ();
             }
         }
       return *this;
     }
 
-    ~observee (void) noexcept
+    ~reporter_base (void) noexcept
     {
-      if (has_observer ())
-        m_observer->untrack (m_self_iter);
+      if (has_tracker ())
+        m_tracker->untrack (m_self_iter);
     }
 
-    constexpr bool has_observer (void) const noexcept
+    constexpr bool has_tracker (void) const noexcept
     {
-      return m_observer != nullptr;
+      return m_tracker != nullptr;
     }
 
     //! only use after using has_parent
-    constexpr observer_type *get_base_observer (void) const noexcept
+    constexpr tracker_type *get_base_tracker (void) const noexcept
     {
-      return m_observer;
+      return m_tracker;
     }
 
     std::size_t get_position (void) const noexcept
     {
-      if (! has_observer ())
+      if (! has_tracker ())
         return 0;
-      return std::distance (m_observer->m_children.begin (), m_self_iter);
+      return std::distance (m_tracker->m_children.begin (), m_self_iter);
     }
 
-    friend void observer<Child>::transfer_from (observer<Child>&& src,
+    friend void tracker<Child>::transfer_from (tracker<Child>&& src,
                                                 ext_citer_type pos);
 
     friend child_ptr<Child>::~child_ptr<Child> (void) noexcept;
 
   private:
 
-    void replace_observer (observer_type *ptr = nullptr) noexcept
+    void replace_tracker (tracker_type *ptr = nullptr) noexcept
     {
-      m_observer = ptr;
+      m_tracker = ptr;
     }
 
-    observer_type *m_observer = nullptr;
+    tracker_type *m_tracker = nullptr;
     self_iter_type m_self_iter = self_iter_type { };
 
   };
 
   template <typename Child, typename Parent>
-  class observee : public observee<Child>
+  class intrusive_reporter : public reporter_base<Child>
   {
 
   public:
 
-    using derived_type       = Child;
-    using parent_type        = Parent;
-    using base_type          = observee<Child>;
-    using self_type          = observee<Child, Parent>;
-    using observer_type      = observer<Child, Parent>;
-    using observer_base_type = typename observer_type::base_type;
+    using child_type        = Child;
+    using parent_type       = Parent;
+    using base_type         = reporter_base<Child>;
+    using self_type         = intrusive_reporter<Child, Parent>;
+    using tracker_type      = tracker<Child, Parent>;
+    using tracker_base_type = typename tracker_type::base_type;
 
-    observee (void) noexcept = default;
+    intrusive_reporter (void) noexcept = default;
 
-    explicit observee (observer_type& observer)
-      : base_type (observer)
+    explicit intrusive_reporter (tracker_type& tkr)
+      : base_type (tkr)
     { }
 
-    observee (const observee& other)
+    intrusive_reporter (const intrusive_reporter& other)
       : base_type (other)
     { }
 
-    observee (observee&& other) noexcept
+    intrusive_reporter (intrusive_reporter&& other) noexcept
       : base_type (std::move (other))
     { }
 
-    observee& operator= (const observee& other)
+    intrusive_reporter& operator= (const intrusive_reporter& other)
     {
       base_type::operator= (other);
       return *this;
     }
 
-    observee& operator= (observee&& other) noexcept
+    intrusive_reporter& operator= (intrusive_reporter&& other) noexcept
     {
       base_type::operator= (std::move (other));
       return *this;
     }
-    
-    constexpr observer_type *get_observer (void) const noexcept
+
+    constexpr tracker_type *get_tracker (void) const noexcept
     {
-      return static_cast<observer_type *> (this->get_base_observer ());
+      return static_cast<tracker_type *> (this->get_base_tracker ());
     }
 
     constexpr bool has_parent (void) const noexcept
     {
-      return this->has_observer () && this->get_observer ()->has_parent ();
+      return this->has_tracker () && this->get_tracker ()->has_parent ();
     }
 
     constexpr parent_type *get_parent (void) const noexcept
     {
-      return this->has_observer () ? this->get_observer()->get_parent ()
+      return this->has_tracker () ? this->get_tracker()->get_parent ()
                                    : nullptr;
     }
   };
 
-  template <typename T>
-  child_ptr<T>::~child_ptr (void) noexcept
+  //! non-intrusive; for use as a class member
+  template <typename Child, typename Parent>
+  class reporter : public intrusive_reporter<reporter<Child, Parent>, Parent>
   {
-    if (m_ptr != nullptr)
-      m_ptr->replace_observer ();
-  }
+  public:
+    using child_type   = Child;
+    using parent_type  = Parent;
+    using base_type    = intrusive_reporter<reporter, Parent>;
+    using tracker_type = typename base_type::tracker_type;
+
+
+    explicit reporter (child_type *child, tracker_type& tkr)
+      : base_type (tkr),
+        m_child (child)
+    { }
+
+    reporter (const reporter& other)
+      : base_type (other),
+        m_child (other.m_child)
+    { }
+
+    reporter (reporter&& other) noexcept
+    : base_type (std::move (other)),
+      m_child (other.m_child)
+    { }
+
+    reporter& operator= (const reporter& other)
+    {
+      base_type::operator= (other);
+      m_child = other.m_child;
+      return *this;
+    }
+
+    reporter& operator= (reporter&& other) noexcept
+    {
+      base_type::operator= (std::move (other));
+      m_child = other.m_child;
+      return *this;
+    }
+
+    constexpr const child_type& operator* (void) const noexcept
+    {
+      return *m_child;
+    }
+
+    constexpr child_type * operator-> (void) const noexcept
+    {
+      return m_child;
+    }
+
+  private:
+    child_type *m_child;
+
+  };
+
 }
 
 #endif

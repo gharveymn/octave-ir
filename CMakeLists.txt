@@ -47,7 +47,7 @@ ADD_LIBRARY(octave_ir SHARED
 		ir-constant.h
 #		ir-build.cc
 #		ir-build.h
-		observer.h)
+		tracker.h)
 
 IF (MSVC)
 #	target_compile_options(octave_ir PRIVATE -Wall)

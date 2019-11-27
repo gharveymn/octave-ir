@@ -28,7 +28,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-operand.h"
 #include "ir-type-base.h"
 #include "ir-block.h"
-#include "observer.h"
+#include "tracker.h"
 
 #include <deque>
 #include <memory>
@@ -95,8 +95,6 @@ namespace octave
     ir_variable (ir_variable&& o)               = delete;
     ir_variable& operator= (ir_variable&&)      = delete;
 
-    ~ir_variable (void) noexcept;
-
     // has side-effects
     static ir_type normalize_types (block_def_vect& pairs);
 
@@ -148,7 +146,7 @@ namespace octave
     //! The variable name. The default is a synonym for 'anonymous'.
     std::string m_name = anonymous_name;
 
-    observer<ir_def, ir_variable> m_def_observer;
+    tracker<ir_def, ir_variable> m_def_observer;
 
     // Used to indicate if the variable is uninitialized in the current
     // code path. Lazily initialized.
@@ -158,12 +156,12 @@ namespace octave
 
   //! An ssa variable def. It holds very little information about itself,
   //! it's more of just an indicating stub for the variable.
-  class ir_def : public observee<ir_def, ir_variable>
+  class ir_def : public reporter<ir_def, ir_variable>
   {
 
   public:
 
-    ir_def (observee::observer_type& var, ir_type ty,
+    ir_def (reporter::observer_type& var, ir_type ty,
              const ir_def_instruction& instr);
 
     ir_def (void)                     = delete;
@@ -185,12 +183,12 @@ namespace octave
     template <typename InputIt>
     static ir_type common_type (InputIt first, InputIt last);
 
-    constexpr const ir_def_instruction& get_instruction (void) const
+    constexpr const ir_def_instruction& get_instruction (void) const noexcept
     {
       return m_instr;
     }
 
-    constexpr ir_basic_block& get_block (void) const;
+    ir_basic_block& get_block (void) const noexcept;
 
     std::ostream& print (std::ostream& os) const;
 
@@ -217,7 +215,7 @@ namespace octave
     {
       return m_needs_init_check;
     }
-    
+
     template <typename ...Args>
     void transfer_from (ir_def& src, Args&&... args)
     {
@@ -228,8 +226,7 @@ namespace octave
     friend ir_def ir_variable::create_def (ir_type ty, const ir_def_instruction& instr);
 
   private:
-
-    observer<ir_use, ir_def> m_use_tracker;
+    tracker<ir_use, ir_def> m_use_tracker;
 
     const ir_type m_type;
 
@@ -240,7 +237,7 @@ namespace octave
 
   };
 
-  class ir_use : public ir_operand, public observee<ir_use, ir_def>
+  class ir_use : public ir_operand, public reporter<ir_use, ir_def>
   {
   public:
 
@@ -249,7 +246,7 @@ namespace octave
     // defs maintain a pointer to each use it created
 
     //! Create a use with a parent def.
-    ir_use (observee::observer_type& obs, const ir_instruction& instr);
+    ir_use (reporter::observer_type& obs, const ir_instruction& instr);
 
     constexpr ir_use (void)           = delete;
 

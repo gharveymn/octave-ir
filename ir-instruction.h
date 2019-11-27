@@ -107,7 +107,7 @@ namespace octave
   class ir_instruction
   {
   public:
-    
+
     using instr_list_type = std::unique_ptr<ir_instruction>;
     using instr_list      = std::list<std::unique_ptr<ir_instruction>>;
     using instr_iter      = instr_list::iterator;
@@ -139,7 +139,7 @@ namespace octave
     //! @return the output stream
     // virtual std::ostream& print (std::ostream& os) const = 0;
 
-    constexpr ir_basic_block& get_block (void) const
+    constexpr ir_basic_block& get_block (void) const noexcept
     {
       return m_block;
     }
@@ -152,7 +152,7 @@ namespace octave
     citer end   (void) const { return m_args.end (); }
 
     iter erase (citer pos);
-    
+
     // relink objects connected to contents of this instruction to
     // objects before the specified iterator.
     virtual void unlink_propagate (instr_citer) { };
@@ -190,11 +190,11 @@ namespace octave
                         ir_type ret_ty);
 
     ~ir_def_instruction (void) override;
-    
+
     void unlink_propagate (instr_citer pos) override;
 
     constexpr const ir_def& get_return (void) const noexcept { return m_ret; }
-    
+
     ir_def& get_return (void) noexcept { return m_ret; }
 
   private:
@@ -212,7 +212,7 @@ namespace octave
       : ir_def_instruction (blk, ret_var, c.get_type ()),
         m_src (emplace_back<ir_constant<Args...>> (c))
     { }
-  
+
     template <typename ...Args>
     ir_assign (ir_basic_block& blk, ir_variable& ret_var,
                ir_constant<Args...>&& c)

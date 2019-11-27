@@ -185,9 +185,9 @@ namespace octave
   // ir_def
   //
 
-  ir_def::ir_def (observee::observer_type& obs, ir_type ty,
+  ir_def::ir_def (reporter::observer_type& obs, ir_type ty,
                   const ir_def_instruction& instr)
-    : observee (obs),
+    : reporter (obs),
       m_use_tracker (this),
       m_type (ty),
       m_instr (instr),
@@ -195,7 +195,7 @@ namespace octave
   { }
 
   ir_def::ir_def (ir_def&& d) noexcept
-    : observee (std::move (d)),
+    : reporter (std::move (d)),
       m_use_tracker (std::move (d.m_use_tracker)),
       m_type (d.m_type),
       m_instr (d.m_instr),
@@ -232,8 +232,7 @@ namespace octave
     return curr_ty;
   }
 
-  constexpr ir_basic_block&
-  ir_def::get_block () const
+  ir_basic_block& ir_def::get_block (void) const noexcept
   {
     return get_instruction ().get_block ();
   }
@@ -260,13 +259,13 @@ namespace octave
   // ir_use
   //
 
-  ir_use::ir_use (observee::observer_type& obs, const ir_instruction& instr)
-    : observee (obs),
+  ir_use::ir_use (reporter::observer_type& obs, const ir_instruction& instr)
+    : reporter (obs),
       m_instr (&instr)
   { }
 
   ir_use::ir_use (ir_use&& u) noexcept
-    : observee (std::move (u)),
+    : reporter (std::move (u)),
       m_instr (u.m_instr)
   { }
 
