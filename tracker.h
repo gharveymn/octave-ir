@@ -31,16 +31,19 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace octave
 {
-  template <typename Reporter>
+  template <typename Reporter, typename Child>
   class tracker_base;
 
-  template <typename Reporter, typename Parent = tracker_base<Reporter>>
+  template <typename Reporter,
+            typename Parent = tracker_base<Reporter, Reporter>,
+            typename Child = Reporter>
   class tracker;
 
-  template <typename Reporter>
+  template <typename Reporter, typename Child>
   class reporter_base;
 
-  template <typename Derived, typename Parent = tracker<Derived>>
+  template <typename Derived, typename Parent = tracker<Derived>,
+            typename Child = Derived>
   class intrusive_reporter;
 
   template <typename Child, typename Parent = tracker<Child>>
@@ -53,13 +56,15 @@ namespace octave
 
     using reporter_type  = Reporter;
     using self_type      = reporter_ptr<reporter_type>;
-    using reference_type = reporter_type&;
-    using pointer_type   = reporter_type *;
+    using internal_type  = reporter_type *;
 
-    friend tracker_base<Reporter>;
-    friend reporter_base<Reporter>;
+    using value_type        = reporter_type;
+    using pointer           = reporter_type *;
+    using const_pointer     = const reporter_type *;
+    using reference         = reporter_type&;
+    using const_reference   = const reporter_type&;
 
-    explicit constexpr reporter_ptr (pointer_type ptr) noexcept
+    explicit constexpr reporter_ptr (pointer ptr) noexcept
       : m_ptr (ptr)
     { }
 
@@ -76,64 +81,62 @@ namespace octave
         m_ptr->replace_tracker ();
     }
 
-    constexpr pointer_type get (void) const noexcept
+    constexpr pointer get (void) const noexcept
     {
-      return m_ptr;
+      return static_cast<pointer> (m_ptr);
     }
 
-    constexpr reference_type operator* (void) const noexcept
+    constexpr reference operator* (void) const noexcept
     {
-      return *m_ptr;
+      return *get ();
     }
 
-    constexpr pointer_type operator-> (void) const noexcept
+    constexpr pointer operator-> (void) const noexcept
     {
-      return m_ptr;
+      return get ();
     }
 
-    friend bool operator== (reporter_ptr<Reporter> c, pointer_type p) noexcept
+    friend bool operator== (reporter_ptr r, pointer p) noexcept
     {
-      return c.m_ptr == p;
+      return r.get () == p;
     }
 
-    friend bool operator== (pointer_type p, reporter_ptr<Reporter> c) noexcept
+    friend bool operator== (pointer p, reporter_ptr r) noexcept
     {
-      return p == c.m_ptr;
+      return p == r.get ();
     }
 
-    friend bool operator!= (reporter_ptr<Reporter> c, pointer_type p) noexcept
+    friend bool operator!= (reporter_ptr r, pointer p) noexcept
     {
-      return c.m_ptr != p;
+      return r.get () != p;
     }
 
-    friend bool operator!= (pointer_type p, reporter_ptr<Reporter> c) noexcept
+    friend bool operator!= (pointer p, reporter_ptr r) noexcept
     {
-      return p != c.m_ptr;
+      return p != r.get ();
     }
 
-  private:
-
-    // access available only to self_type tracker_base<T>, and
-    // reporter<T>
-    void reset (pointer_type ptr = pointer_type ()) noexcept
+    void reset (internal_type ptr = internal_type { }) noexcept
     {
       m_ptr = ptr;
     }
 
-    pointer_type m_ptr = nullptr;
+  private:
+
+    internal_type m_ptr = nullptr;
 
   };
 
-  template <typename Reporter>
+  template <typename Reporter, typename Child>
   class tracker_base
   {
   public:
 
-
     using reporter_type = Reporter;
-    using self_type     = tracker_base<reporter_type>;
+    using child_type    = Child;
+    using self_type     = tracker_base<reporter_type, child_type>;
 
-    friend reporter_base<reporter_type>;
+    friend reporter_base<reporter_type, child_type>;
 
   private:
 
@@ -149,34 +152,44 @@ namespace octave
   public:
 
     // pretend like reporter_ptr doesn't exist
-    struct const_iterator
+    struct external_iterator
     {
-      using self_type         = const_iterator;
+      using self_type         = external_iterator;
+      using internal_type     = typename internal_citer::value_type;
+
+      static_assert (std::is_same<internal_type,
+                                  reporter_ptr<reporter_type>>::value,
+                     "internal_type was unexpected type");
 
       using difference_type   = typename internal_citer::difference_type;
       using iterator_category = std::bidirectional_iterator_tag;
-      using value_type        = reporter_type;
-      using pointer           = reporter_type *;
-      using const_pointer     = const reporter_type *;
-      using reference         = reporter_type&;
-      using const_reference   = const reporter_type&;
+      using value_type        = child_type;
+      using pointer           = child_type *;
+      using const_pointer     = const child_type *;
+      using reference         = child_type&;
+      using const_reference   = const child_type&;
 
-      const_iterator (internal_citer cit)
+      external_iterator (internal_citer cit)
         : m_citer (cit)
       { }
 
-      const_iterator (internal_iter it)
-        : const_iterator (internal_citer (it))
+      external_iterator (internal_iter it)
+        : external_iterator (internal_citer (it))
       { }
+
+      constexpr pointer get (void) const noexcept
+      {
+        return (*m_citer)->get_child_ptr ();
+      }
 
       constexpr reference operator* (void) const noexcept
       {
-        return static_cast<reference> (m_citer->operator* ());
+        return *get ();
       }
 
       constexpr pointer operator-> (void) const noexcept
       {
-        return static_cast<pointer> (m_citer->operator-> ());
+        return get ();
       }
 
       self_type& operator++ (void) noexcept
@@ -221,12 +234,12 @@ namespace octave
       internal_citer m_citer;
     };
 
-    using iter   = const_iterator;
-    using citer  = const_iterator;
+    using iter   = external_iterator;
+    using citer  = external_iterator;
     using riter  = std::reverse_iterator<iter>;
     using criter = std::reverse_iterator<citer>;
-    using ref    = typename const_iterator::reference;
-    using cref   = typename const_iterator::const_reference;
+    using ref    = typename external_iterator::reference;
+    using cref   = typename external_iterator::const_reference;
 
     tracker_base (void) = default;
 
@@ -321,16 +334,17 @@ namespace octave
 
   };
 
-  template <typename Reporter, typename Parent>
-  class tracker : public tracker_base<Reporter>
+  template <typename Reporter, typename Parent, typename Child>
+  class tracker : public tracker_base<Reporter, Child>
   {
   public:
 
     using reporter_type   = Reporter;
     using parent_type     = Parent;
-    using base_type       = tracker_base<reporter_type>;
+    using child_type      = Child;
+
+    using base_type       = tracker_base<reporter_type, child_type>;
     using self_type       = tracker<reporter_type, parent_type>;
-    using child_base_type = intrusive_reporter<reporter_type, parent_type>;
 
     friend intrusive_reporter<reporter_type, parent_type>;
 
@@ -390,15 +404,16 @@ namespace octave
   };
 
   template <typename Reporter>
-  class tracker<Reporter> : public tracker_base<Reporter>
+  class tracker<Reporter> : public tracker_base<Reporter, Reporter>
   {
   public:
 
     using reporter_type   = Reporter;
-    using parent_type     = tracker_base<reporter_type>;
-    using base_type       = tracker_base<reporter_type>;
-    using self_type       = tracker<reporter_type, parent_type>;
-    using child_base_type = intrusive_reporter<reporter_type, parent_type>;
+    using parent_type     = tracker_base<Reporter, Reporter>;
+    using child_type      = Reporter;
+
+    using base_type       = tracker_base<reporter_type, child_type>;
+    using self_type       = tracker<reporter_type, parent_type, child_type>;
 
     friend intrusive_reporter<reporter_type, parent_type>;
 
@@ -436,21 +451,37 @@ namespace octave
 
   };
 
-  template <typename Reporter>
+  template <typename Child, typename Parent>
+  class tracker<reporter<Child, Parent>, Parent>
+    : public tracker<reporter<Child, Parent>, Parent, Child>
+  {
+  public:
+    using reporter_type   = reporter<Child, Parent>;
+    using parent_type     = Parent;
+    using child_type      = Child;
+
+    using forwarded_type  = tracker<reporter<Child, Parent>, Parent, Child>;
+    using base_type       = typename forwarded_type::base_type;
+    using self_type       = tracker<reporter_type, parent_type, child_type>;
+  };
+
+  template <typename Reporter, typename Child>
   class reporter_base
   {
   public:
 
     using reporter_type  = Reporter;
-    using self_type      = reporter_base<reporter_type>;
-    using tracker_type   = tracker_base<reporter_type>;
+    using child_type     = Child;
+
+    using self_type      = reporter_base<reporter_type, child_type>;
+    using tracker_type   = tracker_base<reporter_type, child_type>;
     using self_ptr_type  = reporter_ptr<reporter_type>;
-    using ext_citer_type = typename tracker_base<reporter_type>::citer;
+    using ext_citer_type = typename tracker_type::citer;
     using self_iter_type = typename tracker_type::internal_iter;
 
     friend void
-    tracker_base<Reporter>::transfer_from (tracker_base<Reporter>&& src,
-                                           ext_citer_type pos);
+    tracker_base<Reporter, Child>::transfer_from (
+      tracker_base<Reporter, Child>&& src, ext_citer_type pos);
 
     friend reporter_ptr<Reporter>::~reporter_ptr<Reporter> (void) noexcept;
 
@@ -570,21 +601,23 @@ namespace octave
 
   };
 
-  template <typename Derived, typename Parent>
-  class intrusive_reporter : public reporter_base<Derived>
+  template <typename Derived, typename Parent, typename Child>
+  class intrusive_reporter : public reporter_base<Derived, Child>
   {
 
   public:
 
     using derived_type      = Derived;
     using parent_type       = Parent;
-    using base_type         = reporter_base<derived_type>;
+    using child_type        = Child;
+    using base_type         = reporter_base<derived_type, child_type>;
+
     using self_type         = intrusive_reporter<derived_type, parent_type>;
-    using tracker_type      = tracker<derived_type, parent_type>;
+    using tracker_type      = tracker<derived_type, parent_type, child_type>;
     using tracker_base_type = typename tracker_type::base_type;
 
     static_assert (std::is_same<tracker_base_type,
-                                tracker_base<derived_type>>::value,
+                                tracker_base<derived_type, child_type>>::value,
                    "tracker base has unexpected type");
 
     intrusive_reporter (void) noexcept = default;
@@ -613,6 +646,18 @@ namespace octave
       return *this;
     }
 
+    constexpr const child_type *
+    get_child_ptr (const intrusive_reporter *r) const noexcept
+    {
+      return downcast (this);
+    }
+
+    child_type *
+    get_child_ptr (void) noexcept
+    {
+      return downcast (this);
+    }
+
     constexpr tracker_type *get_tracker (void) const noexcept
     {
       return static_cast<tracker_type *> (this->get_base_tracker ());
@@ -628,21 +673,32 @@ namespace octave
       return this->has_tracker () ? this->get_tracker()->get_parent ()
                                   : nullptr;
     }
+
+  private:
+    static constexpr const derived_type * downcast (const self_type *r)
+    {
+      return static_cast<const derived_type *> (r);
+    }
+
+    static constexpr derived_type * downcast (self_type *r)
+    {
+      return static_cast<derived_type *> (r);
+    }
   };
 
   //! non-intrusive; for use as a class member
   template <typename Child, typename Parent>
-  class reporter : public intrusive_reporter<reporter<Child, Parent>, Parent>
+  class reporter : public intrusive_reporter<reporter<Child, Parent>, Parent, Child>
   {
   public:
     using child_type   = Child;
     using parent_type  = Parent;
     using self_type    = reporter<child_type, parent_type>;
-    using base_type    = intrusive_reporter<self_type, parent_type>;
+    using base_type    = intrusive_reporter<self_type, parent_type, child_type>;
     using tracker_type = typename base_type::tracker_type;
 
     static_assert (std::is_same<tracker_type,
-                                tracker<self_type, parent_type>>::value,
+                           tracker<self_type, parent_type, child_type>>::value,
                    "tracker has unexpected type");
 
     explicit reporter (child_type *child, tracker_type& tkr)
@@ -675,12 +731,12 @@ namespace octave
       return *this;
     }
 
-    constexpr child_type& operator* (void) const noexcept
+    constexpr child_type& get_child_ref (void) const noexcept
     {
       return *m_child;
     }
 
-    constexpr child_type * operator-> (void) const noexcept
+    constexpr child_type * get_child_ptr (void) const noexcept
     {
       return m_child;
     }
