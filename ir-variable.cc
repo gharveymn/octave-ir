@@ -47,7 +47,7 @@ namespace octave
   ir_variable::ir_variable (ir_function& m, std::string name)
     : m_function (m),
       m_name (std::move (name)),
-      m_def_observer (this)
+      m_def_tracker (this)
   { }
 
 //  ir_variable::ir_variable (ir_variable&& o) noexcept
@@ -62,7 +62,7 @@ namespace octave
   ir_def
   ir_variable::create_def (ir_type ty, const ir_def_instruction& instr)
   {
-    return { m_def_observer, ty, instr };
+    return { m_def_tracker, ty, instr };
   }
 
   ir_type
@@ -185,9 +185,9 @@ namespace octave
   // ir_def
   //
 
-  ir_def::ir_def (reporter::observer_type& obs, ir_type ty,
+  ir_def::ir_def (tracker_type& tkr, ir_type ty,
                   const ir_def_instruction& instr)
-    : reporter (obs),
+    : reporter_type (tkr),
       m_use_tracker (this),
       m_type (ty),
       m_instr (instr),
@@ -195,8 +195,8 @@ namespace octave
   { }
 
   ir_def::ir_def (ir_def&& d) noexcept
-    : reporter (std::move (d)),
-      m_use_tracker (std::move (d.m_use_tracker)),
+    : reporter_type (std::move (d)),
+      m_use_tracker (this, std::move (d.m_use_tracker)),
       m_type (d.m_type),
       m_instr (d.m_instr),
       m_needs_init_check (d.m_needs_init_check)
@@ -259,13 +259,13 @@ namespace octave
   // ir_use
   //
 
-  ir_use::ir_use (reporter::observer_type& obs, const ir_instruction& instr)
-    : reporter (obs),
+  ir_use::ir_use (tracker_type& tkr, const ir_instruction& instr)
+    : reporter_type (tkr),
       m_instr (&instr)
   { }
 
   ir_use::ir_use (ir_use&& u) noexcept
-    : reporter (std::move (u)),
+    : reporter_type (std::move (u)),
       m_instr (u.m_instr)
   { }
 

@@ -29,8 +29,9 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-common-util.h"
 #include "ir-component.h"
 #include "ir-type.h"
+#include "ir-instruction-fwd.h"
 
-#include <list>
+#include <plf_list.h>
 #include <memory>
 #include <unordered_set>
 #include <unordered_map>
@@ -53,8 +54,6 @@ namespace octave
   {
   public:
 
-    using instr_list_type = std::unique_ptr<ir_instruction>;
-    using instr_list      = std::list<std::unique_ptr<ir_instruction>>;
     using instr_iter      = instr_list::iterator;
     using instr_citer     = instr_list::const_iterator;
     using instr_riter     = instr_list::reverse_iterator;
@@ -63,7 +62,7 @@ namespace octave
     using instr_cref      = instr_list::const_reference;
 
     using phi_list_type = ir_phi;
-    using phi_list      = std::list<ir_phi>;
+    using phi_list      = plf::list<ir_phi>;
     using phi_iter      = phi_list::iterator;
     using phi_citer     = phi_list::const_iterator;
     using phi_riter     = phi_list::reverse_iterator;

@@ -27,13 +27,12 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-common-util.h"
 #include "ir-operand.h"
 #include "ir-type-base.h"
-#include "ir-block.h"
+#include "ir-instruction-fwd.h"
 #include "tracker.h"
 
 #include <deque>
-#include <memory>
 #include <unordered_set>
-#include <list>
+#include <plf_list.h>
 #include <vector>
 
 namespace octave
@@ -47,8 +46,6 @@ namespace octave
   class ir_def;
   class ir_use;
 
-  using instr_list_type = std::unique_ptr<ir_instruction>;
-  using instr_list      = std::list<std::unique_ptr<ir_instruction>>;
   using instr_iter      = instr_list::iterator;
   using instr_citer     = instr_list::const_iterator;
   using instr_riter     = instr_list::reverse_iterator;
@@ -56,17 +53,17 @@ namespace octave
   using instr_ref       = instr_list::reference;
   using instr_cref      = instr_list::const_reference;
 
-  using def_list = std::list<ir_def *>;
-  using def_iter = def_list::iterator;
+  using def_list  = plf::list<ir_def *>;
+  using def_iter  = def_list::iterator;
   using def_citer = def_list::const_iterator;
-  using def_ref = def_list::reference;
-  using def_cref = def_list::const_reference;
+  using def_ref   = def_list::reference;
+  using def_cref  = def_list::const_reference;
 
-  using use_list = std::list<ir_use *>;
-  using use_iter = use_list::iterator;
+  using use_list  = plf::list<ir_use *>;
+  using use_iter  = use_list::iterator;
   using use_citer = use_list::const_iterator;
-  using use_ref = use_list::reference;
-  using use_cref = use_list::const_reference;
+  using use_ref   = use_list::reference;
+  using use_cref  = use_list::const_reference;
 
   class ir_variable
   {
@@ -103,7 +100,7 @@ namespace octave
 
     std::size_t get_num_defs (void) const noexcept
     {
-      return m_def_observer.num_children ();
+      return m_def_tracker.num_children ();
     }
 
     constexpr const std::string& get_name (void) const { return m_name; }
@@ -132,7 +129,6 @@ namespace octave
     }
 
     ir_def& join (ir_basic_block& blk);
-
     ir_def& join (ir_basic_block& blk, instr_citer pos);
 
    private:
@@ -146,7 +142,7 @@ namespace octave
     //! The variable name. The default is a synonym for 'anonymous'.
     std::string m_name = anonymous_name;
 
-    tracker<ir_def, ir_variable> m_def_observer;
+    tracker<ir_def, ir_variable> m_def_tracker;
 
     // Used to indicate if the variable is uninitialized in the current
     // code path. Lazily initialized.
@@ -156,13 +152,16 @@ namespace octave
 
   //! An ssa variable def. It holds very little information about itself,
   //! it's more of just an indicating stub for the variable.
-  class ir_def : public reporter<ir_def, ir_variable>
+  class ir_def : public intrusive_reporter<ir_def, ir_variable>
   {
 
   public:
 
-    ir_def (reporter::observer_type& var, ir_type ty,
-             const ir_def_instruction& instr);
+    using reporter_type = intrusive_reporter<ir_def, ir_variable>;
+    using tracker_type  = reporter_type::tracker_type;
+
+    ir_def (tracker_type& tkr, ir_type ty,
+            const ir_def_instruction& instr);
 
     ir_def (void)                     = delete;
 
@@ -237,16 +236,19 @@ namespace octave
 
   };
 
-  class ir_use : public ir_operand, public reporter<ir_use, ir_def>
+  class ir_use : public ir_operand, public intrusive_reporter<ir_use, ir_def>
   {
   public:
+
+    using reporter_type = intrusive_reporter<ir_use, ir_def>;
+    using tracker_type  = reporter_type::tracker_type;
 
     // uses can only be explicitly created by defs
     // They may not be copied, but they may be moved.
     // defs maintain a pointer to each use it created
 
     //! Create a use with a parent def.
-    ir_use (reporter::observer_type& obs, const ir_instruction& instr);
+    ir_use (tracker_type& tkr, const ir_instruction& instr);
 
     constexpr ir_use (void)           = delete;
 

@@ -60,7 +60,7 @@ namespace octave
   { }
 
   ir_def_instruction::~ir_def_instruction (void) = default;
-  
+
   void
   ir_def_instruction::unlink_propagate (instr_citer pos)
   {
@@ -69,6 +69,8 @@ namespace octave
         ir_def& prev_joined = m_ret.get_var ().join (get_block (), pos);
         prev_joined.transfer_from (m_ret);
       }
+    if (m_ret.has_uses ())
+      throw ir_exception ("return def unexpectedly had uses after unlinking");
   }
 
   //
@@ -152,7 +154,7 @@ namespace octave
   }
 
   ir_phi::iter
-  ir_phi::erase (const ir_basic_block* blk)
+  ir_phi::erase (const ir_basic_block *blk)
   {
     for (citer cit = begin (); cit != end (); ++cit)
       {
@@ -163,8 +165,8 @@ namespace octave
     throw ir_exception ("specified blk not found in phi node");
   }
 
-  ir_def*
-  ir_phi::find (const ir_basic_block* blk)
+  ir_def *
+  ir_phi::find (const ir_basic_block *blk)
   {
     for (citer cit = begin (); cit != end (); ++cit)
       {

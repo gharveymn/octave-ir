@@ -28,6 +28,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-common.h"
 #include "ir-variable.h"
 #include "ir-type-base.h"
+#include "ir-instruction-fwd.h"
 #include <unordered_map>
 #include <list>
 #include <vector>
@@ -35,29 +36,8 @@ along with Octave; see the file COPYING.  If not, see
 namespace octave
 {
 
-  // defined here
-  class ir_instruction;
-    class ir_assign; // assign some variable (x = y)
-    class ir_call;   // call a function
-    class ir_define; // define a variable (used on entry)
-    class ir_operator;
-      class ir_unop;
-      class ir_biop;
-    class ir_phi;
-    class ir_relation;
-      class ir_rel_eq;
-      class ir_rel_ne;
-      class ir_rel_lt;
-      class ir_rel_le;
-      class ir_rel_gt;
-      class ir_rel_ge;
-    class ir_operation;
-      class ir_biop;
-        class ir_add;
-
   // imports
   class ir_visitor;
-  class ir_basic_block;
 
   template <typename>
   struct ir_printer;
@@ -108,8 +88,6 @@ namespace octave
   {
   public:
 
-    using instr_list_type = std::unique_ptr<ir_instruction>;
-    using instr_list      = std::list<std::unique_ptr<ir_instruction>>;
     using instr_iter      = instr_list::iterator;
     using instr_citer     = instr_list::const_iterator;
     using instr_riter     = instr_list::reverse_iterator;

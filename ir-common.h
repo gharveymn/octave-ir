@@ -41,11 +41,11 @@ namespace octave
     explicit ir_exception (const char *str)
     : m_str (str)
     { }
-  
+
     explicit ir_exception (std::string str)
     : m_str (std::move (str))
     { }
-  
+
     const char* what (void) const noexcept override
     {
       return m_str.c_str ();
@@ -65,10 +65,10 @@ namespace octave
 
   // imitates 'void' as a unit type (added as std::monostate in C++17)
   struct monostate { };
-  
+
   template<bool v>
   using bool_constant = std::integral_constant<bool, v>;
-  
+
   template<class B>
   struct negation : bool_constant<! bool (B::value)>
   { };
@@ -178,6 +178,13 @@ namespace octave
   template <typename T>
   struct map_to_false : std::false_type
   { };
+
+//  template <typename T> using iter   = typename T::iterator;
+//  template <typename T> using citer  = typename T::const_iterator;
+//  template <typename T> using riter  = typename T::reverse_iterator;
+//  template <typename T> using criter = typename T::const_reverse_iterator;
+//  template <typename T> using ref    = typename T::reference;
+//  template <typename T> using cref   = typename T::const_reference;
 
 }
 
