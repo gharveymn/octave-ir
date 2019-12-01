@@ -62,7 +62,7 @@ namespace octave
   ir_def_instruction::~ir_def_instruction (void) = default;
 
   void
-  ir_def_instruction::unlink_propagate (instr_citer pos)
+  ir_def_instruction::unlink_propagate (const instr_citer pos)
   {
     if (m_ret.has_uses ())
       {

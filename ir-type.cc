@@ -60,7 +60,7 @@ namespace octave
     if (members.get_numel () > 0)
       {
         short_print (os << " {", members[0]);
-        for (int i = 1; i < members.get_numel (); i++)
+        for (std::size_t i = 1; i < members.get_numel (); i++)
           short_print (os << ", ", members[i]);
         short_print (os << "}", members[0]);
       }

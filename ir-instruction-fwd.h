@@ -27,19 +27,11 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "ir-common.h"
 #include "ir-type-base.h"
-
-namespace std
-{
-  template <typename T>
-  class allocator;
-
-  template <typename T, typename D>
-  class unique_ptr;
-}
+#include <plf_list.h>
 
 namespace plf
 {
-  template <typename T, typename A = std::allocator<T>>
+  template <typename T, typename A>
   class list;
 }
 

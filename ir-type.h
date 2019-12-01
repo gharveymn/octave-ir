@@ -55,7 +55,7 @@ namespace octave
         m_numel {0}
     { }
 
-    template <int N>
+    template <std::size_t N>
     explicit constexpr ir_type_array (const ir_type (&members)[N]) noexcept
       : m_array (members),
         m_numel (N)
@@ -70,15 +70,15 @@ namespace octave
 
     constexpr iterator end () const noexcept;
 
-    constexpr reference operator[] (int n) const noexcept;
+    constexpr reference operator[] (std::size_t n) const noexcept;
 
-    constexpr int get_numel (void) const noexcept { return m_numel; }
+    constexpr std::size_t get_numel (void) const noexcept { return m_numel; }
 
   private:
-    constexpr size_t sum_size (int n) const noexcept;
+    constexpr size_t sum_size (std::size_t n) const noexcept;
 
     const ir_type *m_array;
-    int m_numel;
+    std::size_t m_numel;
   };
 
   class ir_type
@@ -179,13 +179,13 @@ namespace octave
     create_type (const char *name, ir_type parent) noexcept;
 
     // shortcut for ir_type_impl::create_compound_type
-    template <typename T, int N>
+    template <typename T, std::size_t N>
     static constexpr impl
     create_compound_type (const char *name,
                           const ir_type (&members)[N]) noexcept;
 
     // shortcut for ir_type_impl::create_compound_type
-    template <typename T, int N>
+    template <typename T, std::size_t N>
     static constexpr impl
     create_compound_type (const char *name, const ir_type (&members)[N],
                           ir_type parent) noexcept;
@@ -206,12 +206,13 @@ namespace octave
     return m_array + m_numel;
   }
 
-  constexpr const ir_type& ir_type_array::operator[] (int n) const noexcept
+  constexpr const ir_type& 
+  ir_type_array::operator[] (std::size_t n) const noexcept
   {
     return m_array[n];
   }
 
-  constexpr size_t ir_type_array::sum_size (int n) const noexcept
+  constexpr size_t ir_type_array::sum_size (std::size_t n) const noexcept
   {
     return n > 0 ? sum_size (n - 1) + m_array[n - 1].get_size () : 0;
   }
@@ -373,7 +374,7 @@ namespace octave
   }
 
   // shortcut for ir_type_impl::create_compound_type
-  template <typename T, int N>
+  template <typename T, std::size_t N>
   constexpr ir_type::impl
   ir_type::create_compound_type (const char *name,
                                  const ir_type (&members)[N]) noexcept
@@ -383,7 +384,7 @@ namespace octave
   }
 
   // shortcut for ir_type_impl::create_compound_type
-  template <typename T, int N>
+  template <typename T, std::size_t N>
   constexpr ir_type::impl
   ir_type::create_compound_type (const char *name,
                                  const ir_type (&members)[N],

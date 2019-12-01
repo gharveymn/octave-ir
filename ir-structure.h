@@ -270,18 +270,18 @@ namespace octave
     
     void reset (void) noexcept override
     {
-      citer begin_cit = m_body.erase (++m_body.begin (), m_body.end ());
-      (*begin_cit)->reset ();
-      set_cache (begin_cit);
+      m_body.erase (++m_body.begin (), m_body.end ());
+      front ()->reset ();
+      set_cache (begin ());
       invalidate_leaf_cache ();
     }
 
     citer begin (void) const noexcept { return m_body.begin (); }
-    citer end   (void) const noexcept { return m_body.end (); }
+    citer end   (void) const noexcept { return m_body.end ();   }
     cref  front (void) const          { return m_body.front (); }
-    cref  back  (void) const          { return m_body.back (); }
+    cref  back  (void) const          { return m_body.back ();  }
 
-    bool empty (void) const { return m_body.empty (); }
+    bool empty (void) const           { return m_body.empty (); }
 
     citer last (void) const
     {

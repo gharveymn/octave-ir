@@ -39,7 +39,7 @@ namespace octave
   //
 
   void
-  ir_basic_block::def_timeline::remove (instr_citer instr_cit)
+  ir_basic_block::def_timeline::remove (const instr_citer instr_cit)
   {
     citer pos = find (instr_cit);
     if (pos->second == m_lookback_cache)
@@ -99,7 +99,7 @@ namespace octave
   }
 
   ir_basic_block::instr_iter
-  ir_basic_block::erase_phi (instr_citer pos)
+  ir_basic_block::erase_phi (const instr_citer pos)
   {
     if (! is_phi_iter (pos))
       throw ir_exception ("cannot erase non-phi instruction");
@@ -107,23 +107,26 @@ namespace octave
     return m_instrs.erase (pos);
   }
 
-  bool ir_basic_block::is_phi_iter (instr_citer cit)
+  bool ir_basic_block::is_phi_iter (const instr_citer cit)
   {
     return isa<ir_phi> (cit->operator-> ());
   }
 
   ir_basic_block::instr_iter
-  ir_basic_block::erase (instr_citer pos)
+  ir_basic_block::erase (const instr_citer pos)
   {
     (*pos)->unlink_propagate (pos);
     return m_instrs.erase (pos);
   }
 
   ir_basic_block::instr_iter
-  ir_basic_block::erase (instr_citer first, instr_citer last) noexcept
+  ir_basic_block::erase (const instr_citer first, const instr_citer last) noexcept
   {
-    for (instr_criter crit (last); crit != instr_criter (first); ++crit)
-      (*crit)->unlink_propagate (first);
+    std::for_each (instr_criter { last }, instr_criter {first}, 
+                   [&first] (instr_cref uptr)
+                   {
+                     uptr->unlink_propagate (first);  
+                   });
     return m_instrs.erase (first, last);
   }
 
@@ -134,25 +137,25 @@ namespace octave
   }
 
   ir_def*
-  ir_basic_block::fetch_proximate_def (ir_variable& var, instr_citer pos) const
+  ir_basic_block::fetch_proximate_def (ir_variable& var, const instr_citer pos) const
   {
     if (pos == begin ())
       return nullptr;
 
-    vtm_citer vtm_cit = m_vt_map.find (&var);
+    vtm_citer vtm_cit = find_timeline (var);
     if (vtm_cit == m_vt_map.end ())
       return nullptr;
-    const def_timeline& dt = vtm_cit->second;
-    if (dt.size () == 0 || pos == end ())
-      return dt.fetch_cache ();
+    const def_timeline& timeline = vtm_cit->second;
+    if (timeline.size () == 0 || pos == end ())
+      return timeline.fetch_cache ();
 
     instr_criter rpos (pos);
-    def_timeline::criter dt_crit = dt.rbegin ();
+    def_timeline::criter dt_crit = timeline.rbegin ();
     for (instr_criter in_crit = rbegin (); in_crit != rend (); ++in_crit)
       {
         if (dt_crit->first == in_crit.base ())
           {
-            if (++dt_crit == dt.rend ())
+            if (++dt_crit == timeline.rend ())
               return nullptr;
           }
         if (rpos == in_crit)
@@ -164,42 +167,50 @@ namespace octave
   void
   ir_basic_block::set_cached_def (ir_def& d)
   {
-    m_vt_map[&d.get_var ()].set_cache (d);
+    get_timeline (d).set_cache (d);
   }
 
   void
-  ir_basic_block::def_emplace (instr_citer pos, ir_def& d)
+  ir_basic_block::def_emplace (const instr_citer pos, ir_def& d)
   {
-    def_timeline& dt = m_vt_map[&d.get_var ()];
+    def_timeline& timeline = get_timeline (d);
+    
     if (pos == end ())
-      return dt.emplace_back (pos, d);
+      return timeline.emplace_back (pos, d);
 
-    instr_criter rpos (pos);
-    def_timeline::criter dt_crit = dt.rbegin ();
-    for (instr_criter instr_crit = m_instrs.rbegin ();
-         instr_crit != m_instrs.rend (); ++instr_crit)
+    instr_criter         rpos    { pos };
+    def_timeline::criter dt_crit { timeline.rbegin () };
+    
+    for (instr_criter instr_crit = rbegin ();
+         instr_crit != rend (); ++instr_crit)
       {
         if (dt_crit->first == instr_crit.base ())
           {
-            if (++dt_crit == dt.rend ())
-              return dt.emplace_front (pos, d);
+            if (++dt_crit == timeline.rend ())
+              return timeline.emplace_front (pos, d);
           }
         if (rpos == instr_crit)
-          return dt.emplace_before (dt_crit.base (), pos, d);
+          return timeline.emplace_before (dt_crit.base (), pos, d);
       }
-    dt.emplace_front (pos, d);
+    timeline.emplace_front (pos, d);
   }
 
   void
   ir_basic_block::def_emplace_front (ir_def& d)
   {
-    m_vt_map[&d.get_var ()].emplace_front (m_instrs.begin (), d);
+    get_timeline (d).emplace_front (m_instrs.begin (), d);
   }
 
   void
   ir_basic_block::def_emplace_back (ir_def& d)
   {
-    m_vt_map[&d.get_var ()].emplace_back (--m_instrs.end (), d);
+    get_timeline (d).emplace_back (--m_instrs.end (), d);
+  }
+
+  ir_basic_block::def_timeline&
+  ir_basic_block::get_timeline (ir_def& d)
+  {
+    return get_timeline (d.get_var ());
   }
 
   ir_def *

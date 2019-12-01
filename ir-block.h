@@ -38,6 +38,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <deque>
 #include <stack>
 #include <vector>
+#include <list>
 
 namespace octave
 {
@@ -56,8 +57,8 @@ namespace octave
 
     using instr_iter      = instr_list::iterator;
     using instr_citer     = instr_list::const_iterator;
-    using instr_riter     = instr_list::reverse_iterator;
-    using instr_criter    = instr_list::const_reverse_iterator;
+    using instr_riter     = std::reverse_iterator<instr_iter>;
+    using instr_criter    = std::reverse_iterator<instr_citer>;
     using instr_ref       = instr_list::reference;
     using instr_cref      = instr_list::const_reference;
 
@@ -78,21 +79,21 @@ namespace octave
 
     public:
       using element_type = std::pair<instr_citer, ir_def *>;
-      using def_deque = std::deque<element_type>;
-      using iter = def_deque::iterator;
-      using citer = def_deque::const_iterator;
-      using riter = def_deque::reverse_iterator;
-      using criter = def_deque::const_reverse_iterator;
+      using def_deque    = std::deque<element_type>;
+      using iter         = def_deque::iterator;
+      using citer        = def_deque::const_iterator;
+      using riter        = def_deque::reverse_iterator;
+      using criter       = def_deque::const_reverse_iterator;
 
       iter   begin  (void)       noexcept { return m_timeline.begin (); }
       citer  begin  (void) const noexcept { return m_timeline.begin (); }
-      iter   end    (void)       noexcept { return m_timeline.end (); }
-      citer  end    (void) const noexcept { return m_timeline.end (); }
+      iter   end    (void)       noexcept { return m_timeline.end ();   }
+      citer  end    (void) const noexcept { return m_timeline.end ();   }
 
       riter  rbegin (void)       noexcept { return m_timeline.rbegin (); }
       criter rbegin (void) const noexcept { return m_timeline.rbegin (); }
-      riter  rend   (void)       noexcept { return m_timeline.rend (); }
-      criter rend   (void) const noexcept { return m_timeline.rend (); }
+      riter  rend   (void)       noexcept { return m_timeline.rend ();   }
+      criter rend   (void) const noexcept { return m_timeline.rend ();   }
 
       constexpr ir_def * fetch_cache (void) const noexcept
       {
@@ -104,20 +105,20 @@ namespace octave
         m_lookback_cache = &latest;
       }
 
-      void emplace_front (instr_citer pos, ir_def& d)
+      void emplace_front (const instr_citer pos, ir_def& d)
       {
         if (m_timeline.empty ())
           set_cache (d);
         m_timeline.emplace_front (pos, &d);
       }
 
-      void emplace_back (instr_citer pos, ir_def& d)
+      void emplace_back (const instr_citer pos, ir_def& d)
       {
         m_timeline.emplace_back (pos, &d);
         set_cache (d);
       }
 
-      void emplace_before (citer dt_pos, instr_citer pos, ir_def& d)
+      void emplace_before (citer dt_pos, const instr_citer pos, ir_def& d)
       {
         if (dt_pos == end ())
           set_cache (d);
@@ -133,7 +134,7 @@ namespace octave
         m_lookback_cache = nullptr;
       }
 
-      void track_phi_def (phi_citer pos, ir_def& d)
+      void track_phi_def (const phi_citer pos, ir_def& d)
       {
         if (has_phi_def ())
           throw ir_exception ("block already has a phi def for the variable");
@@ -171,7 +172,7 @@ namespace octave
 
     ir_def * fetch_cached_def (ir_variable& var) const;
 
-    ir_def * fetch_proximate_def (ir_variable& var, instr_citer pos) const;
+    ir_def * fetch_proximate_def (ir_variable& var, const instr_citer pos) const;
 
     virtual ir_def * join_pred_defs (ir_variable& var);
 
@@ -198,13 +199,13 @@ namespace octave
     instr_citer  end (void)     const noexcept { return m_instrs.end ();   }
     instr_citer  cend (void)    const noexcept { return m_instrs.cbegin (); }
 
-    instr_riter  rbegin (void)        noexcept { return m_instrs.rbegin (); }
-    instr_criter rbegin (void)  const noexcept { return m_instrs.rbegin (); }
-    instr_criter crbegin (void) const noexcept { return m_instrs.crbegin (); }
+    instr_riter  rbegin (void)        noexcept { return instr_riter (end ()); }
+    instr_criter rbegin (void)  const noexcept { return instr_criter (end ()); }
+    instr_criter crbegin (void) const noexcept { return instr_criter (cend ()); }
 
-    instr_riter  rend (void)          noexcept { return m_instrs.rend (); }
-    instr_criter rend (void)    const noexcept { return m_instrs.rend (); }
-    instr_criter crend (void)   const noexcept { return m_instrs.crend (); }
+    instr_riter  rend (void)          noexcept { return instr_riter (begin ()); }
+    instr_criter rend (void)    const noexcept { return instr_criter (begin ()); }
+    instr_criter crend (void)   const noexcept { return instr_criter (cbegin ()); }
 
     instr_ref    front (void)         noexcept { return m_instrs.front (); }
     instr_cref   front (void)   const noexcept { return m_instrs.front (); }
@@ -226,30 +227,30 @@ namespace octave
     instr_iter   phi_end (void)          noexcept { return m_body_begin; }
     instr_citer  phi_end (void)    const noexcept { return m_body_begin; }
 
-    instr_riter  phi_rbegin (void)       noexcept { return instr_riter (phi_end ()); }
-    instr_criter phi_rbegin (void) const noexcept { return instr_criter (phi_end ()); }
-
-    instr_riter  phi_rend (void)         noexcept { return instr_riter (phi_begin ()); }
-    instr_criter phi_rend (void)   const noexcept { return instr_criter (phi_begin ()); }
+//    instr_riter  phi_rbegin (void)       noexcept { return instr_riter (phi_end ()); }
+//    instr_criter phi_rbegin (void) const noexcept { return instr_criter (phi_end ()); }
+//
+//    instr_riter  phi_rend (void)         noexcept { return instr_riter (phi_begin ()); }
+//    instr_criter phi_rend (void)   const noexcept { return instr_criter (phi_begin ()); }
 
     size_t       num_phi (void)    const noexcept { return m_num_phi; }
     bool         has_phi (void)    const noexcept { return phi_begin () != phi_end (); }
 
-    instr_iter   erase_phi (instr_citer pos);
+    instr_iter   erase_phi (const instr_citer pos);
 
     // body
 
     instr_iter   body_begin (void)        noexcept { return m_body_begin; }
     instr_citer  body_begin (void)  const noexcept { return m_body_begin; }
 
-    instr_iter   body_end (void)          noexcept { return m_terminator;   }
-    instr_citer  body_end (void)    const noexcept { return m_terminator;   }
+    instr_iter   body_end (void)          noexcept { return m_terminator; }
+    instr_citer  body_end (void)    const noexcept { return m_terminator; }
 
-    instr_riter  body_rbegin (void)       noexcept { return instr_riter (body_end ()); }
-    instr_criter body_rbegin (void) const noexcept { return instr_criter (body_end ()); }
-
-    instr_riter  body_rend (void)         noexcept { return instr_riter (body_begin ()); }
-    instr_criter body_rend (void)   const noexcept { return instr_criter (body_begin ()); }
+//    instr_riter  body_rbegin (void)       noexcept { return instr_riter (body_end ()); }
+//    instr_criter body_rbegin (void) const noexcept { return instr_criter (body_end ()); }
+//
+//    instr_riter  body_rend (void)         noexcept { return instr_riter (body_begin ()); }
+//    instr_criter body_rend (void)   const noexcept { return instr_criter (body_begin ()); }
 
     size_t       num_body (void)    const noexcept { return size () - m_num_phi - 1; }
 
@@ -262,24 +263,20 @@ namespace octave
     using is_phi = std::is_same<ir_phi, T>;
 
     template <typename T>
-    using is_nonphi = negation<is_phi<T>>;
-
-    template <typename T>
-    using is_nonphi_instruction = conjunction<is_nonphi<T>, is_instruction<T>>;
+    using is_nonphi = conjunction<negation<is_phi<T>>, is_instruction<T>>;
 
     template <typename T>
     using has_return = std::is_base_of<ir_def_instruction, T>;
 
     template <typename T>
-    using is_nonphi_return_instruction
-      = conjunction<is_nonphi_instruction<T>, has_return<T>>;
+    using ret_nonphi = enable_if_t<conjunction<is_nonphi<T>, 
+                                               has_return<T>>::value>;
 
     template <typename T>
-    using is_nonphi_nonreturn_instruction
-      = conjunction<is_nonphi_instruction<T>, negation<has_return<T>>>;
+    using nonret_nonphi = enable_if_t<conjunction<is_nonphi<T>, 
+                                             negation<has_return<T>>>::value>;
 
-    template <typename T, typename ...Args,
-      enable_if_t<is_nonphi_return_instruction<T>::value>* = nullptr>
+    template <typename T, typename ...Args, ret_nonphi<T>* = nullptr>
     T& emplace_front (Args&&... args)
     {
       std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
@@ -297,8 +294,7 @@ namespace octave
       return *ret;
     }
 
-    template <typename T, typename ...Args,
-      enable_if_t<is_nonphi_return_instruction<T>::value>* = nullptr>
+    template <typename T, typename ...Args, ret_nonphi<T>* = nullptr>
     T& emplace_back (Args&&... args)
     {
       std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
@@ -318,8 +314,7 @@ namespace octave
       return *ret;
     }
 
-    template <typename T, typename ...Args,
-      enable_if_t<is_nonphi_return_instruction<T>::value>* = nullptr>
+    template <typename T, typename ...Args, ret_nonphi<T>* = nullptr>
     T& emplace_before (instr_citer pos, Args&&... args)
     {
       if (pos == m_instrs.end () || is_phi_iter (pos))
@@ -341,8 +336,7 @@ namespace octave
       return *ret;
     }
 
-    template <typename T, typename ...Args,
-      enable_if_t<is_nonphi_nonreturn_instruction<T>::value>* = nullptr>
+    template <typename T, typename ...Args, nonret_nonphi<T>* = nullptr>
     T& emplace_front (Args&&... args)
     {
       std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
@@ -351,8 +345,7 @@ namespace octave
       return *ret;
     }
 
-    template <typename T, typename ...Args,
-      enable_if_t<is_nonphi_nonreturn_instruction<T>::value>* = nullptr>
+    template <typename T, typename ...Args, nonret_nonphi<T>* = nullptr>
     T& emplace_back (Args&&... args)
     {
       std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
@@ -363,8 +356,7 @@ namespace octave
       return *ret;
     }
 
-    template <typename T, typename ...Args,
-      enable_if_t<is_nonphi_nonreturn_instruction<T>::value>* = nullptr>
+    template <typename T, typename ...Args, nonret_nonphi<T>* = nullptr>
     T& emplace_before (instr_citer pos, Args&&... args)
     {
       if (pos == end () || is_phi_iter (pos))
@@ -377,9 +369,9 @@ namespace octave
       return *ret;
     }
 
-    instr_iter erase (instr_citer pos);
+    instr_iter erase (const instr_citer pos);
 
-    instr_iter erase (instr_citer first, instr_citer last) noexcept;
+    instr_iter erase (const instr_citer first, const instr_citer last) noexcept;
 
     // predecessors
 
@@ -417,6 +409,18 @@ namespace octave
     void def_emplace (instr_citer pos, ir_def& d);
     void def_emplace_front (ir_def& d);
     void def_emplace_back (ir_def& d);
+    
+    vtm_citer find_timeline (ir_variable& var) const
+    {
+      return m_vt_map.find (&var);
+    }
+    
+    def_timeline& get_timeline (ir_variable& var)
+    {
+      return m_vt_map[&var];
+    }
+
+    def_timeline& get_timeline (ir_def& d);
 
   private:
 

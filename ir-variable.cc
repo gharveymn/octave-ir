@@ -187,7 +187,7 @@ namespace octave
 
   ir_def::ir_def (tracker_type& tkr, ir_type ty,
                   const ir_def_instruction& instr)
-    : reporter_type (tkr),
+    : reporter_type (&tkr),
       m_use_tracker (this),
       m_type (ty),
       m_instr (instr),
@@ -260,7 +260,7 @@ namespace octave
   //
 
   ir_use::ir_use (tracker_type& tkr, const ir_instruction& instr)
-    : reporter_type (tkr),
+    : reporter_type (&tkr),
       m_instr (&instr)
   { }
 

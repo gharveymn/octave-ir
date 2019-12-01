@@ -73,31 +73,39 @@ namespace octave
   struct negation : bool_constant<! bool (B::value)>
   { };
 
-  template <class...>
+  template <typename...>
   struct conjunction : std::true_type
   { };
 
-  template <class B>
-  struct conjunction<B> : B
+  template <typename T>
+  struct conjunction<T> : T
   { };
 
-  template<class B, class... Bs>
-  struct conjunction<B, Bs...> : std::conditional<B::value,
-                                                  conjunction<Bs...>, B>::type
+  template<typename T, typename... Ts>
+  struct conjunction<T, Ts...> : std::conditional<T::value,
+                                                  conjunction<Ts...>, T>::type
   { };
 
-  template <class...>
+  template <typename...>
   struct disjunction : std::false_type
   { };
 
-  template <class B>
-  struct disjunction<B> : B
+  template <typename T>
+  struct disjunction<T> : T
   { };
 
-  template<class B, class... Bs>
-  struct disjunction<B, Bs...> : std::conditional<B::value,
-                                                  B, disjunction<Bs...>>::type
+  template<typename T, typename... Ts>
+  struct disjunction<T, Ts...> : std::conditional<T::value, T, 
+                                                  disjunction<Ts...>>::type
   { };
+  
+  // aliases
+  
+//  template <typename ...Ts>
+//  using conj = conjunction<Ts...>;
+    
+//  template <typename ...Ts>
+//  using disj = conjunction<Ts...>;
 
   template <typename T, typename = void>
   struct is_char : std::false_type

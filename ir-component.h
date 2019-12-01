@@ -48,23 +48,58 @@ namespace octave
 
     virtual ~ir_component (void) noexcept = 0;
 
-    template <typename It, typename T, typename E = void>
+    template <typename It, typename E = void>
     class union_iterator;
 
-    template <typename It, typename T>
-    class union_iterator<It, T,
-      enable_if_t<
-        conjunction<std::is_pointer<T>,
-                    std::is_same<typename It::value_type, T>>::value>>
+    // restrictions make sure T is a pointer, the value held by It is the same
+    // as T, and It is a random access iterator. A concept would be good here.
+    template <typename It>
+    class union_iterator<It, 
+                          enable_if_t<
+                            conjunction<
+                              std::is_pointer<typename It::value_type>,
+                              std::is_same<typename It::iterator_category, 
+                                           std::random_access_iterator_tag>
+                            >::value
+                          >
+                        >
     {
-      using iter_type = It;
-    public:
 
+      template <typename Iter>
+      using enable_if_random_access_iter = enable_if_t<std::is_base_of<
+        std::random_access_iterator_tag,
+        typename Iter::iterator_category>::value>;
+
+      template <typename Iter>
+      using enable_if_bidirect_iter = enable_if_t<std::is_base_of<
+        std::bidirectional_iterator_tag,
+        typename Iter::iterator_category>::value>;
+
+      template <typename Iter>
+      using enable_if_forward_iter = enable_if_t<std::is_base_of<
+        std::forward_iterator_tag,
+        typename Iter::iterator_category>::value>;
+
+      template <typename Iter>
+      using enable_if_input_iter = enable_if_t<std::is_base_of<
+        std::input_iterator_tag,
+        typename Iter::iterator_category>::value>;
+      
+    public:
+      using iter_type         = It;
       using difference_type   = typename iter_type::difference_type;
       using value_type        = typename iter_type::value_type;
       using pointer           = typename iter_type::pointer;
       using reference         = typename iter_type::reference;
       using iterator_category = typename iter_type::iterator_category;
+      
+    public:
+
+      // DefaultConstructible
+      constexpr union_iterator (void) noexcept
+        : m_value (nullptr),
+          m_type (tag::value)
+      { }
 
       explicit union_iterator (const iter_type& it) noexcept
         : m_iter (it),
@@ -91,6 +126,7 @@ namespace octave
           m_type (tag::value)
       { }
       
+      // CopyConstructible
       union_iterator (const union_iterator& o)
         : m_type (o.m_type)
       {
@@ -109,24 +145,34 @@ namespace octave
           this->m_value = std::move (o.m_value);
       }
       
-      union_iterator& operator= (const union_iterator& o)
+      // CopyAssignable
+      // ref-qualified to prevent assignment to rvalues
+      union_iterator& operator= (const union_iterator& o) &
       {
-        this->m_type = o.m_type;
-        if (o.is_iterator ())
-          this->m_iter = o.m_iter;
-        else
-          this->m_value = o.m_value;
+        if (&o != this)
+          {
+            this->m_type = o.m_type;
+            if (o.is_iterator ())
+              this->m_iter = o.m_iter;
+            else
+              this->m_value = o.m_value;
+          }
+        return *this;
       }
 
-      union_iterator& operator= (union_iterator&& o) noexcept
+      // MoveAssignable
+      // ref-qualified to prevent assignment to rvalues
+      union_iterator& operator= (union_iterator&& o) & noexcept
       {
         this->m_type = o.m_type;
         if (o.is_iterator ())
           this->m_iter = std::move (o.m_iter);
         else
           this->m_value = std::move (o.m_value);
+        return *this;
       }
 
+      // Destructible
       ~union_iterator (void) noexcept
       {
         if (is_iterator ())
@@ -144,14 +190,15 @@ namespace octave
         return *this;
       }
 
-      union_iterator
-      operator++ (int) noexcept
+      template <enable_if_input_iter<iter_type>* = nullptr>
+      union_iterator operator++ (int) noexcept
       {
         union_iterator save = *this;
         ++*this;
         return save;
       }
 
+      template <enable_if_bidirect_iter<iter_type>* = nullptr>
       union_iterator& operator-- (void) noexcept
       {
         if (is_iterator ())
@@ -160,15 +207,16 @@ namespace octave
           --m_value;
         return *this;
       }
-
-      union_iterator
-      operator-- (int) noexcept
+      
+      template <enable_if_bidirect_iter<iter_type>* = nullptr>
+      union_iterator operator-- (int) noexcept
       {
         union_iterator save = *this;
         --*this;
         return save;
       }
 
+      template <enable_if_random_access_iter<iter_type>* = nullptr>
       union_iterator& operator+= (difference_type n) noexcept
       {
         if (is_iterator ())
@@ -178,20 +226,21 @@ namespace octave
         return *this;
       }
 
-      union_iterator
-      operator+ (difference_type n) const noexcept
+      template <enable_if_random_access_iter<iter_type>* = nullptr>
+      union_iterator operator+ (difference_type n) const noexcept
       {
         return is_iterator () ? union_iterator (m_iter + n)
                               : union_iterator (m_value + n);
       }
 
-      friend union_iterator
-      operator+ (difference_type n,
-                                      const union_iterator& o)
+      template <enable_if_random_access_iter<iter_type>* = nullptr>
+      friend union_iterator operator+ (difference_type n, 
+                                       const union_iterator& o)
       {
         return o + n;
       }
 
+      template <enable_if_random_access_iter<iter_type>* = nullptr>
       union_iterator& operator-= (difference_type n) noexcept
       {
         if (is_iterator ())
@@ -201,58 +250,64 @@ namespace octave
         return *this;
       }
 
-      union_iterator
-      operator- (difference_type n) const noexcept
+      template <enable_if_random_access_iter<iter_type>* = nullptr>
+      union_iterator operator- (difference_type n) const noexcept
       {
-        return is_iterator () ? union_iterator (m_iter - n)
+        return is_iterator () ? union_iterator (m_iter  - n)
                               : union_iterator (m_value - n);
       }
 
+      template <enable_if_random_access_iter<iter_type>* = nullptr>
       difference_type operator- (const union_iterator& o) const noexcept
       {
-        return is_iterator () ? this->m_iter - o.m_iter
+        return is_iterator () ? this->m_iter  - o.m_iter
                               : this->m_value - o.m_value;
       }
 
+      template <enable_if_random_access_iter<iter_type>* = nullptr>
       reference operator[] (difference_type n) const noexcept
       {
         return is_iterator () ? m_iter[n] : m_value[n];
       }
 
+      template <enable_if_random_access_iter<iter_type>* = nullptr>
       bool operator< (const union_iterator& o) const noexcept
       {
-        return is_iterator () ? this->m_iter < o.m_iter
+        return is_iterator () ? this->m_iter  < o.m_iter
                               : this->m_value < o.m_value;
       }
 
+      template <enable_if_random_access_iter<iter_type>* = nullptr>
       bool operator> (const union_iterator& o) const noexcept
       {
-        return is_iterator () ? this->m_iter > o.m_iter
+        return is_iterator () ? this->m_iter  > o.m_iter
                               : this->m_value > o.m_value;
       }
 
+      template <enable_if_random_access_iter<iter_type>* = nullptr>
       bool operator<= (const union_iterator& o) const noexcept
       {
-        return is_iterator () ? this->m_iter <= o.m_iter
+        return is_iterator () ? this->m_iter  <= o.m_iter
                               : this->m_value <= o.m_value;
       }
 
+      template <enable_if_random_access_iter<iter_type>* = nullptr>
       bool operator>= (const union_iterator& o) const noexcept
       {
-        return is_iterator () ? this->m_iter >= o.m_iter
+        return is_iterator () ? this->m_iter  >= o.m_iter
                               : this->m_value >= o.m_value;
       }
 
-      constexpr bool
-      operator== (const union_iterator& o) const noexcept
+      // EqualityComparable
+      constexpr bool operator== (const union_iterator& o) const noexcept
       {
-        return type_equal (o)
-               ? (is_iterator () ? iterator_equal (o) : value_equal (o))
-               : false;
+        return type_equal (o) ? (is_iterator () ? iterator_equal (o) 
+                                                : value_equal (o))
+                              : false;
       }
 
-      constexpr bool
-      operator!= (const union_iterator& other) const noexcept
+      template <enable_if_input_iter<iter_type>* = nullptr>
+      constexpr bool operator!= (const union_iterator& other) const noexcept
       {
         return ! operator== (other);
       }
@@ -267,6 +322,7 @@ namespace octave
         return is_iterator () ? *m_iter : m_value;
       }
 
+      template <enable_if_input_iter<iter_type>* = nullptr>
       constexpr pointer operator-> (void) const noexcept
       {
         return is_iterator () ? m_iter.operator-> () : &m_value;
@@ -280,6 +336,7 @@ namespace octave
           std::swap (this->m_value, o.m_value);
       }
 
+      // Swappable
       friend void swap (union_iterator& it1, union_iterator& it2)
       {
         it1.swap (it2);
@@ -287,32 +344,27 @@ namespace octave
 
     private:
 
-      constexpr bool
-      type_equal (const union_iterator& o) const noexcept
+      constexpr bool type_equal (const union_iterator& o) const noexcept
       {
         return this->m_type != o.m_type;
       }
 
-      bool
-      iterator_equal (const union_iterator& o) const noexcept
+      bool iterator_equal (const union_iterator& o) const noexcept
       {
         return this->m_iter == o.m_iter;
       }
 
-      constexpr bool
-      value_equal (const union_iterator& o) const noexcept
+      constexpr bool value_equal (const union_iterator& o) const noexcept
       {
         return this->m_value == o.m_value;
       }
 
-      constexpr bool
-      is_iterator (void) const noexcept
+      constexpr bool is_iterator (void) const noexcept
       {
         return m_type == tag::iterator;
       }
 
-      constexpr bool
-      is_value (void) const noexcept
+      constexpr bool is_value (void) const noexcept
       {
         return m_type == tag::value;
       }
@@ -330,8 +382,8 @@ namespace octave
       } m_type;
     };
 
-    using link_iter = union_iterator<link_cache_iter, ir_basic_block *>;
-    using link_citer = union_iterator<link_cache_citer, ir_basic_block *>;
+    using link_iter  = union_iterator<link_cache_iter>;
+    using link_citer = union_iterator<link_cache_citer>;
   
     virtual void               reset           (void)       noexcept = 0;
     virtual link_iter          leaf_begin      (void)                = 0;
