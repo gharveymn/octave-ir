@@ -81,7 +81,7 @@ namespace octave
   struct conjunction<T> : T
   { };
 
-  template<typename T, typename... Ts>
+  template<typename T, typename ...Ts>
   struct conjunction<T, Ts...> : std::conditional<T::value,
                                                   conjunction<Ts...>, T>::type
   { };
