@@ -364,11 +364,11 @@ namespace octave
     internal_criter internal_rend    (void) const noexcept { return m_reporters.rend (); }
     internal_criter internal_crend   (void) const noexcept { return m_reporters.crend (); }
 
-    internal_ref    internal_front   (void)                { return *begin (); }
-    internal_cref   internal_front   (void) const          { return *begin (); }
+    internal_ref    internal_front   (void)                { return m_reporters.front (); }
+    internal_cref   internal_front   (void) const          { return m_reporters.front (); }
 
-    internal_ref    internal_back    (void)                { return *--end (); }
-    internal_cref   internal_back    (void) const          { return *--end (); }
+    internal_ref    internal_back    (void)                { return m_reporters.back (); }
+    internal_cref   internal_back    (void) const          { return m_reporters.back (); }
 
   public:
     
@@ -388,15 +388,15 @@ namespace octave
     criter rend    (void) const noexcept { return m_reporters.rend (); }
     criter crend   (void) const noexcept { return m_reporters.crend (); }
 
-    ref    front   (void)                { return *begin (); }
-    cref   front   (void) const          { return *begin (); }
+    ref    front   (void)                { return m_reporters.front (); }
+    cref   front   (void) const          { return m_reporters.front (); }
 
-    ref    back    (void)                { return *--end (); }
-    cref   back    (void) const          { return *--end (); }
+    ref    back    (void)                { return m_reporters.back (); }
+    cref   back    (void) const          { return m_reporters.back (); }
 
     void   reverse (void)       noexcept { m_reporters.reverse (); }
 
-    bool has_children (void) const noexcept
+    bool has_reporters (void) const noexcept
     {
       return ! m_reporters.empty ();
     }
@@ -418,10 +418,18 @@ namespace octave
     }
 
     // safe
-    internal_iter untrack (internal_citer cit)
+    internal_iter untrack (internal_iter pos)
     {
-      cit->orphan_remote ();
-      return m_reporters.erase (cit);
+      pos->orphan_remote ();
+      return m_reporters.erase (pos);
+    }
+
+    // safe
+    internal_iter untrack (internal_iter first, const internal_iter last)
+    {
+      while (first != last)
+        first = untrack (first);
+      return last;
     }
 
     // unsafe!
@@ -1084,6 +1092,10 @@ namespace octave
     
     using internal_iter      = typename local_tracker_type::internal_iter;
     using internal_citer      = typename local_tracker_type::internal_citer;
+    
+    using external_iter      = typename local_tracker_type::iter;
+    using external_citer      = typename local_tracker_type::citer;
+    
     using remote_tracker_type = typename remote_type::local_tracker_type;
     using remote_tracker_base_type = typename remote_tracker_type::base_type;
     using self_iter_type = typename remote_type::internal_iter;
@@ -1097,35 +1109,14 @@ namespace octave
     enable_if_t<conjunction<std::is_same<Args, remote_type>...>::value> 
     bind (remote_type& r, Args&... args)
     {
-      bind (r);
+      internal_bind (r);
       bind (args...);
     }
     
-    void bind (remote_type& r)
+    external_citer bind (remote_type& r)
     {
-      auto it = this->track ();
-      try 
-        {
-          it->reset (&r, r.track (this, it));
-        }
-      catch (...)
-        {
-          // the node reporter_ptr holds no information, so it is safe to erase
-          this->erase (it);
-          throw;
-        }
+      return internal_bind (r);
     }
-    
-//    void bind_all (remote_type& r)
-//    {
-//      this->replace_reporters (r.copy_reporters ());
-//      for (internal_iter it = this->internal_begin (); 
-//           it != this->internal_end (); ++it)
-//        {
-//          it->reset_iterator ((*it)->track (this, it));
-//        }
-//      bind (r);
-//    }
 
     explicit multireporter (hook_type&& hook)
       : local_tracker_type (),
@@ -1150,7 +1141,7 @@ namespace octave
       : local_tracker_type (parent),
         m_orphan_hook (std::move (hook))
     {
-      bind (r);
+      internal_bind (r);
     }
 
     explicit multireporter (parent_type& parent, remote_type& rem)
@@ -1166,7 +1157,7 @@ namespace octave
           for (internal_citer cit = other.internal_begin ();
                cit != other.internal_end (); ++cit)
             {
-              bind (**cit);
+              internal_bind (**cit);
             }
         }
       catch (...)
@@ -1185,7 +1176,7 @@ namespace octave
           for (internal_citer cit = other.internal_begin (); 
                cit != other.internal_end (); ++cit)
             {
-              bind (**cit);
+              internal_bind (**cit);
             }
         }
       catch (...)
@@ -1207,9 +1198,24 @@ namespace octave
 
     multireporter& operator= (const multireporter& other)
     {
-      // copy-and-swap (change this later)
-      if (&other != this)
-        multireporter (*get_child_ptr (), other).swap (*this);
+      if (&other != this && other.has_reporters ())
+        {
+          internal_iter pivot = internal_bind (*other.internal_front ());
+          try
+            {
+              for (internal_citer cit = ++other.internal_begin ();
+                   cit != other.internal_end (); ++cit)
+                {
+                  internal_bind (**cit);
+                }
+            }
+          catch (...)
+            {
+              this->untrack(pivot, this->internal_end ());
+              throw;
+            }
+          this->untrack (this->internal_begin (), pivot);  
+        }
       return *this;
     }
 
@@ -1243,6 +1249,22 @@ namespace octave
     }
     
   private:
+    
+    internal_citer internal_bind (remote_type& r)
+    {
+      internal_iter it = this->track ();
+      try
+        {
+          it->reset (&r, r.track (this, it));
+        }
+      catch (...)
+        {
+          // the node reporter_ptr holds no information, so it is safe to erase
+          this->erase (it);
+          throw;
+        }
+      return it;
+    }
 
     hook_type m_orphan_hook;
 
