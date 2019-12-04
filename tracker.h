@@ -31,9 +31,10 @@ along with Octave; see the file COPYING.  If not, see
 namespace octave
 {
 
-  struct default_orphan_hook
+  template <typename Child>
+  struct reporter_orphan_hook
   {
-    constexpr void operator() (void) const noexcept { }
+    constexpr void operator() (const Child*) const noexcept { }
   };
 
   template <typename Reporter, typename Child>
@@ -48,16 +49,16 @@ namespace octave
   class reporter_base;
 
   template <typename Derived, typename Parent = tracker<Derived>,
-    typename Child = Derived, typename Hook = default_orphan_hook>
+    typename Child = Derived, typename Hook = reporter_orphan_hook<Child>>
   class intrusive_reporter;
 
   template <typename Child, typename Parent = tracker<Child>,
-    typename Hook = default_orphan_hook>
+    typename Hook = reporter_orphan_hook<Child>>
   class reporter;
 
-  template <typename Parent, typename Child = Parent,
-    typename HookLocal = default_orphan_hook,
-    typename HookRemote = default_orphan_hook>
+  template <typename Child, typename Parent = Child,
+    typename HookLocal = reporter_orphan_hook<Child>,
+    typename HookRemote = reporter_orphan_hook<Parent>>
   class multireporter;
 
   template <typename Reporter>
@@ -849,7 +850,7 @@ namespace octave
     void orphan (void)
     {
       base_type::reset_tracker (nullptr);
-      m_orphan_hook ();
+      m_orphan_hook (get_child_ptr ());
     }
 
   private:
@@ -962,7 +963,7 @@ namespace octave
     void orphan (void)
     {
       base_type::reset_tracker (nullptr);
-      m_orphan_hook ();
+      m_orphan_hook (get_child_ptr ());
     }
 
   private:
@@ -972,15 +973,15 @@ namespace octave
 
   };
 
-  template <typename Parent, typename Child, typename HookLocal, typename HookRemote>
-  class reporter_ptr<multireporter<Child, Parent, HookRemote, HookLocal>>
+  template <typename Child, typename Parent, typename HookLocal, typename HookRemote>
+  class reporter_ptr<multireporter<Parent, Child, HookRemote, HookLocal>>
   {
   public:
     
     using child_type = Child;
     
-    using local_type     = multireporter<Parent, Child, HookLocal, HookRemote>;
-    using reporter_type  = multireporter<Child, Parent, HookRemote, HookLocal>;
+    using local_type    = multireporter<Child, Parent, HookLocal, HookRemote>;
+    using reporter_type = multireporter<Parent, Child, HookRemote, HookLocal>;
     
     using tracker_base_type = typename local_type::local_tracker_base_type;
     using self_iter_type = typename reporter_type::internal_iter;
@@ -1075,29 +1076,30 @@ namespace octave
 
   };
 
-  template <typename Parent, typename Child, typename HookLocal, typename HookRemote>
+  template <typename Child, typename Parent, typename HookLocal, typename HookRemote>
   class multireporter
-    : public tracker<multireporter<Child, Parent, HookRemote, HookLocal>, Parent, Child>
+    : public tracker<multireporter<Parent, Child, HookRemote, HookLocal>, Child, Parent>
   {
   public:
-    using parent_type   = Parent;
     using child_type    = Child;
+    using parent_type   = Parent;
     using hook_type     = HookLocal;
 
-    friend class multireporter<Child, Parent, HookRemote, HookLocal>;
+    friend class multireporter<Parent, Child, HookRemote, HookLocal>;
 
-    using remote_type   = multireporter<Child, Parent, HookRemote, HookLocal>;
-    using local_tracker_type = tracker<remote_type, Parent, Child>;
+    using remote_type   = multireporter<Parent, Child, HookRemote, HookLocal>;
+    using local_tracker_type = tracker<remote_type, child_type, parent_type>;
     using local_tracker_base_type = typename local_tracker_type::base_type;
     
-    using internal_iter      = typename local_tracker_type::internal_iter;
-    using internal_citer      = typename local_tracker_type::internal_citer;
+    using internal_iter  = typename local_tracker_type::internal_iter;
+    using internal_citer = typename local_tracker_type::internal_citer;
     
-    using external_iter      = typename local_tracker_type::iter;
-    using external_citer      = typename local_tracker_type::citer;
+    using external_iter  = typename local_tracker_type::iter;
+    using external_citer = typename local_tracker_type::citer;
     
-    using remote_tracker_type = typename remote_type::local_tracker_type;
+    using remote_tracker_type      = typename remote_type::local_tracker_type;
     using remote_tracker_base_type = typename remote_tracker_type::base_type;
+    
     using self_iter_type = typename remote_type::internal_iter;
     
     friend void bind (multireporter& l, remote_type& r)
@@ -1127,25 +1129,25 @@ namespace octave
       : multireporter (hook_type { })
     { }
 
-    explicit multireporter (parent_type& parent, hook_type&& hook)
-      : local_tracker_type (parent),
+    explicit multireporter (child_type& cld, hook_type&& hook)
+      : local_tracker_type (cld),
         m_orphan_hook (std::move (hook))
     { }
 
-    explicit multireporter (parent_type& parent)
-      : multireporter (parent, hook_type { })
+    explicit multireporter (child_type& cld)
+      : multireporter (cld, hook_type { })
     { }
 
-    explicit multireporter (parent_type& parent, remote_type& r,
+    explicit multireporter (child_type& cld, remote_type& r,
                             hook_type&& hook)
-      : local_tracker_type (parent),
+      : local_tracker_type (cld),
         m_orphan_hook (std::move (hook))
     {
       internal_bind (r);
     }
 
-    explicit multireporter (parent_type& parent, remote_type& rem)
-      : multireporter (parent, rem, hook_type { })
+    explicit multireporter (child_type& cld, remote_type& rem)
+      : multireporter (cld, rem, hook_type { })
     { }
 
     multireporter (const multireporter& other)
@@ -1167,8 +1169,8 @@ namespace octave
         }
     }
 
-    multireporter (parent_type& new_parent, const multireporter& other)
-      : local_tracker_type (new_parent),
+    multireporter (child_type& cld, const multireporter& other)
+      : local_tracker_type (cld),
         m_orphan_hook (other.m_orphan_hook)
     {
       try
@@ -1191,8 +1193,8 @@ namespace octave
         m_orphan_hook (std::move (other.m_orphan_hook))
     { }
 
-    multireporter (parent_type& new_parent, multireporter&& other) noexcept
-      : local_tracker_type (new_parent, std::move (other)),
+    multireporter (child_type& cld, multireporter&& other) noexcept
+      : local_tracker_type (cld, std::move (other)),
         m_orphan_hook (std::move (other.m_orphan_hook))
     { }
 
@@ -1232,20 +1234,20 @@ namespace octave
       std::swap (m_orphan_hook, other.m_orphan_hook);
     }
 
-    constexpr const parent_type * get_child_ptr (void) const noexcept
+    constexpr const child_type * get_child_ptr (void) const noexcept
     {
-      return this->get_parent ();
+      return local_tracker_type::get_parent ();
     }
 
-    parent_type * get_child_ptr (void) noexcept
+    child_type * get_child_ptr (void) noexcept
     {
-      return this->get_parent ();
+      return local_tracker_type::get_parent ();
     }
 
     void orphan (internal_iter it)
     {
       this->erase (it);
-      m_orphan_hook ();
+      m_orphan_hook (get_child_ptr ());
     }
     
   private:
