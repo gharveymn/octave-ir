@@ -78,56 +78,56 @@ namespace octave
 //  }
   
   template <typename T, typename S,
-            enable_if_t<! std::is_pointer<S>::value>* = nullptr>
+            cpp14::enable_if_t<! std::is_pointer<S>::value>* = nullptr>
   constexpr bool isa (const S& x)
   {
     return dynamic_cast<const T*> (&x) != nullptr;
   }
   
   template <typename T, typename S,
-            enable_if_t<std::is_pointer<S>::value>* = nullptr>
+            cpp14::enable_if_t<std::is_pointer<S>::value>* = nullptr>
   constexpr bool isa (const S& x)
   {
     return dynamic_cast<const T*> (x) != nullptr;
   }
-
-  template <class T>
-  struct unique_if
-  {
-    using singular_type = std::unique_ptr<T>;
-  };
-
-  template <class T>
-  struct unique_if<T[]>
-  {
-    using array_type = std::unique_ptr<T[]>;
-  };
-
-  template <class T, size_t N>
-  struct unique_if<T[N]>
-  {
-    struct invalid_type
-    { };
-  };
-
-  template <class T, class... Args>
-  typename unique_if<T>::singular_type
-  make_unique(Args&&... args)
-  {
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-  }
-
-  template <class T>
-  typename unique_if<T>::array_type
-  make_unique(size_t n)
-  {
-    using base_type = typename std::remove_extent<T>::type;
-    return std::unique_ptr<T>(new base_type[n]());
-  }
-
-  template<typename T, typename... Args>
-  typename unique_if<T>::invalid_type
-  make_unique(Args&&...) = delete;
+  
+//  template <class T>
+//  struct unique_if
+//  {
+//    using singular_type = std::unique_ptr<T>;
+//  };
+//
+//  template <class T>
+//  struct unique_if<T[]>
+//  {
+//    using array_type = std::unique_ptr<T[]>;
+//  };
+//
+//  template <class T, size_t N>
+//  struct unique_if<T[N]>
+//  {
+//    struct invalid_type
+//    { };
+//  };
+//
+//  template <class T, class... Args>
+//  typename unique_if<T>::singular_type
+//  make_unique(Args&&... args)
+//  {
+//    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+//  }
+//
+//  template <class T>
+//  typename unique_if<T>::array_type
+//  make_unique(size_t n)
+//  {
+//    using base_type = typename std::remove_extent<T>::type;
+//    return std::unique_ptr<T>(new base_type[n]());
+//  }
+//
+//  template<typename T, typename... Args>
+//  typename unique_if<T>::invalid_type
+//  make_unique(Args&&...) = delete;
 
   template <typename T>
   struct ptr_noexcept_hash
@@ -172,74 +172,6 @@ namespace octave
     T m_begin;
     T m_end;
   };
-  
-  template <typename T>
-  class observable_parent;
-  
-  template <typename T>
-  class observable_child;
-  
-  template <typename T>
-  class observable_parent<observable_child<T>>
-  {
-  public:
-    
-    using child_type = observable_child<T>;
-    
-  private:
-    
-    class child_ptr
-    {
-    public:
-      
-      ~child_ptr (void) noexcept;
-      
-    private:
-      child_type *m_ptr;
-    };
-    
-  public:
-    using child_set = std::unordered_set<child_ptr>;
-    using iter = typename child_set::iterator;
-    using citer = typename child_set::const_iterator;
-    
-    void remove (child_type *ptr)
-    {
-      m_children.erase (ptr);
-    }
-    
-  private:
-    
-    child_set m_children;
-    
-  };
-  
-  template <typename T>
-  class observable_child
-  {
-  public:
-    using self_type = T;
-    
-    ~observable_child (void) noexcept
-    {
-      if (m_parent != nullptr)
-        m_parent->remove (this);
-    }
-    
-    void reset (void) noexcept
-    {
-      m_parent = nullptr;
-    }
-    
-  private:
-    observable_parent<self_type> *m_parent;
-  };
-  
-  template <typename T>
-  observable_parent<observable_child<T>>::child_ptr::~child_ptr (void) noexcept
-  {
-    m_ptr->reset ();
-  }
 
 }
 

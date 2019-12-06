@@ -297,7 +297,7 @@ namespace octave
     }
     
     template <typename S, typename ...Args,
-              typename = enable_if_t<is_component<S>::value>>
+              typename = cpp14::enable_if_t<is_component<S>::value>>
     citer emplace (citer cit, Args&&... args)
     {
       return m_body.emplace (cit,
@@ -305,7 +305,7 @@ namespace octave
     }
 
     template <typename S, typename ...Args,
-              typename = enable_if_t<is_component<S>::value>>
+              typename = cpp14::enable_if_t<is_component<S>::value>>
     S * emplace_back (Args&&... args)
     {
       std::unique_ptr<S> u =
@@ -353,10 +353,10 @@ namespace octave
   private:
     
     template <typename S, typename ...Args,
-              typename = enable_if_t<is_component<S>::value>>
+              typename = cpp14::enable_if_t<is_component<S>::value>>
     std::unique_ptr<S> create_component (Args&&... args)
     {
-      return octave::make_unique<S> (*this, std::forward<Args> (args)...);
+      return cpp14::make_unique<S> (*this, std::forward<Args> (args)...);
     }
     
     void set_cache (citer cit) noexcept

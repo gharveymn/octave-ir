@@ -32,6 +32,8 @@ along with Octave; see the file COPYING.  If not, see
 namespace octave
 {
 
+  using single = float;
+
   //////////////////////////
   // floating point types //
   //////////////////////////

@@ -33,6 +33,8 @@ along with Octave; see the file COPYING.  If not, see
 #include <list>
 #include <vector>
 
+#include <cpp14/memory>
+
 namespace octave
 {
 
@@ -140,18 +142,18 @@ namespace octave
   protected:
 
     template <typename T, typename ...Args>
-    enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
+    cpp14::enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
     emplace_back (Args&&... args)
     {
       return emplace_before<T> (m_args.end (), std::forward<Args> (args)...);
     }
 
     template <typename T, typename ...Args>
-    enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
+    cpp14::enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
     emplace_before (citer pos, Args&&... args)
     {
       return m_args.insert (pos,
-                            octave::make_unique<T> (std::forward<Args> (args)...));
+                            cpp14::make_unique<T> (std::forward<Args> (args)...));
     }
 
   private:
@@ -267,13 +269,32 @@ namespace octave
   {
   public:
 
-    using input_type = std::pair<ir_basic_block&, ir_def*>;
-    using input_vect = std::vector<input_type>;
-
     ir_phi (void) = delete;
 
-    ir_phi (ir_basic_block& blk, ir_variable& var, ir_type ty,
-            const input_vect& pairs);
+    template <typename It>
+    ir_phi (ir_basic_block& blk, ir_variable& var, ir_type ty, It first, 
+            It last)
+      : ir_def_instruction (blk, var, ty)
+    {
+      auto block = [] (It p) -> ir_basic_block& { return p->first; };
+      auto def_ptr   = [] (It p) -> ir_def *    { return p->second; };
+      
+      ir_def& ret = get_return ();
+      for (It curr = first; curr != last; ++curr)
+        {
+          if (def_ptr (curr) == nullptr)
+            {
+              m_undef_blocks.push_back (block_ptr (curr));
+              ret.set_needs_init_check (true);
+            }
+          else
+            {
+              if (def_ptr (curr)->needs_init_check ())
+                ret.set_needs_init_check (true);
+              emplace_back<ir_phi_arg> (block_ptr (curr), def_ptr (curr));
+            }
+        }
+    }
 
     void append (ir_basic_block& blk, ir_def& d);
 

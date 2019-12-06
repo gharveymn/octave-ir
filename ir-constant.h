@@ -121,7 +121,7 @@ namespace octave
     { };
     
     template <typename T>
-    struct match<T, enable_if_t<std::is_same<value_type, T>::value>>
+    struct match<T, cpp14::enable_if_t<std::is_same<value_type, T>::value>>
     {
       using type = self_type;
     };
@@ -190,7 +190,7 @@ namespace octave
     };
     
     template <typename T>
-    struct match<T, enable_if_t<std::is_same<value_type, T>::value>>
+    struct match<T, cpp14::enable_if_t<std::is_same<value_type, T>::value>>
     {
       using type = ir_constant_impl;
     };

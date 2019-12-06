@@ -47,7 +47,7 @@ namespace octave
   ir_variable::ir_variable (ir_function& m, std::string name)
     : m_function (m),
       m_name (std::move (name)),
-      m_def_tracker (this)
+      m_def_tracker (*this)
   { }
 
 //  ir_variable::ir_variable (ir_variable&& o) noexcept
@@ -110,13 +110,13 @@ namespace octave
     return "_" + m_name + "_sentinel";
   }
 
-  ir_def&
+  ir_def *
   ir_variable::join (ir_basic_block& blk)
   {
     return join (blk, blk.body_end ());
   }
 
-  ir_def&
+  ir_def *
   ir_variable::join (ir_basic_block& blk, instr_citer pos)
   {
     ir_def *ret = blk.fetch_proximate_def (*this, pos);
@@ -137,7 +137,7 @@ namespace octave
   void
   ir_variable::initialize_sentinel (void)
   {
-    m_sentinel = octave::make_unique<ir_variable> (get_module (),
+    m_sentinel = cpp14::make_unique<ir_variable> (get_module (),
                                                    get_sentinel_name ());
     // set false (meaning undecided state) at the beginning of the module.
     ir_basic_block *entry = get_function ().get_entry_block ();
@@ -187,8 +187,8 @@ namespace octave
 
   ir_def::ir_def (tracker_type& tkr, ir_type ty,
                   const ir_def_instruction& instr)
-    : reporter_type (&tkr),
-      m_use_tracker (this),
+    : reporter_type (tkr),
+      m_use_tracker (*this),
       m_type (ty),
       m_instr (instr),
       m_needs_init_check (false)
@@ -196,7 +196,7 @@ namespace octave
 
   ir_def::ir_def (ir_def&& d) noexcept
     : reporter_type (std::move (d)),
-      m_use_tracker (this, std::move (d.m_use_tracker)),
+      m_use_tracker (*this, std::move (d.m_use_tracker)),
       m_type (d.m_type),
       m_instr (d.m_instr),
       m_needs_init_check (d.m_needs_init_check)
@@ -260,7 +260,7 @@ namespace octave
   //
 
   ir_use::ir_use (tracker_type& tkr, const ir_instruction& instr)
-    : reporter_type (&tkr),
+    : reporter_type (tkr),
       m_instr (&instr)
   { }
 

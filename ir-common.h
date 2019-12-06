@@ -26,6 +26,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "octave-config.h"
 
+#include <cpp14/type_traits>
 #include <exception>
 #include <string>
 
@@ -57,11 +58,11 @@ namespace octave
 
   // C++17 needed types
 
-  template<bool B, typename T = void>
-  using enable_if_t = typename std::enable_if<B, T>::type;
-
-  template<class T>
-  using remove_pointer_t = typename std::remove_pointer<T>::type;
+//  template<bool B, typename T = void>
+//  using enable_if_t = typename std::enable_if<B, T>::type;
+//
+//  template<class T>
+//  using remove_pointer_t = typename std::remove_pointer<T>::type;
 
   // imitates 'void' as a unit type (added as std::monostate in C++17)
   struct monostate { };
@@ -114,7 +115,7 @@ namespace octave
   template <typename T>
   struct is_char<
     T,
-    enable_if_t<
+    cpp14::enable_if_t<
       disjunction<
         std::is_same<char, typename std::remove_cv<T>::type>,
         std::is_same<wchar_t, typename std::remove_cv<T>::type>,
@@ -146,7 +147,7 @@ namespace octave
   template <template <typename ...> class S, typename ...Ts>
   struct is_string<
     S<Ts...>,
-    enable_if_t<
+    cpp14::enable_if_t<
       std::is_same<std::basic_string<Ts...>, S<Ts...>>::value
     >
   > : std::true_type
@@ -161,7 +162,7 @@ namespace octave
   template <typename T>
   struct is_string<
     T *,
-    enable_if_t<is_char<T>::value>
+    cpp14::enable_if_t<is_char<T>::value>
   > : std::true_type
   { };
 
@@ -169,7 +170,7 @@ namespace octave
   template <typename T>
   struct is_string<
     T[],
-    enable_if_t<is_char<T>::value>
+    cpp14::enable_if_t<is_char<T>::value>
   > : std::true_type
   { };
 

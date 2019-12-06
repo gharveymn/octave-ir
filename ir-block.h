@@ -40,6 +40,8 @@ along with Octave; see the file COPYING.  If not, see
 #include <vector>
 #include <list>
 
+#include <cpp14/memory>
+
 namespace octave
 {
   class ir_phi;
@@ -172,7 +174,7 @@ namespace octave
 
     ir_def * fetch_cached_def (ir_variable& var) const;
 
-    ir_def * fetch_proximate_def (ir_variable& var, const instr_citer pos) const;
+    ir_def * fetch_proximate_def (ir_variable& var, const instr_citer& pos) const;
 
     virtual ir_def * join_pred_defs (ir_variable& var);
 
@@ -269,11 +271,11 @@ namespace octave
     using has_return = std::is_base_of<ir_def_instruction, T>;
 
     template <typename T>
-    using ret_nonphi = enable_if_t<conjunction<is_nonphi<T>, 
+    using ret_nonphi = cpp14::enable_if_t<conjunction<is_nonphi<T>, 
                                                has_return<T>>::value>;
 
     template <typename T>
-    using nonret_nonphi = enable_if_t<conjunction<is_nonphi<T>, 
+    using nonret_nonphi = cpp14::enable_if_t<conjunction<is_nonphi<T>, 
                                              negation<has_return<T>>>::value>;
 
     template <typename T, typename ...Args, ret_nonphi<T>* = nullptr>
@@ -412,12 +414,12 @@ namespace octave
     
     vtm_citer find_timeline (ir_variable& var) const
     {
-      return m_vt_map.find (&var);
+      return m_variable_timeline_map.find (&var);
     }
     
     def_timeline& get_timeline (ir_variable& var)
     {
-      return m_vt_map[&var];
+      return m_variable_timeline_map[&var];
     }
 
     def_timeline& get_timeline (ir_def& d);
@@ -429,7 +431,7 @@ namespace octave
     template <typename T, typename ...Args>
     std::unique_ptr<T> create_instruction (Args&&... args)
     {
-      return octave::make_unique<T> (*this, std::forward<Args> (args)...);
+      return cpp14::make_unique<T> (*this, std::forward<Args> (args)...);
     }
 
     ir_structure& m_parent;
@@ -446,7 +448,7 @@ namespace octave
     // predecessors and successors to this block
 
     // map from ir_variable to ir_def-timeline structs
-    var_timeline_map m_vt_map;
+    var_timeline_map m_variable_timeline_map;
 
   };
 

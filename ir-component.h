@@ -54,8 +54,8 @@ namespace octave
     // restrictions make sure T is a pointer, the value held by It is the same
     // as T, and It is a random access iterator. A concept would be good here.
     template <typename It>
-    class union_iterator<It, 
-                          enable_if_t<
+    class union_iterator<It,
+                         cpp14::enable_if_t<
                             conjunction<
                               std::is_pointer<typename It::value_type>,
                               std::is_same<typename It::iterator_category, 
@@ -66,22 +66,22 @@ namespace octave
     {
 
       template <typename Iter>
-      using enable_if_random_access_iter = enable_if_t<std::is_base_of<
+      using enable_if_random_access_iter = cpp14::enable_if_t<std::is_base_of<
         std::random_access_iterator_tag,
         typename Iter::iterator_category>::value>;
 
       template <typename Iter>
-      using enable_if_bidirect_iter = enable_if_t<std::is_base_of<
+      using enable_if_bidirect_iter = cpp14::enable_if_t<std::is_base_of<
         std::bidirectional_iterator_tag,
         typename Iter::iterator_category>::value>;
 
       template <typename Iter>
-      using enable_if_forward_iter = enable_if_t<std::is_base_of<
+      using enable_if_forward_iter = cpp14::enable_if_t<std::is_base_of<
         std::forward_iterator_tag,
         typename Iter::iterator_category>::value>;
 
       template <typename Iter>
-      using enable_if_input_iter = enable_if_t<std::is_base_of<
+      using enable_if_input_iter = cpp14::enable_if_t<std::is_base_of<
         std::input_iterator_tag,
         typename Iter::iterator_category>::value>;
       

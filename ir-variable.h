@@ -93,14 +93,14 @@ namespace octave
     ir_variable& operator= (ir_variable&&)      = delete;
 
     // has side-effects
-    static ir_type normalize_types (block_def_vect& pairs);
+    static ir_type normalize_types (block_def_vect& pairs);    
 
     // variables create defs and hold a pointer to that ir_def
     // these pointers must be adjusted when moving or deleting.
 
     std::size_t get_num_defs (void) const noexcept
     {
-      return m_def_tracker.num_children ();
+      return m_def_tracker.num_reporters ();
     }
 
     constexpr const std::string& get_name (void) const { return m_name; }
@@ -117,7 +117,8 @@ namespace octave
     std::string get_sentinel_name (void) const;
 
     void mark_uninit (ir_basic_block& blk);
-
+    
+    
     constexpr const ir_function& get_function (void) const noexcept
     {
       return m_function;
@@ -128,8 +129,11 @@ namespace octave
       return m_function;
     }
 
-    ir_def& join (ir_basic_block& blk);
-    ir_def& join (ir_basic_block& blk, instr_citer pos);
+    //! join variable defs starting from the end of the block
+    ir_def * join (ir_basic_block& blk);
+    
+    //! join before the specified position
+    ir_def * join (ir_basic_block& blk, instr_citer pos);
 
    private:
 
@@ -158,10 +162,7 @@ namespace octave
   public:
 
     using reporter_type = intrusive_reporter<ir_def, ir_variable>;
-    using tracker_type  = reporter_type::tracker_type;
-
-    ir_def (tracker_type& tkr, ir_type ty,
-            const ir_def_instruction& instr);
+    using tracker_type  = tracker<ir_def, ir_variable>;
 
     ir_def (void)                     = delete;
 
@@ -197,7 +198,7 @@ namespace octave
 
     bool has_uses (void) const noexcept
     {
-      return ! m_use_tracker.has_children ();
+      return ! m_use_tracker.has_reporters ();
     }
 
     constexpr ir_type get_type (void) const
@@ -222,9 +223,13 @@ namespace octave
                                           std::forward<Args> (args)...);
     }
 
-    friend ir_def ir_variable::create_def (ir_type ty, const ir_def_instruction& instr);
+    friend ir_def ir_variable::create_def (ir_type ty, 
+                                           const ir_def_instruction& instr);
 
   private:
+
+    ir_def (tracker_type& tkr, ir_type ty, const ir_def_instruction& instr);
+    
     tracker<ir_use, ir_def> m_use_tracker;
 
     const ir_type m_type;
@@ -241,14 +246,15 @@ namespace octave
   public:
 
     using reporter_type = intrusive_reporter<ir_use, ir_def>;
-    using tracker_type  = reporter_type::tracker_type;
+    using tracker_type  = tracker<ir_use, ir_def>;
+    
+    static_assert (std::is_same<typename reporter_type::tracker_type, 
+                                tracker_type>::value, 
+                   "unexpected tracker for ir_use");
 
     // uses can only be explicitly created by defs
     // They may not be copied, but they may be moved.
     // defs maintain a pointer to each use it created
-
-    //! Create a use with a parent def.
-    ir_use (tracker_type& tkr, const ir_instruction& instr);
 
     constexpr ir_use (void)           = delete;
 
@@ -273,6 +279,9 @@ namespace octave
     friend ir_use ir_def::create_use (const ir_instruction& instr);
 
   private:
+
+    //! Create a use with a parent def.
+    ir_use (tracker_type& tkr, const ir_instruction& instr);
 
     //! Where this use occurs.
     const ir_instruction *m_instr;

@@ -20,12 +20,15 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-//! standalone
 #if ! defined (octave_tracker_h)
 #define octave_tracker_h 1
 
+//! I am well aware this is needlessly complex and doesn't provide all 
+//! the functionality desired. I'll refactor at some point.
+
 #include "octave-config.h"
 #include <plf_list.h>
+#include <iterator>
 
 namespace octave
 {
@@ -33,7 +36,7 @@ namespace octave
   template <typename Child>
   struct reporter_orphan_hook
   {
-    constexpr void operator() (const Child*) const noexcept { }
+    void operator() (const Child*) const noexcept { }
   };
 
   template <typename Reporter, typename Child>
@@ -138,7 +141,7 @@ namespace octave
 
   private:
 
-    reporter_type * m_ptr = nullptr;
+    reporter_type *m_ptr = nullptr;
 
   };
 
@@ -168,6 +171,7 @@ namespace octave
     // pretend like reporter_ptr doesn't exist
     struct external_iterator
     {
+      
       using internal_type     = typename internal_citer::value_type;
 
       static_assert (std::is_same<internal_type,
@@ -297,7 +301,7 @@ namespace octave
       reset ();
     }
     
-    void reset (void) noexcept 
+    void reset (void) noexcept
     {
       if (! m_reporters.empty ())
         {
@@ -310,11 +314,9 @@ namespace octave
     void swap (tracker_base& other) noexcept 
     {
       // kinda expensive
+      this->repoint_reporters (&other);
+      other.repoint_reporters (this);
       m_reporters.swap (other.m_reporters);
-      for (internal_ref c_ptr : m_reporters)
-        c_ptr.reset_remote_tracker (this);
-      for (internal_ref c_ptr : other.m_reporters)
-        c_ptr.reset_remote_tracker (&other);
     }
 
     std::size_t num_reporters (void) const noexcept
@@ -324,8 +326,7 @@ namespace octave
 
     void transfer_from (tracker_base&& src, citer pos) noexcept
     {
-      for (internal_ref c_ptr : src.m_reporters)
-        c_ptr.reset_remote_tracker (this);
+      src.repoint_reporters (this);
       return m_reporters.splice (pos.m_citer, src.m_reporters);
     }
 
@@ -436,6 +437,13 @@ namespace octave
     internal_iter erase (internal_citer cit) noexcept
     {
       return m_reporters.erase (cit);
+    }
+
+    // unsafe!
+    void repoint_reporters (tracker_base *ptr)
+    {
+      for (internal_ref rptr : m_reporters)
+        rptr->reset_tracker (ptr);
     }
     
 //    reporter_list copy_reporters (void) const
@@ -632,7 +640,7 @@ namespace octave
 
     reporter_base& operator= (const reporter_base& other)
     {
-      // copy-and-swap idiom
+      // copy-and-swap
       if (other.m_tracker != m_tracker)
         reporter_base (other).swap (*this);
       return *this;
@@ -1107,7 +1115,7 @@ namespace octave
     }
 
     template <typename ...Args>
-    enable_if_t<conjunction<std::is_same<Args, remote_type>...>::value> 
+    cpp14::enable_if_t<conjunction<std::is_same<Args, remote_type>...>::value> 
     bind (remote_type& r, Args&... args)
     {
       internal_bind (r);
@@ -1251,7 +1259,7 @@ namespace octave
     
   private:
     
-    internal_citer internal_bind (remote_type& r)
+    internal_iter internal_bind (remote_type& r)
     {
       internal_iter it = this->track ();
       try

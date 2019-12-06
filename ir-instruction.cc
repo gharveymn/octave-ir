@@ -126,27 +126,6 @@ namespace octave
   // ir_phi
   //
 
-  ir_phi::ir_phi (ir_basic_block& blk, ir_variable& var, ir_type ty,
-    const input_vect& pairs)
-    : ir_def_instruction (blk, var, ty)
-  {
-    ir_def& ret = get_return ();
-    for (const input_type& p : pairs)
-      {
-        if (p.second == nullptr)
-          {
-            m_undef_blocks.push_back (&p.first);
-            ret.set_needs_init_check (true);
-          }
-        else
-          {
-            if (p.second->needs_init_check ())
-              ret.set_needs_init_check (true);
-            emplace_back<ir_phi_arg> (&p.first, p.second);
-          }
-      }
-  }
-
   void
   ir_phi::append (ir_basic_block& blk, ir_def& d)
   {

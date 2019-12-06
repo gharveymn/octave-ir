@@ -31,9 +31,60 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-structure.h"
 
 #include <algorithm>
+#include <numeric>
+
+#include <cpp14/utility>
 
 namespace octave
 {
+  //
+  // free functions
+  //
+
+  // has side-effects
+  template <typename It>
+  ir_type
+  normalize_types (It first, It last)
+  {
+    if (first == last)
+      throw ir_exception ("block-def pair list unexpectedly empty.");
+    
+    using pair = std::pair<ir_basic_block&, ir_def *>;
+    
+    auto block   = [] (pair& p) { return p.first;  };
+    auto def_ptr = [] (pair& p) { return p.second; };
+
+    // find the closest common type
+    ir_type common_ty = std::accumulate (++It (first), last,
+                                         def_ptr (*first)->get_type (),
+                          [] (ir_type curr, pair& p)
+                          {
+                            return ir_type::lca (curr, cpp14::get<ir_def *> (p)->get_type ());
+                          });
+//    for (const block_def_pair& p : pairs)
+//      {
+//        if (common_ty == ir_type::get<any> ())
+//          break;
+//        common_ty = ir_type::lca (common_ty, p.second->get_type ());
+//      }
+    if (common_ty == ir_type::get<void> ())
+      throw ir_exception ("no common type");
+
+    for (block_def_pair& p : pairs)
+      {
+        ir_basic_block& blk = p.first;
+        ir_def *d = p.second;
+        if (d->get_type () != common_ty)
+          {
+            ir_convert& instr = blk.emplace_back<ir_convert> (d->get_var (),
+                                                              common_ty, *d);
+            p.second = &instr.get_return ();
+          }
+      }
+    return common_ty;
+  }
+  
+  
   //
   // ir_basic_block
   //
@@ -133,19 +184,23 @@ namespace octave
   ir_def *
   ir_basic_block::fetch_cached_def (ir_variable& var) const
   {
-    return fetch_proximate_def (var, end ());
+    vtm_citer timeline_pair_cit = find_timeline (var);
+    if (timeline_pair_cit == m_variable_timeline_map.end ())
+      return nullptr;
+    return timeline_pair_cit->second.fetch_cache ();
   }
 
   ir_def*
-  ir_basic_block::fetch_proximate_def (ir_variable& var, const instr_citer pos) const
+  ir_basic_block::fetch_proximate_def (ir_variable& var, const instr_citer& pos) const
   {
     if (pos == begin ())
       return nullptr;
 
-    vtm_citer vtm_cit = find_timeline (var);
-    if (vtm_cit == m_vt_map.end ())
+    vtm_citer timeline_pair_cit = find_timeline (var);
+    if (timeline_pair_cit == m_variable_timeline_map.end ())
       return nullptr;
-    const def_timeline& timeline = vtm_cit->second;
+    
+    const def_timeline& timeline = timeline_pair_cit->second;
     if (timeline.size () == 0 || pos == end ())
       return timeline.fetch_cache ();
 
@@ -220,19 +275,34 @@ namespace octave
     if (npreds == 0)
       return nullptr;
     if (npreds == 1)
-      return &var.join (*pred_front ());
-
-    block_def_vect pairs;
+      return var.join (*pred_front ());
+    
+    using pair = std::pair<ir_basic_block&, ir_def *>;
+    auto block_ptr = [] (pair& p) { return &p.first; };
+    auto def_ptr   = [] (pair& p) { return p.second; };
+    
+    std::vector<pair> pairs;
     pairs.reserve (npreds);
-
-    std::for_each (pred_begin (), pred_end (),
-                   [&pairs, &var] (ir_basic_block *pred)
-                   {
-                     pairs.emplace_back (*pred, &var.join (*pred));
-                   });
+    std::transform (pred_begin (), pred_end (), pairs.begin (),
+                    [&var] (ir_basic_block *pred) -> pair
+                    {
+                      return { *pred, var.join (*pred) };
+                    });
 
     // TODO if we have null returns here we need to create extra diversion
     //  blocks for those code paths. Otherwise the code will crash.
+    
+    // separate empty blocks from the rest
+    using pair_citer = std::vector<pair>::const_iterator;
+    pair_citer undef_begin = std::remove_if (pairs.begin (), pairs.end (), 
+                                             [] (const pair& p)
+                                             {
+                                               return p.second == nullptr;
+                                             });
+    std::vector<ir_basic_block *> undef_blocks;
+    undef_blocks.reserve (std::distance (undef_begin, pairs.cend ()));
+    
+    std::transform ()
 
     ir_def *cmp_def = pairs.front ().second;
     for (const block_def_pair& p : pairs)
@@ -242,8 +312,7 @@ namespace octave
           {
             // if not then we need to create a phi node
             ir_type ty = ir_variable::normalize_types (pairs);
-            ir_phi *phi_node = create_phi (var, ty, pairs);
-            return &phi_node->get_return ();
+            return &create_phi (var, ty, pairs)->get_return ();
           }
       }
 
@@ -330,7 +399,8 @@ namespace octave
     m_body_begin = end ();
     m_terminator = end ();
     // TODO remove when verified
-    for (const std::pair<ir_variable *, def_timeline>& p : m_vt_map)
+    for (const std::pair<ir_variable *, def_timeline>& p :
+         m_variable_timeline_map)
     {
 
     }
