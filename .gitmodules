@@ -1,3 +1,6 @@
 [submodule "external/plf_list"]
 	path = external/plf_list
 	url = git@github.com:gharveymn/plf_list.git
+[submodule "external/tracker"]
+	path = external/tracker
+	url = git@github.com:gharveymn/tracker.git
