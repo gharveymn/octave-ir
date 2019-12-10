@@ -28,7 +28,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-operand.h"
 #include "ir-type-base.h"
 #include "ir-instruction-fwd.h"
-#include "tracker.h"
+#include <tracker.h>
 
 #include <deque>
 #include <unordered_set>

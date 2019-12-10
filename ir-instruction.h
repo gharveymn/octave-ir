@@ -33,7 +33,8 @@ along with Octave; see the file COPYING.  If not, see
 #include <list>
 #include <vector>
 
-#include <cpp14/memory>
+#include <memory>
+#include <utility>
 
 namespace octave
 {
@@ -142,18 +143,18 @@ namespace octave
   protected:
 
     template <typename T, typename ...Args>
-    cpp14::enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
+    std::enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
     emplace_back (Args&&... args)
     {
       return emplace_before<T> (m_args.end (), std::forward<Args> (args)...);
     }
 
     template <typename T, typename ...Args>
-    cpp14::enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
+    std::enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
     emplace_before (citer pos, Args&&... args)
     {
       return m_args.insert (pos,
-                            cpp14::make_unique<T> (std::forward<Args> (args)...));
+                            std::make_unique<T> (std::forward<Args> (args)...));
     }
 
   private:
@@ -275,28 +276,15 @@ namespace octave
     ir_phi (ir_basic_block& blk, ir_variable& var, ir_type ty, It first, 
             It last)
       : ir_def_instruction (blk, var, ty)
-    {
-      auto block = [] (It p) -> ir_basic_block& { return p->first; };
-      auto def_ptr   = [] (It p) -> ir_def *    { return p->second; };
-      
-      ir_def& ret = get_return ();
-      for (It curr = first; curr != last; ++curr)
+    {        
+      std::for_each (first, last, 
+        [this] (const std::pair<ir_basic_block&, ir_def *>& p) 
         {
-          if (def_ptr (curr) == nullptr)
-            {
-              m_undef_blocks.push_back (block_ptr (curr));
-              ret.set_needs_init_check (true);
-            }
-          else
-            {
-              if (def_ptr (curr)->needs_init_check ())
-                ret.set_needs_init_check (true);
-              emplace_back<ir_phi_arg> (block_ptr (curr), def_ptr (curr));
-            }
-        }
+          append (&p.first, p.second);
+        });  
     }
 
-    void append (ir_basic_block& blk, ir_def& d);
+    void append (ir_basic_block *blk, ir_def *dptr);
 
     iter erase (const ir_basic_block *blk);
 

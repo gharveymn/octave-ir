@@ -40,8 +40,6 @@ along with Octave; see the file COPYING.  If not, see
 #include <vector>
 #include <list>
 
-#include <cpp14/memory>
-
 namespace octave
 {
   class ir_phi;
@@ -265,18 +263,18 @@ namespace octave
     using is_phi = std::is_same<ir_phi, T>;
 
     template <typename T>
-    using is_nonphi = conjunction<negation<is_phi<T>>, is_instruction<T>>;
+    using is_nonphi = std::conjunction<std::negation<is_phi<T>>, is_instruction<T>>;
 
     template <typename T>
     using has_return = std::is_base_of<ir_def_instruction, T>;
 
     template <typename T>
-    using ret_nonphi = cpp14::enable_if_t<conjunction<is_nonphi<T>, 
+    using ret_nonphi = std::enable_if_t<std::conjunction<is_nonphi<T>, 
                                                has_return<T>>::value>;
 
     template <typename T>
-    using nonret_nonphi = cpp14::enable_if_t<conjunction<is_nonphi<T>, 
-                                             negation<has_return<T>>>::value>;
+    using nonret_nonphi = std::enable_if_t<std::conjunction<is_nonphi<T>,
+      std::negation<has_return<T>>>::value>;
 
     template <typename T, typename ...Args, ret_nonphi<T>* = nullptr>
     T& emplace_front (Args&&... args)
@@ -431,7 +429,7 @@ namespace octave
     template <typename T, typename ...Args>
     std::unique_ptr<T> create_instruction (Args&&... args)
     {
-      return cpp14::make_unique<T> (*this, std::forward<Args> (args)...);
+      return std::make_unique<T> (*this, std::forward<Args> (args)...);
     }
 
     ir_structure& m_parent;

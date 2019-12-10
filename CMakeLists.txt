@@ -1,7 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.14)
 PROJECT(octave_ir)
 
-SET(CMAKE_CXX_STANDARD 11)
+SET(CMAKE_CXX_STANDARD 17)
 SET(CMAKE_CXX_EXTENSIONS OFF)
 
 #SET(CMAKE_CXX_FLAGS "-ftime-report")
@@ -13,7 +13,10 @@ SET(OCTAVE_SOURCE "/home/gene/workspace/octave/dev/octave/source")
 #INCLUDE_DIRECTORIES("C:\\Octave\\Octave-5.1.0.0\\mingw64\\include\\octave-5.1.0\\octave")
 
 INCLUDE_DIRECTORIES(external/plf_list)
-INCLUDE_DIRECTORIES(external/cpp14/include)
+INCLUDE_DIRECTORIES(external/cpp-extensions/include)
+INCLUDE_DIRECTORIES(external/tracker)
+
+ADD_SUBDIRECTORY(external/tracker)
 
 ADD_LIBRARY(octave_ir SHARED
 		ir-common.h
@@ -50,7 +53,7 @@ ADD_LIBRARY(octave_ir SHARED
 		ir-constant.h
 #		ir-build.cc
 #		ir-build.h
-		tracker.h ir-instruction-fwd.h)
+		ir-instruction-fwd.h)
 
 IF (MSVC)
 #	target_compile_options(octave_ir PRIVATE -Wall)

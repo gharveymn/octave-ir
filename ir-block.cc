@@ -33,7 +33,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <algorithm>
 #include <numeric>
 
-#include <cpp14/utility>
+#include <utility>
 
 namespace octave
 {
@@ -59,7 +59,7 @@ namespace octave
                                          def_ptr (*first)->get_type (),
                           [] (ir_type curr, pair& p)
                           {
-                            return ir_type::lca (curr, cpp14::get<ir_def *> (p)->get_type ());
+                            return ir_type::lca (curr, std::get<ir_def *> (p)->get_type ());
                           });
 //    for (const block_def_pair& p : pairs)
 //      {

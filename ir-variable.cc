@@ -137,8 +137,8 @@ namespace octave
   void
   ir_variable::initialize_sentinel (void)
   {
-    m_sentinel = cpp14::make_unique<ir_variable> (get_module (),
-                                                   get_sentinel_name ());
+    m_sentinel = std::make_unique<ir_variable> (get_module (),
+                                                get_sentinel_name ());
     // set false (meaning undecided state) at the beginning of the module.
     ir_basic_block *entry = get_function ().get_entry_block ();
     entry->emplace_front<ir_assign> (*m_sentinel,

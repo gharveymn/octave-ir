@@ -66,7 +66,7 @@ namespace octave
   {
     if (m_ret.has_uses ())
       {
-        ir_def& prev_joined = m_ret.get_var ().join (get_block (), pos);
+        ir_def *prev_joined = m_ret.get_var ().join (get_block (), pos);
         prev_joined.transfer_from (m_ret);
       }
     if (m_ret.has_uses ())
@@ -127,9 +127,19 @@ namespace octave
   //
 
   void
-  ir_phi::append (ir_basic_block& blk, ir_def& d)
+  ir_phi::append (ir_basic_block *blk, ir_def *dptr)
   {
-    emplace_back<ir_phi_arg> (&blk, &d);
+    if (dptr == nullptr)
+      {
+        m_undef_blocks.push_back (blk);
+        get_return ().set_needs_init_check (true);
+      }
+    else
+      {
+        if (dptr->needs_init_check ())
+          get_return ().set_needs_init_check (true);
+        emplace_back<ir_phi_arg> (blk, dptr);
+      }
   }
 
   ir_phi::iter

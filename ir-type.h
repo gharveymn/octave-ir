@@ -32,7 +32,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "octave-config.h"
 
-#include <cpp14/type_traits>
+#include <type_traits>
 
 class octave_base_value;
 
@@ -127,7 +127,7 @@ namespace octave
     template <typename ...T>
     static constexpr ir_type get (void) noexcept
     {
-      return { &instance<cpp14::remove_cv_t<T>...>::m_impl };
+      return { &instance<std::remove_cv_t<T>...>::m_impl };
     }
 
     constexpr bool operator== (const ir_type& ty) const noexcept
@@ -408,11 +408,13 @@ namespace octave
   // void //
   //////////
   // This is the unit type; the only type which is not a descendent of 'any'.
+  
+  struct unit { };
 
   template <>
   struct ir_type::instance<void>
   {
-    using type = monostate;
+    using type = unit;
     static constexpr
     impl m_impl = create_type<type> ("void", nullptr);
   };

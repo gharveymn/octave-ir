@@ -31,6 +31,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <memory>
 #include <functional>
 #include <unordered_set>
+#include <type_traits>
 
 #define PRINT_SIZE(TYPE) \
 char (*__fail)(void)[sizeof(TYPE)] = 1;
@@ -78,14 +79,14 @@ namespace octave
 //  }
   
   template <typename T, typename S,
-            cpp14::enable_if_t<! std::is_pointer<S>::value>* = nullptr>
+        typename std::enable_if<! std::is_pointer<S>::value>::type* = nullptr>
   constexpr bool isa (const S& x)
   {
     return dynamic_cast<const T*> (&x) != nullptr;
   }
   
   template <typename T, typename S,
-            cpp14::enable_if_t<std::is_pointer<S>::value>* = nullptr>
+          typename std::enable_if<std::is_pointer<S>::value>::type* = nullptr>
   constexpr bool isa (const S& x)
   {
     return dynamic_cast<const T*> (x) != nullptr;
