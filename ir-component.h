@@ -196,13 +196,14 @@ namespace octave
     it1.swap (it2);
   }
 
-  template <class... Ts>
-  struct overload : Ts...
+  template <class... FunctionObjects>
+  struct overload : FunctionObjects...
   {
-    using Ts::operator()...;
+    using FunctionObjects::operator()...;
   };
 
-  template <class... Ts> overload (Ts...) ->overload<Ts...>;
+  template <class... FunctionObjects> 
+  overload (FunctionObjects...) -> overload<FunctionObjects...>;
 
   template <typename ...Its>
   class variant_iterator
@@ -235,12 +236,31 @@ namespace octave
 
     static_assert (all_same<typename Its::pointer...>::value,
                    "pointer types must be equal.");
+    
+  private:
+    
+    template <typename It>
+    using difference_type_t = typename It::difference_type;
 
-    using difference_type   = std::common_type_t<typename Its::difference_type...>;
-    using value_type        = typename get_iter<0>::value_type;
-    using pointer           = typename get_iter<0>::pointer;
-    using reference         = typename get_iter<0>::reference;
-    using iterator_category = std::common_type_t<typename Its::iterator_category...>;
+    template <typename It>
+    using value_type_t = typename It::value_type;
+
+    template <typename It>
+    using pointer_t = typename It::pointer;
+
+    template <typename It>
+    using reference_t = typename It::reference;
+
+    template <typename It>
+    using iterator_category_t = typename It::iterator_category;
+
+  public:
+    
+    using difference_type   = std::common_type_t<difference_type_t<Its>...>;
+    using value_type        = value_type_t<get_iter<0>>;
+    using pointer           = pointer_t<get_iter<0>>;
+    using reference         = reference_t<get_iter<0>>;
+    using iterator_category = std::common_type_t<iterator_category_t<Its>...>;
 
     struct type_exception : std::exception
     {
@@ -373,7 +393,7 @@ namespace octave
     constexpr difference_type operator- (const variant_iterator& other) const
     {
       using diff_type = difference_type;
-      return std::visit (overloaded {
+      return std::visit (overload {
                            [] (Its lhs, Its rhs) -> diff_type { return lhs - rhs; }...,
                            [] (auto lhs, auto rhs) -> diff_type { throw type_exception (); } },
                          m_variant, other.m_variant);
