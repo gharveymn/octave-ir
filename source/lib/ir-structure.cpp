@@ -30,7 +30,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include <algorithm>
 
-namespace octave
+namespace gch
 {
 
   //

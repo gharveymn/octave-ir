@@ -34,7 +34,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <memory>
 #include <utility>
 
-namespace octave
+namespace gch
 {
 
   // imports

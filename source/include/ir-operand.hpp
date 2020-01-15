@@ -28,7 +28,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <unordered_set>
 #include <string>
 
-namespace octave
+namespace gch
 {
 
   template <typename>

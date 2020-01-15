@@ -25,7 +25,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "ir-structure.hpp"
 
-namespace octave
+namespace gch
 {
   
   class ir_function : public ir_sequence<ir_basic_block>

@@ -26,7 +26,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-common.hpp"
 #include "ir-type-std.hpp"
 
-namespace octave
+namespace gch
 {
   
   // The following code is basically the same as std::tuple without

@@ -35,7 +35,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <vector>
 #include <tracker.hpp>
 
-namespace octave
+namespace gch
 {
   class ir_instruction;
   class ir_def_instruction;
@@ -73,8 +73,7 @@ namespace octave
 
   public:
   
-    using tracker_type = trk::tracker<ir_variable, ir_def,
-                                        trk::intrusive_reporter_tag>;
+    using tracker_type = gch::tracker<ir_variable, gch::reporter<ir_def, gch::tag::intrusive>>;
 
     ir_def create_def (ir_type ty, const ir_def_instruction& instr);
 
@@ -153,20 +152,19 @@ namespace octave
 
     // Used to indicate if the variable is uninitialized in the current
     // code path. Lazily initialized.
-    std::optional<ir_variable> m_sentinel;
+    std::unique_ptr<ir_variable> m_sentinel;
 
   };
 
   //! An ssa variable def. It holds very little information about itself,
   //! it's more of just an indicating stub for the variable.
-  class ir_def : public gch::reporter<ir_def, ir_variable, gch::tag::tracker, gch::tag::intrusive>
+  class ir_def : public gch::intrusive_reporter<ir_def, gch::tracker<ir_variable>>
   {
 
   public:
 
-    using reporter_type = intrusive_reporter<ir_def, ir_variable>;
-    using tracker_type  = track::tracker<ir_def, ir_use,
-                                         track::intrusive_reporter_tag>;
+    using reporter_type = gch::intrusive_reporter<ir_def, gch::tracker<ir_variable>>;
+    using tracker_type  = gch::tracker<ir_def, gch::reporter<ir_use, gch::tag::intrusive>>;
 
     ir_def (void)                     = delete;
 
@@ -225,8 +223,8 @@ namespace octave
     template <typename ...Args>
     void transfer_from (ir_def& src, Args&&... args)
     {
-      return m_use_tracker.transfer_from (src.m_use_tracker,
-                                          std::forward<Args> (args)...);
+      return m_use_tracker.transfer_bindings (src.m_use_tracker,
+                                              std::forward<Args> (args)...);
     }
 
     friend ir_def ir_variable::create_def (ir_type ty, 
@@ -236,8 +234,9 @@ namespace octave
 
     ir_def (typename reporter_type::remote_type& tkr, ir_type ty, 
             const ir_def_instruction& instr);
-  
-    tracker_type m_use_tracker;
+
+    gch::tracker<ir_def, gch::reporter<ir_use, gch::tag::intrusive>> m_use_tracker;
+    gch::tracker<ir_def, gch::reporter<>>      m_cache_tracker;
 
     const ir_type m_type;
 
@@ -249,11 +248,11 @@ namespace octave
   };
 
 class ir_use : public ir_operand, 
-               public track::intrusive_reporter<ir_use, ir_def>
+  public gch::intrusive_reporter<ir_use, gch::tracker<ir_def>>
   {
   public:
 
-    using reporter_type = intrusive_reporter<ir_use, ir_def>;
+    using reporter_type = gch::intrusive_reporter<ir_use, gch::tracker<ir_def>>;
 
     // uses can only be explicitly created by defs
     // They may not be copied, but they may be moved.

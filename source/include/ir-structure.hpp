@@ -32,7 +32,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <list>
 #include <stack>
 
-namespace octave
+namespace gch
 {
 
   class ir_basic_block;

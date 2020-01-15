@@ -26,7 +26,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include <ir-component.hpp>
 
-namespace octave
+namespace gch
 {
   ir_component::~ir_component (void) noexcept = default;
 }

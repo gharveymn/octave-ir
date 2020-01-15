@@ -29,7 +29,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <vector>
 #include <variant>
 
-namespace octave
+namespace gch
 {
 
   class ir_basic_block;

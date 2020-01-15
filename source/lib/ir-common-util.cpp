@@ -35,7 +35,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <type_traits>
 #include <utility>
 
-namespace octave
+namespace gch
 {
   template <typename T>
   std::ostream&

@@ -27,7 +27,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include <complex>
 
-namespace octave
+namespace gch
 {
 
   using single = float;

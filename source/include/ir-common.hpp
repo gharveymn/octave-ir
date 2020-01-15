@@ -37,7 +37,7 @@ template <int> struct strcat(strcat(value_of_, x), _is); \
 static_assert(strcat(strcat(value_of_, x), _is)<x>::x, "");
 
 class octave_base_value;
-namespace octave
+namespace gch
 {
   using any = octave_base_value *;
   using single = float;

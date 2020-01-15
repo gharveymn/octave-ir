@@ -29,7 +29,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <iostream>
 #include <string>
 
-namespace octave
+namespace gch
 {
   constexpr ir_type::impl ir_type::instance<any>::m_impl;
   constexpr ir_type::impl ir_type::instance<void>::m_impl;

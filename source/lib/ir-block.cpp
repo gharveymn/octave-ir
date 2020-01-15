@@ -32,7 +32,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <numeric>
 #include <utility>
 
-namespace octave
+namespace gch
 {
   //
   // free functions

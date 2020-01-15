@@ -26,7 +26,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include <ir-function.hpp>
 
-namespace octave
+namespace gch
 {
   ir_component::link_iter
   ir_function::pred_begin (ir_component *c)

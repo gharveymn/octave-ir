@@ -33,7 +33,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include <iostream>
 
-namespace octave
+namespace gch
 {
 
   constexpr ir_type::impl ir_type::instance<ir_def* >::m_impl;

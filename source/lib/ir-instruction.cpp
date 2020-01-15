@@ -25,7 +25,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <ir-variable.hpp>
 #include <algorithm>
 
-namespace octave
+namespace gch
 {
 
   constexpr ir_type::impl ir_type::instance<ir_block_ref>::m_impl;

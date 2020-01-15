@@ -30,7 +30,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include <ostream>
 
-namespace octave
+namespace gch
 {
 
   ir_operand::~ir_operand (void) noexcept = default;

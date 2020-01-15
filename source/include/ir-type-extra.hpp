@@ -27,7 +27,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-type-base.hpp"
 #include <string>
 
-namespace octave
+namespace gch
 {
 
 }

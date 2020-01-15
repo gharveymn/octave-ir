@@ -27,7 +27,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include <ir-type-std.hpp>
 
-namespace octave
+namespace gch
 {
   constexpr ir_type::impl ir_type::instance<std::string>::m_impl;
 }

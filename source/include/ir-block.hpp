@@ -40,7 +40,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <vector>
 #include <list>
 
-namespace octave
+namespace gch
 {
   class ir_phi;
   class ir_structure;

@@ -34,7 +34,7 @@ namespace plf
   class list;
 }
 
-namespace octave
+namespace gch
 {
   // fwds
 

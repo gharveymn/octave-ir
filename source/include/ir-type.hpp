@@ -34,7 +34,7 @@ along with Octave; see the file COPYING.  If not, see
 
 class octave_base_value;
 
-namespace octave
+namespace gch
 {
 
   using any = octave_base_value *;

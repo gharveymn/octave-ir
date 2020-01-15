@@ -31,7 +31,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <unordered_set>
 #include <type_traits>
 
-namespace octave
+namespace gch
 {
   class ir_type;
 
