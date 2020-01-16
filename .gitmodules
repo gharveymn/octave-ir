@@ -1,15 +1,20 @@
 [submodule "external/plf_list"]
 	path = external/plf_list
 	url = git@github.com:gharveymn/plf_list.git
+	branch = master
 [submodule "external/tracker"]
 	path = external/tracker
 	url = git@github.com:gharveymn/tracker.git
+	branch = master
 [submodule "external/optional_ref"]
 	path = external/optional_ref
 	url = git@github.com:gharveymn/optional_ref.git
+	branch = master
 [submodule "external/variant-iterator"]
 	path = external/variant-iterator
 	url = git@github.com:gharveymn/variant-iterator.git
+	branch = master
 [submodule "external/create-package"]
 	path = external/create-package
 	url = git@github.com:gharveymn/create-package.git
+	branch = master
