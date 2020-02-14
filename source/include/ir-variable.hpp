@@ -23,11 +23,12 @@ along with Octave; see the file COPYING.  If not, see
 #if ! defined (octave_ir_variable_h)
 #define octave_ir_variable_h 1
 
+#include <nonnull_ptr.hpp>
+
 #include "ir-common-util.hpp"
 #include "ir-operand.hpp"
 #include "ir-type-base.hpp"
 #include "ir-instruction-fwd.hpp"
-
 
 #include <deque>
 #include <unordered_set>
@@ -53,27 +54,13 @@ namespace gch
   using instr_ref       = instr_list::reference;
   using instr_cref      = instr_list::const_reference;
 
-  using def_list  = plf::list<ir_def *>;
-  using def_iter  = def_list::iterator;
-  using def_citer = def_list::const_iterator;
-  using def_ref   = def_list::reference;
-  using def_cref  = def_list::const_reference;
-
-  using use_list  = plf::list<ir_use *>;
-  using use_iter  = use_list::iterator;
-  using use_citer = use_list::const_iterator;
-  using use_ref   = use_list::reference;
-  using use_cref  = use_list::const_reference;
-
   class ir_variable
+    : public intrusive_tracker<ir_variable, remote::intrusive_reporter<ir_def>>
   {
-
-    using block_def_pair = std::pair<ir_basic_block&, ir_def *>;
-    using block_def_vect = std::vector<block_def_pair>;
-
   public:
-  
-    using tracker_type = gch::tracker<ir_variable, gch::reporter<ir_def, gch::tag::intrusive>>;
+
+    using block_def_pair = std::pair<nonnull_ptr<ir_basic_block>, nonnull_ptr<ir_def>>;
+    using block_def_vect = std::vector<block_def_pair>;
 
     ir_def create_def (ir_type ty, const ir_def_instruction& instr);
 
@@ -83,16 +70,14 @@ namespace gch
     // defs and uses may allow references elsewhere, but these singular
     // and may not be copied or addressed (may be moved).
 
+    ir_variable            (void)                   = delete;
+    ir_variable            (const ir_variable&)     = delete;
+    ir_variable            (ir_variable&&) noexcept = delete;
+    ir_variable& operator= (const ir_variable&)     = delete;
+    ir_variable& operator= (ir_variable&&) noexcept = delete;
+    ~ir_variable           (void)                   = default;
+
     ir_variable (ir_function& m, std::string name);
-
-    ir_variable (void)                          = delete;
-
-    ir_variable (const ir_variable&)            = delete;
-    ir_variable& operator= (const ir_variable&) = delete;
-
-    // can't allow movement because others rely on a pointer
-    ir_variable (ir_variable&& o)               = delete;
-    ir_variable& operator= (ir_variable&&)      = delete;
 
     // has side-effects
     static ir_type normalize_types (block_def_vect& pairs);    
@@ -102,25 +87,30 @@ namespace gch
 
     std::size_t get_num_defs (void) const noexcept
     {
-      return m_def_tracker.num_reporters ();
+      return num_remotes ();
     }
 
+    [[nodiscard]]
     constexpr const std::string& get_name (void) const { return m_name; }
 
+    [[nodiscard]]
     constexpr ir_function& get_module (void) const { return m_function; }
 
+    [[nodiscard]]
     bool has_sentinel (void) const noexcept
     {
       return m_sentinel != nullptr;
     }
 
+    [[nodiscard]]
     ir_variable& get_sentinel (void);
 
+    [[nodiscard]]
     std::string get_sentinel_name (void) const;
 
     void mark_uninit (ir_basic_block& blk);
-    
-    
+
+    [[nodiscard]]
     constexpr const ir_function& get_function (void) const noexcept
     {
       return m_function;
@@ -132,23 +122,23 @@ namespace gch
     }
 
     //! join variable defs starting from the end of the block
-    ir_def& join (ir_basic_block& blk);
+    optional_ref<ir_def> join (ir_basic_block& blk);
     
     //! join before the specified position
-    ir_def& join (ir_basic_block& blk, instr_citer pos);
+    optional_ref<ir_def> join (ir_basic_block& blk, instr_citer pos);
+
+    ir_def& create_def (ir_basic_block blk, instr_citer pos);
 
    private:
 
     void initialize_sentinel (void);
 
-    def_citer find_def (const ir_def *d) const;
+    citer find (const ir_def& d) const;
 
     ir_function& m_function;
 
     //! The variable name. The default is a synonym for 'anonymous'.
     std::string m_name = anonymous_name;
-  
-    tracker_type m_def_tracker;
 
     // Used to indicate if the variable is uninitialized in the current
     // code path. Lazily initialized.
@@ -156,23 +146,25 @@ namespace gch
 
   };
 
+  class def_timeline;
+
   //! An ssa variable def. It holds very little information about itself,
   //! it's more of just an indicating stub for the variable.
-  class ir_def : public gch::intrusive_reporter<ir_def, gch::tracker<ir_variable>>
+  class ir_def 
+    : public intrusive_reporter<ir_def, remote::intrusive_tracker<ir_variable>>,
+      public intrusive_tracker<ir_def, remote::reporter<ir_basic_block>>
   {
-
   public:
 
-    using reporter_type = gch::intrusive_reporter<ir_def, gch::tracker<ir_variable>>;
-    using tracker_type  = gch::tracker<ir_def, gch::reporter<ir_use, gch::tag::intrusive>>;
+    using base_reporter = intrusive_reporter<ir_def, remote::intrusive_tracker<ir_variable>>;
+    using base_tracker  = intrusive_tracker<ir_def, remote::intrusive_reporter<def_timeline>>;
 
-    ir_def (void)                     = delete;
-
-    ir_def (const ir_def&)            = delete;
-    ir_def (ir_def&& d) noexcept;
-
-    ir_def& operator= (const ir_def&) = delete;
-    ir_def& operator= (ir_def&&)      = delete;
+    ir_def            (void)                = delete;
+    ir_def            (const ir_def&)       = delete;
+    ir_def            (ir_def&& d) noexcept = delete;
+    ir_def& operator= (const ir_def&)       = delete;
+    ir_def& operator= (ir_def&&) noexcept   = delete;
+    ~ir_def           (void)                = default;
 
     //! Get the def. Don't use this within the scope of ir_variable. The
     //! def pointer is only nullptr when it is in an invalid state. It
@@ -180,6 +172,7 @@ namespace gch
     //! @return the parent def
     ir_variable& get_var (void) noexcept (false);
 
+    [[nodiscard]]
     const ir_variable& get_var (void) const noexcept (false);
 
     ir_use create_use (const ir_instruction& instr);
@@ -187,24 +180,33 @@ namespace gch
     template <typename InputIt>
     static ir_type common_type (InputIt first, InputIt last);
 
+    [[nodiscard]]
     constexpr const ir_def_instruction& get_instruction (void) const noexcept
     {
       return m_instr;
     }
 
+    [[nodiscard]]
+    constexpr ir_def_instruction& get_instruction (void) noexcept
+    {
+      return m_instr;
+    }
+
+    [[nodiscard]]
     ir_basic_block& get_block (void) const noexcept;
 
     std::ostream& print (std::ostream& os) const;
-  
+
+    [[nodiscard]]
     const std::string& get_name (void) const;
 
+    [[nodiscard]]
     std::size_t get_id (void) const;
 
-    bool has_uses (void) const noexcept
-    {
-      return ! m_use_tracker.has_reporters ();
-    }
+    [[nodiscard]]
+    bool has_uses (void) const noexcept;
 
+    [[nodiscard]]
     constexpr ir_type get_type (void) const
     {
       return m_type;
@@ -215,56 +217,53 @@ namespace gch
       m_needs_init_check = state;
     }
 
+    [[nodiscard]]
     bool needs_init_check (void) const noexcept
     {
       return m_needs_init_check;
     }
 
-    template <typename ...Args>
-    void transfer_from (ir_def& src, Args&&... args)
-    {
-      return m_use_tracker.transfer_bindings (src.m_use_tracker,
-                                              std::forward<Args> (args)...);
-    }
+//    template <typename ...Args>
+//    void transfer_bindings (ir_def& src, Args&&... args)
+//    {
+//      m_use_tracker.transfer_bindings (src.m_use_tracker);
+//      m_cache_tracker.transfer_bindings (src.m_cache_tracker);
+//    }
 
     friend ir_def ir_variable::create_def (ir_type ty, 
                                            const ir_def_instruction& instr);
 
   private:
 
-    ir_def (typename reporter_type::remote_type& tkr, ir_type ty, 
-            const ir_def_instruction& instr);
-
-    gch::tracker<ir_def, gch::reporter<ir_use, gch::tag::intrusive>> m_use_tracker;
-    gch::tracker<ir_def, gch::reporter<>>      m_cache_tracker;
+    ir_def (ir_variable& tkr, ir_type ty, const ir_def_instruction& instr);
 
     const ir_type m_type;
 
     // where this ir_def occurs
-    const ir_def_instruction& m_instr;
+    ir_def_instruction& m_instr;
 
     bool m_needs_init_check;
 
   };
 
-class ir_use : public ir_operand, 
-  public gch::intrusive_reporter<ir_use, gch::tracker<ir_def>>
+  class ir_use : public ir_operand,
+                 public intrusive_reporter<ir_use, remote::intrusive_tracker<def_timeline>>
   {
   public:
 
-    using reporter_type = gch::intrusive_reporter<ir_use, gch::tracker<ir_def>>;
+    using base          = intrusive_reporter<ir_use, remote::intrusive_tracker<ir_def>>;
+    using reporter_type = base;
 
     // uses can only be explicitly created by defs
     // They may not be copied, but they may be moved.
     // defs maintain a pointer to each use it created
 
-    constexpr ir_use (void)           = delete;
-
-    ir_use (const ir_use&)            = delete;
-    ir_use& operator= (const ir_use&) = delete;
-
-    ir_use (ir_use&& u) noexcept;
-    ir_use& operator= (ir_use&&)      = delete;
+    ir_use            (void)              = delete;
+    ir_use            (const ir_use&)     = delete;
+    ir_use            (ir_use&&) noexcept;
+    ir_use& operator= (const ir_use&)     = delete;
+    ir_use& operator= (ir_use&&) noexcept = delete;
+    ~ir_use           (void)              = default;
 
     //! Get the def. Don't use this within the scope of ir_variable. The
     //! def pointer is only nullptr when it is in an invalid state. It
@@ -272,7 +271,7 @@ class ir_use : public ir_operand,
     //! @return the parent def
     ir_def& get_def (void) const noexcept (false);
   
-  const std::string& get_name (void) const;
+    const std::string& get_name (void) const;
 
     std::size_t get_id (void);
 
@@ -283,7 +282,7 @@ class ir_use : public ir_operand,
   private:
 
     //! Create a use with a parent def.
-    ir_use (typename reporter_type::remote_type& tkr, 
+    ir_use (typename reporter_type::remote_interface_type& tkr, 
             const ir_instruction& instr);
 
     //! Where this use occurs.

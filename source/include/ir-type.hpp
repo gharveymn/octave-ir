@@ -99,7 +99,12 @@ namespace gch
 
   public:
 
-    ir_type (void) = delete;
+    ir_type            (void)               = delete;
+    ir_type            (const ir_type&)     = default;
+    ir_type            (ir_type&&) noexcept = default;
+    ir_type& operator= (const ir_type&)     = default;
+    ir_type& operator= (ir_type&&) noexcept = default;
+    ~ir_type           (void)               = default;
   
     [[nodiscard]]
     constexpr std::size_t get_size (void) const noexcept;
@@ -177,7 +182,7 @@ namespace gch
   private:
     
     //! Implicit!
-    constexpr ir_type (impl_p impl_ptr) noexcept
+    constexpr /* implicit */ ir_type (impl_p impl_ptr) noexcept
       : m_ptr (impl_ptr)
     { }
 

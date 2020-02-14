@@ -1,6 +1,4 @@
-SET(CMAKE_CXX_STANDARD 17)
-SET(CMAKE_CXX_EXTENSIONS OFF)
-
+SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 ADD_EXECUTABLE(test_octave-ir main.cpp)
 TARGET_LINK_LIBRARIES(test_octave-ir octave-ir)
 
@@ -17,3 +15,36 @@ endif()
 if (UNIX)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -g")
 endif()
+
+SET_TARGET_PROPERTIES(test_octave-ir PROPERTIES
+                      CXX_STANDARD          17
+                      CXX_STANDARD_REQUIRED YES
+                      CXX_EXTENSIONS        NO
+                      COMPILE_OPTIONS       "${COMPILE_OPTS}"
+                      LINK_OPTIONS          "${LINK_OPTS}")
+
+ADD_EXECUTABLE(scratch scratch.cpp)
+TARGET_LINK_LIBRARIES(scratch optional_ref plf_list tracker variant-iterator nonnull_ptr)
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  SET(COMPILE_OPTS -fno-rtti --coverage -Wall -Wextra)
+  SET(LINK_OPTS --coverage)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  SET(COMPILE_OPTS -fno-rtti -Wall -Wextra)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  SET(COMPILE_OPTS /GR-)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+
+endif()
+
+if (UNIX)
+  LIST(APPEND COMPILE_OPTS -fsanitize=address)
+  LIST(APPEND LINK_OPTS -fsanitize=address)
+endif()
+
+SET_TARGET_PROPERTIES(scratch PROPERTIES
+                      CXX_STANDARD          11
+                      CXX_STANDARD_REQUIRED NO
+                      CXX_EXTENSIONS        NO
+                      COMPILE_OPTIONS       "${COMPILE_OPTS}"
+                      LINK_OPTIONS          "${LINK_OPTS}")

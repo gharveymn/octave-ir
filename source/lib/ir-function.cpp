@@ -24,44 +24,47 @@ along with Octave; see the file COPYING.  If not, see
 #  include "config.h"
 #endif
 
-#include <ir-function.hpp>
+#include <variant-iterator.hpp>
+#include <nonnull_ptr.hpp>
+
+#include "ir-function.hpp"
 
 namespace gch
 {
   ir_component::link_iter
-  ir_function::pred_begin (ir_component *c)
+  ir_function::pred_begin (ir_component& c)
+  {
+    auto cit = must_find (c);
+    if (cit == begin ())
+      return void_it;
+    return (*--cit)->leaf_begin ();
+  }
+  
+  ir_component::link_iter
+  ir_function::pred_end (ir_component& c)
   {
     comp_citer cit = must_find (c);
     if (cit == begin ())
-      return link_iter (value_begin<ir_basic_block *> (nullptr));
-    return link_iter ((*--cit)->leaf_begin ());
+      return void_it;
+    return (*--cit)->leaf_end ();
   }
   
   ir_component::link_iter
-  ir_function::pred_end (ir_component *c)
-  {
-    comp_citer cit = must_find (c);
-    if (cit == begin ())
-      return link_iter (value_end<ir_basic_block *> (nullptr));
-    return ++link_iter ((*--cit)->leaf_end ());
-  }
-  
-  ir_component::link_iter
-  ir_function::succ_begin (ir_component *c)
+  ir_function::succ_begin (ir_component& c)
   {
     comp_citer cit = must_find (c);
     if (cit == last ())
-      return link_iter (value_begin<ir_basic_block *> (nullptr));
-    return link_iter ((*++cit)->get_entry_block ()->leaf_end ());
+      return void_it;
+    return (*++cit)->get_entry_block ().leaf_begin ();
   }
   
   ir_component::link_iter
-  ir_function::succ_end (ir_component *c)
+  ir_function::succ_end (ir_component& c)
   {
     comp_citer cit = must_find (c);
     if (cit == last ())
-      return link_iter (value_end<ir_basic_block *> (nullptr));
-    return link_iter ((*++cit)->get_entry_block ()->leaf_begin ());
+      return void_it;
+    return (*++cit)->get_entry_block ().leaf_end ();
   }
   
 }

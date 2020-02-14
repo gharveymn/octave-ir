@@ -31,7 +31,9 @@ along with Octave; see the file COPYING.  If not, see
 #include <ir-component.hpp>
 #include <ir-function.hpp>
 
+#include <algorithm>
 #include <iostream>
+#include <numeric>
 
 namespace gch
 {
@@ -71,28 +73,41 @@ namespace gch
     if (pairs.empty ())
       throw ir_exception ("block-def pair list unexpectedly empty.");
 
+    auto get_block  = [] (auto&& pair)
+                      {
+                        return std::get<nonnull_ptr<ir_basic_block>> (pair);
+                      };
+
+    auto get_def  = [] (auto&& pair)
+                    {
+                      return std::get<nonnull_ptr<ir_def>> (pair);
+                    };
+
+    auto get_type = [&get_def] (auto&& pair) -> ir_type
+                    {
+                      return get_def (pair)->get_type ();
+                    };
+
     // find the closest common type
-    ir_type common_ty = pairs.front ().second->get_type ();
-    for (const block_def_pair& p : pairs)
-      {
-        if (common_ty == ir_type_v<any>)
-          break;
-        common_ty = ir_type::lca (common_ty, p.second->get_type ());
-      }
+    ir_type common_ty = std::accumulate (++pairs.begin (), pairs.end (), get_type (pairs.front ()),
+                                         [&get_type] (ir_type curr, auto&& pair)
+                                         {
+                                           return ir_type::lca (curr, get_type (pair));
+                                         });
+
     if (common_ty == ir_type_v<void>)
       throw ir_exception ("no common type");
 
-    for (block_def_pair& p : pairs)
-      {
-        ir_basic_block& blk = p.first;
-        ir_def *d = p.second;
-        if (d->get_type () != common_ty)
-          {
-            ir_convert& instr = blk.emplace_back<ir_convert> (d->get_var (),
-                                                              common_ty, *d);
-            p.second = &instr.get_return ();
-          }
-      }
+    std::for_each (pairs.begin (), pairs.end (),
+                   [&get_type, common_ty] (auto& pair)
+                   {
+                     auto& [block, def] = pair;
+                     if (def->get_type () != common_ty)
+                     {
+                       auto& instr = block->template emplace_back<ir_convert> (common_ty, def);
+                       def = instr->get_def ();
+                     }
+                   });
     return common_ty;
   }
 
@@ -110,40 +125,45 @@ namespace gch
     return "_" + m_name + "_sentinel";
   }
 
-  ir_def&
+  optional_ref<ir_def>
   ir_variable::join (ir_basic_block& blk)
   {
     return join (blk, blk.body_end ());
   }
 
-  ir_def&
+  optional_ref<ir_def>
   ir_variable::join (ir_basic_block& blk, instr_citer pos)
   {
-    gch::optional_ref<ir_def> ret = blk.fetch_proximate_def (*this, pos);
+    gch::optional_ref<ir_def> ret = blk.get_latest_def_before (*this, pos);
     if (! ret.has_value ())
       ret = blk.join_preceding_defs (*this);
 
     // if ret is still nullptr then we need to insert a fetch instruction
     if (! ret.has_value ())
-      return blk.emplace_before<ir_fetch> (pos, *this).get_return ();
+      return blk.emplace_before<ir_fetch> (pos, *this).get_def ();
     else
       {
         // if the ir_def was created by a phi node, there may be
       }
       
     // guaranteed return  
-    return **ret;
+    return *ret;
   }
 
   void
   ir_variable::initialize_sentinel (void)
   {
-    m_sentinel = std::make_unique<ir_variable> (get_module (),
-                                                get_sentinel_name ());
+    m_sentinel = std::make_unique<ir_variable> (get_module (), get_sentinel_name ());
     // set false (meaning undecided state) at the beginning of the module.
-    ir_basic_block *entry = get_function ().get_entry_block ();
-    entry->emplace_front<ir_assign> (*m_sentinel,
-                                     ir_constant<bool> {false});
+    ir_basic_block& entry = get_function ().get_entry_block ();
+    entry.emplace_front<ir_assign> (*m_sentinel, ir_constant<bool> {false});
+  }
+  
+  ir_variable::tracker_type::citer
+  ir_variable::find (const ir_def& d) const
+  {
+    return std::find_if (m_def_tracker.begin (), m_def_tracker.end (), 
+                         [&d](const ir_def& x) { return &x == &d; });
   }
 
 //  void
@@ -186,39 +206,27 @@ namespace gch
   // ir_def
   //
 
-  ir_def::ir_def (typename reporter_type::remote_type& tkr, ir_type ty,
-                  const ir_def_instruction& instr)
-    : reporter_type (tkr),
-      m_use_tracker (*this),
+  ir_def::ir_def (ir_variable& tkr, ir_type ty, const ir_def_instruction& instr)
+    : base_reporter (tag::bind, tkr),
       m_type (ty),
       m_instr (instr),
       m_needs_init_check (false)
   { }
 
-  ir_def::ir_def (ir_def&& d) noexcept
-    : reporter_type (std::move (d)),
-      m_use_tracker (std::move (d.m_use_tracker), *this),
-      m_type (d.m_type),
-      m_instr (d.m_instr),
-      m_needs_init_check (d.m_needs_init_check)
-  { }
-
   ir_variable&
   ir_def::get_var (void) noexcept (false)
   {
-    if (has_remote_parent ())
-      return fetch_remote_parent ();
-    throw ir_exception ("ir_def is in an invalid state "
-                        "and has no ir_variable.");
+    if (has_remote ())
+      return get_remote ();
+    throw ir_exception ("ir_def is in an invalid state and has no ir_variable.");
   }
 
   const ir_variable&
   ir_def::get_var (void) const noexcept (false)
   {
-    if (has_remote_parent ())
-      return fetch_remote_parent ();
-    throw ir_exception ("ir_def is in an invalid state "
-                        "and has no ir_variable.");
+    if (has_remote ())
+      return get_remote ();
+    throw ir_exception ("ir_def is in an invalid state and has no ir_variable.");
   }
 
   ir_use
@@ -238,11 +246,12 @@ namespace gch
           return curr_ty;
         curr_ty = ir_type::lca (curr_ty, *first->get_type ());
       }
+    // couldn't find a common type
     if (curr_ty == ir_type::get<void> ())
       throw ir_exception ("no common type");
     return curr_ty;
   }
-
+  
   ir_basic_block& ir_def::get_block (void) const noexcept
   {
     return get_instruction ().get_block ();
@@ -266,13 +275,19 @@ namespace gch
     return get_position ();
   }
 
+  bool ir_def::has_uses (void) const noexcept
+  {
+    return std::any_of (begin (), end (),
+                        [] (const def_timeline& dt) { return dt.has_remotes (); });
+  }
+
   //
   // ir_use
   //
 
-  ir_use::ir_use (typename reporter_type::remote_type& tkr, 
+  ir_use::ir_use (typename reporter_type::remote_interface_type& tkr, 
                   const ir_instruction& instr)
-    : reporter_type (tkr),
+    : reporter_type (tag::bind, tkr),
       m_instr (&instr)
   { }
 
@@ -302,8 +317,8 @@ namespace gch
   ir_def&
   ir_use::get_def (void) const noexcept (false)
   {
-    if (has_remote_parent ())
-      return fetch_remote_parent ();
+    if (has_remote ())
+      return get_remote ();
     throw ir_exception ("ir_use is in an invalid state and has no ir_def.");
   }
 

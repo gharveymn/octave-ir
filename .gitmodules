@@ -18,3 +18,7 @@
 	path = external/create-package
 	url = git@github.com:gharveymn/create-package.git
 	branch = master
+[submodule "external/nonnull_ptr"]
+	path = external/nonnull_ptr
+	url = git@github.com:gharveymn/nonnull_ptr.git
+	branch = master

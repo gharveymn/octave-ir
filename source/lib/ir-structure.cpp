@@ -40,9 +40,9 @@ namespace gch
   ir_structure::~ir_structure (void) noexcept = default;
 
   void
-  ir_structure::leaf_push_back (ir_basic_block *blk)
+  ir_structure::leaf_push_back (ir_basic_block& blk)
   {
-    m_leaf_cache.push_back (blk);
+    m_leaf_cache.emplace_back (blk);
   }
 
   template <typename It>
@@ -57,7 +57,7 @@ namespace gch
   {
     if (leaf_cache_empty ())
       generate_leaf_cache ();
-    return link_iter (m_leaf_cache.begin ());
+    return m_leaf_cache.begin ();
   }
 
   ir_structure::link_iter
@@ -65,7 +65,7 @@ namespace gch
   {
     if (leaf_cache_empty ())
       generate_leaf_cache ();
-    return link_iter (m_leaf_cache.end ());
+    return m_leaf_cache.end ();
   }
 
   //
@@ -75,35 +75,27 @@ namespace gch
   ir_fork_component::~ir_fork_component (void) noexcept = default;
 
   ir_component::link_iter
-  ir_fork_component::pred_begin (ir_component *c)
+  ir_fork_component::pred_begin (ir_component& c)
   {
-    if (c == &m_condition)
-      return m_parent.pred_begin (this);
-    return link_iter (&m_condition);
+    return is_condition (c) ? m_parent.pred_begin (*this) : link_iter (m_condition);
   }
 
   ir_component::link_iter
-  ir_fork_component::pred_end (ir_component *c)
+  ir_fork_component::pred_end (ir_component& c)
   {
-    if (c == &m_condition)
-      return m_parent.pred_end (this);
-    return ++link_iter (&m_condition);
+    return is_condition (c) ? m_parent.pred_end (*this) : ++link_iter (m_condition);
   }
 
   ir_component::link_iter
-  ir_fork_component::succ_begin (ir_component *c)
+  ir_fork_component::succ_begin (ir_component& c)
   {
-    if (c == &m_condition)
-      return sub_entry_begin ();
-    return m_parent.succ_begin (this);
+    return is_condition (c) ? sub_entry_begin () : m_parent.succ_begin (*this);
   }
 
   ir_component::link_iter
-  ir_fork_component::succ_end (ir_component *c)
+  ir_fork_component::succ_end (ir_component& c)
   {
-    if (c == &m_condition)
-      return sub_entry_end ();
-    return m_parent.succ_end (this);
+    return is_condition (c) ? sub_entry_end () : m_parent.succ_end (*this);
   }
 
   bool
@@ -125,7 +117,7 @@ namespace gch
   {
     if (m_sub_entry_cache.empty ())
       generate_sub_entry_cache ();
-    return link_iter (m_sub_entry_cache.begin ());
+    return m_sub_entry_cache.begin ();
   }
 
   ir_component::link_iter
@@ -133,7 +125,7 @@ namespace gch
   {
     if (m_sub_entry_cache.empty ())
       generate_sub_entry_cache ();
-    return link_iter (m_sub_entry_cache.end ());
+    return m_sub_entry_cache.end ();
   }
 
   void
@@ -150,70 +142,52 @@ namespace gch
   ir_loop_component::~ir_loop_component (void) noexcept = default;
 
   ir_component::link_iter
-  ir_loop_component::pred_begin (ir_component *c)
+  ir_loop_component::pred_begin (ir_component& c)
   {
-    if (c == &m_entry)
-      return m_parent.pred_begin (this);
-    else if (c == &m_condition)
-      return link_iter (m_cond_preds.begin ());
-    else if (c == &m_body)
-      return link_iter (&m_condition);
-    throw ir_exception ("Component was not in the loop component.");
+    if      (is_entry (c))     return m_parent.pred_begin (*this);
+    else if (is_condition (c)) return m_cond_preds.begin ();
+    else if (is_body (c))      return m_condition;
+    else                       throw ir_exception ("Component was not in the loop component.");
   }
 
   ir_component::link_iter
-  ir_loop_component::pred_end (ir_component *c)
+  ir_loop_component::pred_end (ir_component& c)
   {
-    if (c == &m_entry)
-      return m_parent.pred_end (this);
-    else if (c == &m_condition)
-      return link_iter (m_cond_preds.end ());
-    else if (c == &m_body)
-      return ++link_iter (&m_condition);
-    throw ir_exception ("Component was not in the loop component.");
+    if      (is_entry (c))     return m_parent.pred_end (*this);
+    else if (is_condition (c)) return m_cond_preds.end ();
+    else if (is_body (c))      return ++link_iter (m_condition);
+    else                       throw ir_exception ("Component was not in the loop component.");
   }
 
   ir_component::link_iter
-  ir_loop_component::succ_begin (ir_component *c)
+  ir_loop_component::succ_begin (ir_component& c)
   {
-    if (c == &m_entry)
-      return link_iter (&m_condition);
-    else if (c == &m_condition)
-      return cond_succ_begin ();
-    else if (c == &m_body)
-      return link_iter (&m_condition);
-    throw ir_exception ("Component was not in the loop component.");
+    if      (is_entry (c))     return m_condition;
+    else if (is_condition (c)) return cond_succ_begin ();
+    else if (is_body (c))      return m_condition;
+    else                       throw ir_exception ("Component was not in the loop component.");
   }
 
   ir_component::link_iter
-  ir_loop_component::succ_end (ir_component *c)
+  ir_loop_component::succ_end (ir_component& c)
   {
-    if (c == &m_entry)
-      return m_parent.pred_end (this);
-    else if (c == &m_condition)
-      return cond_succ_end ();
-    else if (c == &m_body)
-      return ++link_iter (&m_condition);
-    throw ir_exception ("Component was not in the loop component.");
-  }
-
-  ir_basic_block *
-  ir_loop_component::get_update_block (void) const noexcept
-  {
-    return static_cast<ir_basic_block *> (m_body.back ().get ());
+    if      (is_entry (c))     return ++link_iter (m_condition);
+    else if (is_condition (c)) return cond_succ_end ();
+    else if (is_body (c))      return ++link_iter (m_condition);
+    else                       throw ir_exception ("Component was not in the loop component.");
   }
 
   ir_component::link_iter
   ir_loop_component::cond_succ_begin (void)
   {
     m_succ_cache.front () = m_body.get_entry_block ();
-    return link_iter (m_succ_cache.begin ());
+    return m_succ_cache.begin ();
   }
 
   ir_component::link_iter
   ir_loop_component::cond_succ_end (void)
   {
-    return link_iter (m_succ_cache.end ());
+    return m_succ_cache.end ();
   }
 
 }

@@ -40,7 +40,7 @@ CREATE_PACKAGE(AUTHOR       gharveymn
                NAME         octave-ir
                HEADERS      ${HEADERS}
                SOURCES      ${SOURCES}
-               DEPENDENCIES optional_ref plf_list tracker variant-iterator)
+               DEPENDENCIES optional_ref plf_list tracker variant-iterator nonnull_ptr)
 
 SET_TARGET_PROPERTIES(octave-ir PROPERTIES
                       CXX_STANDARD          17

@@ -190,8 +190,7 @@ namespace gch
     { };
 
     template <typename T, typename ...Ts>
-    struct is_element<T, std::void_t<typename index<0, T, Ts...>::type>,
-      Ts...>
+    struct is_element<T, std::void_t<typename index<0, T, Ts...>::type>, Ts...>
       : std::true_type
     { };
   

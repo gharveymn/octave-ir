@@ -47,24 +47,30 @@ namespace gch
 
     ~ir_structure (void) noexcept override = 0;
 
-    using comp_list = std::list<std::unique_ptr<ir_component>>;
-    using comp_iter = comp_list::iterator;
-    using comp_citer = comp_list::const_iterator;
-    using comp_ref = comp_list::reference;
-    using comp_cref = comp_list::const_reference;
+    using component_list  = std::list<std::unique_ptr<ir_component>>;
+    using comp_iter       = component_list::iterator;
+    using comp_citer      = component_list::const_iterator;
+    using comp_riter      = component_list::reverse_iterator;
+    using comp_criter     = component_list::const_reverse_iterator;
+    using comp_ref        = component_list::reference;
+    using comp_cref       = component_list::const_reference;
     
-    virtual link_iter pred_begin (ir_component *c) = 0;
-    virtual link_iter pred_end   (ir_component *c) = 0;
-    virtual link_iter succ_begin (ir_component *c) = 0;
-    virtual link_iter succ_end   (ir_component *c) = 0;
+    using comp_handle = variant_iterator<comp_iter, value_iter<nonnull_ptr<ir_basic_block>>>;
+    
+    virtual link_iter pred_begin (ir_component& c) = 0;
+    virtual link_iter pred_end   (ir_component& c) = 0;
+    virtual link_iter succ_begin (ir_component& c) = 0;
+    virtual link_iter succ_end   (ir_component& c) = 0;
+    
+    virtual ir_basic_block& split (ir_basic_block& blk, instr_iter pivot) = 0;
   
-    ir_basic_block * pred_front (ir_component *c) { return *pred_begin (c); }
-    ir_basic_block * pred_back  (ir_component *c) { return *(--pred_end (c)); }
-    ir_basic_block * succ_front (ir_component *c) { return *succ_begin (c); }
-    ir_basic_block * succ_back  (ir_component *c) { return *(--succ_end (c)); }
+    ir_basic_block& pred_front (ir_component& c) { return **pred_begin (c); }
+    ir_basic_block& pred_back  (ir_component& c) { return **(--pred_end (c)); }
+    ir_basic_block& succ_front (ir_component& c) { return **succ_begin (c); }
+    ir_basic_block& succ_back  (ir_component& c) { return **(--succ_end (c)); }
 
     link_iter leaf_begin (void) override;
-    link_iter leaf_end (void) override;
+    link_iter leaf_end   (void) override;
 
     virtual void invalidate_leaf_cache (void) noexcept = 0;
 
@@ -75,7 +81,8 @@ namespace gch
       m_leaf_cache.clear ();
     }
 
-    bool leaf_cache_empty (void) const noexcept
+    [[nodiscard]]
+    constexpr bool leaf_cache_empty (void) const noexcept
     {
       return m_leaf_cache.empty ();
     }
@@ -190,7 +197,7 @@ namespace gch
     };
 #endif
 
-    void leaf_push_back (ir_basic_block *blk);
+    void leaf_push_back (ir_basic_block& blk);
 
     template <typename It>
     void leaf_push_back (It first, It last);
@@ -199,72 +206,67 @@ namespace gch
     link_cache_vect m_leaf_cache;
   };
   
-  template <typename T>
-  class ir_sequence : public ir_structure
+  template <typename Entry>
+  class ir_component_list : public ir_structure
   {
   
   public:
     
-    using entry_type = T;
-  
-    using iter  = comp_iter;
-    using citer = comp_citer;
-    using ref   = comp_ref;
-    using cref  = comp_cref;
-    
+    using entry_type = Entry;
+
   private:
     
     class find_cache
     {
     public:
-      
-      explicit find_cache (citer cit) noexcept
-        : m_ptr (cit->get ()),
-          m_cit (cit)
+
+      find_cache            (void)                  = delete;
+      find_cache            (const find_cache&)     = default;
+      find_cache            (find_cache&&) noexcept = default;
+      find_cache& operator= (const find_cache&)     = default;
+      find_cache& operator= (find_cache&&) noexcept = default;
+      ~find_cache           (void)                  = default;
+
+      explicit find_cache (comp_citer cit) noexcept
+        : m_cit (cit)
       { }
-      
-      find_cache (const find_cache&) noexcept         = default;
-      find_cache (find_cache&& o) noexcept            = default;
-      
-      find_cache& operator= (const find_cache& o)     = delete;
-      find_cache& operator= (find_cache&& o)          = delete;
-      
-      void set (citer cit) noexcept
+
+      void emplace (comp_citer cit) noexcept
       {
-        m_ptr = cit->get ();
         m_cit = cit;
       }
-      
-      constexpr bool compare (ir_component *p) const noexcept
+
+      [[nodiscard]]
+      constexpr bool contains (const ir_component& p) const noexcept
       {
-        return p == m_ptr;
+        return &p == m_cit->get ();
       }
-      
-      constexpr const citer& retrieve (void) const noexcept
+
+      [[nodiscard]]
+      constexpr const comp_citer& retrieve (void) const noexcept
       {
         return m_cit;
       }
       
     private:
-      const ir_component *m_ptr;
-      citer               m_cit;
+      comp_citer m_cit;
     };
     
   public:
 
-    explicit ir_sequence (void)
-      : m_cache (emplace<entry_type> (end ()))
+    explicit ir_component_list (void)
+      : m_cache (emplace_before<entry_type> (end ()))
     { }
     
-    ir_sequence (ir_sequence&& o) noexcept
+    ir_component_list (ir_component_list&& o) noexcept
       : m_body (std::move (o.m_body)),
         m_cache (std::move (o.m_cache))
     { }
     
-    ir_sequence (const ir_sequence&) = delete;
+    ir_component_list (const ir_component_list&) = delete;
     
-    ir_sequence& operator= (const ir_sequence&) = delete;
-    ir_sequence& operator= (ir_sequence&& o)    = delete;
+    ir_component_list& operator= (const ir_component_list&) = delete;
+    ir_component_list& operator= (ir_component_list&& o)    = delete;
     
     void reset (void) noexcept override
     {
@@ -274,51 +276,76 @@ namespace gch
       invalidate_leaf_cache ();
     }
 
-    citer begin (void) const noexcept { return m_body.begin (); }
-    citer end   (void) const noexcept { return m_body.end ();   }
-    cref  front (void) const          { return m_body.front (); }
-    cref  back  (void) const          { return m_body.back ();  }
+    [[nodiscard]] comp_iter   begin (void)       noexcept { return m_body.begin ();   }
+    [[nodiscard]] comp_citer  begin (void) const noexcept { return m_body.begin ();   }
+    [[nodiscard]] comp_citer  cbegin (void) const noexcept { return m_body.cbegin ();  }
 
-    bool empty (void) const           { return m_body.empty (); }
+    [[nodiscard]] comp_iter   end (void)       noexcept { return m_body.end ();     }
+    [[nodiscard]] comp_citer  end (void) const noexcept { return m_body.end ();     }
+    [[nodiscard]] comp_citer  cend (void) const noexcept { return m_body.cend ();    }
 
-    citer last (void) const
+    [[nodiscard]] comp_riter  rbegin (void)       noexcept { return m_body.rbegin ();  }
+    [[nodiscard]] comp_criter rbegin (void) const noexcept { return m_body.rbegin ();  }
+    [[nodiscard]] comp_criter crbegin (void) const noexcept { return m_body.crbegin (); }
+
+    [[nodiscard]] comp_riter  rend (void)       noexcept { return m_body.rend ();    }
+    [[nodiscard]] comp_criter rend (void) const noexcept { return m_body.rend ();    }
+    [[nodiscard]] comp_criter crend (void) const noexcept { return m_body.crend ();   }
+
+    [[nodiscard]] comp_ref    front (void)                { return m_body.front ();   }
+    [[nodiscard]] comp_cref   front (void) const          { return m_body.front ();   }
+
+    [[nodiscard]] comp_ref    back (void)                { return m_body.back ();    }
+    [[nodiscard]] comp_cref   back (void) const          { return m_body.back ();    }
+
+    [[nodiscard]] bool   empty         (void) const noexcept { return m_body.empty ();   }
+
+    [[nodiscard]] comp_citer  last (void) const          { return --end ();          }
+
+    comp_citer find (const ir_component& c)
     {
-      return --end ();
-    }
-
-    citer find (ir_component *c)
-    {
-      if (! is_cached (c))
-        set_cache (std::find_if (m_body.begin (), m_body.end (),
-                                 [c](comp_cref u) {return u.get () == c; }));
-      return retrieve_cache ();
+      if (is_cached (c))
+        return retrieve_cache ();
+      return set_cache (std::find_if (m_body.begin (), m_body.end (),
+                                      [cmp = &c](auto&& u) { return u.get () == cmp; }));
     }
     
     template <typename S, typename ...Args,
               typename = std::enable_if_t<is_component<S>::value>>
-    citer emplace (citer cit, Args&&... args)
+    comp_citer emplace_before (comp_citer cit, Args&&... args)
     {
-      return m_body.emplace (cit,
-        create_component<S> (std::forward<Args> (args)...));
+      return m_body.emplace (cit, create_component<S> (std::forward<Args> (args)...));
     }
-
+  
     template <typename S, typename ...Args,
               typename = std::enable_if_t<is_component<S>::value>>
-    S * emplace_back (Args&&... args)
+    S& emplace_front (Args&&... args)
     {
-      std::unique_ptr<S> u =
-        create_component<S> (std::forward<Args> (args)...);
-      S *ret = u.get ();
-      m_body.emplace_back (std::move (u));
+      auto u = create_component<S> (std::forward<Args> (args)...);
+      S& ret = *u;
+      m_body.emplace_front (std::move (u));
       invalidate_leaf_cache ();
       return ret;
     }
 
+    template <typename S, typename ...Args,
+              typename = std::enable_if_t<is_component<S>::value>>
+    S& emplace_back (Args&&... args)
+    {
+      auto u = create_component<S> (std::forward<Args> (args)...);
+      S& ret = *u;
+      m_body.emplace_back (std::move (u));
+      invalidate_leaf_cache ();
+      return ret;
+    }
+    
+    template <typename T, >
+    
     //
     // virtual from ir_component
     //
 
-    ir_basic_block * get_entry_block (void) noexcept override
+    ir_basic_block& get_entry_block (void) noexcept override
     {
       return front ()->get_entry_block ();
     }
@@ -326,6 +353,15 @@ namespace gch
     //
     // virtual from ir_structure
     //
+    
+    ir_basic_block& split (ir_basic_block& blk, instr_iter pivot) override
+    {
+      auto  ret_it = emplace_before<ir_basic_block> (must_find (blk));
+      auto& ret    = static_cast<ir_basic_block&> (**ret_it);
+      
+      // transfer instructions which occur after the pivot
+      blk.split (pivot, ret);
+    }
 
     // protected
     bool is_leaf_component (ir_component *c) noexcept override
@@ -340,12 +376,11 @@ namespace gch
 
   protected:
 
-    citer must_find (ir_component *c)
+    comp_citer must_find (const ir_component& c)
     {
-      citer cit = find (c);
-      if (cit == end ())
-        throw ir_exception ("component not found in the structure");
-      return cit;
+      if (auto cit = find (c); cit != end ())
+        return cit;
+      throw ir_exception ("Component not found in the structure.");
     }
 
   private:
@@ -357,96 +392,99 @@ namespace gch
       return std::make_unique<S> (*this, std::forward<Args> (args)...);
     }
     
-    void set_cache (citer cit) noexcept
+    comp_citer set_cache (comp_citer cit) noexcept
     {
-      return m_cache.set (cit);
+      if (cit != end ())
+        m_cache.emplace (cit);
+      return cit;
+    }
+
+    [[nodiscard]]
+    constexpr bool is_cached (const ir_component& p) const noexcept
+    {
+      return m_cache.contains (p);
     }
     
-    constexpr bool is_cached (ir_component *p) const
-    {
-      return m_cache.compare (p);
-    }
-    
-    citer retrieve_cache (void)
+    comp_citer retrieve_cache (void)
     {
       return m_cache.retrieve ();
     }
 
-    comp_list m_body;
-
-    find_cache m_cache;
+    component_list m_body;
+    find_cache     m_cache;
 
   };
   
-  template <typename T>
-  class ir_subsequence : public ir_sequence<T>
+  template <typename Entry>
+  class ir_sequence : public ir_component_list<Entry>
   {
-    
-    using base_type = ir_sequence<T>;
-  
+
+    using base = ir_component_list<Entry>;
+
   public:
-    
-    explicit ir_subsequence (ir_structure& parent)
+
+    ir_sequence            (void)                   = delete;
+    ir_sequence            (const ir_sequence&)     = delete;
+    ir_sequence            (ir_sequence&&) noexcept = delete;
+    ir_sequence& operator= (const ir_sequence&)     = delete;
+    ir_sequence& operator= (ir_sequence&&) noexcept = delete;
+    ~ir_sequence           (void) noexcept override = default;
+
+    explicit ir_sequence (ir_structure& parent)
       : m_parent (parent)
     { }
-
-    ~ir_subsequence (void) noexcept override = default;
 
     //
     // virtual from ir_structure
     //
-  
-    void reset (void) noexcept override
+
+    ir_structure::link_iter pred_begin (ir_component& c) override
     {
-      base_type::reset ();
-      invalidate_leaf_cache ();
-    }
-  
-    ir_structure::link_iter pred_begin (ir_component *c) override
-    {
-      ir_structure::comp_citer cit = base_type::must_find (c);
-      if (cit == base_type::begin ())
-        return m_parent.pred_begin (this);
+      auto cit = base::must_find (c);
+      if (cit == base::begin ())
+        return m_parent.pred_begin (*this);
       return (*--cit)->leaf_begin ();
     }
-  
-    ir_structure::link_iter pred_end (ir_component *c) override
+
+    ir_structure::link_iter pred_end (ir_component& c) override
     {
-      ir_structure::comp_citer cit = base_type::must_find (c);
-      if (cit == base_type::begin ())
-        return m_parent.pred_end (this);
+      auto cit = base::must_find (c);
+      if (cit == base::begin ())
+        return m_parent.pred_end (*this);
       return (*--cit)->leaf_end ();
     }
-  
-    ir_structure::link_iter succ_begin (ir_component *c) override
+
+    ir_structure::link_iter succ_begin (ir_component& c) override
     {
       using link_iter = ir_component::link_iter;
-      ir_structure::comp_citer cit = base_type::must_find (c);
-      if (cit == base_type::last ())
-        return m_parent.succ_begin (this);
-      return link_iter ((*++cit)->get_entry_block ());
+      auto cit = base::must_find (c);
+      if (cit == base::last ())
+        return m_parent.succ_begin (*this);
+      return (*++cit)->get_entry_block ();
     }
-  
-    ir_structure::link_iter succ_end (ir_component *c) override
+
+    ir_structure::link_iter succ_end (ir_component& c) override
     {
       using link_iter = ir_component::link_iter;
-      ir_structure::comp_citer cit = base_type::must_find (c);
-      if (cit == base_type::last ())
-        return m_parent.succ_end (this);
-      return ++ir_component::link_iter ((*++cit)->get_entry_block ());
+      auto cit = base::must_find (c);
+      if (cit == base::last ())
+        return m_parent.succ_end (*this);
+      return ++link_iter ((*++cit)->get_entry_block ());
     }
-    
+
     void invalidate_leaf_cache (void) noexcept override
     {
-      if (base_type::is_leaf_component (this))
+      if (base::is_leaf_component (this))
         m_parent.invalidate_leaf_cache ();
     }
-  
+
+    [[nodiscard]]
     ir_function& get_function (void) noexcept override
     {
       return m_parent.get_function ();
     }
-  
+
+    [[nodiscard]]
     const ir_function& get_function (void) const noexcept override
     {
       return m_parent.get_function ();
@@ -462,27 +500,32 @@ namespace gch
   {
   public:
 
-    ir_fork_component (ir_structure& parent)
+    ir_fork_component            (void)                         = delete;
+    ir_fork_component            (const ir_fork_component&)     = delete;
+    ir_fork_component            (ir_fork_component&&) noexcept = delete;
+    ir_fork_component& operator= (const ir_fork_component&)     = delete;
+    ir_fork_component& operator= (ir_fork_component&&) noexcept = delete;
+    ~ir_fork_component           (void)       noexcept override;
+
+    explicit ir_fork_component (ir_structure& parent)
       : m_parent (parent),
         m_condition (parent)
     { }
 
-    ~ir_fork_component () noexcept override;
+    link_iter pred_begin (ir_component& c) override;
+    link_iter pred_end   (ir_component& c) override;
+    link_iter succ_begin (ir_component& c) override;
+    link_iter succ_end   (ir_component& c) override;
 
-    link_iter pred_begin (ir_component *c) override;
-    link_iter pred_end   (ir_component *c) override;
-    link_iter succ_begin (ir_component *c) override;
-    link_iter succ_end   (ir_component *c) override;
-
-    ir_basic_block * get_entry_block (void) noexcept override
+    ir_basic_block& get_entry_block (void) noexcept override
     {
-      return &m_condition;
+      return m_condition;
     }
 
     bool is_leaf_component (ir_component *c) noexcept override;
-    
+
     void generate_leaf_cache (void) override;
-  
+
     void invalidate_leaf_cache (void) noexcept override
     {
       if (! leaf_cache_empty ())
@@ -492,21 +535,26 @@ namespace gch
             m_parent.invalidate_leaf_cache ();
         }
     }
-    
+
     void reset (void) noexcept override
     {
       m_subcomponents.clear ();
-      
+
     }
-  
+
     ir_function& get_function (void) noexcept override
     {
       return m_parent.get_function ();
     }
-  
+
     const ir_function& get_function (void) const noexcept override
     {
       return m_parent.get_function ();
+    }
+
+    constexpr bool is_condition (ir_component& c) const noexcept
+    {
+      return &c == &m_condition;
     }
 
   private:
@@ -520,7 +568,7 @@ namespace gch
     ir_structure& m_parent;
 
     ir_condition_block m_condition;
-    comp_list m_subcomponents;
+    component_list m_subcomponents;
 
     // holds entries for subcomponents
     link_cache_vect m_sub_entry_cache;
@@ -532,36 +580,41 @@ namespace gch
   {
   public:
 
-    ir_loop_component (ir_structure& parent)
+    ir_loop_component            (void)                         = delete;
+    ir_loop_component            (const ir_loop_component&)     = delete;
+    ir_loop_component            (ir_loop_component&&) noexcept = delete;
+    ir_loop_component& operator= (const ir_loop_component&)     = delete;
+    ir_loop_component& operator= (ir_loop_component&&) noexcept = delete;
+    ~ir_loop_component           (void)       noexcept override;
+
+    explicit ir_loop_component (ir_structure& parent)
       : m_parent (parent),
         m_entry (*this),
         m_body (*this),
         m_condition (*this),
         m_exit (*this),
-        m_cond_preds { &m_entry, get_update_block () },
-        m_succ_cache { m_body.get_entry_block (), &m_exit }
+        m_cond_preds { m_entry, get_update_block () },
+        m_succ_cache { m_body.get_entry_block (), m_exit }
     { }
 
-    ~ir_loop_component (void) noexcept override;
+    link_iter pred_begin (ir_component& c) override;
+    link_iter pred_end   (ir_component& c) override;
+    link_iter succ_begin (ir_component& c) override;
+    link_iter succ_end   (ir_component& c) override;
 
-    link_iter pred_begin (ir_component *c) override;
-    link_iter pred_end   (ir_component *c) override;
-    link_iter succ_begin (ir_component *c) override;
-    link_iter succ_end   (ir_component *c) override;
-  
     link_iter leaf_begin (void) override
     {
-      return link_iter (&m_condition);
+      return m_condition;
     }
-    
+
     link_iter leaf_end (void) override
     {
       return ++leaf_begin ();
     }
 
-    ir_basic_block *get_entry_block (void) noexcept override
+    ir_basic_block& get_entry_block (void) noexcept override
     {
-      return &m_entry;
+      return m_entry;
     }
 
     bool is_leaf_component (ir_component *c) noexcept override
@@ -574,8 +627,11 @@ namespace gch
       throw ir_exception ("this should not run");
     }
 
-    ir_basic_block *get_update_block (void) const noexcept;
-  
+    ir_basic_block& get_update_block (void) const noexcept
+    {
+      return static_cast<ir_basic_block&> (*m_body.back ());
+    }
+
     void invalidate_leaf_cache (void) noexcept override
     {
       if (! leaf_cache_empty ())
@@ -585,15 +641,33 @@ namespace gch
             m_parent.invalidate_leaf_cache ();
         }
     }
-  
+
     ir_function& get_function (void) noexcept override
     {
       return m_parent.get_function ();
     }
-  
+
     const ir_function& get_function (void) const noexcept override
     {
       return m_parent.get_function ();
+    }
+
+    [[nodiscard]]
+    constexpr bool is_entry (ir_component& c) const noexcept
+    {
+      return &c == &m_entry;
+    }
+
+    [[nodiscard]]
+    constexpr bool is_condition (ir_component& c) const noexcept
+    {
+      return &c == &m_condition;
+    }
+
+    [[nodiscard]]
+    constexpr bool is_body (ir_component& c) const noexcept
+    {
+      return &c == &m_body;
     }
 
   private:
@@ -605,8 +679,8 @@ namespace gch
     ir_structure& m_parent;
 
     ir_basic_block m_entry;
-  
-    ir_subsequence<ir_basic_block> m_body;
+
+    ir_sequence<ir_basic_block> m_body;
 
     // preds: entry, update
     ir_loop_condition_block m_condition;

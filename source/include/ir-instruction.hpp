@@ -105,11 +105,21 @@ namespace gch
     using ref = arg_list::reference;
     using cref = arg_list::const_reference;
 
+    ir_instruction            (void)                      = delete;
+    ir_instruction            (const ir_instruction&)     = delete;
+    ir_instruction            (ir_instruction&&) noexcept = delete;
+    ir_instruction& operator= (const ir_instruction&)     = delete;
+    ir_instruction& operator= (ir_instruction&&) noexcept = delete;
+    virtual ~ir_instruction   (void)                      = default;
+
     explicit ir_instruction (ir_basic_block& blk)
       : m_block (blk)
     { }
 
-    virtual ~ir_instruction (void) = default;
+    ir_instruction (ir_instruction&& other, ir_basic_block& blk)
+      : m_block (blk),
+        m_args  (std::move (other.m_args))
+    { }
 
     virtual bool infer (void) { return false; }
 
@@ -118,9 +128,15 @@ namespace gch
     //! @return the output stream
     // virtual std::ostream& print (std::ostream& os) const = 0;
 
+    void set_block (ir_basic_block& blk) noexcept
+    {
+      m_block.emplace (blk);
+    }
+
+    [[nodiscard]]
     constexpr ir_basic_block& get_block (void) const noexcept
     {
-      return m_block;
+      return *m_block;
     }
 
     // virtual void accept (ir_visitor& visitor) = 0;
@@ -151,13 +167,12 @@ namespace gch
     std::enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
     emplace_before (citer pos, Args&&... args)
     {
-      return m_args.insert (pos,
-                            std::make_unique<T> (std::forward<Args> (args)...));
+      return m_args.emplace (pos, std::make_unique<T> (std::forward<Args> (args)...));
     }
 
   private:
 
-    ir_basic_block& m_block;
+    nonnull_ptr<ir_basic_block> m_block;
     arg_list m_args;
 
   };
@@ -172,10 +187,8 @@ namespace gch
 
     void unlink_propagate (instr_citer pos) override;
 
-    [[nodiscard]]
-    constexpr const ir_def& get_return (void) const noexcept { return m_ret; }
-
-    ir_def& get_return (void) noexcept { return m_ret; }
+    [[nodiscard]] constexpr       ir_def& get_def (void)       noexcept { return m_ret; }
+    [[nodiscard]] constexpr const ir_def& get_def (void) const noexcept { return m_ret; }
 
   private:
     ir_def m_ret;
@@ -258,6 +271,8 @@ namespace gch
 
   public:
 
+    ir_convert (ir_basic_block& blk, ir_type ty, ir_def& d);
+
     ir_convert (ir_basic_block& blk, ir_variable& ret_var, ir_type ty,
                 ir_def& d);
 
@@ -272,18 +287,20 @@ namespace gch
     ir_phi (void) = delete;
 
     template <typename It>
-    ir_phi (ir_basic_block& blk, ir_variable& var, ir_type ty, It first, 
+    ir_phi (ir_basic_block& blk, ir_variable& var, ir_type ty, It first,
             It last)
       : ir_def_instruction (blk, var, ty)
-    {        
-      std::for_each (first, last, 
-        [this] (const std::pair<ir_basic_block&, ir_def *>& p) 
+    {
+      std::for_each (first, last,
+        [this] (const std::pair<ir_basic_block&, ir_def *>& p)
         {
           append (&p.first, p.second);
-        });  
+        });
     }
 
-    void append (ir_basic_block *blk, gch::optional_ref<ir_def> dptr);
+    void append (ir_basic_block& blk, ir_def& dptr);
+
+    void append_undefined (ir_basic_block& blk);
 
     iter erase (const ir_basic_block *blk);
 

@@ -62,11 +62,12 @@ namespace gch
   {
     if (m_ret.has_uses ())
       {
-        ir_def& prev_joined = (m_ret.get_var ()).join (get_block (), pos);
-        prev_joined.transfer_from (m_ret);
+        ir_variable& var = m_ret.get_var ();
+        ir_def& prev_joined = var.join (get_block (), pos);
+        prev_joined.move_bindings (m_ret);
+        if (m_ret.has_uses ())
+          throw ir_exception ("return def unexpectedly had uses after unlinking");
       }
-    if (m_ret.has_uses ())
-      throw ir_exception ("return def unexpectedly had uses after unlinking");
   }
 
   //
@@ -112,6 +113,11 @@ namespace gch
   // ir_convert
   //
 
+  ir_convert::ir_convert (ir_basic_block& blk, ir_type ty, ir_def& d)
+    : ir_def_instruction (blk, d.get_var (), ty),
+      m_src (emplace_back<ir_use> (d.create_use (*this)))
+  { }
+
   ir_convert::ir_convert (ir_basic_block& blk, ir_variable& ret_var,
                           ir_type ty, ir_def& d)
     : ir_def_instruction (blk, ret_var, ty),
@@ -128,37 +134,37 @@ namespace gch
     if (dptr.has_value ())
       {
         m_undef_blocks.push_back (blk);
-        get_return ().set_needs_init_check (true);
+        get_def ().set_needs_init_check (true);
       }
     else
       {
-        if ((*dptr)->needs_init_check ())
-          get_return ().set_needs_init_check (true);
-        emplace_back<ir_phi_arg> (blk, dptr);
+        if (dptr->needs_init_check ())
+          get_def ().set_needs_init_check (true);
+        emplace_back<ir_phi_arg> (blk, dptr.get_pointer ());
       }
   }
 
   ir_phi::iter
   ir_phi::erase (const ir_basic_block *blk)
   {
-    for (citer cit = begin (); cit != end (); ++cit)
-      {
-        ir_phi_arg *arg = static_cast<ir_phi_arg *> (cit->get ());
-        if (arg->get<0> ().value () == blk)
-          return ir_instruction::erase (cit);
-      }
+    for (auto cit = begin (); cit != end (); ++cit)
+    {
+      ir_phi_arg *arg = static_cast<ir_phi_arg *> (cit->get ());
+      if (arg->get<ir_block_ref> ().value () == blk)
+        return ir_instruction::erase (cit);
+    }
     throw ir_exception ("specified blk not found in phi node");
   }
 
   ir_def *
   ir_phi::find (const ir_basic_block *blk)
   {
-    for (citer cit = begin (); cit != end (); ++cit)
-      {
-        ir_phi_arg *arg = static_cast<ir_phi_arg *> (cit->get ());
-        if (arg->get<0> ().value () == blk)
-          return arg->get<1> ().value ();
-      }
+    for (auto&& arg : *this)
+    {
+      auto phi = static_cast<ir_phi_arg *> (arg.get ());
+      if (phi->get<ir_block_ref> ().value () == blk)
+        return phi->get<ir_def_ref> ().value ();
+    }
     throw ir_exception ("Specified block not found in the phi node.");
   }
 
