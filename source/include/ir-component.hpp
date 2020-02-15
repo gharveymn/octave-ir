@@ -27,6 +27,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <nonnull_ptr.hpp>
 #include <variant-iterator.hpp>
 
+#include <list>
 #include <type_traits>
 #include <vector>
 
@@ -37,11 +38,23 @@ namespace gch
 
   class ir_basic_block;
   class ir_function;
+  class ir_def;
+  class ir_variable;
 
   // abstract
   class ir_component
   {
   public:
+  
+    using component_list  = std::list<std::unique_ptr<ir_component>>;
+    using comp_iter       = component_list::iterator;
+    using comp_citer      = component_list::const_iterator;
+    using comp_riter      = component_list::reverse_iterator;
+    using comp_criter     = component_list::const_reverse_iterator;
+    using comp_ref        = component_list::reference;
+    using comp_cref       = component_list::const_reference;
+    
+    using component_handle = variant_iterator<comp_iter, value_iter<nonnull_ptr<ir_component>>>;
 
     using link_cache_vect  = std::vector<nonnull_ptr<ir_basic_block>>;
     using link_cache_iter  = link_cache_vect::iterator;
@@ -73,6 +86,9 @@ namespace gch
     [[nodiscard]] virtual const ir_function& get_function    (void) const noexcept = 0;
 
     [[nodiscard]] virtual ir_basic_block&    get_entry_block (void)       noexcept = 0;
+    
+    [[nodiscard]]
+    virtual std::list<nonnull_ptr<ir_def>> get_latest_defs (ir_variable& var) noexcept = 0;
 
     template <typename T>
     using is_component = std::is_base_of<ir_component, T>;

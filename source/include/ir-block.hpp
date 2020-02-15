@@ -77,8 +77,6 @@ namespace gch
       m_def_link.debind ();
     }
 
-
-
     void rebind (ir_def& d);
 
     [[nodiscard]]
@@ -289,15 +287,21 @@ namespace gch
     ir_basic_block            (const ir_basic_block&)     = delete;
     ir_basic_block            (ir_basic_block&&) noexcept = default;
     ir_basic_block& operator= (const ir_basic_block&)     = delete;
-    ir_basic_block& operator= (ir_basic_block&&) noexcept = default;
+    ir_basic_block& operator= (ir_basic_block&&) noexcept = delete;
     ~ir_basic_block           (void) noexcept override;
 
     explicit ir_basic_block (ir_structure& parent);
 
     ir_basic_block& split (instr_iter pivot, ir_basic_block& dest);
 
-    optional_ref<ir_def> get_latest_def (ir_variable& var) const noexcept;
-    optional_ref<ir_def> get_latest_def_before (instr_citer pos, ir_variable& var) const noexcept;
+    [[nodiscard]]
+    std::list<nonnull_ptr<ir_def>> get_latest_defs (ir_variable& var) noexcept override;
+  
+    [[nodiscard]]
+    optional_ref<ir_def> get_latest_def (ir_variable& var) noexcept override;
+  
+    [[nodiscard]]
+    optional_ref<ir_def> get_latest_def_before (ir_variable& var, instr_citer pos) const noexcept;
 
   private:
 
@@ -502,7 +506,7 @@ namespace gch
     bool has_preds (void) { return pred_begin () != pred_end (); }
 
     [[nodiscard]]
-    bool has_preds (instr_citer pos) { pos != body_begin () || has_preds (); }
+    bool has_preds (instr_citer pos) { return pos != body_begin () || has_preds (); }
 
     [[nodiscard]]
     bool has_multiple_preds (void) { return num_preds () > 1; }
@@ -516,17 +520,17 @@ namespace gch
     nonnull_ptr<ir_basic_block> succ_back  (void) { return *(--succ_end ()); }
 
     bool has_succs (void)            { return succ_begin () != succ_end (); }
-    bool has_succs (instr_citer pos) { pos != body_end () || has_succs (); }
+    bool has_succs (instr_citer pos) { return pos != body_end () || has_succs (); }
 
     bool has_multiple_succs (void) { return num_succs () > 1; }
 
     link_iter leaf_begin (void) noexcept override 
-    { 
+    {
       return value_begin<nonnull_ptr<ir_basic_block>> (*this);
     }
 
     link_iter leaf_end (void) noexcept override 
-    { 
+    {
       return value_end<nonnull_ptr<ir_basic_block>> (*this);
     }
 
@@ -545,7 +549,7 @@ namespace gch
      * @param pos an iterator immediately the position of the def.
      * @return the created def.
      */
-    ir_def create_def (ir_variable& var, instr_citer pos);
+    auto create_def_before (ir_variable& var, instr_citer pos);
 
   protected:
 

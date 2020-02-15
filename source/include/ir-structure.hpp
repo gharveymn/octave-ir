@@ -46,16 +46,6 @@ namespace gch
     ir_structure (void) noexcept = default;
 
     ~ir_structure (void) noexcept override = 0;
-
-    using component_list  = std::list<std::unique_ptr<ir_component>>;
-    using comp_iter       = component_list::iterator;
-    using comp_citer      = component_list::const_iterator;
-    using comp_riter      = component_list::reverse_iterator;
-    using comp_criter     = component_list::const_reverse_iterator;
-    using comp_ref        = component_list::reference;
-    using comp_cref       = component_list::const_reference;
-    
-    using comp_handle = variant_iterator<comp_iter, value_iter<nonnull_ptr<ir_basic_block>>>;
     
     virtual link_iter pred_begin (ir_component& c) = 0;
     virtual link_iter pred_end   (ir_component& c) = 0;
@@ -73,6 +63,24 @@ namespace gch
     link_iter leaf_end   (void) override;
 
     virtual void invalidate_leaf_cache (void) noexcept = 0;
+  
+  
+    [[nodiscard]]
+    virtual std::list<nonnull_ptr<ir_def>> get_latest_defs_before (ir_variable& v,
+                                                                    component_handle c) = 0;
+    
+    [[nodiscard]]
+    std::list<nonnull_ptr<ir_def>> get_latest_defs_before (ir_variable& var, component_handle comp,
+                                                           instr_citer pos)
+    {
+      if (auto *block = dynamic_cast<ir_basic_block *> (comp->get ()))
+      {
+        if (auto ret = block->get_latest_def_before (var, pos))
+          return { *ret };
+        return get_latest_defs_before (var, comp);
+      }
+      throw ir_exception ("component was now a basic block");
+    }
 
   protected:
 
@@ -338,8 +346,22 @@ namespace gch
       invalidate_leaf_cache ();
       return ret;
     }
+  
+    template <typename T, typename S>
+    T& emplace_instruction_before (ir_basic_block& blk,
+                                   std::initializer_list<std::reference_wrapper<S>>,
+                                   ir_variable& var)
+    {
+      
+      
+      // find latest def before this one if this is not at the very end
+      
+    }
     
-    template <typename T, >
+    template <typename T>
+    T& emplace_instruction_before (ir_basic_block& blk, std::initializer_list<ir_operand>);
+    
+    
     
     //
     // virtual from ir_component
@@ -372,6 +394,35 @@ namespace gch
     void generate_leaf_cache (void) override
     {
       leaf_push_back (back ()->leaf_begin (), back ()->leaf_end ());
+    }
+  
+    [[nodiscard]]
+    std::list<nonnull_ptr<ir_def>> get_latest_defs (ir_variable& var) noexcept override
+    {
+      for (auto rit = rbegin (); rit != rend (); ++rit)
+      {
+        if (auto ret = (*rit)->get_latest_defs (var); ! ret.empty ())
+          return ret;
+      }
+      return { };
+    }
+    
+    [[nodiscard]]
+    std::list<nonnull_ptr<ir_def>> get_latest_defs_before (ir_variable& var,
+                                                           component_handle comp) override
+    {
+      if (! holds_alternative<comp_iter> (comp))
+        throw ir_exception ("unexpected type held by component handle");
+      auto it = get<comp_iter> (comp);
+      if (it == end ())
+        throw ir_exception ("component handle was at end");
+      
+      for (auto rit = comp_riter { it }; rit != rend (); ++rit)
+      {
+        if (auto ret = (*rit)->get_latest_defs (var); ! ret.empty ())
+          return ret;
+      }
+      return { };
     }
 
   protected:
@@ -539,7 +590,6 @@ namespace gch
     void reset (void) noexcept override
     {
       m_subcomponents.clear ();
-
     }
 
     ir_function& get_function (void) noexcept override
@@ -552,9 +602,43 @@ namespace gch
       return m_parent.get_function ();
     }
 
-    constexpr bool is_condition (ir_component& c) const noexcept
+    constexpr bool is_condition (ir_component *c) const noexcept
     {
-      return &c == &m_condition;
+      return c == &m_condition;
+    }
+  
+    [[nodiscard]]
+    std::list<nonnull_ptr<ir_def>> get_latest_defs (ir_variable& var) noexcept override
+    {
+      bool condition_visited = false;
+      std::list<nonnull_ptr<ir_def>> ret;
+      
+      for (auto&& comp : m_subcomponents)
+      {
+        auto defs = comp->get_latest_defs (var);
+        if (defs.empty ())
+        {
+          if (! condition_visited)
+          {
+            ret.splice (ret.end (), m_condition.get_latest_defs (var));
+            condition_visited = true;
+          }
+        }
+        else
+        {
+          ret.splice (ret.end (), defs);
+        }
+      }
+      return ret;
+    }
+  
+    [[nodiscard]]
+    std::list<nonnull_ptr<ir_def>> get_latest_defs_before (ir_variable& var,
+                                                           component_handle comp) override
+    {
+      if (comp->get () == &m_condition)
+        return { };
+      return m_condition.get_latest_defs (var);
     }
 
   private:
@@ -641,33 +725,89 @@ namespace gch
             m_parent.invalidate_leaf_cache ();
         }
     }
-
+  
+    [[nodiscard]]
     ir_function& get_function (void) noexcept override
     {
       return m_parent.get_function ();
     }
 
+    [[nodiscard]]
     const ir_function& get_function (void) const noexcept override
     {
       return m_parent.get_function ();
     }
-
+  
     [[nodiscard]]
-    constexpr bool is_entry (ir_component& c) const noexcept
+    constexpr bool is_entry (ir_component *c) const noexcept
     {
-      return &c == &m_entry;
+      return c == &m_entry;
     }
-
+  
     [[nodiscard]]
-    constexpr bool is_condition (ir_component& c) const noexcept
+    constexpr bool is_condition (ir_component *c) const noexcept
     {
-      return &c == &m_condition;
+      return c == &m_condition;
     }
-
+  
     [[nodiscard]]
-    constexpr bool is_body (ir_component& c) const noexcept
+    constexpr bool is_body (ir_component *c) const noexcept
     {
-      return &c == &m_body;
+      return c == &m_body;
+    }
+  
+    [[nodiscard]]
+    constexpr bool is_exit (ir_component *c) const noexcept
+    {
+      return c == &m_exit;
+    }
+  
+    [[nodiscard]]
+    std::list<nonnull_ptr<ir_def>> get_latest_defs (ir_variable& var) noexcept override
+    {
+      
+      if (auto opt_def = m_exit.get_latest_def (var))
+        return { *opt_def };
+  
+      if (auto opt_def = m_condition.get_latest_def (var))
+        return { *opt_def };
+      
+      std::list<nonnull_ptr<ir_def>> ret = m_body.get_latest_defs (var);
+      ret.splice (ret.end (), m_entry.get_latest_defs (var));
+      return ret;
+    }
+  
+    [[nodiscard]]
+    std::list<nonnull_ptr<ir_def>> get_latest_defs_before (ir_variable& var,
+                                                           component_handle comp) override
+    {
+      if (is_entry (comp->get ()))
+      {
+        return { };
+      }
+      else if (is_body (comp->get ()))
+      {
+        return m_entry.get_latest_defs (var);
+      }
+      else if (is_condition (comp->get ()))
+      {
+        std::list<nonnull_ptr<ir_def>> ret = m_body.get_latest_defs (var);
+        ret.splice (ret.end (), m_entry.get_latest_defs (var));
+        return ret;
+      }
+      else if (is_exit (comp->get ()))
+      {
+        if (auto opt_def = m_condition.get_latest_def (var))
+          return { *opt_def };
+    
+        std::list<nonnull_ptr<ir_def>> ret = m_body.get_latest_defs (var);
+        ret.splice (ret.end (), m_entry.get_latest_defs (var));
+        return ret;
+      }
+      else
+      {
+        throw ir_exception ("unexpected component handle");
+      }
     }
 
   private:

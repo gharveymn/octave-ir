@@ -288,9 +288,17 @@ namespace gch
                    });
     return m_body.erase (first, last);
   }
+  
+  std::vector<nonnull_ptr<ir_def>>
+  ir_basic_block::get_latest_defs (ir_variable& var) noexcept
+  {
+    if (auto opt_def = get_latest_def (var))
+      return { *opt_def };
+    return { };
+  }
 
   optional_ref<ir_def>
-  ir_basic_block::get_latest_def (ir_variable& var) const noexcept
+  ir_basic_block::get_latest_def (ir_variable& var) noexcept
   {
     if (auto vt = find_timeline (var))
       return vt->get_latest ();
@@ -298,7 +306,7 @@ namespace gch
   }
 
   optional_ref<ir_def>
-  ir_basic_block::get_latest_def_before (const instr_citer pos, ir_variable& var) const noexcept
+  ir_basic_block::get_latest_def_before (ir_variable& var, const instr_citer pos) const noexcept
   {
     if (auto vt = find_timeline (var))
     {
@@ -323,11 +331,11 @@ namespace gch
       return vt.rend ();
     return std::find_if (vt.rbegin (), vt.rend (),
                          [rfirst = body_crbegin (),
-                           rlast  = body_crend (),
-                           &cmp   = *std::prev (pos)] (const def_timeline& dt) mutable
+                          rlast  = body_crend (),
+                          &cmp   = *std::prev (pos)] (const def_timeline& dt) mutable
                          {
                            for (; rfirst != rlast &&
-                                    rfirst->get () != &dt.get_instruction (); ++rfirst)
+                                  rfirst->get () != &dt.get_instruction (); ++rfirst)
                            {
                              if (*rfirst == cmp)
                                return true;
@@ -357,8 +365,8 @@ namespace gch
                          });
   }
 
-  ir_def
-  ir_basic_block::create_def (ir_variable& var, instr_citer pos)
+  auto
+  ir_basic_block::create_def_before (ir_variable& var, instr_citer pos)
   {
     // if pos has any succeeding instructions in this block or
     // the block has any successors, then we need to repoint
@@ -502,13 +510,10 @@ namespace gch
   void
   ir_basic_block::reset (void) noexcept
   {
-    erase (begin (), end ());
-    m_num_phi = 0;
-    m_body_begin = end ();
-    m_terminator = end ();
+    erase (body_begin (), body_end ());
+    
     // TODO remove when verified
-    for (const std::pair<ir_variable *, variable_timeline>& p :
-         m_timeline_map)
+    for (const auto& p : m_timeline_map)
     {
 
     }
