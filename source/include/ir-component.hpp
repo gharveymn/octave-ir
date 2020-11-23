@@ -54,7 +54,7 @@ namespace gch
     using comp_ref        = component_list::reference;
     using comp_cref       = component_list::const_reference;
     
-    using component_handle = variant_iterator<comp_iter, value_iter<nonnull_ptr<ir_component>>>;
+    using component_handle = variant_iterator<comp_iter, value_iter<std::unique_ptr<ir_component>>>;
 
     using link_cache_vect  = std::vector<nonnull_ptr<ir_basic_block>>;
     using link_cache_iter  = link_cache_vect::iterator;

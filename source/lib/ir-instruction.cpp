@@ -74,8 +74,8 @@ namespace gch
   // ir_assign
   //
 
-  ir_assign::ir_assign (ir_basic_block& blk, ir_variable& var, ir_def& src)
-    : ir_def_instruction (blk, var, src.get_type ()),
+  ir_assign::ir_assign (ir_basic_block& blk, ir_variable& dst, ir_def& src)
+    : ir_def_instruction (blk, dst, src.get_type ()),
       m_src (emplace_back<ir_use> (src.create_use (*this)))
   { }
 
@@ -133,7 +133,7 @@ namespace gch
   {
     if (dptr.has_value ())
       {
-        m_undef_blocks.push_back (blk);
+        m_indet_preds.push_back (blk);
         get_def ().set_needs_init_check (true);
       }
     else

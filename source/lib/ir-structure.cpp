@@ -147,7 +147,7 @@ namespace gch
     if      (is_entry (&c))     return m_parent.pred_begin (*this);
     else if (is_condition (&c)) return m_cond_preds.begin ();
     else if (is_body (&c))      return m_condition;
-    else                       throw ir_exception ("Component was not in the loop component.");
+    else                        throw ir_exception ("Component was not in the loop component.");
   }
 
   ir_component::link_iter
@@ -156,7 +156,7 @@ namespace gch
     if      (is_entry (&c))     return m_parent.pred_end (*this);
     else if (is_condition (&c)) return m_cond_preds.end ();
     else if (is_body (&c))      return ++link_iter (m_condition);
-    else                       throw ir_exception ("Component was not in the loop component.");
+    else                        throw ir_exception ("Component was not in the loop component.");
   }
 
   ir_component::link_iter
@@ -165,7 +165,7 @@ namespace gch
     if      (is_entry (&c))     return m_condition;
     else if (is_condition (&c)) return cond_succ_begin ();
     else if (is_body (&c))      return m_condition;
-    else                       throw ir_exception ("Component was not in the loop component.");
+    else                        throw ir_exception ("Component was not in the loop component.");
   }
 
   ir_component::link_iter
@@ -174,7 +174,7 @@ namespace gch
     if      (is_entry (&c))     return ++link_iter (m_condition);
     else if (is_condition (&c)) return cond_succ_end ();
     else if (is_body (&c))      return ++link_iter (m_condition);
-    else                       throw ir_exception ("Component was not in the loop component.");
+    else                        throw ir_exception ("Component was not in the loop component.");
   }
 
   ir_component::link_iter

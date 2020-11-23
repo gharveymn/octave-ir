@@ -52,54 +52,58 @@ namespace gch
   class ir_def;
   class ir_use;
 
-  class def_timeline
-    : public intrusive_tracker<def_timeline, remote::intrusive_reporter<ir_use>>
+  class ir_use_timeline
+    : public intrusive_reporter<ir_use_timeline, remote::intrusive_tracker<ir_def>>,
+      public intrusive_tracker<ir_use_timeline, remote::intrusive_reporter<ir_use>>
   {
 
   public:
+  
+    using base_reporter = intrusive_reporter<ir_use_timeline, remote::intrusive_tracker<ir_def>>;
+    using base_tracker  = intrusive_tracker<ir_use_timeline, remote::intrusive_reporter<ir_use>>;
 
-    using base_tracker  = intrusive_tracker<def_timeline, remote::intrusive_reporter<ir_use>>;
+    ir_use_timeline (void)                    = delete;
+    ir_use_timeline (const ir_use_timeline&)     = delete;
+    ir_use_timeline (ir_use_timeline&&) noexcept = delete;
+    ir_use_timeline& operator= (const ir_use_timeline&)     = delete;
+    ir_use_timeline& operator= (ir_use_timeline&&) noexcept;
+    ~ir_use_timeline (void)                    = default;
 
-    def_timeline            (void)                    = delete;
-    def_timeline            (const def_timeline&)     = delete;
-    def_timeline            (def_timeline&&) noexcept = delete;
-    def_timeline& operator= (const def_timeline&)     = delete;
-    def_timeline& operator= (def_timeline&&) noexcept;
-    ~def_timeline           (void)                    = default;
-
-    explicit def_timeline (ir_basic_block& block);
-    def_timeline (ir_basic_block& block, ir_def& def);
-    def_timeline (def_timeline&& other, ir_basic_block& block) noexcept;
+    explicit ir_use_timeline (ir_basic_block& block);
+    ir_use_timeline (ir_basic_block& block, ir_def& def);
+    ir_use_timeline (ir_use_timeline&& other, ir_basic_block& block) noexcept;
 
     void reset (void)
     {
       base_tracker::clear ();
-      m_def_link.debind ();
     }
 
     void rebind (ir_def& d);
+  
+    [[nodiscard]]
+    constexpr ir_def& get_def (void) noexcept { return base_reporter::get_remote (); }
 
     [[nodiscard]]
-    constexpr bool has_def (void) const noexcept
-    {
-      return m_def_link.has_remote ();
-    }
-
-    [[nodiscard]]
-    ir_def& get_def (void) const noexcept;
-
-    [[nodiscard]]
-    optional_ref<ir_def> get_maybe_def (void) const noexcept;
+    constexpr const ir_def& get_def (void) const noexcept { return base_reporter::get_remote (); }
 
     [[nodiscard]]
     ir_instruction& get_instruction (void) noexcept;
 
     [[nodiscard]]
     const ir_instruction& get_instruction (void) const noexcept;
+    
+    [[nodiscard]]
+    constexpr bool is_def_block (void) const noexcept
+    {
+      return m_block == &get_def ().get_block ();
+    }
+  
+    void propagate_type (ir_type ty);
 
   private:
 
-    reporter<ir_basic_block, remote::intrusive_tracker<ir_def>> m_def_link;
+    nonnull_ptr<ir_basic_block>               m_block;
+    std::vector<nonnull_ptr<ir_use_timeline>> m_succs;
 
   };
 
@@ -123,28 +127,26 @@ namespace gch
     using instr_ref       = instr_list::reference;
     using instr_cref      = instr_list::const_reference;
 
-    class variable_timeline
+    class def_timeline
     {
 
     public:
       // never nullptr ----------------------------- v
-      using local_timelines = std::list<def_timeline>;
-      using iter            = local_timelines::iterator;
-      using citer           = local_timelines::const_iterator;
-      using riter           = local_timelines::reverse_iterator;
-      using criter          = local_timelines::const_reverse_iterator;
+      using use_timelines = std::list<ir_use_timeline>;
+      using iter         = use_timelines::iterator;
+      using citer        = use_timelines::const_iterator;
+      using riter        = use_timelines::reverse_iterator;
+      using criter       = use_timelines::const_reverse_iterator;
 
-      variable_timeline            (void)                         = delete;
-      variable_timeline            (const variable_timeline&)     = delete;
-      variable_timeline            (variable_timeline&&) noexcept = delete;
-      variable_timeline& operator= (const variable_timeline&)     = delete;
-      variable_timeline& operator= (variable_timeline&&) noexcept;
-      ~variable_timeline           (void)                         = default;
+      def_timeline (void)                         = delete;
+      def_timeline (const def_timeline&)     = delete;
+      def_timeline (def_timeline&&) noexcept = delete;
+      def_timeline& operator= (const def_timeline&)     = delete;
+      def_timeline& operator= (def_timeline&&) noexcept;
+      ~def_timeline (void)                             = default;
 
-      explicit variable_timeline (ir_basic_block& blk) noexcept
-        : m_block (blk),
-          m_cache (blk),
-          m_phi   (blk)
+      explicit def_timeline (ir_basic_block& blk) noexcept
+        : m_block (blk)
       { }
 
       [[nodiscard]] iter   begin   (void)       noexcept { return m_instances.begin ();   }
@@ -163,16 +165,16 @@ namespace gch
       [[nodiscard]] criter rend   (void) const noexcept { return m_instances.rend ();     }
       [[nodiscard]] criter crend  (void) const noexcept { return m_instances.crend ();    }
 
-      [[nodiscard]] bool has_body_defs (void) const noexcept { return ! m_instances.empty (); }
+      [[nodiscard]] bool has_use_timelines (void) const noexcept { return ! m_instances.empty (); }
 
-      void splice (const iter pos, variable_timeline& other, const iter first, const iter last)
+      void splice (const iter pos, def_timeline& other, const iter first, const iter last)
       {
         auto pivot = m_instances.emplace (pos, std::move (*first), *m_block);
         try
         {
           std::for_each (std::make_move_iterator (std::next (first)),
                          std::make_move_iterator (last),
-                         [this, pos] (def_timeline&& dt)
+                         [this, pos] (ir_use_timeline&& dt)
                          {
                            m_instances.emplace (pos, std::move (dt), *m_block);
                          });
@@ -189,19 +191,19 @@ namespace gch
         other.m_instances.erase (first, last);
       }
 
-      void emplace_before (citer pos, ir_def& d)
+      iter emplace_before (citer pos, ir_def& d)
       {
-        m_instances.emplace (pos, *m_block, d);
+        return m_instances.emplace (pos, *m_block, d);
       }
 
-      void emplace_front (ir_def& d)
+      ir_use_timeline& emplace_front (ir_def& d)
       {
-        m_instances.emplace_front (*m_block, d);
+        return m_instances.emplace_front (*m_block, d);
       }
 
-      void emplace_back (ir_def& d)
+      ir_use_timeline& emplace_back (ir_def& d)
       {
-        m_instances.emplace_back (*m_block, d);
+        return m_instances.emplace_back (*m_block, d);
       }
 
       void erase (const ir_instruction* instr)
@@ -213,73 +215,40 @@ namespace gch
       citer find (const ir_instruction *instr_cit) const;
 
       [[nodiscard]]
-      constexpr bool has_cache (void) const noexcept
-      {
-        return m_cache.has_def ();
-      }
-
-      [[nodiscard]]
-      ir_def& get_cache (void) const noexcept;
-
-      [[nodiscard]]
-      optional_ref<ir_def> get_maybe_cache (void) const noexcept;
-
-      void replace_cache (ir_def& latest) noexcept;
-
-      void reset_cache (void) noexcept
-      {
-        m_cache.reset ();
-      }
-
-      [[nodiscard]]
-      constexpr bool has_phi (void) const noexcept
-      {
-        return m_phi.has_def ();
-      }
-
-      [[nodiscard]]
-      ir_def& get_phi (void) const noexcept;
-
-      [[nodiscard]]
-      optional_ref<ir_def> get_maybe_phi (void) const noexcept;
-
-      void track_phi (ir_def& phi);
-
-      void reset_phi (void)
-      {
-        m_phi.reset ();
-      }
-
-      [[nodiscard]]
-      auto num_body_defs (void) const noexcept
+      std::size_t num_defs (void) const noexcept
       {
         return m_instances.size ();
       }
 
-      [[nodiscard]] optional_ref<ir_def> get_latest (void) const noexcept;
+      [[nodiscard]] optional_ref<ir_def> get_latest (void) noexcept;
+      [[nodiscard]] optional_ref<const ir_def> get_latest (void) const noexcept;
 
       [[nodiscard]]
       constexpr ir_basic_block& get_block (void) const noexcept
       {
         return *m_block;
       }
+      
+      // [[nodiscard]]
+      // constexpr bool has_phi (void) const noexcept { return m_phi.has_value (); }
+      //
+      // [[nodiscard]]
+      // constexpr ir_use_timeline& get_phi (void) const noexcept { return *m_phi; }
 
     private:
 
       nonnull_ptr<ir_basic_block> m_block;
 
-      def_timeline m_cache;
-
-      def_timeline m_phi;
-
-      //! A timeline of defs created in this block.
-      local_timelines m_instances;
+      //! A timeline of defs in this block.
+      use_timelines m_instances;
+      
+      // optional_ref<ir_use_timeline> m_phi;
 
     };
 
   private:
 
-    using var_timeline_map = std::unordered_map<ir_variable *, variable_timeline>;
+    using var_timeline_map = std::unordered_map<ir_variable *, def_timeline>;
 
   public:
 
@@ -298,18 +267,20 @@ namespace gch
     std::list<nonnull_ptr<ir_def>> get_latest_defs (ir_variable& var) noexcept override;
   
     [[nodiscard]]
-    optional_ref<ir_def> get_latest_def (ir_variable& var) noexcept override;
-  
+    optional_ref<ir_def> get_latest_def (ir_variable& var);
+    
     [[nodiscard]]
-    optional_ref<ir_def> get_latest_def_before (ir_variable& var, instr_citer pos) const noexcept;
+    optional_ref<ir_def> get_latest_def_before (ir_variable& var, instr_citer pos) noexcept;
+    
+    optional_ref<ir_def> join_defs (ir_variable& var);
 
   private:
 
-    variable_timeline::riter
-    find_latest_def_before (instr_citer pos, variable_timeline& vt) const noexcept;
+    def_timeline::riter
+    find_latest_def_before (instr_citer ut, def_timeline& dt) const noexcept;
 
-    variable_timeline::criter
-    find_latest_def_before (instr_citer pos, const variable_timeline& vt) const noexcept;
+    def_timeline::criter
+    find_latest_def_before (instr_citer ut, const def_timeline& dt) const noexcept;
 
   public:
 
@@ -430,7 +401,7 @@ namespace gch
         m_body.erase (it);
         throw e;
       }
-      return *ret;
+      return ret;
     }
 
     template <typename T, typename ...Args, enable_ret_nonphi<T>* = nullptr>
@@ -448,7 +419,7 @@ namespace gch
         m_body.erase (m_body.begin ());
         throw e;
       }
-      return *ret;
+      return ret;
     }
 
     template <typename T, typename ...Args, enable_ret_nonphi<T>* = nullptr>
@@ -466,7 +437,7 @@ namespace gch
         m_body.erase (--m_body.end ());
         throw e;
       }
-      return *ret;
+      return ret;
     }
 
     template <typename T, typename ...Args, enable_noret_nonphi<T>* = nullptr>
@@ -499,8 +470,8 @@ namespace gch
     link_iter   pred_end   (void);
     std::size_t num_preds  (void);
 
-    nonnull_ptr<ir_basic_block> get_pred_front (void) { return *pred_begin ();   }
-    nonnull_ptr<ir_basic_block> get_pred_back  (void) { return *(--pred_end ()); }
+    nonnull_ptr<ir_basic_block> pred_front (void) { return *pred_begin ();   }
+    nonnull_ptr<ir_basic_block> pred_back (void) { return *(--pred_end ()); }
 
     [[nodiscard]]
     bool has_preds (void) { return pred_begin () != pred_end (); }
@@ -561,23 +532,23 @@ namespace gch
     void def_emplace_front  (ir_def_instruction& d);
     void def_emplace_back   (ir_def_instruction& d);
     
-    optional_ref<const variable_timeline> find_timeline (ir_variable& var) const
+    optional_ref<const def_timeline> find_timeline (ir_variable& var) const
     {
       if (auto cit = m_timeline_map.find (&var); cit != m_timeline_map.end ())
-        return std::get<variable_timeline> (*cit);
+        return std::get<def_timeline> (*cit);
       return nullopt;
     }
 
-    optional_ref<variable_timeline> find_timeline (ir_variable& var)
+    optional_ref<def_timeline> find_timeline (ir_variable& var)
     {
       if (auto cit = m_timeline_map.find (&var); cit != m_timeline_map.end ())
-        return std::get<variable_timeline> (*cit);
+        return std::get<def_timeline> (*cit);
       return nullopt;
     }
     
-    variable_timeline& get_timeline (ir_variable& var)
+    def_timeline& get_timeline (ir_variable& var)
     {
-      return std::get<variable_timeline> (*m_timeline_map.try_emplace (&var, *this).first);
+      return std::get<def_timeline> (*m_timeline_map.try_emplace (&var, *this).first);
     }
 
   private:

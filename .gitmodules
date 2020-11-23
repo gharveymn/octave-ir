@@ -22,3 +22,7 @@
 	path = external/nonnull_ptr
 	url = git@github.com:gharveymn/nonnull_ptr.git
 	branch = master
+[submodule "external/select-iterator"]
+	path = external/select-iterator
+	url = git@github.com:gharveymn/select-iterator.git
+	branch = main

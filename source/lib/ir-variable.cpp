@@ -48,8 +48,7 @@ namespace gch
 
   ir_variable::ir_variable (ir_function& m, std::string name)
     : m_function (m),
-      m_name (std::move (name)),
-      m_def_tracker (*this)
+      m_name (std::move (name))
   { }
 
 //  ir_variable::ir_variable (ir_variable&& o) noexcept
@@ -62,9 +61,9 @@ namespace gch
 //  }
 
   ir_def
-  ir_variable::create_def (ir_type ty, const ir_def_instruction& instr)
+  ir_variable::create_def (ir_type ty, ir_def_instruction& instr)
   {
-    return { m_def_tracker, ty, instr };
+    return { *this, ty, instr };
   }
 
   ir_type
@@ -115,7 +114,7 @@ namespace gch
   ir_variable::get_sentinel (void)
   {
     if (! has_sentinel ())
-      initialize_sentinel ();
+      return initialize_sentinel ();
     return *m_sentinel;
   }
 
@@ -149,8 +148,18 @@ namespace gch
     // guaranteed return  
     return *ret;
   }
-
+  
   void
+  ir_variable::set_type (ir_type ty)
+  {
+    if (ty == m_type)
+      return;
+  
+    std::for_each (begin (), end (), [&ty](ir_def& def) { def.propagate_type (ty); });
+    m_type = ty;
+  }
+
+  ir_variable&
   ir_variable::initialize_sentinel (void)
   {
     m_sentinel = std::make_unique<ir_variable> (get_module (), get_sentinel_name ());
@@ -159,12 +168,12 @@ namespace gch
     entry.emplace_front<ir_assign> (*m_sentinel, ir_constant<bool> {false});
   }
   
-  ir_variable::tracker_type::citer
-  ir_variable::find (const ir_def& d) const
-  {
-    return std::find_if (m_def_tracker.begin (), m_def_tracker.end (), 
-                         [&d](const ir_def& x) { return &x == &d; });
-  }
+  // ir_variable::tracker_type::citer
+  // ir_variable::find (const ir_def& d) const
+  // {
+  //   return std::find_if (m_def_tracker.begin (), m_def_tracker.end (),
+  //                        [&d](const ir_def& x) { return &x == &d; });
+  // }
 
 //  void
 //  ir_variable::mark_uninit (ir_basic_block& blk)
@@ -206,38 +215,21 @@ namespace gch
   // ir_def
   //
 
-  ir_def::ir_def (ir_variable& tkr, ir_type ty, const ir_def_instruction& instr)
+  ir_def::ir_def (ir_variable& tkr, ir_def_instruction& instr)
     : base_reporter (tag::bind, tkr),
-      m_type (ty),
       m_instr (instr),
       m_needs_init_check (false)
   { }
 
-  ir_variable&
-  ir_def::get_var (void) noexcept (false)
+  void
+  ir_def::propagate_type (ir_type ty)
   {
-    if (has_remote ())
-      return get_remote ();
-    throw ir_exception ("ir_def is in an invalid state and has no ir_variable.");
-  }
-
-  const ir_variable&
-  ir_def::get_var (void) const noexcept (false)
-  {
-    if (has_remote ())
-      return get_remote ();
-    throw ir_exception ("ir_def is in an invalid state and has no ir_variable.");
-  }
-
-  ir_use
-  ir_def::create_use (const ir_instruction& instr)
-  {
-    return { m_use_tracker, instr };
+    std::for_each (begin (), end (), [&ty] (ir_use_timeline& tl) { tl.propagate_type (ty); });
   }
 
   template <typename InputIt>
   ir_type
-  ir_def::common_type (InputIt first, InputIt last)
+  common_type (InputIt first, InputIt last)
   {
     ir_type curr_ty = *first->get_type ();
     for (; first != last; ++first)
@@ -278,7 +270,7 @@ namespace gch
   bool ir_def::has_uses (void) const noexcept
   {
     return std::any_of (begin (), end (),
-                        [] (const def_timeline& dt) { return dt.has_remotes (); });
+                        [] (const ir_use_timeline& dt) { return dt.has_remotes (); });
   }
 
   //
@@ -286,9 +278,9 @@ namespace gch
   //
 
   ir_use::ir_use (typename reporter_type::remote_interface_type& tkr, 
-                  const ir_instruction& instr)
+                  ir_instruction& instr)
     : reporter_type (tag::bind, tkr),
-      m_instr (&instr)
+      m_instr (instr)
   { }
 
   ir_use::ir_use (ir_use&& u) noexcept
@@ -318,7 +310,7 @@ namespace gch
   ir_use::get_def (void) const noexcept (false)
   {
     if (has_remote ())
-      return get_remote ();
+      return get_remote ().get_def ();
     throw ir_exception ("ir_use is in an invalid state and has no ir_def.");
   }
 

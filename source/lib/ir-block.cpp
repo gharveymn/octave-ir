@@ -28,6 +28,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include <nonnull_ptr.hpp>
 #include <optional_ref.hpp>
+#include <select-iterator.hpp>
 
 #include <algorithm>
 #include <numeric>
@@ -102,7 +103,7 @@ namespace gch
   // use_timeline
   //
 
-  def_timeline& def_timeline::operator= (def_timeline&& other) noexcept
+  ir_use_timeline& ir_use_timeline::operator= (ir_use_timeline&& other) noexcept
   {
     if (&other != this)
     {
@@ -112,108 +113,68 @@ namespace gch
     return *this;
   }
 
-  def_timeline::def_timeline (def_timeline&& other, ir_basic_block& block) noexcept
+  ir_use_timeline::ir_use_timeline (ir_use_timeline&& other, ir_basic_block& block) noexcept
     : base_tracker (std::move (other)),
       m_def_link   (std::move (other.m_def_link), block)
   { }
 
-  def_timeline::def_timeline (ir_basic_block& block)
+  ir_use_timeline::ir_use_timeline (ir_basic_block& block)
     : m_def_link (block)
   { }
 
-  def_timeline::def_timeline (ir_basic_block& block, ir_def& def)
+  ir_use_timeline::ir_use_timeline (ir_basic_block& block, ir_def& def)
     : m_def_link (block, def)
   { }
 
   void
-  def_timeline::rebind (ir_def& d)
+  ir_use_timeline::rebind (ir_def& d)
   {
     m_def_link.rebind (d);
   }
 
-  ir_def&
-  def_timeline::get_def (void) const noexcept
-  {
-    return m_def_link.get_remote ();
-  }
-
-  optional_ref<ir_def>
-  def_timeline::get_maybe_def (void) const noexcept
-  {
-    return m_def_link.get_maybe_remote ();
-  }
-
   ir_instruction&
-  def_timeline::get_instruction (void) noexcept
+  ir_use_timeline::get_instruction (void) noexcept
   {
     return get_def ().get_instruction ();
   }
 
   const ir_instruction&
-  def_timeline::get_instruction (void) const noexcept
+  ir_use_timeline::get_instruction (void) const noexcept
   {
     return get_def ().get_instruction ();
+  }
+  
+  void
+  ir_use_timeline::propagate_type (ir_type ty)
+  {
+    std::for_each (begin (), end (),
+                   [&ty] (ir_use& use)
+                   {
+                     if (auto *call_instr = dynamic_cast<ir_call *> (&use.get_instruction ()))
+                       call_instr->resolve ();
+                   });
   }
 
   //
   // ir_basic_block
   //
 
-  ir_basic_block::variable_timeline&
-  ir_basic_block::variable_timeline::operator= (variable_timeline&& other) noexcept
+  ir_basic_block::def_timeline&
+  ir_basic_block::def_timeline::operator= (def_timeline&& other) noexcept
   {
     if (&other != this)
     {
-      m_cache     = std::move (other.m_cache);
-      m_phi       = std::move (other.m_phi);
+      m_block     = other.m_block;
       m_instances = std::move (other.m_instances);
     }
     return *this;
   }
 
-  ir_def&
-  ir_basic_block::variable_timeline::get_cache (void) const noexcept
-  {
-    return m_cache.get_def ();
-  }
-
-  optional_ref<ir_def>
-  ir_basic_block::variable_timeline::get_maybe_cache (void) const noexcept
-  {
-    return m_cache.get_maybe_def ();
-  }
-
-  void
-  ir_basic_block::variable_timeline::replace_cache (ir_def& latest) noexcept
-  {
-    m_cache.rebind (latest);
-  }
-
-  ir_def&
-  ir_basic_block::variable_timeline::get_phi (void) const noexcept
-  {
-    return m_phi.get_def ();
-  }
-
-  optional_ref<ir_def>
-  ir_basic_block::variable_timeline::get_maybe_phi (void) const noexcept
-  {
-    return m_phi.get_maybe_def ();
-  }
-
-  void
-  ir_basic_block::variable_timeline::track_phi (ir_def& phi_def)
-  {
-    if (has_phi ())
-      throw ir_exception ("block already has a phi def for the variable");
-    m_phi.rebind (phi_def);
-  }
-
-  ir_basic_block::variable_timeline::citer
-  ir_basic_block::variable_timeline::find (const ir_instruction *instr) const
+  ir_basic_block::def_timeline::citer
+  ir_basic_block::def_timeline::find (const ir_instruction *instr) const
   {
     auto pos = std::find_if (m_instances.cbegin (), m_instances.cend (),
-                             [instr] (const def_timeline& dt)
+                             [instr] (const ir_use_timeline& dt)
                              {
                                return &dt.get_instruction () == instr;
                              });
@@ -221,13 +182,21 @@ namespace gch
       throw ir_exception ("instruction not found in the timeline.");
     return pos;
   }
-
+  
   optional_ref<ir_def>
-  ir_basic_block::variable_timeline::get_latest (void) const noexcept
+  ir_basic_block::def_timeline::get_latest (void) noexcept
   {
-    if      (! m_instances.empty ()) return m_instances.back ().get_def ();
-    else if (has_phi ())             return m_phi.get_def ();
-    else                             return m_cache.get_maybe_def ();
+    if (m_instances.empty ())
+      return nullopt;
+    return m_instances.back ().get_def ();
+  }
+
+  optional_ref<const ir_def>
+  ir_basic_block::def_timeline::get_latest (void) const noexcept
+  {
+    if (m_instances.empty ())
+      return nullopt;
+    return m_instances.back ().get_def ();
   }
 
   ir_basic_block::ir_basic_block (ir_structure& parent)
@@ -250,11 +219,11 @@ namespace gch
     // move needed timelines into dest
     for (auto&& pair : m_timeline_map)
     {
-      auto& vt = std::get<variable_timeline> (pair);
+      auto& vt = std::get<def_timeline> (pair);
       auto vt_pivot = find_latest_def_before (pivot, vt).base ();
       if (vt_pivot != vt.end ())
       {
-        variable_timeline& dest_vt = dest.get_timeline (*std::get<ir_variable * const> (pair));
+        def_timeline& dest_vt = dest.get_timeline (*std::get<ir_variable * const> (pair));
         dest_vt.splice (dest_vt.end (), vt, vt_pivot, vt.end ());
       }
     }
@@ -298,71 +267,131 @@ namespace gch
   }
 
   optional_ref<ir_def>
-  ir_basic_block::get_latest_def (ir_variable& var) noexcept
-  {
-    if (auto vt = find_timeline (var))
-      return vt->get_latest ();
-    return nullopt;
-  }
-
-  optional_ref<ir_def>
-  ir_basic_block::get_latest_def_before (ir_variable& var, const instr_citer pos) const noexcept
+  ir_basic_block::get_latest_def (ir_variable& var)
   {
     if (auto vt = find_timeline (var))
     {
-      if (! vt->has_body_defs () || pos == body_begin ())
-      {
-        if (vt->has_phi ())
-          return vt->get_phi ();
-        return vt->get_maybe_cache ();
-      }
+      if (auto local_latest = vt->get_latest ())
+        return local_latest;
+    }
+    return join_defs (var);
+  }
 
-      if (auto found = find_latest_def_before (pos, *vt) ; found != vt->crend ())
+  optional_ref<ir_def>
+  ir_basic_block::get_latest_def_before (ir_variable& var, const instr_citer pos) noexcept
+  {
+    if (pos == body_end ())
+      return get_latest_def (var);
+    
+    if (auto dt = find_timeline (var))
+    {
+      if (auto found = find_latest_def_before (pos, *dt) ; found != dt->crend ())
         return found->get_def ();
     }
-    return nullopt;
+    return join_defs (var);
   }
 
-  ir_basic_block::variable_timeline::riter
-  ir_basic_block::find_latest_def_before (instr_citer pos,
-                                          variable_timeline& vt) const noexcept
+  ir_basic_block::def_timeline::riter
+  ir_basic_block::find_latest_def_before (instr_citer pos, def_timeline& dt) const noexcept
   {
+    if (! dt.has_use_timelines ())
+      return dt.rend ();
+    
     if (pos == m_body.begin ())
-      return vt.rend ();
-    return std::find_if (vt.rbegin (), vt.rend (),
+      return dt.rend ();
+    return std::find_if (dt.rbegin (), dt.rend (),
                          [rfirst = body_crbegin (),
                           rlast  = body_crend (),
-                          &cmp   = *std::prev (pos)] (const def_timeline& dt) mutable
+                          cmp    = std::prev (pos)] (const ir_use_timeline& ut) mutable
                          {
                            for (; rfirst != rlast &&
-                                  rfirst->get () != &dt.get_instruction (); ++rfirst)
+                                  rfirst->get () != &ut.get_instruction (); ++rfirst)
                            {
-                             if (*rfirst == cmp)
+                             if (*rfirst == *cmp)
                                return true;
                            }
                            return false;
                          });
   }
 
-  ir_basic_block::variable_timeline::criter
-  ir_basic_block::find_latest_def_before (instr_citer pos,
-                                          const variable_timeline& vt) const noexcept
+  ir_basic_block::def_timeline::criter
+  ir_basic_block::find_latest_def_before (instr_citer pos, const def_timeline& dt) const noexcept
   {
+    if (! dt.has_use_timelines ())
+      return dt.crend ();
+    
     if (pos == m_body.begin ())
-      return vt.crend ();
-    return std::find_if (vt.rbegin (), vt.rend (),
+      return dt.crend ();
+    return std::find_if (dt.rbegin (), dt.rend (),
                          [rfirst = body_crbegin (),
                           rlast  = body_crend (),
-                          &cmp   = *std::prev (pos)] (const def_timeline& dt) mutable
+                          cmp   = std::prev (pos)] (const ir_use_timeline& ut) mutable
                          {
                            for (; rfirst != rlast &&
-                                  rfirst->get () != &dt.get_instruction (); ++rfirst)
+                                  rfirst->get () != &ut.get_instruction (); ++rfirst)
                            {
-                             if (*rfirst == cmp)
+                             if (*rfirst == *cmp)
                                return true;
                            }
                            return false;
                          });
+  }
+  
+  optional_ref<ir_def>
+  ir_basic_block::join_defs (ir_variable& var)
+  {
+    std::size_t npreds = num_preds ();
+    
+    if (npreds == 0)
+      return nullopt;
+    
+    if (npreds == 1)
+      return pred_front ()->get_latest_def (var);
+  
+    // only for debugging
+    if (std::any_of (phi_begin (), phi_end (),
+                     [&var](ir_phi& phi) { return &phi.get_def().get_var () == &var; }))
+      throw ir_exception ("block already contains a phi instruction");
+  
+    // create phi instruction
+    ir_phi& phi_instr = create_phi (var);
+    
+    std::vector<std::pair<nonnull_ptr<ir_basic_block>, nonnull_ptr<ir_def>>> incoming_defs;
+    std::vector<nonnull_ptr<ir_basic_block>> indet_branchs;
+    
+    // TODO: remove recursion
+    std::for_each (pred_begin (), pred_end (),
+                   [&incoming_defs, &indet_branchs, &var] (nonnull_ptr<ir_basic_block> block)
+                   {
+                     optional_ref<ir_def> def = block->get_latest_def (var);
+                     if (def.has_value ())
+                     {
+                       ir_def_instruction& def_instr = def->get_instruction ();
+                       if (auto *def_phi = dynamic_cast<ir_phi *>(&def_instr))
+                       {
+                         if (def_phi->has_indeterminate_preds ())
+                         {
+                           indet_branchs.emplace_back (block);
+                         }
+                       }
+                       incoming_defs.emplace_back (block, *def);
+                     }
+                     else
+                     {
+                       indet_branchs.emplace_back (block);
+                     }
+                   });
+    
+    std::vector<std::pair<nonnull_ptr<ir_basic_block>, ir_use>> phi_args;
+    std::for_each (incoming_defs.begin (), incoming_defs.end (),
+                    [&phi_instr, &phi_args, &dt = get_timeline(var)](auto&& p)
+                    {
+                      ir_use_timeline& ut = dt.emplace_front (*std::get<nonnull_ptr<ir_def>> (p));
+                      phi_args.emplace_back (std::get<nonnull_ptr<ir_basic_block>> (p),
+                                             ir_use (ut, phi_instr));
+                    });
+    
+    return phi_instr.get_def ();
   }
 
   auto
@@ -390,7 +419,7 @@ namespace gch
   void
   ir_basic_block::def_emplace_before (const instr_citer pos, ir_def& d)
   {
-    variable_timeline& vt = get_timeline (d.get_var ());
+    def_timeline& vt = get_timeline (d.get_var ());
     if (pos == body_end ())
       return vt.emplace_back (d);
     vt.emplace_before (find_latest_def_before (pos, vt).base (), d);
@@ -433,7 +462,7 @@ namespace gch
     if (npreds == 0)
       return nullopt;
     if (npreds == 1)
-      return var.join (*get_pred_front ());
+      return var.join (*pred_front ());
 
     ir_variable::block_def_vect pairs;
     std::vector<nonnull_ptr<ir_basic_block>> undef_blocks;
@@ -474,7 +503,7 @@ namespace gch
   std::size_t
   ir_basic_block::num_preds (void)
   {
-    return std::distance (pred_begin (), pred_end ());
+    return m_parent.num_preds (*this);
   }
 
   ir_component::link_iter
@@ -492,7 +521,7 @@ namespace gch
   std::size_t
   ir_basic_block::num_succs (void)
   {
-    return std::distance (succ_begin (), succ_end ());
+    return m_parent.num_succs (*this);
   }
 
   ir_function&

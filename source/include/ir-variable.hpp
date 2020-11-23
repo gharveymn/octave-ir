@@ -23,8 +23,6 @@ along with Octave; see the file COPYING.  If not, see
 #if ! defined (octave_ir_variable_h)
 #define octave_ir_variable_h 1
 
-#include <nonnull_ptr.hpp>
-
 #include "ir-common-util.hpp"
 #include "ir-operand.hpp"
 #include "ir-type-base.hpp"
@@ -35,6 +33,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <plf_list.h>
 #include <vector>
 #include <tracker.hpp>
+#include <nonnull_ptr.hpp>
 
 namespace gch
 {
@@ -58,11 +57,13 @@ namespace gch
     : public intrusive_tracker<ir_variable, remote::intrusive_reporter<ir_def>>
   {
   public:
+    
+    using base = intrusive_tracker<ir_variable, remote::intrusive_reporter<ir_def>>;
 
     using block_def_pair = std::pair<nonnull_ptr<ir_basic_block>, nonnull_ptr<ir_def>>;
     using block_def_vect = std::vector<block_def_pair>;
 
-    ir_def create_def (ir_type ty, const ir_def_instruction& instr);
+    ir_def create_def (ir_type ty, ir_def_instruction& instr);
 
     static constexpr const char anonymous_name[] = "<@>";
 
@@ -128,17 +129,24 @@ namespace gch
     optional_ref<ir_def> join (ir_basic_block& blk, instr_citer pos);
 
     ir_def& create_def (ir_basic_block blk, instr_citer pos);
+    
+    [[nodiscard]]
+    constexpr ir_type get_type (void) const noexcept { return m_type; }
+    
+    void set_type (ir_type ty);
 
    private:
+  
+    ir_variable& initialize_sentinel (void);
 
-    void initialize_sentinel (void);
-
-    citer find (const ir_def& d) const;
+    // citer find (const ir_def& d) const;
 
     ir_function& m_function;
 
     //! The variable name. The default is a synonym for 'anonymous'.
     std::string m_name = anonymous_name;
+  
+    ir_type m_type = ir_type_v<void>;
 
     // Used to indicate if the variable is uninitialized in the current
     // code path. Lazily initialized.
@@ -146,18 +154,18 @@ namespace gch
 
   };
 
-  class def_timeline;
+  class ir_use_timeline;
 
   //! An ssa variable def. It holds very little information about itself,
   //! it's more of just an indicating stub for the variable.
   class ir_def 
     : public intrusive_reporter<ir_def, remote::intrusive_tracker<ir_variable>>,
-      public intrusive_tracker<ir_def, remote::reporter<ir_basic_block>>
+      public intrusive_tracker<ir_def, remote::intrusive_reporter<ir_use_timeline>>
   {
   public:
 
     using base_reporter = intrusive_reporter<ir_def, remote::intrusive_tracker<ir_variable>>;
-    using base_tracker  = intrusive_tracker<ir_def, remote::intrusive_reporter<def_timeline>>;
+    using tracker_type  = intrusive_tracker<ir_def, remote::reporter<ir_use_timeline>>;
 
     ir_def            (void)                = delete;
     ir_def            (const ir_def&)       = delete;
@@ -165,20 +173,15 @@ namespace gch
     ir_def& operator= (const ir_def&)       = delete;
     ir_def& operator= (ir_def&&) noexcept   = delete;
     ~ir_def           (void)                = default;
-
-    //! Get the def. Don't use this within the scope of ir_variable. The
-    //! def pointer is only nullptr when it is in an invalid state. It
-    //! should be set to a phony def if it has no real parent.
-    //! @return the parent def
-    ir_variable& get_var (void) noexcept (false);
+    
+    [[nodiscard]]
+    constexpr bool has_var (void) const noexcept { return has_remote (); }
+    
+    [[nodiscard]]
+    constexpr ir_variable& get_var (void) noexcept { return get_remote (); };
 
     [[nodiscard]]
-    const ir_variable& get_var (void) const noexcept (false);
-
-    ir_use create_use (const ir_instruction& instr);
-
-    template <typename InputIt>
-    static ir_type common_type (InputIt first, InputIt last);
+    constexpr const ir_variable& get_var (void) const noexcept { return get_remote (); };
 
     [[nodiscard]]
     constexpr const ir_def_instruction& get_instruction (void) const noexcept
@@ -205,12 +208,9 @@ namespace gch
 
     [[nodiscard]]
     bool has_uses (void) const noexcept;
-
+  
     [[nodiscard]]
-    constexpr ir_type get_type (void) const
-    {
-      return m_type;
-    }
+    constexpr ir_type get_type (void) const noexcept { return get_var ().get_type (); }
 
     void set_needs_init_check (bool state) noexcept
     {
@@ -231,13 +231,13 @@ namespace gch
 //    }
 
     friend ir_def ir_variable::create_def (ir_type ty, 
-                                           const ir_def_instruction& instr);
+                                           ir_def_instruction& instr);
+  
+    void propagate_type (ir_type ty);
 
   private:
 
-    ir_def (ir_variable& tkr, ir_type ty, const ir_def_instruction& instr);
-
-    const ir_type m_type;
+    ir_def (ir_variable& tkr, ir_def_instruction& instr);
 
     // where this ir_def occurs
     ir_def_instruction& m_instr;
@@ -247,11 +247,11 @@ namespace gch
   };
 
   class ir_use : public ir_operand,
-                 public intrusive_reporter<ir_use, remote::intrusive_tracker<def_timeline>>
+                 public intrusive_reporter<ir_use, remote::intrusive_tracker<ir_use_timeline>>
   {
   public:
 
-    using base          = intrusive_reporter<ir_use, remote::intrusive_tracker<ir_def>>;
+    using base          = intrusive_reporter<ir_use, remote::intrusive_tracker<ir_use_timeline>>;
     using reporter_type = base;
 
     // uses can only be explicitly created by defs
@@ -269,26 +269,31 @@ namespace gch
     //! def pointer is only nullptr when it is in an invalid state. It
     //! should be set to a phony def if it has no real parent.
     //! @return the parent def
-    ir_def& get_def (void) const noexcept (false);
+    [[nodiscard]] ir_def& get_def (void) const noexcept (false);
   
-    const std::string& get_name (void) const;
+    [[nodiscard]] const std::string& get_name (void) const;
 
-    std::size_t get_id (void);
+    [[nodiscard]] std::size_t get_id (void);
 
-    ir_type get_type (void) const override;
-
-    friend ir_use ir_def::create_use (const ir_instruction& instr);
+    [[nodiscard]] ir_type get_type (void) const override;
+    
+    [[nodiscard]]
+    constexpr ir_instruction& get_instruction (void) noexcept { return *m_instr; }
+  
+    [[nodiscard]]
+    constexpr const ir_instruction& get_instruction (void) const noexcept { return *m_instr; }
+  
+    ir_use (typename reporter_type::remote_interface_type& tkr, ir_instruction& instr);
 
   private:
 
-    //! Create a use with a parent def.
-    ir_use (typename reporter_type::remote_interface_type& tkr, 
-            const ir_instruction& instr);
-
     //! Where this use occurs.
-    const ir_instruction *m_instr;
+    const nonnull_ptr<ir_instruction> m_instr;
 
   };
+  
+  template <typename InputIt>
+  ir_type common_type (InputIt first, InputIt last);
 
   template <>
   struct ir_type::instance<ir_def *>
