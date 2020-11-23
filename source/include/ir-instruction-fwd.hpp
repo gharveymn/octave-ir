@@ -63,9 +63,6 @@ namespace gch
     class ir_biop;
     class ir_add;
 
-  template <typename ...Ts>
-  class ir_constant;
-
   class ir_basic_block;
 
   class ir_def;

@@ -25,7 +25,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "ir-common.hpp"
 #include "ir-variable.hpp"
-#include "ir-type-base.hpp"
+#include "ir-type-ir.hpp"
 #include "ir-instruction-fwd.hpp"
 #include <unordered_map>
 #include <list>
@@ -42,44 +42,6 @@ namespace gch
 
   template <typename>
   struct ir_printer;
-
-  using ir_block_ref = ir_constant<ir_basic_block *>;
-
-  template <>
-  struct ir_type::instance<ir_block_ref>
-  {
-    using type = ir_block_ref;
-    static constexpr
-    impl m_impl = create_type<type> ("ir_block_ref");
-  };
-
-  using ir_def_ref = ir_constant<ir_def *>;
-
-  template <>
-  struct ir_type::instance<ir_def_ref>
-  {
-    using type = ir_def_ref;
-    static constexpr
-    impl m_impl = create_type<type> ("ir_def_ref");
-  };
-
-  using ir_phi_arg = ir_constant<ir_block_ref, ir_def_ref>;
-
-  template <>
-  struct ir_type::instance<ir_phi_arg::value_type>
-  {
-    using type = ir_phi_arg::value_type;
-    static constexpr ir_type m_members[]
-    {
-      get<ir_block_ref> (),
-      get<ir_def_ref> (),
-    };
-
-    static_assert (ir_type_array (m_members).get_size () == sizeof (type),
-                   "Type size is not equal to its IR counterpart.");
-    static constexpr
-    impl m_impl = create_compound_type<type> ("phi_pair", m_members);
-  };
 
   // base class for instructions
   // each instruction must have a parent block
@@ -98,8 +60,7 @@ namespace gch
 
     // using vector instead of a map because we shouldn't be accessing
     // elements very often (hence this is optimized for memory usage).
-    using base_arg_type = std::unique_ptr<ir_operand>;
-    using args_vect = std::vector<base_arg_type>;
+    using args_vect = std::vector<ir_operand>;
     using iter      = args_vect::iterator;
     using citer     = args_vect::const_iterator;
     using ref       = args_vect::reference;
@@ -139,12 +100,32 @@ namespace gch
 
     // virtual void accept (ir_visitor& visitor) = 0;
   
-    [[nodiscard]] iter  begin (void)       { return m_args.begin (); }
-    [[nodiscard]] citer begin (void) const { return m_args.begin (); }
-    [[nodiscard]] iter  end   (void)       { return m_args.end (); }
-    [[nodiscard]] citer end   (void) const { return m_args.end (); }
     
-    iter erase (citer pos);
+    [[nodiscard]] auto  begin   (void)       noexcept { return m_args.begin ();   }
+    [[nodiscard]] auto  begin   (void) const noexcept { return m_args.begin ();   }
+    [[nodiscard]] auto  cbegin  (void) const noexcept { return m_args.cbegin ();  }
+    
+    [[nodiscard]] auto  end     (void)       noexcept { return m_args.end ();     }
+    [[nodiscard]] auto  end     (void) const noexcept { return m_args.end ();     }
+    [[nodiscard]] auto  cend    (void) const noexcept { return m_args.cend ();    }
+    
+    [[nodiscard]] auto  rbegin  (void)       noexcept { return m_args.rbegin ();  }
+    [[nodiscard]] auto  rbegin  (void) const noexcept { return m_args.rbegin ();  }
+    [[nodiscard]] auto  crbegin (void) const noexcept { return m_args.crbegin (); }
+    
+    [[nodiscard]] auto  rend    (void)       noexcept { return m_args.rend ();    }
+    [[nodiscard]] auto  rend    (void) const noexcept { return m_args.rend ();    }
+    [[nodiscard]] auto  crend   (void) const noexcept { return m_args.crend ();   }
+    
+    [[nodiscard]] auto& front   (void)       noexcept { return m_args.front ();   }
+    [[nodiscard]] auto& front   (void) const noexcept { return m_args.front ();   }
+    
+    [[nodiscard]] auto& back    (void)       noexcept { return m_args.back ();    }
+    [[nodiscard]] auto& back    (void) const noexcept { return m_args.back ();    }
+    
+    
+    iter erase (citer pos) { return m_args.erase (pos); };
+    iter erase (citer first, citer last) { return m_args.erase (first, last); };
     
     void set_args (args_vect&& args)
     {
@@ -159,18 +140,16 @@ namespace gch
 
   protected:
 
-    template <typename T, typename ...Args>
-    std::enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
-    emplace_back (Args&&... args)
+    template <typename ...Args>
+    ir_operand& emplace_back (Args&&... args)
     {
-      return emplace_before<T> (m_args.end (), std::forward<Args> (args)...);
+      return m_args.emplace_back (std::forward<Args> (args)...);
     }
 
-    template <typename T, typename ...Args>
-    std::enable_if_t<std::is_base_of<ir_operand, T>::value, iter>
+    template <typename ...Args>
     emplace_before (citer pos, Args&&... args)
     {
-      return m_args.emplace (pos, std::make_unique<T> (std::forward<Args> (args)...));
+      return m_args.emplace (pos, std::forward<Args> (args)...);
     }
 
   private:
@@ -206,19 +185,19 @@ namespace gch
   {
   public:
 
-    template <typename ...Args>
-    ir_assign (ir_basic_block& blk, ir_variable& ret_var,
-               const ir_constant<Args...>& c)
-      : ir_def_instruction (blk, ret_var, c.get_type ()),
-        m_src (emplace_back<ir_constant<Args...>> (c))
-    { }
-
-    template <typename ...Args>
-    ir_assign (ir_basic_block& blk, ir_variable& ret_var,
-               ir_constant<Args...>&& c)
-      : ir_def_instruction (blk, ret_var, c.get_type ()),
-        m_src (emplace_back<ir_constant<Args...>> (std::forward<ir_constant<Args...>> (c)))
-    { }
+    // template <typename ...Args>
+    // ir_assign (ir_basic_block& blk, ir_variable& ret_var,
+    //            const ir_constant<Args...>& c)
+    //   : ir_def_instruction (blk, ret_var, c.get_type ()),
+    //     m_src (emplace_back<ir_constant<Args...>> (c))
+    // { }
+    //
+    // template <typename ...Args>
+    // ir_assign (ir_basic_block& blk, ir_variable& ret_var,
+    //            ir_constant<Args...>&& c)
+    //   : ir_def_instruction (blk, ret_var, c.get_type ()),
+    //     m_src (emplace_back<ir_constant<Args...>> (std::forward<ir_constant<Args...>> (c)))
+    // { }
 
     ir_assign (ir_basic_block& blk, ir_variable& dst, ir_def& src);
 
@@ -252,7 +231,7 @@ namespace gch
     // finds which function this call will be linked to
     void resolve (void);
   
-    std::string             m_func_name;
+    std::string        m_func_name;
     arbitrary_function m_func;
   };
 
@@ -310,10 +289,10 @@ namespace gch
   public:
     
     ir_phi            (void)              = delete;
-    ir_phi            (const ir_phi&)     = default;
-    ir_phi            (ir_phi&&) noexcept = default;
-    ir_phi& operator= (const ir_phi&)     = default;
-    ir_phi& operator= (ir_phi&&) noexcept = default;
+    ir_phi            (const ir_phi&)     = delete;
+    ir_phi            (ir_phi&&) noexcept = delete;
+    ir_phi& operator= (const ir_phi&)     = delete;
+    ir_phi& operator= (ir_phi&&) noexcept = delete;
     ~ir_phi           (void) override     = default;
     
     ir_phi (ir_basic_block& blk, ir_variable& var)
@@ -321,37 +300,64 @@ namespace gch
     { }
 
     template <typename It>
-    ir_phi (ir_basic_block& blk, ir_variable& var, ir_type ty, It first,
-            It last)
+    ir_phi (ir_basic_block& blk, ir_variable& var, ir_type ty)
       : ir_def_instruction (blk, var, ty)
+    { }
+
+    void append_incoming (ir_basic_block& blk, ir_use_timeline& ut)
     {
-      std::for_each (first, last,
-        [this] (const std::pair<ir_basic_block&, ir_def *>& p)
-        {
-          append (&p.first, p.second);
-        });
+      emplace_back (ir_type_v<ir_basic_block *>, &blk);
+      emplace_back (ut, *this);
+    }
+    
+    void append_indet (ir_basic_block& blk)
+    {
+      m_indets.emplace_back (blk);
+    }
+    
+    void set_indets (std::vector<nonnull_ptr<ir_basic_block>>&& indets)
+    {
+      m_indets = std::move (indets);
     }
 
-    void append (ir_basic_block& blk, ir_use_timeline& ut)
-    {
-      emplace_back (blk, { ut, *this });
-    }
-
-    iter erase (const ir_basic_block *blk);
-
-    ir_def * find (const ir_basic_block *blk);
-
-    bool has_indeterminate_preds (void) { return ! m_indet_preds.empty (); }
-
-    const std::vector<ir_basic_block *>& get_undefined_preds (void)
-    {
-      return m_indet_preds;
-    }
-
+    iter erase (const ir_basic_block& blk);
+    
+    [[nodiscard]]  iter find (const ir_basic_block& blk);
+    [[nodiscard]] citer find (const ir_basic_block& blk) const;
+    
+    optional_ref<ir_use> retrieve_use (const ir_basic_block& blk);
+    optional_ref<ir_def> retrieve_def (const ir_basic_block& blk);
+  
+    [[nodiscard]] auto  indet_begin   (void)       noexcept { return m_indets.begin ();   }
+    [[nodiscard]] auto  indet_begin   (void) const noexcept { return m_indets.begin ();   }
+    [[nodiscard]] auto  indet_cbegin  (void) const noexcept { return m_indets.cbegin ();  }
+  
+    [[nodiscard]] auto  indet_end     (void)       noexcept { return m_indets.end ();     }
+    [[nodiscard]] auto  indet_end     (void) const noexcept { return m_indets.end ();     }
+    [[nodiscard]] auto  indet_cend    (void) const noexcept { return m_indets.cend ();    }
+  
+    [[nodiscard]] auto  indet_rbegin  (void)       noexcept { return m_indets.rbegin ();  }
+    [[nodiscard]] auto  indet_rbegin  (void) const noexcept { return m_indets.rbegin ();  }
+    [[nodiscard]] auto  indet_crbegin (void) const noexcept { return m_indets.crbegin (); }
+  
+    [[nodiscard]] auto  indet_rend    (void)       noexcept { return m_indets.rend ();    }
+    [[nodiscard]] auto  indet_rend    (void) const noexcept { return m_indets.rend ();    }
+    [[nodiscard]] auto  indet_crend   (void) const noexcept { return m_indets.crend ();   }
+  
+    [[nodiscard]] auto& indet_front   (void)       noexcept { return m_indets.front ();   }
+    [[nodiscard]] auto& indet_front   (void) const noexcept { return m_indets.front ();   }
+  
+    [[nodiscard]] auto& indet_back    (void)       noexcept { return m_indets.back ();    }
+    [[nodiscard]] auto& indet_back    (void) const noexcept { return m_indets.back ();    }
+  
+    [[nodiscard]] std::size_t num_indet (void) const noexcept { return m_indets.size (); }
+    
+    [[nodiscard]] bool has_indet (void) const noexcept { return m_indets.empty (); }
+    
   private:
 
     // blocks where the variable was undefined
-    std::vector<ir_basic_block *> m_indet_preds;
+    std::vector<nonnull_ptr<ir_basic_block>> m_indets;
   };
 
   class ir_relation : public ir_instruction

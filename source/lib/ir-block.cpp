@@ -170,7 +170,7 @@ namespace gch
     return *this;
   }
 
-  ir_basic_block::def_timeline::citer
+  ir_basic_block::def_timeline::use_tl_citer
   ir_basic_block::def_timeline::find (const ir_instruction *instr) const
   {
     auto pos = std::find_if (m_instances.cbegin (), m_instances.cend (),
@@ -197,6 +197,28 @@ namespace gch
     if (m_instances.empty ())
       return nullopt;
     return m_instances.back ().get_def ();
+  }
+  
+  ir_basic_block::def_timeline::use_tl_riter
+  ir_basic_block::def_timeline::find_latest_before (const instr_citer pos, instr_criter rfirst,
+                                                    instr_criter rlast)
+  {
+    if (! has_use_timelines () || rfirst == rlast)
+      return rend ();
+    
+    return std::find_if (rbegin (), rend (),
+                         [&rfirst, &rlast, p = std::prev (pos)] (const ir_use_timeline& ut) mutable
+                         {
+                           if (! ut.is_def_block ())
+                             return true;
+                           const ir_instruction *def_instr = &ut.get_instruction ();
+                           for (; rfirst != rlast && rfirst->get () != def_instr; ++rfirst)
+                           {
+                             if (*rfirst == *p)
+                               return true;
+                           }
+                           return false;
+                         });
   }
 
   ir_basic_block::ir_basic_block (ir_structure& parent)
@@ -257,14 +279,6 @@ namespace gch
                    });
     return m_body.erase (first, last);
   }
-  
-  std::vector<nonnull_ptr<ir_def>>
-  ir_basic_block::get_latest_defs (ir_variable& var) noexcept
-  {
-    if (auto opt_def = get_latest_def (var))
-      return { *opt_def };
-    return { };
-  }
 
   optional_ref<ir_def>
   ir_basic_block::get_latest_def (ir_variable& var)
@@ -274,24 +288,25 @@ namespace gch
       if (auto local_latest = vt->get_latest ())
         return local_latest;
     }
-    return join_defs (var);
+    return join_incoming_defs (var);
   }
 
   optional_ref<ir_def>
-  ir_basic_block::get_latest_def_before (ir_variable& var, const instr_citer pos) noexcept
+  ir_basic_block::get_latest_def_before (const instr_citer pos, ir_variable& var)
   {
     if (pos == body_end ())
       return get_latest_def (var);
     
     if (auto dt = find_timeline (var))
     {
-      if (auto found = find_latest_def_before (pos, *dt) ; found != dt->crend ())
+      if (auto found = dt->find_latest_before (pos, body_rbegin(), body_rend ())
+          ; found != dt->crend ())
         return found->get_def ();
     }
-    return join_defs (var);
+    return join_incoming_defs (var);
   }
 
-  ir_basic_block::def_timeline::riter
+  ir_basic_block::def_timeline::use_tl_riter
   ir_basic_block::find_latest_def_before (instr_citer pos, def_timeline& dt) const noexcept
   {
     if (! dt.has_use_timelines ())
@@ -314,31 +329,14 @@ namespace gch
                          });
   }
 
-  ir_basic_block::def_timeline::criter
+  ir_basic_block::def_timeline::use_tl_criter
   ir_basic_block::find_latest_def_before (instr_citer pos, const def_timeline& dt) const noexcept
   {
-    if (! dt.has_use_timelines ())
-      return dt.crend ();
-    
-    if (pos == m_body.begin ())
-      return dt.crend ();
-    return std::find_if (dt.rbegin (), dt.rend (),
-                         [rfirst = body_crbegin (),
-                          rlast  = body_crend (),
-                          cmp   = std::prev (pos)] (const ir_use_timeline& ut) mutable
-                         {
-                           for (; rfirst != rlast &&
-                                  rfirst->get () != &ut.get_instruction (); ++rfirst)
-                           {
-                             if (*rfirst == *cmp)
-                               return true;
-                           }
-                           return false;
-                         });
+    return find_latest_def_before (pos, const_cast<def_timeline&> (dt));
   }
   
   optional_ref<ir_def>
-  ir_basic_block::join_defs (ir_variable& var)
+  ir_basic_block::join_incoming_defs (ir_variable& var)
   {
     std::size_t npreds = num_preds ();
     
@@ -350,18 +348,15 @@ namespace gch
   
     // only for debugging
     if (std::any_of (phi_begin (), phi_end (),
-                     [&var](ir_phi& phi) { return &phi.get_def().get_var () == &var; }))
+                     [&var] (ir_phi& phi) { return &phi.get_def().get_var () == &var; }))
       throw ir_exception ("block already contains a phi instruction");
-  
-    // create phi instruction
-    ir_phi& phi_instr = create_phi (var);
     
     std::vector<std::pair<nonnull_ptr<ir_basic_block>, nonnull_ptr<ir_def>>> incoming_defs;
-    std::vector<nonnull_ptr<ir_basic_block>> indet_branchs;
+    std::vector<nonnull_ptr<ir_basic_block>> indet_incoming;
     
     // TODO: remove recursion
     std::for_each (pred_begin (), pred_end (),
-                   [&incoming_defs, &indet_branchs, &var] (nonnull_ptr<ir_basic_block> block)
+                   [&incoming_defs, &indet_incoming, &var] (nonnull_ptr<ir_basic_block> block)
                    {
                      optional_ref<ir_def> def = block->get_latest_def (var);
                      if (def.has_value ())
@@ -369,30 +364,41 @@ namespace gch
                        ir_def_instruction& def_instr = def->get_instruction ();
                        if (auto *def_phi = dynamic_cast<ir_phi *>(&def_instr))
                        {
-                         if (def_phi->has_indeterminate_preds ())
+                         if (def_phi->has_indet ())
                          {
-                           indet_branchs.emplace_back (block);
+                           indet_incoming.emplace_back (block);
                          }
                        }
                        incoming_defs.emplace_back (block, *def);
                      }
                      else
                      {
-                       indet_branchs.emplace_back (block);
+                       indet_incoming.emplace_back (block);
                      }
                    });
     
+    // don't create a phi instruction if there are no incoming defs
+    if (incoming_defs.empty ())
+      return nullopt;
+  
+    // create phi instruction
+    ir_phi& phi_instr = create_phi (var);
+    
     std::vector<std::pair<nonnull_ptr<ir_basic_block>, ir_use>> phi_args;
     std::for_each (incoming_defs.begin (), incoming_defs.end (),
-                    [&phi_instr, &phi_args, &dt = get_timeline(var)](auto&& p)
-                    {
-                      ir_use_timeline& ut = dt.emplace_front (*std::get<nonnull_ptr<ir_def>> (p));
-                      phi_args.emplace_back (std::get<nonnull_ptr<ir_basic_block>> (p),
-                                             ir_use (ut, phi_instr));
-                    });
-    
+                   [&phi_instr, &dt = get_timeline(var)] (auto&& p)
+                   {
+                     ir_use_timeline& ut = dt.emplace_front (*std::get<nonnull_ptr<ir_def>> (p));
+                     phi_instr.append_incoming (*std::get<nonnull_ptr<ir_basic_block>> (p), ut);
+                   });
+    phi_instr.set_indets (std::move (indet_incoming));
     return phi_instr.get_def ();
   }
+  
+  // ir_def& create_def (const instr_citer pos, ir_variable& var)
+  // {
+  //
+  // }
 
   auto
   ir_basic_block::create_def_before (ir_variable& var, instr_citer pos)
@@ -547,7 +553,5 @@ namespace gch
 
     }
   }
-
-  constexpr ir_type::impl ir_type::instance<ir_basic_block *>::m_impl;
 
 }

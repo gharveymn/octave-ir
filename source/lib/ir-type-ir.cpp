@@ -25,14 +25,9 @@ along with Octave; see the file COPYING.  If not, see
 #include "config.h"
 #endif
 
-#include <ir-type-std.hpp>
-#include <ir-variable.hpp>
+#include <ir-type-ir.hpp>
 
 namespace gch
 {
-//  constexpr ir_type::impl ir_type::instance<ir_def>::m_impl;
-//  template struct ir_type::instance<ir_def *>;
-//
-//  constexpr ir_type::impl ir_type::instance<ir_use>::m_impl;
-//  template struct ir_type::instance<ir_use *>;
+  constexpr ir_type::impl ir_type::instance<ir_basic_block *>::m_impl;
 }

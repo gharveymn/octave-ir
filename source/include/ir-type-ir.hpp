@@ -21,15 +21,22 @@ along with Octave; see the file COPYING.  If not, see
 */
 
 
-#if ! defined (ir_type_extra_h)
-#define ir_type_extra_h 1
+#if ! defined (ir_type_ir_h)
+#define ir_type_ir_h 1
 
 #include "ir-type-base.hpp"
-#include <string>
 
 namespace gch
 {
-
+  class ir_basic_block;
+  
+  template <>
+  struct ir_type::instance<ir_basic_block *>
+  {
+    using type = ir_basic_block *;
+    static constexpr
+    impl m_impl = create_type<type> ("block_ptr");
+  };
 }
 
 #endif

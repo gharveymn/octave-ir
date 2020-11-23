@@ -282,37 +282,76 @@ namespace gch
     : reporter_type (tag::bind, tkr),
       m_instr (instr)
   { }
+  
+  ir_use_timeline&
+  ir_use::get_timeline (void) noexcept
+  {
+    return get_remote ();
+  }
+  
+  const ir_use_timeline&
+  ir_use::get_timeline (void) const noexcept
+  {
+    return get_remote ();
+  }
 
-  ir_use::ir_use (ir_use&& u) noexcept
-    : reporter_type (std::move (u)),
-      m_instr (u.m_instr)
-  { }
+  ir_def&
+  ir_use::get_def (void) noexcept
+  {
+    return get_remote ().get_def ();
+  }
+  
+  const ir_def&
+  ir_use::get_def (void) const noexcept
+  {
+    return get_remote ().get_def ();
+  }
+  
+  ir_variable&
+  ir_use::get_var (void) noexcept
+  {
+    return get_def ().get_var ();
+  }
+  
+  const ir_variable&
+  ir_use::get_var (void) const noexcept
+  {
+    return get_def ().get_var ();
+  }
+  
+  ir_basic_block&
+  ir_use::get_block (void) noexcept
+  {
+    return get_instruction ().get_block ();
+  }
+  
+  const ir_basic_block&
+  ir_use::get_block (void) const noexcept
+  {
+    return get_instruction ().get_block ();
+  }
+  
+  ir_type
+  ir_use::get_type (void) const noexcept
+  {
+    return get_def ().get_type ();
+  }
   
   const std::string&
   ir_use::get_name (void) const
   {
     return get_def ().get_name ();
   }
-
+  
   std::size_t
   ir_use::get_id (void)
   {
     return get_position ();
   }
-
-  ir_type
-  ir_use::get_type (void) const
-  {
-    return get_def ().get_type ();
-  }
-
-  ir_def&
-  ir_use::get_def (void) const noexcept (false)
-  {
-    if (has_remote ())
-      return get_remote ().get_def ();
-    throw ir_exception ("ir_use is in an invalid state and has no ir_def.");
-  }
+  
+  ir_operand::ir_operand (ir_use_timeline& tl, ir_instruction& instr)
+    : m_data (std::in_place_type<ir_use>, tl, instr)
+  { }
 
 }
 

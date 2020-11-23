@@ -21,7 +21,6 @@ along with Octave; see the file COPYING.  If not, see
 */
 
 #include <ir-instruction.hpp>
-#include <ir-operand.hpp>
 #include <ir-variable.hpp>
 #include <algorithm>
 
@@ -37,12 +36,6 @@ namespace gch
   //
   // ir_instruction
   //
-
-  ir_instruction::iter
-  ir_instruction::erase (citer pos)
-  {
-    return m_args.erase (pos);
-  }
 
   //
   // ir_def_instruction
@@ -133,7 +126,7 @@ namespace gch
   {
     if (dptr.has_value ())
       {
-        m_indet_preds.push_back (blk);
+        m_indets.push_back (blk);
         get_def ().set_needs_init_check (true);
       }
     else
@@ -145,27 +138,44 @@ namespace gch
   }
 
   ir_phi::iter
-  ir_phi::erase (const ir_basic_block *blk)
+  ir_phi::erase (const ir_basic_block& blk)
   {
-    for (auto cit = begin (); cit != end (); ++cit)
+    if (auto found = find (blk) ; found != end ())
+      return ir_instruction::erase (found, found + 2);
+    return end ();
+  }
+  
+  ir_phi::iter
+  ir_phi::find (const ir_basic_block& blk)
+  {
+    for (auto it = begin (); it != end (); it += 2)
     {
-      ir_phi_arg *arg = static_cast<ir_phi_arg *> (cit->get ());
-      if (arg->get<ir_block_ref> ().value () == blk)
-        return ir_instruction::erase (cit);
+      if (&blk == it->as_type<ir_constant> ().get_data<ir_basic_block *> ())
+        return it;
     }
-    throw ir_exception ("specified blk not found in phi node");
+    return end ();
+  }
+  
+  ir_phi::citer
+  ir_phi::find (const ir_basic_block& blk) const
+  {
+    return const_cast<ir_phi *> (this)->find (blk);
   }
 
-  ir_def *
-  ir_phi::find (const ir_basic_block *blk)
+  optional_ref<ir_use>
+  ir_phi::retrieve_use (const ir_basic_block& blk)
   {
-    for (auto&& arg : *this)
-    {
-      auto phi = static_cast<ir_phi_arg *> (arg.get ());
-      if (phi->get<ir_block_ref> ().value () == blk)
-        return phi->get<ir_def_ref> ().value ();
-    }
-    throw ir_exception ("Specified block not found in the phi node.");
+    if (auto found = find (blk) ; found != end ())
+      return (++found)->as_type<ir_use> ();
+    return nullopt;
+  }
+  
+  optional_ref<ir_def>
+  ir_phi::retrieve_def (const ir_basic_block& blk)
+  {
+    if (auto maybe_use = retrieve_use (blk))
+      return maybe_use->get_def ();
+    return nullopt;
   }
 
 }
