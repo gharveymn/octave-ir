@@ -146,30 +146,90 @@ namespace gch
     }
   };
   
-  template <typename T>
-  class iterator_range
+  template <typename Container>
+  class subrange
   {
   public:
     
-    constexpr iterator_range (T b, T e)
-      : m_begin (std::move (b)),
-        m_end (std::move (e))
+    using iter = typename Container::iterator;
+    using citer = typename Container::const_iterator;
+    using riter  = std::reverse_iterator<iter>;
+    using criter  = std::reverse_iterator<citer>;
+  
+    subrange            (void)                = delete;
+    subrange            (const subrange&)     = default;
+    subrange            (subrange&&) noexcept = default;
+    subrange& operator= (const subrange&)     = default;
+    subrange& operator= (subrange&&) noexcept = default;
+    ~subrange           (void)                = default;
+    
+    template <typename Functor1, typename Functor2>
+    constexpr subrange (Functor1&& begin_func, Functor2&& end_func)
+    noexcept
+      : m_begin (std::forward<Functor1> (begin_func)),
+        m_end   (std::forward<Functor2> (end_func))
     { }
     
-    constexpr iterator_range (iterator_range&& other) noexcept
-      : m_begin (other.begin ()),
-        m_end (other.end ())
-    { }
+    [[nodiscard]] auto begin   (void)       noexcept { return m_begin (); }
+    [[nodiscard]] auto begin   (void) const noexcept { return citer (m_begin ()); }
+    [[nodiscard]] auto cbegin  (void) const noexcept { return citer (m_begin ()); }
     
-    constexpr T    begin (void) const noexcept { return m_begin; }
-    constexpr T    end (void)   const noexcept { return m_end; }
-    constexpr bool empty (void) const noexcept {return m_begin == m_end; }
+    [[nodiscard]] auto end     (void)       noexcept { return m_end (); }
+    [[nodiscard]] auto end     (void) const noexcept { return citer (m_end ()); }
+    [[nodiscard]] auto cend    (void) const noexcept { return citer (m_end ()); }
+    
+    [[nodiscard]] auto rbegin  (void)       noexcept { return riter (end ());  }
+    [[nodiscard]] auto rbegin  (void) const noexcept { return criter (end ());  }
+    [[nodiscard]] auto crbegin (void) const noexcept { return criter (cend ()); }
+    
+    [[nodiscard]] auto rend  (void)       noexcept { return riter (begin ()); }
+    [[nodiscard]] auto rend  (void) const noexcept { return criter (begin ()); }
+    [[nodiscard]] auto crend (void) const noexcept { return criter (cbegin ()); }
+    
+    [[nodiscard]] auto& front   (void)       noexcept { return *begin ();   }
+    [[nodiscard]] auto& front   (void) const noexcept { return *cbegin ();   }
+    
+    [[nodiscard]] auto& back    (void)       noexcept { return *(--end ());    }
+    [[nodiscard]] auto& back    (void) const noexcept { return *(--cend ());    }
+    
+    [[nodiscard]] auto size  (void) const noexcept
+    {
+      using std::distance;
+      return distance (begin (), end ());
+    }
+    
+    [[nodiscard]] bool empty (void) const noexcept { return begin () == end (); }
+    
+    void swap (subrange other)
+    {
+      using std::swap;
+      swap (m_begin, other.m_begin);
+      swap (m_end, other.m_end);
+    }
+  
   private:
-    T m_begin;
-    T m_end;
+    
+    std::function<iter ()> m_begin;
+    std::function<iter ()> m_end;
   };
   
+  template <typename Container>
+  bool operator== (const subrange<Container>& lhs, const subrange<Container>& rhs)
+  {
+    return std::equal (lhs.begin (), lhs.end (), rhs.begin (), rhs.end ());
+  }
   
+  template <typename Container>
+  bool operator!= (const subrange<Container>& lhs, const subrange<Container>& rhs)
+  {
+    return ! (lhs == rhs);
+  }
+  
+  template <typename Container>
+  void swap (subrange<Container>& lhs, subrange<Container>& rhs)
+  {
+    lhs.swap (rhs);
+  }
 
 }
 

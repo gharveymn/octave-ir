@@ -222,7 +222,11 @@ namespace gch
   }
 
   ir_basic_block::ir_basic_block (ir_structure& parent)
-    : m_parent (parent)
+    : m_parent (parent),
+      m_phi_range  ([this] (void) -> instr_iter  { return begin (); },
+                    [this] (void) -> instr_iter  { return m_body_begin; }),
+      m_body_range ([this] (void) -> instr_iter  { return m_body_begin; },
+                    [this] (void) -> instr_iter  { return end (); })
   { }
 
   ir_basic_block::~ir_basic_block (void) noexcept = default;
@@ -235,7 +239,7 @@ namespace gch
   ir_basic_block&
   ir_basic_block::split (instr_iter pivot, ir_basic_block& dest)
   {
-    if (pivot == m_body.end ())
+    if (pivot == m_instructions.end ())
       return dest;
 
     // move needed timelines into dest
@@ -251,8 +255,8 @@ namespace gch
     }
 
     // move the range into dest
-    dest.m_body.splice (dest.m_body.end (), m_body, pivot, m_body.end ());
-    std::for_each (pivot, dest.m_body.end (),
+    dest.m_instructions.splice (dest.m_instructions.end (), m_instructions, pivot, m_instructions.end ());
+    std::for_each (pivot, dest.m_instructions.end (),
                    [&dest] (std::unique_ptr<ir_instruction>& u)
                    {
                      u->set_block (dest);
@@ -265,7 +269,7 @@ namespace gch
   ir_basic_block::erase (const instr_citer pos)
   {
     (*pos)->unlink_propagate (pos);
-    return m_body.erase (pos);
+    return m_instructions.erase (pos);
   }
 
   ir_basic_block::instr_iter
@@ -277,7 +281,7 @@ namespace gch
                    {
                      uptr->unlink_propagate (first);
                    });
-    return m_body.erase (first, last);
+    return m_instructions.erase (first, last);
   }
 
   optional_ref<ir_def>
@@ -304,35 +308,6 @@ namespace gch
         return found->get_def ();
     }
     return join_incoming_defs (var);
-  }
-
-  ir_basic_block::def_timeline::use_tl_riter
-  ir_basic_block::find_latest_def_before (instr_citer pos, def_timeline& dt) const noexcept
-  {
-    if (! dt.has_use_timelines ())
-      return dt.rend ();
-    
-    if (pos == m_body.begin ())
-      return dt.rend ();
-    return std::find_if (dt.rbegin (), dt.rend (),
-                         [rfirst = body_crbegin (),
-                          rlast  = body_crend (),
-                          cmp    = std::prev (pos)] (const ir_use_timeline& ut) mutable
-                         {
-                           for (; rfirst != rlast &&
-                                  rfirst->get () != &ut.get_instruction (); ++rfirst)
-                           {
-                             if (*rfirst == *cmp)
-                               return true;
-                           }
-                           return false;
-                         });
-  }
-
-  ir_basic_block::def_timeline::use_tl_criter
-  ir_basic_block::find_latest_def_before (instr_citer pos, const def_timeline& dt) const noexcept
-  {
-    return find_latest_def_before (pos, const_cast<def_timeline&> (dt));
   }
   
   optional_ref<ir_def>
