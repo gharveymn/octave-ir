@@ -32,6 +32,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <tracker.hpp>
 #include <optional_ref.hpp>
 #include <plf_list.h>
+#include <gch/partition/list_partition.hpp>
 
 #include <memory>
 #include <unordered_set>
@@ -97,8 +98,6 @@ namespace gch
     {
       return m_block == &get_def ().get_block ();
     }
-  
-    void propagate_type (ir_type ty);
 
   private:
 
@@ -110,14 +109,6 @@ namespace gch
   class ir_basic_block : public ir_component
   {
   public:
-  
-    using phi_list        = std::list<ir_phi>;
-    using phi_iter        = phi_list::iterator;
-    using phi_citer       = phi_list::const_iterator;
-    using phi_riter       = phi_list::reverse_iterator;
-    using phi_criter      = phi_list::const_reverse_iterator;
-    using phi_ref         = phi_list::reference;
-    using phi_cref        = phi_list::const_reference;
 
     using instr_list      = std::list<std::unique_ptr<ir_instruction>>;
     using instr_iter      = instr_list::iterator;
@@ -132,11 +123,11 @@ namespace gch
 
     public:
       // never nullptr ----------------------------- v
-      using use_timelines = std::list<ir_use_timeline>;
-      using use_tl_iter         = use_timelines::iterator;
-      using use_tl_citer        = use_timelines::const_iterator;
-      using use_tl_riter        = use_timelines::reverse_iterator;
-      using use_tl_criter       = use_timelines::const_reverse_iterator;
+      using use_timeline_list = std::list<ir_use_timeline>;
+      using iter              = use_timeline_list::iterator;
+      using citer             = use_timeline_list::const_iterator;
+      using riter             = use_timeline_list::reverse_iterator;
+      using criter            = use_timeline_list::const_reverse_iterator;
 
       def_timeline (void)                         = delete;
       def_timeline (const def_timeline&)     = delete;
@@ -149,25 +140,25 @@ namespace gch
         : m_block (blk)
       { }
 
-      [[nodiscard]] use_tl_iter   begin (void)       noexcept { return m_instances.begin ();   }
-      [[nodiscard]] use_tl_citer  begin (void) const noexcept { return m_instances.begin ();   }
-      [[nodiscard]] use_tl_citer  cbegin (void) const noexcept { return m_instances.cbegin ();  }
+      [[nodiscard]] iter   begin (void)       noexcept { return m_instances.begin ();   }
+      [[nodiscard]] citer  begin (void) const noexcept { return m_instances.begin ();   }
+      [[nodiscard]] citer  cbegin (void) const noexcept { return m_instances.cbegin ();  }
 
-      [[nodiscard]] use_tl_iter   end (void)       noexcept { return m_instances.end ();     }
-      [[nodiscard]] use_tl_citer  end (void) const noexcept { return m_instances.end ();     }
-      [[nodiscard]] use_tl_citer  cend (void) const noexcept { return m_instances.cend ();    }
+      [[nodiscard]] iter   end (void)       noexcept { return m_instances.end ();     }
+      [[nodiscard]] citer  end (void) const noexcept { return m_instances.end ();     }
+      [[nodiscard]] citer  cend (void) const noexcept { return m_instances.cend ();    }
 
-      [[nodiscard]] use_tl_riter  rbegin (void)       noexcept { return m_instances.rbegin ();  }
-      [[nodiscard]] use_tl_criter rbegin (void) const noexcept { return m_instances.rbegin ();  }
-      [[nodiscard]] use_tl_criter crbegin (void) const noexcept { return m_instances.crbegin (); }
+      [[nodiscard]] riter  rbegin (void)       noexcept { return m_instances.rbegin ();  }
+      [[nodiscard]] criter rbegin (void) const noexcept { return m_instances.rbegin ();  }
+      [[nodiscard]] criter crbegin (void) const noexcept { return m_instances.crbegin (); }
 
-      [[nodiscard]] use_tl_riter  rend (void)       noexcept { return m_instances.rend ();     }
-      [[nodiscard]] use_tl_criter rend (void) const noexcept { return m_instances.rend ();     }
-      [[nodiscard]] use_tl_criter crend (void) const noexcept { return m_instances.crend ();    }
+      [[nodiscard]] riter  rend (void)       noexcept { return m_instances.rend ();     }
+      [[nodiscard]] criter rend (void) const noexcept { return m_instances.rend ();     }
+      [[nodiscard]] criter crend (void) const noexcept { return m_instances.crend ();    }
 
       [[nodiscard]] bool has_use_timelines (void) const noexcept { return ! m_instances.empty (); }
 
-      void splice (const use_tl_iter pos, def_timeline& other, const use_tl_iter first, const use_tl_iter last)
+      void splice (const iter pos, def_timeline& other, const iter first, const iter last)
       {
         auto pivot = m_instances.emplace (pos, std::move (*first), *m_block);
         try
@@ -191,7 +182,7 @@ namespace gch
         other.m_instances.erase (first, last);
       }
 
-      use_tl_iter emplace_before (use_tl_citer pos, ir_def& d)
+      iter emplace_before (citer pos, ir_def& d)
       {
         return m_instances.emplace (pos, *m_block, d);
       }
@@ -205,14 +196,23 @@ namespace gch
       {
         return m_instances.emplace_back (*m_block, d);
       }
+  
+      iter erase (citer pos)
+      {
+        return m_instances.erase (pos);
+      }
+  
+      iter erase (citer first, citer last)
+      {
+        return m_instances.erase (first, last);
+      }
 
-      void erase (const ir_instruction* instr)
+      void erase (const ir_instruction& instr)
       {
         m_instances.erase (find (instr));
       }
 
-      [[nodiscard]]
-      use_tl_citer find (const ir_instruction *instr_cit) const;
+      [[nodiscard]] citer find (const ir_instruction& instr_cit) const;
 
       [[nodiscard]]
       std::size_t num_defs (void) const noexcept
@@ -223,10 +223,9 @@ namespace gch
       [[nodiscard]] optional_ref<ir_def> get_latest (void) noexcept;
       [[nodiscard]] optional_ref<const ir_def> get_latest (void) const noexcept;
       
-      use_tl_riter find_latest_before (instr_citer pos, instr_criter rfirst, instr_criter rend);
+      riter find_latest_before (instr_citer pos, instr_criter rfirst, instr_criter rend);
       
-      use_tl_criter
-      find_latest_before (instr_citer pos, instr_criter rfirst, instr_criter rend) const
+      criter find_latest_before (instr_citer pos, instr_criter rfirst, instr_criter rend) const
       {
         return const_cast<def_timeline *> (this)->find_latest_before (pos, rfirst, rend);
       }
@@ -248,7 +247,7 @@ namespace gch
       nonnull_ptr<ir_basic_block> m_block;
 
       //! A timeline of defs in this block.
-      use_timelines m_instances;
+      use_timeline_list m_instances;
       
       // optional_ref<ir_use_timeline> m_phi;
 
@@ -290,157 +289,74 @@ namespace gch
 
     // all
   
-    [[nodiscard]] instr_iter   begin (void)         noexcept { return m_instructions.begin ();   }
-    [[nodiscard]] instr_citer  begin (void)   const noexcept { return m_instructions.begin ();   }
-    [[nodiscard]] instr_citer  cbegin (void)  const noexcept { return m_instructions.cbegin ();  }
+    [[nodiscard]] instr_iter   begin (void)         noexcept { return m_instr_partition.data_begin ();   }
+    [[nodiscard]] instr_citer  begin (void)   const noexcept { return m_instr_partition.data_cbegin ();   }
+    [[nodiscard]] instr_citer  cbegin (void)  const noexcept { return m_instr_partition.data_cbegin ();  }
   
-    [[nodiscard]] instr_iter   end (void)           noexcept { return m_instructions.end ();     }
-    [[nodiscard]] instr_citer  end (void)     const noexcept { return m_instructions.end ();     }
-    [[nodiscard]] instr_citer  cend (void)    const noexcept { return m_instructions.cend ();    }
+    [[nodiscard]] instr_iter   end (void)           noexcept { return m_instr_partition.data_begin ();     }
+    [[nodiscard]] instr_citer  end (void)     const noexcept { return m_instr_partition.data_cbegin ();     }
+    [[nodiscard]] instr_citer  cend (void)    const noexcept { return m_instr_partition.data_cbegin ();    }
   
-    [[nodiscard]] instr_riter  rbegin (void)        noexcept { return m_instructions.rbegin ();  }
-    [[nodiscard]] instr_criter rbegin (void)  const noexcept { return m_instructions.rbegin ();  }
-    [[nodiscard]] instr_criter crbegin (void) const noexcept { return m_instructions.crbegin (); }
+    [[nodiscard]] instr_riter  rbegin (void)        noexcept { return m_instr_partition.data_rbegin ();  }
+    [[nodiscard]] instr_criter rbegin (void)  const noexcept { return m_instr_partition.data_crbegin ();  }
+    [[nodiscard]] instr_criter crbegin (void) const noexcept { return m_instr_partition.data_crbegin (); }
   
-    [[nodiscard]] instr_riter  rend (void)          noexcept { return m_instructions.rend ();    }
-    [[nodiscard]] instr_criter rend (void)    const noexcept { return m_instructions.rend ();    }
-    [[nodiscard]] instr_criter crend (void)   const noexcept { return m_instructions.crend ();   }
+    [[nodiscard]] instr_riter  rend (void)          noexcept { return m_instr_partition.data_rend ();    }
+    [[nodiscard]] instr_criter rend (void)    const noexcept { return m_instr_partition.data_crend ();    }
+    [[nodiscard]] instr_criter crend (void)   const noexcept { return m_instr_partition.data_crend ();   }
   
-    [[nodiscard]] instr_ref    front (void)         noexcept { return m_instructions.front ();   }
-    [[nodiscard]] instr_cref   front (void)   const noexcept { return m_instructions.front ();   }
+    [[nodiscard]] instr_ref    front (void)         noexcept { return m_instr_partition.data_front ();   }
+    [[nodiscard]] instr_cref   front (void)   const noexcept { return m_instr_partition.data_front ();   }
   
-    [[nodiscard]] instr_ref    back (void)          noexcept { return m_instructions.back ();    }
-    [[nodiscard]] instr_cref   back (void)    const noexcept { return m_instructions.back ();    }
+    [[nodiscard]] instr_ref    back (void)          noexcept { return m_instr_partition.data_back ();    }
+    [[nodiscard]] instr_cref   back (void)    const noexcept { return m_instr_partition.data_back ();    }
   
-    [[nodiscard]] size_t       size (void)    const noexcept { return m_instructions.size ();    }
-    [[nodiscard]] bool         empty (void)   const noexcept { return m_instructions.empty ();   }
+    [[nodiscard]] size_t       size (void)    const noexcept { return m_instr_partition.data_size ();    }
+    [[nodiscard]] bool         empty (void)   const noexcept { return m_instr_partition.data_empty ();   }
+  
+    [[nodiscard]] constexpr auto& get_phi_range (void) noexcept {return get_subrange<0> (m_instr_partition); }
+    [[nodiscard]] constexpr auto& get_phi_range (void) const noexcept {return get_subrange<0> (m_instr_partition); }
     
-    class subrange
-    {
-    public:
-  
-      using riter  = std::reverse_iterator<instr_iter>;
-      using criter = std::reverse_iterator<instr_citer>;
-    
-      subrange            (void)                = default;
-      subrange            (const subrange&)     = default;
-      subrange            (subrange&&) noexcept = default;
-      subrange& operator= (const subrange&)     = default;
-      subrange& operator= (subrange&&) noexcept = default;
-      ~subrange (void)                          = default;
-    
-      template <typename Functor1, typename Functor2>
-      constexpr subrange (Functor1&& begin_func, Functor2&& end_func)
-      noexcept
-        : m_begin (std::forward<Functor1> (begin_func)),
-          m_end   (std::forward<Functor2> (end_func))
-      { }
-    
-      [[nodiscard]] auto  begin   (void)       noexcept { return m_begin (); }
-      [[nodiscard]] auto  begin   (void) const noexcept { return instr_citer (m_begin ()); }
-      [[nodiscard]] auto  cbegin  (void) const noexcept { return instr_citer (m_begin ()); }
-    
-      [[nodiscard]] auto  end     (void)       noexcept { return m_end (); }
-      [[nodiscard]] auto  end     (void) const noexcept { return instr_citer (m_end ()); }
-      [[nodiscard]] auto  cend    (void) const noexcept { return instr_citer (m_end ()); }
-    
-      [[nodiscard]] auto body_rbegin  (void)       noexcept { return riter (end ());  }
-      [[nodiscard]] auto body_rbegin  (void) const noexcept { return criter (end ());  }
-      [[nodiscard]] auto body_crbegin (void) const noexcept { return criter (cend ()); }
-    
-      [[nodiscard]] auto body_rend  (void)       noexcept { return riter (begin ()); }
-      [[nodiscard]] auto body_rend  (void) const noexcept { return criter (begin ()); }
-      [[nodiscard]] auto body_crend (void) const noexcept { return criter (cbegin ()); }
-    
-      [[nodiscard]] auto& front   (void)       noexcept { return *begin ();   }
-      [[nodiscard]] auto& front   (void) const noexcept { return *begin ();   }
-    
-      [[nodiscard]] auto& back    (void)       noexcept { return *(--end ());    }
-      [[nodiscard]] auto& back    (void) const noexcept { return *(--end ());    }
-    
-      [[nodiscard]] bool empty (void) const noexcept { return begin () == end (); }
-  
-    private:
-    
-      std::function<instr_iter()> m_begin;
-      std::function<instr_iter()> m_end;
-    };
-  
-    // phi
-  
-    [[nodiscard]] instr_iter  phi_begin  (void)       noexcept { return begin (); }
-    [[nodiscard]] instr_citer phi_begin  (void) const noexcept { return begin (); }
-    [[nodiscard]] instr_citer phi_cbegin (void) const noexcept { return cbegin (); }
-  
-    [[nodiscard]] instr_iter  phi_end  (void)       noexcept { return body_begin ();  }
-    [[nodiscard]] instr_citer phi_end  (void) const noexcept { return body_begin ();  }
-    [[nodiscard]] instr_citer phi_cend (void) const noexcept { return body_begin (); }
-  
-    [[nodiscard]] auto phi_rbegin  (void)       noexcept { return std::reverse_iterator (phi_end ());  }
-    [[nodiscard]] auto phi_rbegin  (void) const noexcept { return std::reverse_iterator (phi_end ());  }
-    [[nodiscard]] auto phi_crbegin (void) const noexcept { return std::reverse_iterator (phi_cend ()); }
-  
-    [[nodiscard]] auto phi_rend  (void)       noexcept { return std::reverse_iterator (phi_begin ()); }
-    [[nodiscard]] auto phi_rend  (void) const noexcept { return std::reverse_iterator (phi_begin ()); }
-    [[nodiscard]] auto phi_crend (void) const noexcept { return std::reverse_iterator (phi_cbegin ()); }
-  
-    [[nodiscard]] instr_ref  phi_front (void)       noexcept { return *phi_begin (); }
-    [[nodiscard]] instr_cref phi_front (void) const noexcept { return *phi_begin (); }
-  
-    [[nodiscard]] instr_ref  phi_back (void)       noexcept { return *(--phi_end ());    }
-    [[nodiscard]] instr_cref phi_back (void) const noexcept { return *(--phi_end ());    }
-  
-    [[nodiscard]] auto phi_size  (void) const noexcept { return std::distance (phi_begin (), phi_end ()); }
-    [[nodiscard]] bool phi_empty (void) const noexcept { return phi_begin () == phi_end (); }
-
-    // body
-    
-    [[nodiscard]] instr_iter  body_begin  (void)       noexcept { return m_body_begin; }
-    [[nodiscard]] instr_citer body_begin  (void) const noexcept { return m_body_begin; }
-    [[nodiscard]] instr_citer body_cbegin (void) const noexcept { return m_body_begin; }
-  
-    [[nodiscard]] instr_iter  body_end  (void)       noexcept { return end ();  }
-    [[nodiscard]] instr_citer body_end  (void) const noexcept { return end ();  }
-    [[nodiscard]] instr_citer body_cend (void) const noexcept { return cend (); }
-  
-    [[nodiscard]] auto body_rbegin  (void)       noexcept { return std::reverse_iterator (body_end ());  }
-    [[nodiscard]] auto body_rbegin  (void) const noexcept { return std::reverse_iterator (body_end ());  }
-    [[nodiscard]] auto body_crbegin (void) const noexcept { return std::reverse_iterator (body_cend ()); }
-  
-    [[nodiscard]] auto body_rend  (void)       noexcept { return std::reverse_iterator (body_begin ()); }
-    [[nodiscard]] auto body_rend  (void) const noexcept { return std::reverse_iterator (body_begin ()); }
-    [[nodiscard]] auto body_crend (void) const noexcept { return std::reverse_iterator (body_cbegin ()); }
-  
-    [[nodiscard]] instr_ref  body_front (void)       noexcept { return *body_begin (); }
-    [[nodiscard]] instr_cref body_front (void) const noexcept { return *body_begin (); }
-  
-    [[nodiscard]] instr_ref  body_back (void)       noexcept { return *(--body_end ());    }
-    [[nodiscard]] instr_cref body_back (void) const noexcept { return *(--body_end ());    }
-  
-    [[nodiscard]] auto body_size  (void) const noexcept { return size () - phi_size (); }
-    [[nodiscard]] bool body_empty (void) const noexcept { return body_begin () == body_end (); }
+    [[nodiscard]] constexpr auto& get_body (void) noexcept {return get_subrange<1> (m_instr_partition); }
+    [[nodiscard]] constexpr auto& get_body (void) const noexcept {return get_subrange<1> (m_instr_partition); }
 
     template <typename ...Args>
-    ir_phi& create_phi (Args&&... args)
+    ir_phi& create_phi (ir_variable& var, Args&&... args)
     {
-      ir_phi& ret = m_phi_nodes.emplace_back (*this, std::forward<Args> (args)...);
+      std::unique_ptr<ir_phi> u = create_instruction<ir_phi> (var, std::forward<Args> (args)...);
+      ir_phi& ret = *u;
+      auto& ret_ptr = get_phi_range ().emplace_back (std::move (u));
       try
       {
-        def_emplace_front (ret.get_def ());
+        get_timeline (var).emplace_front (ret.get_def ());
       }
-      catch (const std::exception& e)
+      catch (...)
       {
-        m_phi_nodes.erase (--m_phi_nodes.end ());
-        throw e;
+        get_phi_range ().pop_back ();
+        throw;
       }
       return ret;
     }
-
-    phi_iter erase_phi (phi_citer pos)
+    
+    def_timeline::iter erase_phi (ir_variable& var)
     {
-      return m_phi_nodes.erase (pos);
+      def_timeline& dt = get_timeline (var);
+      // erase use_timelines until we get to the defining use_timeline
+      auto pos = std::find_if (dt.begin (), dt.end (),
+                               [] (ir_use_timeline& ut) { return ut.is_def_block (); });
+      
+      // error checking
+      if (pos == dt.end () || ! isa<ir_phi> (pos->get_instruction ()))
+        throw ir_exception ("tried to erase a nonexistent phi instruction");
+      
+      get_phi_range ().erase (std::find_if (get_phi_range ().begin (), get_phi_range ().end (),
+                                            [pos] (auto&& uptr)
+                                            {
+                                              return uptr.get () == &pos->get_instruction ();
+                                            }));
+      return dt.erase (dt.begin (), ++pos);
     }
-
+    
     template <typename T>
     using is_instruction = std::is_base_of<ir_instruction, T>;
 
@@ -461,6 +377,34 @@ namespace gch
     using enable_noret_nonphi = std::enable_if_t<std::conjunction<is_nonphi<T>,
       std::negation<has_return<T>>>::value>;
 
+    template <typename Instruction, typename... Args,
+              std::enable_if<has_return<Instruction>::value> * = nullptr>
+    Instruction& emplace_body (instr_citer pos, Args&&... args)
+    {
+      static_assert (std::is_same_v<Instruction, ir_phi>, "cannot use phi instructions in body");
+      auto instr_uptr = create_instruction<Instruction> (std::forward<Args> (args)...);
+      Instruction& ret = *instr_uptr;
+      auto it = get_body ().emplace (pos, std::move (instr_uptr));
+      try
+      {
+        def_emplace_before (pos, ret.get_def ());
+      }
+      catch (...)
+      {
+        get_body ().erase (it);
+        throw;
+      }
+      return ret;
+    }
+  
+    template <typename Instruction, typename... Args,
+              std::enable_if<! has_return<Instruction>::value> * = nullptr>
+    Instruction& emplace_body (instr_citer pos, Args&&... args)
+    {
+      static_assert (std::is_same_v<Instruction, ir_phi>, "cannot use phi instructions in body");
+      return **get_body ().emplace (pos, create_instruction<Instruction> (std::forward<Args> (args)...));
+    }
+    
     template <typename T, typename ...Args, enable_ret_nonphi<T>* = nullptr>
     T& emplace_before (instr_citer pos, Args&&... args)
     {
@@ -535,7 +479,7 @@ namespace gch
     {
       return emplace_before (m_instructions.end (), std::forward<Args> (args)...);
     }
-
+    
     instr_iter erase (instr_citer pos);
     instr_iter erase (instr_citer first, instr_citer last) noexcept;
 
@@ -552,7 +496,7 @@ namespace gch
     bool has_preds (void) { return pred_begin () != pred_end (); }
 
     [[nodiscard]]
-    bool has_preds (instr_citer pos) { return pos != body_begin () || has_preds (); }
+    bool has_preds (instr_citer pos) { return pos != get_body ().begin () || has_preds (); }
 
     [[nodiscard]]
     bool has_multiple_preds (void) { return num_preds () > 1; }
@@ -566,7 +510,7 @@ namespace gch
     nonnull_ptr<ir_basic_block> succ_back  (void) { return *(--succ_end ()); }
 
     bool has_succs (void)            { return succ_begin () != succ_end (); }
-    bool has_succs (instr_citer pos) { return pos != body_end () || has_succs (); }
+    bool has_succs (instr_citer pos) { return pos != get_body ().end () || has_succs (); }
 
     bool has_multiple_succs (void) { return num_succs () > 1; }
 
@@ -635,15 +579,8 @@ namespace gch
     }
 
     ir_structure& m_parent;
-
-    // list of instructions
-    instr_list m_instructions;
-    instr_iter m_body_begin;
     
-    subrange m_phi_range;
-    subrange m_body_range;
-    
-    std::size_t m_num_phi = 0;
+    list_partition<std::unique_ptr<ir_instruction>, 2> m_instr_partition;
 
     // map of variables to the ir_def timeline for this block
 

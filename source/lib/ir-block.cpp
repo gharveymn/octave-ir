@@ -143,17 +143,6 @@ namespace gch
   {
     return get_def ().get_instruction ();
   }
-  
-  void
-  ir_use_timeline::propagate_type (ir_type ty)
-  {
-    std::for_each (begin (), end (),
-                   [&ty] (ir_use& use)
-                   {
-                     if (auto *call_instr = dynamic_cast<ir_call *> (&use.get_instruction ()))
-                       call_instr->resolve ();
-                   });
-  }
 
   //
   // ir_basic_block
@@ -170,13 +159,13 @@ namespace gch
     return *this;
   }
 
-  ir_basic_block::def_timeline::use_tl_citer
-  ir_basic_block::def_timeline::find (const ir_instruction *instr) const
+  ir_basic_block::def_timeline::citer
+  ir_basic_block::def_timeline::find (const ir_instruction& instr) const
   {
     auto pos = std::find_if (m_instances.cbegin (), m_instances.cend (),
-                             [instr] (const ir_use_timeline& dt)
+                             [&instr] (const ir_use_timeline& dt)
                              {
-                               return &dt.get_instruction () == instr;
+                               return &dt.get_instruction () == &instr;
                              });
     if (pos == m_instances.end ())
       throw ir_exception ("instruction not found in the timeline.");
@@ -199,7 +188,7 @@ namespace gch
     return m_instances.back ().get_def ();
   }
   
-  ir_basic_block::def_timeline::use_tl_riter
+  ir_basic_block::def_timeline::riter
   ir_basic_block::def_timeline::find_latest_before (const instr_citer pos, instr_criter rfirst,
                                                     instr_criter rlast)
   {
@@ -223,10 +212,7 @@ namespace gch
 
   ir_basic_block::ir_basic_block (ir_structure& parent)
     : m_parent (parent),
-      m_phi_range  ([this] (void) -> instr_iter  { return begin (); },
-                    [this] (void) -> instr_iter  { return m_body_begin; }),
-      m_body_range ([this] (void) -> instr_iter  { return m_body_begin; },
-                    [this] (void) -> instr_iter  { return end (); })
+      m_instr_partition ()
   { }
 
   ir_basic_block::~ir_basic_block (void) noexcept = default;
