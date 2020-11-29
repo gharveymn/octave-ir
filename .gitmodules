@@ -26,3 +26,7 @@
 	path = external/select-iterator
 	url = git@github.com:gharveymn/select-iterator.git
 	branch = main
+[submodule "external/partition"]
+	path = external/partition
+	url = git@github.com:gharveymn/partition.git
+	branch = main
