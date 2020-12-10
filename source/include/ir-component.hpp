@@ -23,15 +23,16 @@ along with Octave; see the file COPYING.  If not, see
 #if ! defined (ir_component_h)
 #define ir_component_h 1
 
-#include <optional_ref.hpp>
-#include <nonnull_ptr.hpp>
-#include <variant-iterator.hpp>
+#include "ir-common.hpp"
+
+#include <gch/optional_ref.hpp>
+#include <gch/nonnull_ptr.hpp>
+#include <gch/variant-iterator.hpp>
 
 #include <list>
 #include <type_traits>
+#include <memory>
 #include <vector>
-
-#include "ir-common.hpp"
 
 namespace gch
 {

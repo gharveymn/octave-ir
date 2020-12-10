@@ -31,6 +31,7 @@ along with Octave; see the file COPYING.  If not, see
 // Templates are ok.
 
 #include <type_traits>
+#include <gch/nonnull_ptr.hpp>
 
 class octave_base_value;
 
@@ -200,17 +201,14 @@ namespace gch
     // shortcut for ir_type_impl::create_compound_type
     template <typename T, std::size_t N>
     static constexpr impl
-    create_compound_type (const char *name,
-                          const ir_type (&members)[N]) noexcept;
+    create_compound_type (const char *name, const ir_type (&members)[N]) noexcept;
 
     // shortcut for ir_type_impl::create_compound_type
     template <typename T, std::size_t N>
     static constexpr impl
-    create_compound_type (const char *name, const ir_type (&members)[N],
-                          ir_type parent) noexcept;
+    create_compound_type (const char *name, const ir_type (&members)[N], ir_type parent) noexcept;
 
     impl_p m_ptr;
-
   };
   
   template <typename ...Ts>

@@ -215,18 +215,6 @@ namespace gch
   // ir_def
   //
 
-  ir_def::ir_def (ir_variable& tkr, ir_def_instruction& instr)
-    : base_reporter (tag::bind, tkr),
-      m_instr (instr),
-      m_needs_init_check (false)
-  { }
-
-  void
-  ir_def::propagate_type (ir_type ty)
-  {
-    std::for_each (begin (), end (), [&ty] (ir_use_timeline& tl) { tl.propagate_type (ty); });
-  }
-
   template <typename InputIt>
   ir_type
   common_type (InputIt first, InputIt last)
@@ -242,11 +230,6 @@ namespace gch
     if (curr_ty == ir_type::get<void> ())
       throw ir_exception ("no common type");
     return curr_ty;
-  }
-  
-  ir_basic_block& ir_def::get_block (void) const noexcept
-  {
-    return get_instruction ().get_block ();
   }
 
   std::ostream&
@@ -264,21 +247,14 @@ namespace gch
   std::size_t
   ir_def::get_id (void) const
   {
-    return get_position ();
-  }
-
-  bool ir_def::has_uses (void) const noexcept
-  {
-    return std::any_of (begin (), end (),
-                        [] (const ir_use_timeline& dt) { return dt.has_remotes (); });
+    return m_id;
   }
 
   //
   // ir_use
   //
 
-  ir_use::ir_use (typename reporter_type::remote_interface_type& tkr, 
-                  ir_instruction& instr)
+  ir_use::ir_use (ir_use_timeline& tkr, ir_instruction& instr)
     : reporter_type (tag::bind, tkr),
       m_instr (instr)
   { }
@@ -348,10 +324,5 @@ namespace gch
   {
     return get_position ();
   }
-  
-  ir_operand::ir_operand (ir_use_timeline& tl, ir_instruction& instr)
-    : m_data (std::in_place_type<ir_use>, tl, instr)
-  { }
 
 }
-

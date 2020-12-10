@@ -29,10 +29,11 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-type.hpp"
 #include "ir-instruction.hpp"
 
-#include <tracker.hpp>
-#include <optional_ref.hpp>
-#include <plf_list.h>
+#include <gch/tracker.hpp>
+#include <gch/optional_ref.hpp>
 #include <gch/partition/list_partition.hpp>
+
+#include <plf_list.h>
 
 #include <memory>
 #include <unordered_set>
@@ -44,73 +45,67 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace gch
 {
-  class ir_phi;
   class ir_structure;
-  class ir_instruction;
-  class ir_def_instruction;
 
   class ir_variable;
   class ir_def;
   class ir_use;
 
   class ir_use_timeline
-    : public intrusive_reporter<ir_use_timeline, remote::intrusive_tracker<ir_def>>,
-      public intrusive_tracker<ir_use_timeline, remote::intrusive_reporter<ir_use>>
+    : public intrusive_tracker<ir_use_timeline, remote::intrusive_reporter<ir_use>>
   {
-
   public:
-  
-    using base_reporter = intrusive_reporter<ir_use_timeline, remote::intrusive_tracker<ir_def>>;
-    using base_tracker  = intrusive_tracker<ir_use_timeline, remote::intrusive_reporter<ir_use>>;
-
-    ir_use_timeline (void)                    = delete;
-    ir_use_timeline (const ir_use_timeline&)     = delete;
-    ir_use_timeline (ir_use_timeline&&) noexcept = delete;
-    ir_use_timeline& operator= (const ir_use_timeline&)     = delete;
-    ir_use_timeline& operator= (ir_use_timeline&&) noexcept;
-    ~ir_use_timeline (void)                    = default;
-
-    explicit ir_use_timeline (ir_basic_block& block);
-    ir_use_timeline (ir_basic_block& block, ir_def& def);
-    ir_use_timeline (ir_use_timeline&& other, ir_basic_block& block) noexcept;
-
-    void reset (void)
-    {
-      base_tracker::clear ();
-    }
-
-    void rebind (ir_def& d);
-  
-    [[nodiscard]]
-    constexpr ir_def& get_def (void) noexcept { return base_reporter::get_remote (); }
-
-    [[nodiscard]]
-    constexpr const ir_def& get_def (void) const noexcept { return base_reporter::get_remote (); }
-
-    [[nodiscard]]
-    ir_instruction& get_instruction (void) noexcept;
-
-    [[nodiscard]]
-    const ir_instruction& get_instruction (void) const noexcept;
+    using use_tracker  = intrusive_tracker<ir_use_timeline, remote::intrusive_reporter<ir_use>>;
+    using instr_riter = std::list<ir_instruction>::reverse_iterator;
     
+    ir_use_timeline (void)                                  = delete;
+    ir_use_timeline (const ir_use_timeline&)                = delete;
+    ir_use_timeline (ir_use_timeline&&) noexcept            = default;
+    ir_use_timeline& operator= (const ir_use_timeline&)     = delete;
+    ir_use_timeline& operator= (ir_use_timeline&&) noexcept = default;
+    ~ir_use_timeline (void)                                 = default;
+    
+    constexpr ir_use_timeline (ir_instruction& origin)
+      : m_origin_instr (origin)
+    { }
+  
     [[nodiscard]]
-    constexpr bool is_def_block (void) const noexcept
+    constexpr ir_def& get_def (void) noexcept
     {
-      return m_block == &get_def ().get_block ();
+      return get_instruction ().get_return ();
     }
+
+    [[nodiscard]]
+    constexpr const ir_def& get_def (void) const noexcept
+    {
+      return get_instruction ().get_return ();
+    }
+
+    [[nodiscard]]
+    constexpr ir_instruction& get_instruction (void) noexcept
+    {
+      return *m_origin_instr;
+    }
+
+    [[nodiscard]]
+    constexpr const ir_instruction& get_instruction (void) const noexcept
+    {
+      return *m_origin_instr;
+    }
+    
+    ir_use_timeline split (instr_riter rpivot, instr_riter rfirst, instr_riter rlast);
+  
+    riter find_latest_before (instr_riter rpos, instr_riter rfirst, instr_riter rlast);
 
   private:
-
-    nonnull_ptr<ir_basic_block>               m_block;
-    std::vector<nonnull_ptr<ir_use_timeline>> m_succs;
-
+    nonnull_ptr<ir_instruction> m_origin_instr;
   };
 
   class ir_basic_block : public ir_component
   {
   public:
 
-    using instr_list      = std::list<std::unique_ptr<ir_instruction>>;
+    using instr_list      = std::list<ir_instruction>;
     using instr_iter      = instr_list::iterator;
     using instr_citer     = instr_list::const_iterator;
     using instr_riter     = std::reverse_iterator<instr_iter>;
@@ -119,97 +114,240 @@ namespace gch
     using instr_cref      = instr_list::const_reference;
 
     class def_timeline
+      : public intrusive_tracker<def_timeline, remote::standalone_tracker>
     {
-
     public:
-      // never nullptr ----------------------------- v
+      
+      class phi_node
+      {
+      public:
+  
+        // the bool indicates whether the incoming def is indeterminate
+        using incoming_tuple = std::tuple<nonnull_ptr<def_timeline>, ir_use_timeline, bool>;
+        using incoming_list  = std::list<incoming_tuple>;
+        using iter           = incoming_list::iterator;
+        using citer          = incoming_list::const_iterator;
+        using riter          = incoming_list::reverse_iterator;
+        using criter         = incoming_list::const_reverse_iterator;
+        using ref            = incoming_list::reference;
+        using cref           = incoming_list::const_reference;
+        
+    
+        phi_node (void)                           = delete;
+        phi_node (const phi_node&)                = delete;
+        phi_node (phi_node&&) noexcept            = default;
+        phi_node& operator= (const phi_node&)     = delete;
+        phi_node& operator= (phi_node&&) noexcept = default;
+        ~phi_node (void)                          = default;
+      
+        explicit phi_node (ir_instruction& phi_instr)
+          : m_phi_timeline (phi_instr)
+        { }
+  
+        [[nodiscard]] auto  begin   (void)       noexcept { return m_incoming.begin ();   }
+        [[nodiscard]] auto  begin   (void) const noexcept { return m_incoming.begin ();   }
+        [[nodiscard]] auto  cbegin  (void) const noexcept { return m_incoming.cbegin ();  }
+  
+        [[nodiscard]] auto  end     (void)       noexcept { return m_incoming.end ();     }
+        [[nodiscard]] auto  end     (void) const noexcept { return m_incoming.end ();     }
+        [[nodiscard]] auto  cend    (void) const noexcept { return m_incoming.cend ();    }
+  
+        [[nodiscard]] auto  rbegin  (void)       noexcept { return m_incoming.rbegin ();  }
+        [[nodiscard]] auto  rbegin  (void) const noexcept { return m_incoming.rbegin ();  }
+        [[nodiscard]] auto  crbegin (void) const noexcept { return m_incoming.crbegin (); }
+  
+        [[nodiscard]] auto  rend    (void)       noexcept { return m_incoming.rend ();    }
+        [[nodiscard]] auto  rend    (void) const noexcept { return m_incoming.rend ();    }
+        [[nodiscard]] auto  crend   (void) const noexcept { return m_incoming.crend ();   }
+  
+        [[nodiscard]] auto& front   (void)       noexcept { return m_incoming.front ();   }
+        [[nodiscard]] auto& front   (void) const noexcept { return m_incoming.front ();   }
+  
+        [[nodiscard]] auto& back    (void)       noexcept { return m_incoming.back ();    }
+        [[nodiscard]] auto& back    (void) const noexcept { return m_incoming.back ();    }
+    
+        void append (def_timeline& tl, ir_instruction& origin, bool is_indet)
+        {
+           m_incoming.emplace_back (tl, origin, is_indet);
+           m_num_indet += static_cast<std::size_t> (is_indet);
+        }
+  
+        iter repoint (nonnull_ptr<def_timeline> from, def_timeline& to);
+    
+        iter remove (const nonnull_ptr<def_timeline> dt);
+        
+        iter set_indeterminate (const nonnull_ptr<def_timeline> dt, bool indet = true);
+    
+        [[nodiscard]] std::size_t num_indet (void) const noexcept { return m_num_indet; }
+    
+        [[nodiscard]] bool has_indet (void) const noexcept { return m_num_indet != 0; }
+  
+        [[nodiscard]]
+        constexpr ir_def& get_def (void) noexcept
+        {
+          return get_timeline ().get_def ();
+        }
+  
+        [[nodiscard]]
+        constexpr const ir_def& get_def (void) const noexcept
+        {
+          return get_timeline ().get_def ();
+        }
+  
+        [[nodiscard]]
+        constexpr ir_instruction& get_instruction (void) noexcept
+        {
+          return get_timeline ().get_instruction ();
+        }
+  
+        [[nodiscard]]
+        constexpr const ir_instruction& get_instruction (void) const noexcept
+        {
+          return get_timeline ().get_instruction ();
+        }
+  
+        [[nodiscard]]
+        constexpr ir_use_timeline& get_timeline (void) noexcept
+        {
+          return m_phi_timeline;
+        }
+  
+        [[nodiscard]]
+        constexpr const ir_use_timeline& get_timeline (void) const noexcept
+        {
+          return m_phi_timeline;
+        }
+        
+        [[nodiscard]]
+        iter find (def_timeline& dt)
+        {
+          return std::find_if (begin (), end (),
+                               [&dt](const auto& tup)
+                               {
+                                 return dt == std::get<nonnull_ptr<def_timeline>> (tup);
+                               });
+        }
+  
+        [[nodiscard]]
+        citer find (const def_timeline& dt) const
+        {
+          return const_cast<phi_node *> (this)->find (const_cast<def_timeline&> (dt));
+        }
+  
+      private:
+    
+        // blocks where the variable was undefined
+        std::list<incoming_tuple> m_incoming;
+        std::size_t               m_num_indet;
+        ir_use_timeline           m_phi_timeline;
+      };
+      
       using use_timeline_list = std::list<ir_use_timeline>;
       using iter              = use_timeline_list::iterator;
       using citer             = use_timeline_list::const_iterator;
       using riter             = use_timeline_list::reverse_iterator;
       using criter            = use_timeline_list::const_reverse_iterator;
+      using ref               = ir_use_timeline&;
+      using cref              = const ir_use_timeline&;
+      
+  
+      using pred_tracker = intrusive_tracker<def_timeline, remote::standalone_tracker>;
+      using succ_tracker = standalone_tracker<remote::intrusive_tracker<def_timeline>>;
+  
+      using pred_iter  = pred_tracker::iter;
+      using pred_citer = pred_tracker::citer;
+  
+      using succ_iter  = succ_tracker::iter;
+      using succ_citer = succ_tracker::citer;
 
-      def_timeline (void)                         = delete;
-      def_timeline (const def_timeline&)     = delete;
-      def_timeline (def_timeline&&) noexcept = delete;
+      def_timeline (void)                               = delete;
+      def_timeline (const def_timeline&)                = delete;
+      def_timeline (def_timeline&&) noexcept;
       def_timeline& operator= (const def_timeline&)     = delete;
       def_timeline& operator= (def_timeline&&) noexcept;
-      ~def_timeline (void)                             = default;
+      ~def_timeline (void)                              = default;
 
       explicit def_timeline (ir_basic_block& blk) noexcept
         : m_block (blk)
       { }
+  
+      def_timeline (ir_basic_block& block, succ_tracker& remote_tr)
+      : pred_tracker (tag::bind, { remote_tr }),
+        m_block (block)
+      { }
+      
+      [[nodiscard]]  iter  local_begin  (void)       noexcept { return m_timelines.begin ();   }
+      [[nodiscard]] citer  local_begin  (void) const noexcept { return m_timelines.begin ();   }
+      [[nodiscard]] citer  local_cbegin (void) const noexcept { return m_timelines.cbegin ();  }
 
-      [[nodiscard]] iter   begin (void)       noexcept { return m_instances.begin ();   }
-      [[nodiscard]] citer  begin (void) const noexcept { return m_instances.begin ();   }
-      [[nodiscard]] citer  cbegin (void) const noexcept { return m_instances.cbegin ();  }
+      [[nodiscard]]  iter  local_end  (void)       noexcept { return m_timelines.end ();     }
+      [[nodiscard]] citer  local_end  (void) const noexcept { return m_timelines.end ();     }
+      [[nodiscard]] citer  local_cend (void) const noexcept { return m_timelines.cend ();    }
 
-      [[nodiscard]] iter   end (void)       noexcept { return m_instances.end ();     }
-      [[nodiscard]] citer  end (void) const noexcept { return m_instances.end ();     }
-      [[nodiscard]] citer  cend (void) const noexcept { return m_instances.cend ();    }
+      [[nodiscard]]  riter local_rbegin  (void)       noexcept { return m_timelines.rbegin ();  }
+      [[nodiscard]] criter local_rbegin  (void) const noexcept { return m_timelines.rbegin ();  }
+      [[nodiscard]] criter local_crbegin (void) const noexcept { return m_timelines.crbegin (); }
 
-      [[nodiscard]] riter  rbegin (void)       noexcept { return m_instances.rbegin ();  }
-      [[nodiscard]] criter rbegin (void) const noexcept { return m_instances.rbegin ();  }
-      [[nodiscard]] criter crbegin (void) const noexcept { return m_instances.crbegin (); }
+      [[nodiscard]]  riter local_rend  (void)       noexcept { return m_timelines.rend ();     }
+      [[nodiscard]] criter local_rend  (void) const noexcept { return m_timelines.rend ();     }
+      [[nodiscard]] criter local_crend (void) const noexcept { return m_timelines.crend ();    }
+  
+      [[nodiscard]]  ref local_front   (void)       noexcept { return m_timelines.front ();   }
+      [[nodiscard]] cref local_front   (void) const noexcept { return m_timelines.front ();   }
+  
+      [[nodiscard]]  ref local_back    (void)       noexcept { return m_timelines.back ();    }
+      [[nodiscard]] cref local_back    (void) const noexcept { return m_timelines.back ();    }
+  
+      [[nodiscard]] bool local_empty (void) const noexcept { return m_timelines.empty (); }
+      [[nodiscard]] std::size_t local_size (void) const noexcept { return m_timelines.size (); }
+      
+      [[nodiscard]] bool has_timelines (void) const noexcept { return ! m_timelines.empty (); }
 
-      [[nodiscard]] riter  rend (void)       noexcept { return m_instances.rend ();     }
-      [[nodiscard]] criter rend (void) const noexcept { return m_instances.rend ();     }
-      [[nodiscard]] criter crend (void) const noexcept { return m_instances.crend ();    }
-
-      [[nodiscard]] bool has_use_timelines (void) const noexcept { return ! m_instances.empty (); }
-
-      void splice (const iter pos, def_timeline& other, const iter first, const iter last)
+      void splice (iter pos, def_timeline& other, iter first, iter last)
       {
-        auto pivot = m_instances.emplace (pos, std::move (*first), *m_block);
-        try
-        {
-          std::for_each (std::make_move_iterator (std::next (first)),
-                         std::make_move_iterator (last),
-                         [this, pos] (ir_use_timeline&& dt)
-                         {
-                           m_instances.emplace (pos, std::move (dt), *m_block);
-                         });
-        }
-        catch (...)
-        {
-          std::for_each (pivot, pos,
-                         [curr = first, &other] (auto&& dt) mutable
-                         {
-                           curr->move_bindings (dt);
-                         });
-          throw;
-        }
-        other.m_instances.erase (first, last);
+        m_timelines.splice (pos, other.m_timelines, first, last);
       }
+      
+      def_timeline split (instr_riter rpivot, ir_basic_block& dest);
 
       iter emplace_before (citer pos, ir_def& d)
       {
-        return m_instances.emplace (pos, *m_block, d);
+        return m_timelines.emplace (pos, d.get_instruction ());
       }
 
       ir_use_timeline& emplace_front (ir_def& d)
       {
-        return m_instances.emplace_front (*m_block, d);
+        return m_timelines.emplace_front (d.get_instruction ());
       }
 
       ir_use_timeline& emplace_back (ir_def& d)
       {
-        return m_instances.emplace_back (*m_block, d);
+        return m_timelines.emplace_back (d.get_instruction ());
+      }
+  
+      iter emplace_before (citer pos, ir_instruction& instr)
+      {
+        return m_timelines.emplace (pos, instr);
+      }
+  
+      ir_use_timeline& emplace_back (ir_instruction& instr)
+      {
+        return m_timelines.emplace_back (instr);
       }
   
       iter erase (citer pos)
       {
-        return m_instances.erase (pos);
+        return m_timelines.erase (pos);
       }
   
       iter erase (citer first, citer last)
       {
-        return m_instances.erase (first, last);
+        return m_timelines.erase (first, last);
       }
 
       void erase (const ir_instruction& instr)
       {
-        m_instances.erase (find (instr));
+        m_timelines.erase (find (instr));
       }
 
       [[nodiscard]] citer find (const ir_instruction& instr_cit) const;
@@ -217,17 +355,40 @@ namespace gch
       [[nodiscard]]
       std::size_t num_defs (void) const noexcept
       {
-        return m_instances.size ();
+        return m_timelines.size ();
       }
 
-      [[nodiscard]] optional_ref<ir_def> get_latest (void) noexcept;
-      [[nodiscard]] optional_ref<const ir_def> get_latest (void) const noexcept;
+      [[nodiscard]] optional_ref<ir_def> get_latest (void);
       
-      riter find_latest_before (instr_citer pos, instr_criter rfirst, instr_criter rend);
-      
-      criter find_latest_before (instr_citer pos, instr_criter rfirst, instr_criter rend) const
+      [[nodiscard]] optional_ref<const ir_def> get_latest (void) const
       {
-        return const_cast<def_timeline *> (this)->find_latest_before (pos, rfirst, rend);
+        return const_cast<def_timeline *> (this)->get_latest ();
+      }
+  
+      [[nodiscard]]
+      riter find_latest_before (instr_citer pos);
+  
+      [[nodiscard]]
+      criter find_latest_before (instr_citer pos) const
+      {
+        return const_cast<def_timeline *> (this)->find_latest_before (pos);
+      }
+      
+      [[nodiscard]]
+      optional_ref<ir_use_timeline> get_latest_timeline_before (instr_citer pos);
+  
+      [[nodiscard]]
+      optional_ref<ir_use_timeline> get_latest_timeline_before (instr_citer pos) const
+      {
+        return const_cast<def_timeline *> (this)->get_latest_timeline_before (pos);
+      }
+      
+      [[nodiscard]]
+      optional_ref<ir_def> get_latest_before (instr_citer pos)
+      {
+        if (optional_ref<ir_use_timeline> tl = get_latest_timeline_before (pos))
+          return tl->get_def ();
+        return nullopt;
       }
 
       [[nodiscard]]
@@ -235,22 +396,76 @@ namespace gch
       {
         return *m_block;
       }
+  
+      def_timeline create_successor (ir_basic_block& block)
+      {
+        return { *m_block, m_succs };
+      }
+  
+      succ_iter add_successor (def_timeline& d)
+      {
+        return m_succs.bind (d);
+      }
+  
+      void remove_successor (def_timeline& d)
+      {
+        m_succs.debind (d);
+      }
+  
+      pred_iter add_predecessor (def_timeline& d)
+      {
+        return pred_tracker::bind (d.m_succs);
+      }
+  
+      void remove_predecessor (def_timeline& d)
+      {
+        pred_tracker::debind (d.m_succs);
+      }
       
-      // [[nodiscard]]
-      // constexpr bool has_phi (void) const noexcept { return m_phi.has_value (); }
-      //
-      // [[nodiscard]]
-      // constexpr ir_use_timeline& get_phi (void) const noexcept { return *m_phi; }
+      [[nodiscard]]
+      constexpr bool has_phi (void) const noexcept
+      {
+        return std::holds_alternative<phi_node> (m_head);
+      }
+      
+      [[nodiscard]]
+      constexpr ir_use_timeline& get_phi (void) noexcept
+      {
+        if (! has_phi ())
+          throw ir_exception ("requested a nonexistent phi node");
+        return std::get_if<phi_node> (&m_head)->get_timeline ();
+      }
+  
+      [[nodiscard]]
+      constexpr bool has_single_incoming (void) const noexcept
+      {
+        return std::holds_alternative<ir_use_timeline> (m_head);
+      }
+  
+      [[nodiscard]]
+      constexpr ir_use_timeline& get_single_incoming (void) noexcept
+      {
+        if (! has_single_incoming ())
+          throw ir_exception ("def_timeline does not have exactly one incoming");
+        return *std::get_if<ir_use_timeline> (&m_head);
+      }
+  
+      [[nodiscard]]
+      constexpr bool has_incoming (void) const noexcept
+      {
+        return ! std::holds_alternative<std::monostate> (m_head);
+      }
 
     private:
 
       nonnull_ptr<ir_basic_block> m_block;
+      
+      // either a phi pair or an incoming timeline
+      std::variant<std::monostate, phi_node, ir_use_timeline> m_head;
 
       //! A timeline of defs in this block.
-      use_timeline_list m_instances;
-      
-      // optional_ref<ir_use_timeline> m_phi;
-
+      use_timeline_list m_timelines;
+      succ_tracker m_succs;
     };
 
   private:
@@ -267,8 +482,8 @@ namespace gch
     ~ir_basic_block           (void) noexcept override;
 
     explicit ir_basic_block (ir_structure& parent);
-
-    ir_basic_block& split (instr_iter pivot, ir_basic_block& dest);
+    
+    ir_basic_block& split_into (instr_iter pivot, ir_basic_block& dest);
   
     [[nodiscard]]
     optional_ref<ir_def> get_latest_def (ir_variable& var);
@@ -314,11 +529,61 @@ namespace gch
     [[nodiscard]] size_t       size (void)    const noexcept { return m_instr_partition.data_size ();    }
     [[nodiscard]] bool         empty (void)   const noexcept { return m_instr_partition.data_empty ();   }
   
-    [[nodiscard]] constexpr auto& get_phi_range (void) noexcept {return get_subrange<0> (m_instr_partition); }
-    [[nodiscard]] constexpr auto& get_phi_range (void) const noexcept {return get_subrange<0> (m_instr_partition); }
+    [[nodiscard]] constexpr auto& get_phi_range (void)       noexcept { return get_subrange<0> (m_instr_partition); }
+    [[nodiscard]] constexpr auto& get_phi_range (void) const noexcept { return get_subrange<0> (m_instr_partition); }
     
-    [[nodiscard]] constexpr auto& get_body (void) noexcept {return get_subrange<1> (m_instr_partition); }
-    [[nodiscard]] constexpr auto& get_body (void) const noexcept {return get_subrange<1> (m_instr_partition); }
+    [[nodiscard]] instr_iter   phi_begin   (void)       noexcept { return get_phi_range ().begin ();   }
+    [[nodiscard]] instr_citer  phi_begin   (void) const noexcept { return get_phi_range ().begin ();   }
+    [[nodiscard]] instr_citer  phi_cbegin  (void) const noexcept { return get_phi_range ().cbegin ();  }
+    
+    [[nodiscard]] instr_iter   phi_end     (void)       noexcept { return get_phi_range ().end ();     }
+    [[nodiscard]] instr_citer  phi_end     (void) const noexcept { return get_phi_range ().end ();     }
+    [[nodiscard]] instr_citer  phi_cend    (void) const noexcept { return get_phi_range ().cend ();    }
+    
+    [[nodiscard]] instr_riter  phi_rbegin  (void)       noexcept { return get_phi_range ().rbegin ();  }
+    [[nodiscard]] instr_criter phi_rbegin  (void) const noexcept { return get_phi_range ().rbegin ();  }
+    [[nodiscard]] instr_criter phi_crbegin (void) const noexcept { return get_phi_range ().crbegin (); }
+    
+    [[nodiscard]] instr_riter  phi_rend    (void)       noexcept { return get_phi_range ().rend ();    }
+    [[nodiscard]] instr_criter phi_rend    (void) const noexcept { return get_phi_range ().rend ();    }
+    [[nodiscard]] instr_criter phi_crend   (void) const noexcept { return get_phi_range ().crend ();   }
+    
+    [[nodiscard]] instr_ref    phi_front   (void)       noexcept { return get_phi_range ().front ();   }
+    [[nodiscard]] instr_cref   phi_front   (void) const noexcept { return get_phi_range ().front ();   }
+    
+    [[nodiscard]] instr_ref    phi_back    (void)       noexcept { return get_phi_range ().back ();    }
+    [[nodiscard]] instr_cref   phi_back    (void) const noexcept { return get_phi_range ().back ();    }
+  
+    [[nodiscard]] size_t       phi_size    (void)    const noexcept { return get_phi_range ().size (); }
+    [[nodiscard]] bool         phi_empty   (void)   const noexcept { return get_phi_range ().empty (); }
+    
+    [[nodiscard]] constexpr auto& get_body (void)       noexcept { return get_subrange<1> (m_instr_partition); }
+    [[nodiscard]] constexpr auto& get_body (void) const noexcept { return get_subrange<1> (m_instr_partition); }
+    
+    [[nodiscard]] instr_iter   body_begin   (void)       noexcept { return get_body ().begin ();   }
+    [[nodiscard]] instr_citer  body_begin   (void) const noexcept { return get_body ().begin ();   }
+    [[nodiscard]] instr_citer  body_cbegin  (void) const noexcept { return get_body ().cbegin ();  }
+    
+    [[nodiscard]] instr_iter   body_end     (void)       noexcept { return get_body ().end ();     }
+    [[nodiscard]] instr_citer  body_end     (void) const noexcept { return get_body ().end ();     }
+    [[nodiscard]] instr_citer  body_cend    (void) const noexcept { return get_body ().cend ();    }
+    
+    [[nodiscard]] instr_riter  body_rbegin  (void)       noexcept { return get_body ().rbegin ();  }
+    [[nodiscard]] instr_criter body_rbegin  (void) const noexcept { return get_body ().rbegin ();  }
+    [[nodiscard]] instr_criter body_crbegin (void) const noexcept { return get_body ().crbegin (); }
+    
+    [[nodiscard]] instr_riter  body_rend    (void)       noexcept { return get_body ().rend ();    }
+    [[nodiscard]] instr_criter body_rend    (void) const noexcept { return get_body ().rend ();    }
+    [[nodiscard]] instr_criter body_crend   (void) const noexcept { return get_body ().crend ();   }
+    
+    [[nodiscard]] instr_ref    body_front   (void)       noexcept { return get_body ().front ();   }
+    [[nodiscard]] instr_cref   body_front   (void) const noexcept { return get_body ().front ();   }
+    
+    [[nodiscard]] instr_ref    body_back    (void)       noexcept { return get_body ().back ();    }
+    [[nodiscard]] instr_cref   body_back    (void) const noexcept { return get_body ().back ();    }
+  
+    [[nodiscard]] size_t       body_size    (void)    const noexcept { return get_body ().size (); }
+    [[nodiscard]] bool         body_empty   (void)   const noexcept { return get_body ().empty (); }
 
     template <typename ...Args>
     ir_phi& create_phi (ir_variable& var, Args&&... args)
@@ -346,7 +611,7 @@ namespace gch
                                [] (ir_use_timeline& ut) { return ut.is_def_block (); });
       
       // error checking
-      if (pos == dt.end () || ! isa<ir_phi> (pos->get_instruction ()))
+      if (pos == dt.end () || ! is_a<ir_opcode::phi> (pos->get_instruction ()))
         throw ir_exception ("tried to erase a nonexistent phi instruction");
       
       get_phi_range ().erase (std::find_if (get_phi_range ().begin (), get_phi_range ().end (),
@@ -357,127 +622,102 @@ namespace gch
       return dt.erase (dt.begin (), ++pos);
     }
     
+    ir_use_timeline& prepare_operand (instr_citer pos, ir_variable& var);
+    
     template <typename T>
-    using is_instruction = std::is_base_of<ir_instruction, T>;
-
-    template <typename T>
-    using is_phi = std::is_same<ir_phi, T>;
-
-    template <typename T>
-    using is_nonphi = std::conjunction<std::negation<is_phi<T>>, is_instruction<T>>;
-
-    template <typename T>
-    using has_return = std::is_base_of<ir_def_instruction, T>;
-
-    template <typename T>
-    using enable_ret_nonphi = std::enable_if_t<
-      std::conjunction<is_nonphi<T>, has_return<T>>::value>;
-
-    template <typename T>
-    using enable_noret_nonphi = std::enable_if_t<std::conjunction<is_nonphi<T>,
-      std::negation<has_return<T>>>::value>;
-
-    template <typename Instruction, typename... Args,
-              std::enable_if<has_return<Instruction>::value> * = nullptr>
-    Instruction& emplace_body (instr_citer pos, Args&&... args)
+    constexpr T&& prepare_operand (const instr_citer&, T&& t)
     {
-      static_assert (std::is_same_v<Instruction, ir_phi>, "cannot use phi instructions in body");
-      auto instr_uptr = create_instruction<Instruction> (std::forward<Args> (args)...);
-      Instruction& ret = *instr_uptr;
-      auto it = get_body ().emplace (pos, std::move (instr_uptr));
+      return std::forward<T> (t);
+    }
+    
+  
+    template <ir_opcode Tag>
+    static constexpr bool is_phi = ir_instruction::metadata::is_a<Tag, ir_opcode::phi> ();
+  
+    template <ir_opcode Tag>
+    static constexpr bool has_return = ir_instruction::has_return_v<Tag>;
+  
+    // with return
+    template <ir_opcode Tag, typename ...Args,
+              std::enable_if_t<ir_instruction::has_return_v<Tag>>* = nullptr>
+    ir_instruction& append_instruction (ir_variable& v, Args&&... args)
+    {
+      ir_instruction& instr = get_body ().emplace_back (v,
+        prepare_operand (end (), std::forward<Args> (args))...);
       try
       {
-        def_emplace_before (pos, ret.get_def ());
+        get_timeline (v).emplace_back (instr);
+      }
+      catch (...)
+      {
+        get_body ().pop_back ();
+        throw;
+      }
+      return instr;
+    }
+  
+    // no return
+    template <ir_opcode Tag, typename ...Args,
+      std::enable_if_t<! ir_instruction::has_return_v<Tag>>* = nullptr>
+    ir_instruction& append_instruction (Args&&... args)
+    {
+      return get_body ().emplace_back (prepare_operand (end (), std::forward<Args> (args))...);
+    }
+  
+    // with return (places instruction at the front of the body)
+    template <ir_opcode Tag, typename ...Args,
+      std::enable_if_t<ir_instruction::has_return_v<Tag>>* = nullptr>
+    ir_instruction& prepend_instruction (ir_variable& v, Args&&... args)
+    {
+      ir_instruction& instr = get_body ().emplace_front (v,
+        prepare_operand (begin (), std::forward<Args> (args))...);
+      try
+      {
+        def_timeline& dt = get_timeline (v);
+        dt.emplace_before(dt.find_latest_before (body_begin ()).base (), instr);
+      }
+      catch (...)
+      {
+        get_body ().pop_front ();
+        throw;
+      }
+      return instr;
+    }
+  
+    // no return (places instruction at the front of the body)
+    template <ir_opcode Tag, typename ...Args,
+      std::enable_if_t<! ir_instruction::has_return_v<Tag>>* = nullptr>
+    ir_instruction& prepend_instruction (Args&&... args)
+    {
+      return get_body ().emplace_front (prepare_operand (begin (), std::forward<Args> (args))...);
+    }
+  
+    // with return (places instruction immediately before `pos`)
+    template <ir_opcode Tag, typename ...Args,
+      std::enable_if_t<ir_instruction::has_return_v<Tag>>* = nullptr>
+    ir_instruction& emplace_instruction (const instr_citer pos, ir_variable& v, Args&&... args)
+    {
+      instr_iter it = get_body ().emplace (v, prepare_operand (begin (),
+                                                               std::forward<Args> (args))...);
+      try
+      {
+        def_timeline& dt = get_timeline (v);
+        dt.emplace_before(dt.find_latest_before (it).base (), *it);
       }
       catch (...)
       {
         get_body ().erase (it);
         throw;
       }
-      return ret;
+      return *it;
     }
   
-    template <typename Instruction, typename... Args,
-              std::enable_if<! has_return<Instruction>::value> * = nullptr>
-    Instruction& emplace_body (instr_citer pos, Args&&... args)
+    // no return (places instruction immediately before `pos`)
+    template <ir_opcode Tag, typename ...Args,
+      std::enable_if_t<! ir_instruction::has_return_v<Tag>>* = nullptr>
+    ir_instruction& emplace_instruction (const instr_citer pos, Args&&... args)
     {
-      static_assert (std::is_same_v<Instruction, ir_phi>, "cannot use phi instructions in body");
-      return **get_body ().emplace (pos, create_instruction<Instruction> (std::forward<Args> (args)...));
-    }
-    
-    template <typename T, typename ...Args, enable_ret_nonphi<T>* = nullptr>
-    T& emplace_before (instr_citer pos, Args&&... args)
-    {
-      std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
-      T& ret = *u;
-      auto it = m_instructions.emplace (pos, std::move (u));
-      try
-      {
-        def_emplace_before (pos, ret.get_def ());
-      }
-      catch (const std::exception& e)
-      {
-        m_instructions.erase (it);
-        throw e;
-      }
-      return ret;
-    }
-
-    template <typename T, typename ...Args, enable_ret_nonphi<T>* = nullptr>
-    T& emplace_front (Args&&... args)
-    {
-      std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
-      T& ret = *u;
-      m_instructions.emplace_front (std::move (u));
-      try
-      {
-        def_emplace_front (ret.get_def ());
-      }
-      catch (const std::exception& e)
-      {
-        m_instructions.erase (m_instructions.begin ());
-        throw e;
-      }
-      return ret;
-    }
-
-    template <typename T, typename ...Args, enable_ret_nonphi<T>* = nullptr>
-    T& emplace_back (Args&&... args)
-    {
-      std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
-      T& ret = *u;
-      m_instructions.emplace_back (std::move (u));
-      try
-      {
-        def_emplace_back (ret.get_def ());
-      }
-      catch (const std::exception& e)
-      {
-        m_instructions.erase (--m_instructions.end ());
-        throw e;
-      }
-      return ret;
-    }
-
-    template <typename T, typename ...Args, enable_noret_nonphi<T>* = nullptr>
-    T& emplace_before (instr_citer pos, Args&&... args)
-    {
-      std::unique_ptr<T> u = create_instruction<T> (std::forward<Args> (args)...);
-      T& ret = *u;
-      m_instructions.emplace (pos, std::move (u));
-      return ret;
-    }
-
-    template <typename T, typename ...Args, enable_noret_nonphi<T>* = nullptr>
-    T& emplace_front (Args&&... args)
-    {
-      return emplace_before (m_instructions.begin (), std::forward<Args> (args)...);
-    }
-
-    template <typename T, typename ...Args, enable_noret_nonphi<T>* = nullptr>
-    T& emplace_back (Args&&... args)
-    {
-      return emplace_before (m_instructions.end (), std::forward<Args> (args)...);
+      return *get_body ().emplace(pos, prepare_operand (pos, std::forward<Args> (args))...);
     }
     
     instr_iter erase (instr_citer pos);
@@ -490,7 +730,7 @@ namespace gch
     std::size_t num_preds  (void);
 
     nonnull_ptr<ir_basic_block> pred_front (void) { return *pred_begin ();   }
-    nonnull_ptr<ir_basic_block> pred_back (void) { return *(--pred_end ()); }
+    nonnull_ptr<ir_basic_block> pred_back  (void) { return *(--pred_end ()); }
 
     [[nodiscard]]
     bool has_preds (void) { return pred_begin () != pred_end (); }
@@ -573,14 +813,14 @@ namespace gch
   private:
 
     template <typename T, typename ...Args>
-    std::unique_ptr<T> create_instruction (Args&&... args)
+    ir_instruction create_instruction (Args&&... args)
     {
-      return std::make_unique<T> (*this, std::forward<Args> (args)...);
+      return ir_instruction::create<T> (*this, std::forward<Args> (args)...);
     }
 
     ir_structure& m_parent;
     
-    list_partition<std::unique_ptr<ir_instruction>, 2> m_instr_partition;
+    list_partition<ir_instruction, 2> m_instr_partition;
 
     // map of variables to the ir_def timeline for this block
 

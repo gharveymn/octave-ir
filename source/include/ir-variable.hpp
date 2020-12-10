@@ -27,19 +27,20 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-type-base.hpp"
 #include "ir-instruction-fwd.hpp"
 
+#include <gch/optional_ref.hpp>
+#include <gch/nonnull_ptr.hpp>
+#include <gch/tracker.hpp>
+#include <plf_list.h>
+
 #include <deque>
 #include <unordered_set>
-#include <plf_list.h>
 #include <vector>
-#include <tracker.hpp>
-#include <nonnull_ptr.hpp>
 #include <variant>
 #include <any>
 
 namespace gch
 {
   class ir_instruction;
-  class ir_def_instruction;
   class ir_basic_block;
   class ir_function;
   class ir_basic_block;
@@ -55,11 +56,8 @@ namespace gch
   using instr_cref      = instr_list::const_reference;
 
   class ir_variable
-    : public intrusive_tracker<ir_variable, remote::intrusive_reporter<ir_def>>
   {
   public:
-    
-    using base = intrusive_tracker<ir_variable, remote::intrusive_reporter<ir_def>>;
 
     using block_def_pair = std::pair<nonnull_ptr<ir_basic_block>, nonnull_ptr<ir_def>>;
     using block_def_vect = std::vector<block_def_pair>;
@@ -86,11 +84,6 @@ namespace gch
 
     // variables create defs and hold a pointer to that ir_def
     // these pointers must be adjusted when moving or deleting.
-
-    std::size_t get_num_defs (void) const noexcept
-    {
-      return num_remotes ();
-    }
 
     [[nodiscard]]
     constexpr const std::string& get_name (void) const { return m_name; }
@@ -135,6 +128,11 @@ namespace gch
     constexpr ir_type get_type (void) const noexcept { return m_type; }
     
     void set_type (ir_type ty);
+    
+    constexpr int create_id (void) noexcept
+    {
+      return curr_id++;
+    }
 
    private:
   
@@ -152,77 +150,53 @@ namespace gch
     // Used to indicate if the variable is uninitialized in the current
     // code path. Lazily initialized.
     std::unique_ptr<ir_variable> m_sentinel;
-
+    
+    int curr_id = 0;
   };
 
   class ir_use_timeline;
-
+  
   //! An ssa variable def. It holds very little information about itself,
   //! it's more of just an indicating stub for the variable.
-  class ir_def 
-    : public intrusive_reporter<ir_def, remote::intrusive_tracker<ir_variable>>,
-      public intrusive_tracker<ir_def, remote::intrusive_reporter<ir_use_timeline>>
+  class ir_def
   {
   public:
-
-    using base_reporter = intrusive_reporter<ir_def, remote::intrusive_tracker<ir_variable>>;
-    using tracker_type  = intrusive_tracker<ir_def, remote::reporter<ir_use_timeline>>;
-
+  
     ir_def            (void)                = delete;
     ir_def            (const ir_def&)       = delete;
     ir_def            (ir_def&& d) noexcept = default;
     ir_def& operator= (const ir_def&)       = delete;
     ir_def& operator= (ir_def&&)   noexcept = default;
     ~ir_def           (void)                = default;
+  
+    constexpr ir_def (ir_variable& var, ir_instruction& instr)
+      : m_var (var),
+        m_instr (instr),
+        m_id  (var.create_id ())
+    { }
+  
+    constexpr ir_def (ir_def&& other, ir_instruction& new_instr)
+      : m_var (other.m_var),
+        m_instr (new_instr),
+        m_id  (other.m_id)
+    { }
     
     [[nodiscard]]
-    constexpr bool has_var (void) const noexcept { return has_remote (); }
+    constexpr ir_variable& get_var (void) noexcept { return *m_var; };
     
     [[nodiscard]]
-    constexpr ir_variable& get_var (void) noexcept { return get_remote (); };
-
-    [[nodiscard]]
-    constexpr const ir_variable& get_var (void) const noexcept { return get_remote (); };
-
-    [[nodiscard]]
-    constexpr const ir_def_instruction& get_instruction (void) const noexcept
-    {
-      return *m_instr;
-    }
-
-    [[nodiscard]]
-    constexpr ir_def_instruction& get_instruction (void) noexcept
-    {
-      return *m_instr;
-    }
-
-    [[nodiscard]]
-    ir_basic_block& get_block (void) const noexcept;
-
+    constexpr const ir_variable& get_var (void) const noexcept { return *m_var; };
+    
     std::ostream& print (std::ostream& os) const;
-
+    
     [[nodiscard]]
     const std::string& get_name (void) const;
-
+    
     [[nodiscard]]
-    std::size_t get_id (void) const;
-
-    [[nodiscard]]
-    bool has_uses (void) const noexcept;
-  
+    constexpr auto get_id (void) const { return m_id; };
+    
     [[nodiscard]]
     constexpr ir_type get_type (void) const noexcept { return get_var ().get_type (); }
-
-    void set_needs_init_check (bool state) noexcept
-    {
-      m_needs_init_check = state;
-    }
-
-    [[nodiscard]]
-    bool needs_init_check (void) const noexcept
-    {
-      return m_needs_init_check;
-    }
 
 //    template <typename ...Args>
 //    void transfer_bindings (ir_def& src, Args&&... args)
@@ -230,20 +204,19 @@ namespace gch
 //      m_use_tracker.transfer_bindings (src.m_use_tracker);
 //      m_cache_tracker.transfer_bindings (src.m_cache_tracker);
 //    }
-
-    friend ir_def ir_variable::create_def (ir_type ty, ir_def_instruction& instr);
   
-    void propagate_type (ir_type ty);
+    [[nodiscard]]
+    constexpr ir_instruction& get_instruction (void) noexcept { return *m_instr; }
+  
+    [[nodiscard]]
+    constexpr const ir_instruction& get_instruction (void) const noexcept { return *m_instr; }
+  
+    constexpr void set_instruction (ir_instruction& instr) noexcept { m_instr.emplace (instr); }
 
   private:
-
-    ir_def (ir_variable& tkr, ir_def_instruction& instr);
-
-    // where this ir_def occurs
-    nonnull_ptr<ir_def_instruction> m_instr;
-
-    bool m_needs_init_check;
-
+    nonnull_ptr<ir_variable>    m_var;
+    nonnull_ptr<ir_instruction> m_instr;
+    int                         m_id;
   };
 
   class ir_use : public intrusive_reporter<ir_use, remote::intrusive_tracker<ir_use_timeline>>
@@ -264,7 +237,7 @@ namespace gch
     ir_use& operator= (ir_use&&) noexcept = default;
     ~ir_use           (void)              = default;
   
-    ir_use (typename reporter_type::remote_interface_type& tkr, ir_instruction& instr);
+    ir_use (ir_use_timeline& tkr, ir_instruction& instr);
   
     [[nodiscard]] ir_use_timeline& get_timeline (void) noexcept;
     [[nodiscard]] const ir_use_timeline& get_timeline (void) const noexcept;
@@ -280,6 +253,8 @@ namespace gch
   
     [[nodiscard]]
     constexpr const ir_instruction& get_instruction (void) const noexcept { return *m_instr; }
+    
+    constexpr void set_instruction (ir_instruction& instr) noexcept { m_instr.emplace (instr); }
   
     [[nodiscard]] ir_basic_block& get_block (void) noexcept;
     [[nodiscard]] const ir_basic_block& get_block (void) const noexcept;
@@ -292,7 +267,6 @@ namespace gch
 
     //! Where this use occurs.
     nonnull_ptr<ir_instruction> m_instr;
-
   };
   
   template <typename InputIt>
@@ -314,6 +288,14 @@ namespace gch
     impl m_impl = create_type<type> ("ir_use *");
   };
   
+  class ir_constant;
+  
+  template <typename T>
+  optional_ref<T> data_cast(ir_constant& c) noexcept;
+  
+  template <typename T>
+  optional_ref<const T> data_cast(const ir_constant& c) noexcept;
+  
   class ir_constant
   {
   public:
@@ -324,10 +306,10 @@ namespace gch
     ir_constant& operator= (ir_constant&&) noexcept = default;
     ~ir_constant           (void)                   = default;
     
-    template <typename T>
-    constexpr ir_constant (ir_type type, T&& data)
+    template <typename ...Args>
+    constexpr explicit ir_constant (ir_type type, Args&&... args)
       : m_type (type),
-        m_data (std::forward<T> (data))
+        m_data (std::forward<Args> (args)...)
     { }
     
     [[nodiscard]] constexpr ir_type get_type (void) const noexcept { return m_type; }
@@ -335,10 +317,37 @@ namespace gch
     template <typename T>
     [[nodiscard]] constexpr const T& get_data (void) const { std::any_cast<T> (m_data); }
     
+    template <typename T, typename ...Args>
+    auto emplace (Args&&... args)
+    {
+      m_type = ir_type_v<T>;
+      return m_data.emplace<T> (std::forward<Args> (args)...);
+    }
+  
+    template <typename T>
+    friend optional_ref<T> data_cast (ir_constant& c) noexcept
+    {
+      return std::any_cast<T> (&c.m_data);
+    }
+  
+    template <typename T>
+    friend optional_ref<const T> data_cast (const ir_constant& c) noexcept
+    {
+      return std::any_cast<T> (&c.m_data);
+    }
+    
   private:
     ir_type  m_type;
     std::any m_data;
   };
+  
+  class ir_operand;
+  
+  template <typename T>
+  constexpr optional_ref<T> get_if (ir_operand& op) noexcept;
+  
+  template <typename T>
+  constexpr optional_ref<const T> get_if (const ir_operand& op) noexcept;
   
   class ir_operand
   {
@@ -350,11 +359,21 @@ namespace gch
     ir_operand& operator= (ir_operand&&) noexcept = default;
     ~ir_operand           (void)                  = default;
     
-    ir_operand (ir_use_timeline& tl, ir_instruction& instr);
+    ir_operand (ir_use_timeline& tl, ir_instruction& instr)
+      : m_data (std::in_place_type<ir_use>, tl, instr)
+    { }
     
     template <typename T>
     constexpr ir_operand (ir_type type, T&& data)
       : m_data (std::in_place_type<ir_constant>, type, std::forward<T> (data))
+    { }
+  
+    constexpr ir_operand (const ir_constant& c)
+      : m_data (c)
+    { }
+    
+    constexpr ir_operand (ir_constant&& c)
+      : m_data (std::move (c))
     { }
     
     [[nodiscard]]
@@ -383,11 +402,21 @@ namespace gch
     
     friend struct ir_printer<ir_operand>;
   
+    template <typename T>
+    friend constexpr optional_ref<T> get_if (ir_operand& op) noexcept
+    {
+      return std::get_if<T> (&op.m_data);
+    }
+  
+    template <typename T>
+    friend constexpr optional_ref<const T> get_if (const ir_operand& op) noexcept
+    {
+      return std::get_if<T> (&op.m_data);
+    }
+  
   private:
-    
     std::variant<ir_constant, ir_use> m_data;
   };
-
 }
 
 #endif

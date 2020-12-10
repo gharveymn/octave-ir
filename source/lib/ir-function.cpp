@@ -24,8 +24,8 @@ along with Octave; see the file COPYING.  If not, see
 #  include "config.h"
 #endif
 
-#include <variant-iterator.hpp>
-#include <nonnull_ptr.hpp>
+#include <gch/variant-iterator.hpp>
+#include <gch/nonnull_ptr.hpp>
 
 #include "ir-function.hpp"
 
