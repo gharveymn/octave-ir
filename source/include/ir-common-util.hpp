@@ -25,11 +25,14 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "ir-common.hpp"
 
+#include <gch/optional_ref.hpp>
+
 #include <iosfwd>
 #include <memory>
 #include <functional>
 #include <unordered_set>
 #include <type_traits>
+#include <optional>
 
 namespace gch
 {
@@ -148,7 +151,71 @@ namespace gch
   
   template<typename ...Ts> struct overloaded : Ts... { using Ts::operator()...; };
   template<typename ...Ts> overloaded (Ts...) -> overloaded<Ts...>;
-
+  
+  template <typename Optional, typename Function, typename ...Args>
+  constexpr auto maybe_invoke (Optional&& opt, Function&& f)
+    -> decltype (std::invoke (std::forward<Function> (f), *opt))
+  {
+    using ret_type = decltype (std::invoke (std::forward<Function> (f), *opt));
+    return bool (opt) ? std::invoke (std::forward<Function> (f), *opt) : ret_type ();
+  }
+  
+  template <typename Function, typename Optional, typename U>
+  constexpr auto maybe_invoke_or (U&& ret, Optional&& opt, Function&& f)
+    -> decltype (std::invoke (std::forward<Function> (f), *opt))
+  {
+    using ret_type = decltype (std::invoke (std::forward<Function> (f), *opt));
+    return bool (opt) ? std::invoke (std::forward<Function> (f), *opt)
+                      : static_cast<ret_type> (std::forward<U> (ret));
+  }
+  
+  template <typename T, typename Function>
+  constexpr auto operator>>= (std::optional<T>&& opt, Function&& f)
+  -> decltype (std::invoke (std::forward<Function> (f), *opt))
+  {
+    if (opt)
+      return std::invoke (std::forward<Function> (f), *opt);
+    return std::nullopt;
+  }
+  
+  template <typename T, typename Function>
+  constexpr auto operator>>= (const std::optional<T>& opt, Function&& f)
+  -> decltype (std::invoke (std::forward<Function> (f), *opt))
+  {
+    if (opt)
+      return std::invoke (std::forward<Function> (f), *opt);
+    return std::nullopt;
+  }
+  
+  template <typename T, typename Function>
+  constexpr auto operator>>= (optional_ref<T>&& opt, Function&& f)
+  -> decltype (std::invoke (std::forward<Function> (f), *opt))
+  {
+    if (opt)
+      return std::invoke (std::forward<Function> (f), *opt);
+    return std::nullopt;
+  }
+  
+  template <typename T, typename Function>
+  constexpr auto operator>>= (optional_ref<T>& opt, Function&& f)
+  -> decltype (std::invoke (std::forward<Function> (f), *opt))
+  {
+    if (opt)
+      return std::invoke (std::forward<Function> (f), *opt);
+    return std::nullopt;
+  }
+  
+  template <typename Function>
+  struct maybe
+  {
+    template <typename ...Args>
+    auto operator() (Args&&... args)
+    {
+      using std::make_optional;
+      return make_optional (std::invoke (m_func, std::forward<Args> (args)...));
+    }
+    Function m_func;
+  };
 }
 
 #endif

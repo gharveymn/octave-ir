@@ -137,9 +137,9 @@ namespace gch
       [[nodiscard]] constexpr bool is_binary  (void)  const noexcept  { return  get_arity () ==  arity::binary;  }
       [[nodiscard]] constexpr bool is_ternary (void)  const noexcept  { return  get_arity () ==  arity::ternary; }
       
-      [[nodiscard]] constexpr bool valid_num_args (std::size_t n) const noexcept
+      [[nodiscard]] constexpr bool valid_num_args (const std::size_t n) const noexcept
       {
-        return (n > 3  && is_n_ary ()) || (n == static_cast<std::size_t> (get_arity ()));
+        return is_n_ary () || (n == static_cast<std::size_t> (get_arity ()));
       }
     
       [[nodiscard]] constexpr bool operator== (const metadata& other) const noexcept
