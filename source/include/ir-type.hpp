@@ -92,127 +92,110 @@ namespace gch
 
   class ir_type
   {
+    struct impl
+    {
+      // A user readable type name (this is the base name if it is a pointer).
+      // This should not be used directly. Use ir_type_printer to print a name.
+      const char *  m_name_base;
+      const impl *  m_base_type;
+      const impl *  m_pointer_base_type;
+      std::size_t   m_rep_size;
+      bool          m_is_integral;
+      ir_type_array m_members;
+    };
+    
     template <typename ...T>
     struct instance;
-
-    struct impl;
-    using impl_p = const impl *;
+  
+    constexpr ir_type (const impl& impl_ref) noexcept
+      : m_ptr (impl_ref)
+    { }
 
   public:
-
     ir_type            (void)               = delete;
     ir_type            (const ir_type&)     = default;
     ir_type            (ir_type&&) noexcept = default;
     ir_type& operator= (const ir_type&)     = default;
     ir_type& operator= (ir_type&&) noexcept = default;
     ~ir_type           (void)               = default;
-  
-    [[nodiscard]]
-    constexpr std::size_t get_size (void) const noexcept;
-  
-    [[nodiscard]]
-    constexpr bool is_integral (void) const noexcept;
-  
-    [[nodiscard]]
-    constexpr ir_type get_parent_type (void) const noexcept;
-  
-    [[nodiscard]]
-    constexpr ir_type get_dereference_type (void) const noexcept;
-  
-    [[nodiscard]]
-    constexpr std::size_t get_depth (void) const noexcept;
-  
-    [[nodiscard]]
-    constexpr std::size_t get_indirection_level (void) const noexcept;
-
-    //! Compute the lowest common ancestor between the two types.
-    //!
-    //! @param ty1 an ir_type
-    //! @param ty2 another ir_type
-    //! @return the lowest common ancestor
-    static constexpr ir_type lca (const ir_type& ty1, const ir_type& ty2)
-    {
-      return do_lca (ty1.m_ptr, ty2.m_ptr);
-    }
-
-    constexpr ir_type operator^ (const ir_type& ty) const
-    {
-      return do_lca (m_ptr, ty.m_ptr);
-    }
+    
+    [[nodiscard]] constexpr const char *  get_name_base    (void) const noexcept { return m_ptr->m_name_base;          }
+    [[nodiscard]] constexpr ir_type       get_base         (void) const noexcept { return *m_ptr->m_base_type;         }
+    [[nodiscard]] constexpr ir_type       get_pointer_base (void) const noexcept { return *m_ptr->m_pointer_base_type; }
+    [[nodiscard]] constexpr std::size_t   get_size         (void) const noexcept { return m_ptr->m_rep_size;           }
+    [[nodiscard]] constexpr bool          is_integral      (void) const noexcept { return m_ptr->m_is_integral;        }
+    [[nodiscard]] constexpr ir_type_array get_members      (void) const noexcept { return m_ptr->m_members;            }
+    
+    [[nodiscard]] constexpr bool has_base         (void) const noexcept { return m_ptr->m_base_type         != nullptr; }
+    [[nodiscard]] constexpr bool has_pointer_base (void) const noexcept { return m_ptr->m_pointer_base_type != nullptr; }
 
     template <typename ...Ts>
     static constexpr ir_type get (void) noexcept
     {
-      return { &instance<std::remove_cv_t<Ts>...>::m_impl };
+      return { instance<std::remove_cv_t<Ts>...>::m_impl };
     }
 
-    constexpr bool operator== (const ir_type& ty) const noexcept
+    friend constexpr bool operator== (const ir_type& lhs, const ir_type& rhs) noexcept
     {
-      return m_ptr == ty.m_ptr;
-    }
-
-    constexpr bool operator== (std::nullptr_t) const noexcept
-    {
-      return m_ptr == nullptr;
-    }
-    
-    friend constexpr bool
-    operator== (std::nullptr_t, const ir_type& ty) noexcept
-    {
-      return ty == nullptr;
-    }
-
-    constexpr bool operator!= (const ir_type& ty) const noexcept
-    {
-      return m_ptr != ty.m_ptr;
-    }
-
-    constexpr bool operator!= (std::nullptr_t) const noexcept
-    {
-      return m_ptr != nullptr;
-    }
-  
-    friend constexpr bool
-    operator!= (std::nullptr_t, const ir_type& ty) noexcept
-    {
-      return ty != nullptr;
+      return lhs.m_ptr == rhs.m_ptr;
     }
 
     friend struct ir_printer<ir_type>;
 
   private:
+    template <typename T>
+    static constexpr impl create_type (const char *name, std::nullptr_t) noexcept
+    {
+      return { name, nullptr, nullptr, sizeof (T), std::is_integral_v<T>, { } };
+    }
+
+    template <typename T>
+    static constexpr impl create_type (const char *name, ir_type base) noexcept
+    {
+      return { name, base.m_ptr, nullptr, sizeof (T), std::is_integral_v<T>, { } };
+    }
+
+    // shortcut for ir_type_impl::create_compound_type
+    template <typename T, std::size_t N>
+    static constexpr impl create_compound_type (const char *name, const ir_type (&members)[N],
+                                                ir_type base) noexcept
+    {
+      return { name, base.m_ptr, nullptr, sizeof (T), std::is_integral_v<T>,
+               ir_type_array (members) };
+    }
+  
+    template <typename T>
+    static constexpr impl create_type (const char *name) noexcept;
+  
+    template <typename T, std::size_t N>
+    static constexpr impl create_compound_type (const char *name,
+                                                const ir_type (&members)[N]) noexcept;
     
-    //! Implicit!
-    constexpr /* implicit */ ir_type (impl_p impl_ptr) noexcept
-      : m_ptr (impl_ptr)
-    { }
-
-    static constexpr impl_p do_lca (impl_p ty1, impl_p ty2);
-
-    // shortcut for ir_type_impl::create_type
     template <typename T>
-    static constexpr impl
-    create_type (const char *name) noexcept;
-
-    template <typename T>
-    static constexpr impl
-    create_type (const char *name, ir_type parent) noexcept;
-
-    // shortcut for ir_type_impl::create_compound_type
-    template <typename T, std::size_t N>
-    static constexpr impl
-    create_compound_type (const char *name, const ir_type (&members)[N]) noexcept;
-
-    // shortcut for ir_type_impl::create_compound_type
-    template <typename T, std::size_t N>
-    static constexpr impl
-    create_compound_type (const char *name, const ir_type (&members)[N], ir_type parent) noexcept;
-
-    impl_p m_ptr;
+    static constexpr impl create_pointer (ir_type pointer_base) noexcept;
+  
+    nonnull_ptr<const impl> m_ptr;
   };
   
   template <typename ...Ts>
   inline constexpr ir_type ir_type_v = ir_type::get<Ts...> ();
+  
+  [[nodiscard]]
+  constexpr std::size_t depth (ir_type ty) noexcept
+  {
+    return ty.has_base () ? (1 + depth (ty.get_base ())) : 0;
+  }
+  
+  [[nodiscard]]
+  constexpr std::size_t indirection_level (ir_type ty) noexcept
+  {
+    return ty.has_pointer_base () ? (1 + indirection_level (ty.get_pointer_base ())) : 0;
+  }
+  
+  constexpr bool operator!= (ir_type lhs, ir_type rhs)  noexcept
+  {
+    return ! (lhs == rhs);
+  }
 
   constexpr ir_type_array::iterator
   ir_type_array::begin () const noexcept
@@ -237,140 +220,6 @@ namespace gch
     return n > 0 ? sum_size (n - 1) + m_array[n - 1].get_size () : 0;
   }
 
-  struct ir_type::impl
-  {
-  public:
-  
-    [[nodiscard]]
-    constexpr const char * get_base_name (void) const noexcept
-    {
-      return m_base_name;
-    }
-    
-    // An abstract base type which may be null
-    [[nodiscard]]
-    constexpr impl_p get_parent_p (void) const noexcept
-    {
-      return m_parent.m_ptr;
-    }
-  
-    [[nodiscard]]
-    constexpr impl_p get_dereference_p (void) const noexcept
-    {
-      return m_ptr_to.m_ptr;
-    }
-  
-    [[nodiscard]]
-    constexpr std::size_t get_size (void) const noexcept
-    {
-      return m_rep_size;
-    }
-  
-    [[nodiscard]]
-    constexpr bool is_integral (void) const noexcept
-    {
-      return m_is_integral;
-    }
-  
-    [[nodiscard]]
-    constexpr const ir_type_array& get_members (void) const noexcept
-    {
-      return m_members;
-    }
-  
-    [[nodiscard]]
-    constexpr std::size_t get_depth (void) const noexcept
-    {
-      return m_parent != nullptr ? m_parent.get_depth () + 1 : 0;
-    }
-
-    // actually O(1) because of constexpr
-    [[nodiscard]]
-    constexpr std::size_t get_indirection_level (void) const noexcept
-    {
-      return m_ptr_to != nullptr ? m_ptr_to.get_indirection_level () + 1 : 0;
-    }
-
-    template <typename T>
-    static constexpr impl
-    create_type (const char *name, ir_type parent) noexcept
-    {
-      return { name, parent, nullptr, sizeof (T),
-               std::is_integral<T>::value, {} };
-    }
-
-    template <typename T>
-    static constexpr impl
-    create_compound_type (const char *name, ir_type_array members,
-                          ir_type parent) noexcept
-    {
-      return { name, parent, nullptr, sizeof (T),
-               std::is_integral<T>::value, members };
-    }
-
-    template <typename T>
-    [[nodiscard]]
-    constexpr impl
-    create_pointer (ir_type ptr_parent) const noexcept
-    {
-      return { m_base_name, ptr_parent, this, sizeof (T),
-               std::is_integral<T>::value, {} };
-    }
-
-  private:
-
-    constexpr impl (const char *name, ir_type parent, ir_type ptr_to,
-                    size_t rep_size, bool is_integral,
-                    ir_type_array members) noexcept
-      : m_base_name (name),
-        m_parent (parent),
-        m_ptr_to (ptr_to),
-        m_rep_size (rep_size),
-        m_is_integral (is_integral),
-        m_members (members)
-    { }
-
-    // A user readable type name (this is the base name if it is a pointer).
-    // This should not be used directly. Use ir_type_printer to print a name.
-    const char* m_base_name;
-    ir_type m_parent;
-    ir_type m_ptr_to;
-    size_t m_rep_size;
-    bool m_is_integral;
-    ir_type_array m_members;
-  };
-
-  constexpr std::size_t ir_type::get_size (void) const noexcept
-  {
-    return m_ptr->get_size ();
-  }
-
-  constexpr bool ir_type::is_integral (void) const noexcept
-  {
-    return m_ptr->is_integral ();
-  }
-
-  // An abstract base type which may be null
-  constexpr ir_type ir_type::get_parent_type (void) const noexcept
-  {
-    return m_ptr->get_parent_p ();
-  }
-
-  constexpr ir_type ir_type::get_dereference_type () const noexcept
-  {
-    return m_ptr->get_dereference_p ();
-  }
-
-  constexpr std::size_t ir_type::get_depth (void) const noexcept
-  {
-    return m_ptr->get_depth ();
-  }
-
-  constexpr std::size_t ir_type::get_indirection_level (void) const noexcept
-  {
-    return m_ptr->get_indirection_level ();
-  }
-
   /////////
   // any //
   /////////
@@ -383,44 +232,29 @@ namespace gch
   struct ir_type::instance<any>
   {
     using type = any;
-    static constexpr
-    impl m_impl = impl::create_type<any> ("any", nullptr);
+    static constexpr impl m_impl { create_type<any> ("any", nullptr) };
   };
-
-  // shortcut for ir_type_impl::create_type
+  
   template <typename T>
   constexpr ir_type::impl
   ir_type::create_type (const char *name) noexcept
   {
-    return impl::create_type<T> (name, get<any> ());
+    return create_type<T> (name, ir_type_v<any>);
   }
 
+  template <typename T, std::size_t N>
+  constexpr ir_type::impl
+  ir_type::create_compound_type (const char *name, const ir_type (&members)[N]) noexcept
+  {
+    return create_compound_type<T, N> (name, members, ir_type_v<any>);
+  }
+  
   template <typename T>
   constexpr ir_type::impl
-  ir_type::create_type (const char *name, ir_type parent) noexcept
+  ir_type::create_pointer (ir_type pointer_base) noexcept
   {
-    return impl::create_type<T> (name, parent);
-  }
-
-  // shortcut for ir_type_impl::create_compound_type
-  template <typename T, std::size_t N>
-  constexpr ir_type::impl
-  ir_type::create_compound_type (const char *name,
-                                 const ir_type (&members)[N]) noexcept
-  {
-    return impl::create_compound_type<T> (name, ir_type_array (members),
-                                          get<any> ());
-  }
-
-  // shortcut for ir_type_impl::create_compound_type
-  template <typename T, std::size_t N>
-  constexpr ir_type::impl
-  ir_type::create_compound_type (const char *name,
-                                 const ir_type (&members)[N],
-                                 ir_type parent) noexcept
-  {
-    return impl::create_compound_type<T> (name, ir_type_array (members),
-                                          parent);
+    return { pointer_base.get_name_base (), ir_type_v<any>.m_ptr, pointer_base.m_ptr, sizeof (T),
+             false, { }};
   }
 
   // template instantiations
@@ -440,8 +274,7 @@ namespace gch
   struct ir_type::instance<void>
   {
     using type = unit;
-    static constexpr
-    impl m_impl = create_type<type> ("void", nullptr);
+    static constexpr impl m_impl { create_type<type> ("void", nullptr) };
   };
 
   /////////////////////////////////
@@ -452,22 +285,34 @@ namespace gch
   struct ir_type::instance<T *>
   {
     using type = T *;
-    static constexpr
-    impl m_impl = get<T> ().m_ptr
-      ->template create_pointer<T *> (get<any> ());
+    static constexpr impl m_impl { create_pointer<T *> (ir_type_v<T>) };
   };
-
-  constexpr ir_type::impl_p ir_type::do_lca (impl_p ty1, impl_p ty2)
+  
+  //! Compute the lowest common ancestor between the two types.
+  //!
+  //! @param lhs an ir_type
+  //! @param rhs another ir_type
+  //! @return the lowest common ancestor
+  constexpr ir_type lca (ir_type lhs, ir_type rhs) noexcept
   {
-    return ((ty1 == nullptr) || (ty2 == nullptr))
-           ? &instance<void>::m_impl
-           : (ty1 == ty2)
-             ? ty1
-             : (ty1->get_depth () > ty2->get_depth ())
-               ? do_lca (ty1, ty2->get_parent_p ())
-               : (ty1->get_depth () > ty2->get_depth ())
-                 ? do_lca (ty1->get_parent_p (), ty2)
-                 : do_lca (ty1->get_parent_p (), ty2->get_parent_p ());
+    if (lhs == rhs)
+      return lhs;
+    
+    if (depth (lhs) < depth (rhs) && rhs.has_base ())
+      return lca (lhs, rhs.get_base ());
+    
+    if (depth (lhs) > depth (rhs) && lhs.has_base ())
+      return lca (lhs.get_base (), rhs);
+    
+    if (! lhs.has_base () || ! rhs.has_base ())
+      return ir_type_v<void>;
+    
+    return lca (lhs.get_base (), rhs.get_base ());
+  }
+  
+  constexpr ir_type operator^ (ir_type lhs, ir_type rhs) noexcept
+  {
+    return lca (lhs, rhs);
   }
 
 }

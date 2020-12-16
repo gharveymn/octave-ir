@@ -41,24 +41,21 @@ namespace gch
   struct ir_type::instance<long double>
   {
     using type = long double;
-    static constexpr
-    impl m_impl = create_type<type> ("ldouble");
+    static constexpr impl m_impl { create_type<type> ("ldouble") };
   };
 
   template <>
   struct ir_type::instance<double>
   {
     using type = double;
-    static constexpr
-    impl m_impl = create_type<type> ("double");
+    static constexpr impl m_impl { create_type<type> ("double") };
   };
 
   template <>
   struct ir_type::instance<single>
   {
     using type = single;
-    static constexpr
-    impl m_impl = create_type<type> ("single", get<double> ());
+    static constexpr impl m_impl { create_type<type> ("single", ir_type_v<double>) };
   };
 
   ///////////////////////
@@ -69,104 +66,91 @@ namespace gch
   struct ir_type::instance<int64_t>
   {
     using type = int64_t;
-    static constexpr
-    impl m_impl = create_type<type> ("i64");
+    static constexpr impl m_impl { create_type<type> ("i64") };
   };
 
   template <>
   struct ir_type::instance<int32_t>
   {
     using type = int32_t;
-    static constexpr
-    impl m_impl = create_type<type> ("i32", get<int64_t> ());
+    static constexpr impl m_impl { create_type<type> ("i32", ir_type_v<int64_t>) };
   };
 
   template <>
   struct ir_type::instance<int16_t>
   {
     using type = int16_t;
-    static constexpr
-    impl m_impl = create_type<type> ("i16", get<int32_t> ());
+    static constexpr impl m_impl { create_type<type> ("i16", ir_type_v<int32_t>) };
   };
 
   template <>
   struct ir_type::instance<int8_t>
   {
     using type = int8_t;
-    static constexpr
-    impl m_impl = create_type<type> ("i8", get<int16_t> ());
+    static constexpr impl m_impl { create_type<type> ("i8", ir_type_v<int16_t>) };
   };
 
   template <>
   struct ir_type::instance<uint64_t>
   {
     using type = uint64_t;
-    static constexpr
-    impl m_impl = create_type<type> ("ui64");
+    static constexpr impl m_impl { create_type<type> ("ui64") };
   };
 
   template <>
   struct ir_type::instance<uint32_t>
   {
     using type = uint32_t;
-    static constexpr
-    impl m_impl = create_type<type> ("ui32", get<uint64_t> ());
+    static constexpr impl m_impl { create_type<type> ("ui32", ir_type_v<uint64_t>) };
   };
 
   template <>
   struct ir_type::instance<uint16_t>
   {
     using type = uint16_t;
-    static constexpr
-    impl m_impl = create_type<type> ("ui16", get<uint32_t> ());
+    static constexpr impl m_impl { create_type<type> ("ui16", ir_type_v<uint32_t>) };
   };
 
   template <>
   struct ir_type::instance<uint8_t>
   {
     using type = uint8_t;
-    static constexpr
-    impl m_impl = create_type<type> ("ui8", get<uint16_t> ());
+    static constexpr impl m_impl { create_type<type> ("ui8", ir_type_v<uint16_t>) };
   };
 
   template <>
   struct ir_type::instance<char>
   {
     using type = char;
-    static constexpr
-    impl m_impl = create_type<type> ("char");
+    static constexpr impl m_impl { create_type<type> ("char") };
   };
 	
   template <>
   struct ir_type::instance<const char>
   {
     using type = char;
-    static constexpr
-    impl m_impl = create_type<type> ("const char");
+    static constexpr impl m_impl { create_type<type> ("const char") };
   };
 
   template <>
   struct ir_type::instance<wchar_t>
   {
     using type = wchar_t;
-    static constexpr
-    impl m_impl = create_type<type> ("wchar");
+    static constexpr impl m_impl { create_type<type> ("wchar") };
   };
 
   template <>
   struct ir_type::instance<char32_t>
   {
     using type = char32_t;
-    static constexpr
-    impl m_impl = create_type<type> ("char32");
+    static constexpr impl m_impl { create_type<type> ("char32") };
   };
 
   template <>
   struct ir_type::instance<char16_t>
   {
     using type = char16_t;
-    static constexpr
-    impl m_impl = create_type<type> ("char16");
+    static constexpr impl m_impl { create_type<type> ("char16") };
   };
 
 #if __cpp_char8_t >= 201811L
@@ -175,8 +159,7 @@ namespace gch
   struct ir_type::instance<char8_t>
   {
     using type = char8_t;
-    static constexpr
-    impl m_impl = create_type<char8_t> ("char8");
+    static constexpr impl m_impl { create_type<char8_t> ("char8") };
   };
 
 #endif
@@ -185,16 +168,14 @@ namespace gch
   struct ir_type::instance<bool>
   {
     using type = bool;
-    static constexpr
-    impl m_impl = create_type<type> ("bool");
+    static constexpr impl m_impl { create_type<type> ("bool") };
   };
   
   template <>
   struct ir_type::instance<ir_type>
   {
     using type = ir_type;
-    static constexpr
-    impl m_impl = create_type<type> ("ir_type");
+    static constexpr impl m_impl { create_type<type> ("ir_type") };
   };
 
   ///////////////////
@@ -207,13 +188,12 @@ namespace gch
     using type = std::complex<double>;
     static constexpr ir_type m_members[]
       {
-        get<double> (),
-        get<double> (),
+        ir_type_v<double>,
+        ir_type_v<double>,
       };
     static_assert (ir_type_array (m_members).get_size () == sizeof (type),
                    "The size of Complex is not equal to its IR counterpart.");
-    static constexpr
-    impl m_impl = create_compound_type<type> ("complex", m_members);
+    static constexpr impl m_impl { create_compound_type<type> ("complex", m_members) };
   };
 
   template <>
@@ -222,13 +202,12 @@ namespace gch
     using type = std::complex<single>;
     static constexpr ir_type m_members[]
       {
-        get<single> (),
-        get<single> (),
+        ir_type_v<single>,
+        ir_type_v<single>,
       };
     static_assert (ir_type_array (m_members).get_size () == sizeof (type),
               "The size of FloatComplex is not equal to its IR counterpart.");
-    static constexpr
-    impl m_impl = create_compound_type<type> ("fcomplex", m_members);
+    static constexpr impl m_impl { create_compound_type<type> ("fcomplex", m_members) };
   };
 
 }

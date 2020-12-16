@@ -34,8 +34,7 @@ namespace gch
   struct ir_type::instance<ir_basic_block *>
   {
     using type = ir_basic_block *;
-    static constexpr
-    impl m_impl = create_type<type> ("block_ptr");
+    static constexpr impl m_impl { create_type<type> ("block_ptr") };
   };
 }
 

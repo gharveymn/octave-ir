@@ -34,8 +34,7 @@ namespace gch
   struct ir_type::instance<std::string>
   {
     using type = std::string;
-    static constexpr
-    impl m_impl = create_type<type> ("string");
+    static constexpr impl m_impl { create_type<type> ("string") };
   };
 
 }
