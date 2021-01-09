@@ -30,3 +30,6 @@
 	path = external/partition
 	url = git@github.com:gharveymn/partition.git
 	branch = main
+[submodule "external/small_vector"]
+	path = external/small_vector
+	url = git@github.com:gharveymn/small_vector.git
