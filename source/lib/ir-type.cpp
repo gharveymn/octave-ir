@@ -46,16 +46,14 @@ namespace gch
   std::ostream&
   ir_printer<ir_type>::short_print (std::ostream& os, const ir_type& ty)
   {
-    ir_type::impl_p impl_ptr = ty.m_ptr;
-    os << impl_ptr->get_base_name ();
-    return os << std::string (impl_ptr->get_indirection_level (), '*');
+    return os << ty.get_name_base () << std::string (indirection_level (ty), '*');
   }
 
   template <>
   std::ostream&
   ir_printer<ir_type>::long_print (std::ostream& os, const ir_type& ty)
   {
-    const ir_type_array& members = ty.m_ptr->get_members ();
+    const ir_type_array& members = ty.get_members ();
     short_print (os, ty);
     if (members.get_numel () > 0)
       {

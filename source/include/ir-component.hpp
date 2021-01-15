@@ -23,7 +23,7 @@ along with Octave; see the file COPYING.  If not, see
 #if ! defined (ir_component_h)
 #define ir_component_h 1
 
-#include "ir-common.hpp"
+#include "ir-common-util.hpp"
 
 #include <gch/optional_ref.hpp>
 #include <gch/nonnull_ptr.hpp>
@@ -41,6 +41,8 @@ namespace gch
   class ir_function;
   class ir_def;
   class ir_variable;
+  class ir_structure;
+  class ir_def_timeline;
 
   // abstract
   class ir_component
@@ -70,32 +72,57 @@ namespace gch
                                         value_citer<nonnull_ptr<ir_basic_block>>,
                                         void_citer<nonnull_ptr<ir_basic_block>>>;
 
-    ir_component            (void)                    = default;
+    ir_component            (void)                    = delete;
     ir_component            (const ir_component&)     = default;
     ir_component            (ir_component&&) noexcept = default;
     ir_component& operator= (const ir_component&)     = default;
     ir_component& operator= (ir_component&&) noexcept = default;
+    virtual ~ir_component (void) noexcept             = 0;
     
-    virtual ~ir_component (void) noexcept = 0;
+    constexpr explicit ir_component (ir_structure& s)
+      : m_parent (s)
+    { }
+  
+    constexpr explicit ir_component (nullopt_t)
+      : m_parent (nullopt)
+    { }
   
     virtual void reset (void) noexcept = 0;
 
-    [[nodiscard]] virtual link_iter          leaf_begin      (void)                = 0;
-    [[nodiscard]] virtual link_iter          leaf_end        (void)                = 0;
+    [[nodiscard]] virtual link_iter leaf_begin (void) = 0;
+    [[nodiscard]] virtual link_iter leaf_end   (void) = 0;
 
-    [[nodiscard]] virtual ir_function&       get_function    (void)       noexcept = 0;
-    [[nodiscard]] virtual const ir_function& get_function    (void) const noexcept = 0;
+    [[nodiscard]] virtual ir_function& get_function (void) noexcept = 0;
+    
+    [[nodiscard]]
+    const ir_function& get_function (void) const noexcept
+    {
+      return const_cast<ir_component *> (this)->get_function ();
+    }
 
-    [[nodiscard]] virtual ir_basic_block&    get_entry_block (void)       noexcept = 0;
+    [[nodiscard]] virtual ir_basic_block& get_entry_block (void) noexcept = 0;
+  
+    [[nodiscard]]
+    const ir_basic_block& get_entry_block (void) const noexcept
+    {
+      return const_cast<ir_component *> (this)->get_entry_block ();
+    }
+    
+    virtual std::vector<std::pair<nonnull_ptr<ir_basic_block>, optional_ref<ir_def_timeline>>>
+    collect_outgoing (ir_variable& var);
     
     [[nodiscard]]
     virtual std::list<nonnull_ptr<ir_def>> get_latest_defs (ir_variable& var) noexcept = 0;
+    
+    [[nodiscard]] constexpr       bool  has_parent (void) const noexcept { return bool (m_parent); }
+    [[nodiscard]] constexpr       auto& get_parent (void)       noexcept { return *m_parent;       }
+    [[nodiscard]] constexpr const auto& get_parent (void) const noexcept { return *m_parent;       }
 
     template <typename T>
     using is_component = std::is_base_of<ir_component, T>;
 
   private:
-
+    optional_ref<ir_structure> m_parent;
   };
 
 }

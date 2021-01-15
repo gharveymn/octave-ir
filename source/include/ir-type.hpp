@@ -140,8 +140,6 @@ namespace gch
       return lhs.m_ptr == rhs.m_ptr;
     }
 
-    friend struct ir_printer<ir_type>;
-
   private:
     template <typename T>
     static constexpr impl create_type (const char *name, std::nullptr_t) noexcept

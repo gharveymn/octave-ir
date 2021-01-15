@@ -114,58 +114,20 @@ namespace gch
   ir_variable::get_sentinel (void)
   {
     if (! has_sentinel ())
-      return initialize_sentinel ();
-    return *m_sentinel;
+      return get_undef_var ();
+    return *m_undef_var;
   }
 
   std::string
-  ir_variable::get_sentinel_name (void) const
+  ir_variable::get_undef_name (void) const
   {
-    return "_" + m_name + "_sentinel";
-  }
-
-  optional_ref<ir_def>
-  ir_variable::join (ir_basic_block& blk)
-  {
-    return join (blk, blk.body_end ());
-  }
-
-  optional_ref<ir_def>
-  ir_variable::join (ir_basic_block& blk, instr_citer pos)
-  {
-    gch::optional_ref<ir_def> ret = blk.get_latest_def_before (*this, pos);
-    if (! ret.has_value ())
-      ret = blk.join_preceding_defs (*this);
-
-    // if ret is still nullptr then we need to insert a fetch instruction
-    if (! ret.has_value ())
-      return blk.emplace_before<ir_fetch> (pos, *this).get_def ();
-    else
-      {
-        // if the ir_def was created by a phi node, there may be
-      }
-      
-    // guaranteed return  
-    return *ret;
-  }
-  
-  void
-  ir_variable::set_type (ir_type ty)
-  {
-    if (ty == m_type)
-      return;
-  
-    std::for_each (begin (), end (), [&ty](ir_def& def) { def.propagate_type (ty); });
-    m_type = ty;
+    return "_undef_" + m_name;
   }
 
   ir_variable&
-  ir_variable::initialize_sentinel (void)
+  ir_variable::get_undef_var (void)
   {
-    m_sentinel = std::make_unique<ir_variable> (get_module (), get_sentinel_name ());
-    // set false (meaning undecided state) at the beginning of the module.
-    ir_basic_block& entry = get_function ().get_entry_block ();
-    entry.emplace_front<ir_assign> (*m_sentinel, ir_constant<bool> {false});
+    return *(m_undef_var = std::make_unique<ir_variable> (get_module (), undef_name (*this)));
   }
   
   // ir_variable::tracker_type::citer
@@ -253,9 +215,15 @@ namespace gch
   //
   // ir_use
   //
-
-  ir_use::ir_use (ir_use_timeline& tkr, ir_instruction& instr)
-    : reporter_type (tag::bind, tkr),
+  
+  ir_use::ir_use (ir_instruction& instr, ir_use_timeline& tkr)
+    : reporter_type (tag::bind, tkr, tkr.cend ()),
+      m_instr (instr)
+  { }
+  
+  template <>
+  ir_use::ir_use (ir_instruction& instr, ir_use_timeline& tkr, ir_use_timeline::citer pos)
+    : reporter_type (tag::bind, tkr, pos),
       m_instr (instr)
   { }
   
@@ -324,5 +292,17 @@ namespace gch
   {
     return get_position ();
   }
-
+  
+  [[nodiscard]]
+  ir_def& ir_use_timeline::get_def (void) noexcept
+  {
+    return get_instruction ().get_return ();
+  }
+  
+  [[nodiscard]]
+  const ir_def& ir_use_timeline::get_def (void) const noexcept
+  {
+    return get_instruction ().get_return ();
+  }
+  
 }

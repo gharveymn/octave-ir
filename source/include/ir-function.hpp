@@ -29,27 +29,25 @@ along with Octave; see the file COPYING.  If not, see
 namespace gch
 {
   
-  class ir_function : public ir_component_list<ir_basic_block>
+  class ir_function : public ir_sequence
   {
   public:
-    
-    using ir_component_list<ir_basic_block>::ir_component_list;
-
-    ir_function (const ir_function& o) = delete;
-
-    ir_function (ir_function&& o) noexcept
-      : ir_component_list<ir_basic_block> (std::move (o))
-    {
-      o.reset ();
-    }
-
-    ir_function& operator= (const ir_function& o) = delete;
-    ir_function& operator= (ir_function&& o)      = delete;
   
-    ir_component::link_iter pred_begin (ir_component& c) override;
-    ir_component::link_iter pred_end   (ir_component& c) override;
-    ir_component::link_iter succ_begin (ir_component& c) override;
-    ir_component::link_iter succ_end   (ir_component& c) override;
+//  ir_function            (void)                   = impl;
+    ir_function            (const ir_function&)     = delete;
+    ir_function            (ir_function&&) noexcept = default;
+    ir_function& operator= (const ir_function&)     = delete;
+    ir_function& operator= (ir_function&&) noexcept = delete;
+    ~ir_function           (void) override          = default;
+    
+    ir_function (void)
+      : ir_sequence (nullopt)
+    { }
+  
+    ir_component::link_iter preds_begin (ir_component& c) override;
+    ir_component::link_iter preds_end   (ir_component& c) override;
+    ir_component::link_iter succs_begin (ir_component& c) override;
+    ir_component::link_iter succs_end   (ir_component& c) override;
     
     void invalidate_leaf_cache (void) noexcept override
     {
@@ -69,7 +67,6 @@ namespace gch
     }
 
   private:
-
   };
 
 }

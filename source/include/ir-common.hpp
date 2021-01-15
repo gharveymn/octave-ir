@@ -39,6 +39,12 @@ static_assert(strcat(strcat(value_of_, x), _is)<x>::x, "");
 class octave_base_value;
 namespace gch
 {
+#ifdef NDEBUG
+  inline constexpr bool OCTAVE_IR_DEBUG = false;
+#else
+  inline constexpr bool OCTAVE_IR_DEBUG = true;
+#endif
+  
   using any = octave_base_value *;
   using single = float;
   
@@ -157,32 +163,32 @@ namespace gch
     { };
   
     template <std::size_t I, typename T, typename ...Ts>
-    struct select
-      : select<I - 1, Ts...>
+    struct pack_select
+      : pack_select<I - 1, Ts...>
     { };
   
     template <typename T, typename ...Ts>
-    struct select<0, T, Ts...>
+    struct pack_select<0, T, Ts...>
     {
       using type = T;
     };
     
     template <std::size_t I, typename T, typename Head, typename ...Tail>
-    struct index : detail::index<I + 1, T, Tail...>
+    struct pack_index : detail::pack_index<I + 1, T, Tail...>
     { };
     
     template <std::size_t I, typename T, typename ...Rest>
-    struct index<I, T, T, Rest...>
+    struct pack_index<I, T, T, Rest...>
       : std::integral_constant<std::size_t, I>
     { };
 
     template <std::size_t I, typename T>
-    struct index<I, T, T>
+    struct pack_index<I, T, T>
       : std::integral_constant<std::size_t, I>
     { };
 
     template <std::size_t I, typename T, typename U>
-    struct index<I, T, U>
+    struct pack_index<I, T, U>
     { };
 
     template <typename T, typename = void, typename ...Ts>
@@ -190,7 +196,7 @@ namespace gch
     { };
 
     template <typename T, typename ...Ts>
-    struct is_element<T, std::void_t<typename index<0, T, Ts...>::type>, Ts...>
+    struct is_element<T, std::void_t<typename pack_index<0, T, Ts...>::type>, Ts...>
       : std::true_type
     { };
   
@@ -205,16 +211,16 @@ namespace gch
   }
 
   template <typename ...Ts>
-  using all_same    = detail::all_same<Ts...>; 
+  using all_same    = detail::all_same<Ts...>;
 
   template <std::size_t I, typename ...Ts>
-  using select      = detail::select<I, Ts...>;
+  using pack_select      = detail::pack_select<I, Ts...>;
 
   template <std::size_t I, typename ...Ts>
-  using select_t    = typename select<I, Ts...>::type;
+  using pack_select_t    = typename pack_select<I, Ts...>::type;
   
   template <typename T, typename ...Ts>
-  using index       = detail::index<0, T, Ts...>;
+  using pack_index       = detail::pack_index<0, T, Ts...>;
 
   template <typename T, typename ...Ts>
   using is_element  = detail::is_element<T, void, Ts...>;
@@ -224,9 +230,9 @@ namespace gch
 
   template <typename ...Ts>
   inline constexpr bool        all_same_v    = all_same<Ts...>::value;
-
+  
   template <typename T, typename ...Ts>
-  inline constexpr std::size_t index_v       = index<T, Ts...>::value;
+  inline constexpr std::size_t pack_index_v       = pack_index<T, Ts...>::value;
   
   template <typename T, typename ...Ts>
   inline constexpr std::size_t is_element_v  = is_element<T, Ts...>::value;

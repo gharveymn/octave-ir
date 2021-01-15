@@ -32,7 +32,7 @@ along with Octave; see the file COPYING.  If not, see
 namespace gch
 {
   ir_component::link_iter
-  ir_function::pred_begin (ir_component& c)
+  ir_function::preds_begin (ir_component& c)
   {
     auto cit = must_find (c);
     if (cit == begin ())
@@ -41,7 +41,7 @@ namespace gch
   }
   
   ir_component::link_iter
-  ir_function::pred_end (ir_component& c)
+  ir_function::preds_end (ir_component& c)
   {
     comp_citer cit = must_find (c);
     if (cit == begin ())
@@ -50,7 +50,7 @@ namespace gch
   }
   
   ir_component::link_iter
-  ir_function::succ_begin (ir_component& c)
+  ir_function::succs_begin (ir_component& c)
   {
     comp_citer cit = must_find (c);
     if (cit == last ())
@@ -59,7 +59,7 @@ namespace gch
   }
   
   ir_component::link_iter
-  ir_function::succ_end (ir_component& c)
+  ir_function::succs_end (ir_component& c)
   {
     comp_citer cit = must_find (c);
     if (cit == last ())

@@ -26,6 +26,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-common.hpp"
 
 #include <gch/optional_ref.hpp>
+#include <gch/nonnull_ptr.hpp>
 
 #include <iosfwd>
 #include <memory>
@@ -50,172 +51,164 @@ namespace gch
   };
 
   std::ostream& operator<< (std::ostream& os, const ir_type& ty);
-  
+
   template <typename T>
-  using is_pointer_ref
-    = std::is_pointer<typename std::remove_reference<T>::type>;
-  
+  using is_pointer_ref = std::is_pointer<typename std::remove_reference<T>::type>;
+
   template <typename T, typename S>
-  constexpr bool isa (const S* x)
+  constexpr bool is_a (const S* x)
   {
     return dynamic_cast<const T*> (x) != nullptr;
   }
-  
-//  template <typename T, typename S, typename>
-//  bool isa (const S& x);
 
-//  template <typename T, typename S>
-//  constexpr bool isa (const enable_if_t<! std::is_pointer<S>::value, S>& x)
-//  {
-//    return dynamic_cast<const T*> (&x) != nullptr;
-//  }
-//
-//  template <typename T, typename S>
-//  constexpr bool isa (const enable_if_t<std::is_pointer<S>::value, S>& x)
-//  {
-//    return dynamic_cast<const T*> (x) != nullptr;
-//  }
-  
   template <typename T, typename S,
-        typename std::enable_if<! std::is_pointer<S>::value>::type* = nullptr>
-  constexpr bool isa (const S& x)
+        typename std::enable_if<! std::is_pointer<S>::value>::type * = nullptr>
+  constexpr bool is_a (const S& x)
   {
     return dynamic_cast<const T*> (&x) != nullptr;
   }
-  
+
   template <typename T, typename S,
-          typename std::enable_if<std::is_pointer<S>::value>::type* = nullptr>
-  constexpr bool isa (const S& x)
+          typename std::enable_if<std::is_pointer<S>::value>::type * = nullptr>
+  constexpr bool is_a (const S& x)
   {
     return dynamic_cast<const T*> (x) != nullptr;
   }
-  
-//  template <class T>
-//  struct unique_if
-//  {
-//    using singular_type = std::unique_ptr<T>;
-//  };
-//
-//  template <class T>
-//  struct unique_if<T[]>
-//  {
-//    using array_type = std::unique_ptr<T[]>;
-//  };
-//
-//  template <class T, size_t N>
-//  struct unique_if<T[N]>
-//  {
-//    struct invalid_type
-//    { };
-//  };
-//
-//  template <class T, class... Args>
-//  typename unique_if<T>::singular_type
-//  make_unique(Args&&... args)
-//  {
-//    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-//  }
-//
-//  template <class T>
-//  typename unique_if<T>::array_type
-//  make_unique(size_t n)
-//  {
-//    using base_type = typename std::remove_extent<T>::type;
-//    return std::unique_ptr<T>(new base_type[n]());
-//  }
-//
-//  template<typename T, typename... Args>
-//  typename unique_if<T>::invalid_type
-//  make_unique(Args&&...) = delete;
 
-  template <typename T>
-  struct ptr_noexcept_hash
+  template <typename ...Ts>
+  struct overloaded: Ts...
   {
-    using value_type = T *;
-    constexpr std::size_t operator() (const value_type& ptr) const noexcept
+    using Ts::operator()...;
+  };
+  template <typename ...Ts> overloaded (Ts...) -> overloaded<Ts...>;
+
+  template <typename R, typename Overloaded>
+  struct overloaded_ret;
+
+  template <typename R, typename ...Ts>
+  struct overloaded_ret<R, overloaded<Ts...>>
+    : overloaded<Ts...>
+  {
+    constexpr explicit overloaded_ret (Ts&&... ts)
+      : overloaded<Ts...> (std::forward<Ts> (ts)...)
+    { }
+
+    template <typename T>
+    R operator() (T&& t)
     {
-      return reinterpret_cast<std::size_t> (ptr);
+      return overloaded<Ts...>::operator() (std::forward<T> (t));
     }
   };
 
-  template <typename T>
-  struct ptr_noexcept_equal_to
+  template <typename R, typename ...Ts>
+  constexpr overloaded_ret<R, overloaded<Ts...>> make_overloaded (Ts&&... ts)
   {
-    using value_type = T *;
-    constexpr bool operator() (const value_type& lhs,
-                               const value_type& rhs) const noexcept
-    {
-      return lhs == rhs;
-    }
-  };
-  
-  template<typename ...Ts> struct overloaded : Ts... { using Ts::operator()...; };
-  template<typename ...Ts> overloaded (Ts...) -> overloaded<Ts...>;
-  
-  template <typename Optional, typename Function, typename ...Args>
-  constexpr auto maybe_invoke (Optional&& opt, Function&& f)
-    -> decltype (std::invoke (std::forward<Function> (f), *opt))
+    return overloaded_ret<R, overloaded<Ts...>> { std::forward<Ts> (ts)... };
+  }
+
+  template <typename Optional, typename Function>
+  constexpr auto operator>>= (Optional&& opt, Function&& f)
+    -> std::enable_if_t<std::is_invocable_v<Function, decltype (*opt)>,
+                        decltype (std::invoke (std::forward<Function> (f), *opt))>
   {
     using ret_type = decltype (std::invoke (std::forward<Function> (f), *opt));
-    return bool (opt) ? std::invoke (std::forward<Function> (f), *opt) : ret_type ();
-  }
-  
-  template <typename Function, typename Optional, typename U>
-  constexpr auto maybe_invoke_or (U&& ret, Optional&& opt, Function&& f)
-    -> decltype (std::invoke (std::forward<Function> (f), *opt))
-  {
-    using ret_type = decltype (std::invoke (std::forward<Function> (f), *opt));
-    return bool (opt) ? std::invoke (std::forward<Function> (f), *opt)
-                      : static_cast<ret_type> (std::forward<U> (ret));
-  }
-  
-  template <typename T, typename Function>
-  constexpr auto operator>>= (std::optional<T>&& opt, Function&& f)
-  -> decltype (std::invoke (std::forward<Function> (f), *opt))
-  {
     if (opt)
       return std::invoke (std::forward<Function> (f), *opt);
-    return std::nullopt;
+    return ret_type ();
   }
-  
-  template <typename T, typename Function>
-  constexpr auto operator>>= (const std::optional<T>& opt, Function&& f)
-  -> decltype (std::invoke (std::forward<Function> (f), *opt))
+
+  // nonconst member function
+  template <typename Optional, typename Ret>
+  constexpr auto
+  operator>>= (Optional&& opt,
+               Ret (std::decay_t<decltype (*std::declval<Optional> ())>::*f) (void))
+  -> std::enable_if_t<std::is_invocable_v<decltype (f), decltype (*opt)>
+                  &&! std::is_const_v<decltype (*opt)>,
+                      decltype (std::invoke (f, *opt))>
   {
+    using ret_type = decltype (std::invoke (f, *opt));
     if (opt)
-      return std::invoke (std::forward<Function> (f), *opt);
-    return std::nullopt;
+      return std::invoke (f, *opt);
+    return ret_type ();
   }
-  
-  template <typename T, typename Function>
-  constexpr auto operator>>= (optional_ref<T>&& opt, Function&& f)
-  -> decltype (std::invoke (std::forward<Function> (f), *opt))
+
+  // const member function
+  template <typename Optional, typename Ret>
+  constexpr auto
+  operator>>= (Optional&& opt,
+               Ret (std::decay_t<decltype (*std::declval<Optional> ())>::*f) (void) const)
+    -> std::enable_if_t<std::is_invocable_v<decltype (f), decltype (*opt)>
+                    &&  std::is_const_v<decltype (*opt)>,
+                        decltype (std::invoke (f, *opt))>
   {
+    using ret_type = decltype (std::invoke (f, *opt));
     if (opt)
-      return std::invoke (std::forward<Function> (f), *opt);
-    return std::nullopt;
+      return std::invoke (f, *opt);
+    return ret_type ();
   }
-  
-  template <typename T, typename Function>
-  constexpr auto operator>>= (optional_ref<T>& opt, Function&& f)
-  -> decltype (std::invoke (std::forward<Function> (f), *opt))
-  {
-    if (opt)
-      return std::invoke (std::forward<Function> (f), *opt);
-    return std::nullopt;
-  }
-  
+
   template <typename Function>
   struct maybe
   {
     template <typename ...Args>
-    auto operator() (Args&&... args)
+    decltype (auto) operator() (Args&&... args)
     {
-      using std::make_optional;
-      return make_optional (std::invoke (m_func, std::forward<Args> (args)...));
+      return std::make_optional (std::invoke (m_func, std::forward<Args> (args)...));
     }
     Function m_func;
   };
+
+  template <typename Function> maybe (Function&&) -> maybe<Function>;
+
+  template <typename T, typename Function>
+  struct selected
+  {
+    template <typename ...Args>
+    decltype (auto) operator() (Args&&... args)
+    {
+      return std::invoke (m_func, std::get<T> (std::forward<Args> (args))...);
+    }
+    Function m_func;
+  };
+
+  template <typename T, typename Function>
+  selected<T, std::decay_t<Function>> make_selected (Function&& f)
+  {
+    return selected<T, std::decay_t<Function>> { std::forward<Function> (f) };
+  }
+
+  template <typename Function>
+  struct applied
+  {
+    template <typename Tuple>
+    decltype (auto) operator() (Tuple&& tup)
+    {
+      return std::apply (m_func, std::forward<Tuple> (tup));
+    }
+
+    Function m_func;
+  };
+
+  template <typename Function> applied (Function&&) -> applied<Function>;
+
+  template <typename From, typename To>
+  struct match_cv
+  {
+    using type = typename std::conditional<std::is_const<From>::value,
+                   typename std::conditional<std::is_volatile<From>::value,
+                                             typename std::add_cv<To>::type,
+                                             typename std::add_const<To>::type>::type,
+                   typename std::conditional<std::is_volatile<From>::value,
+                                             typename std::add_volatile<To>::type,
+                                             To>::type>::type;
+  };
+
+  template <typename From, typename To>
+  using match_cv_t = typename match_cv<From, To>::type;
+
+  template <typename ...Ts>
+  using ref_tuple = std::tuple<nonnull_ptr<Ts>...>;
+
 }
 
 #endif

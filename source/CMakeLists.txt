@@ -49,7 +49,8 @@ CREATE_PACKAGE(AUTHOR       gharveymn
                             variant-iterator
                             nonnull_ptr
                             select-iterator
-                            partition)
+                            partition
+                            small_vector)
 
 SET_TARGET_PROPERTIES(octave-ir PROPERTIES
                       CXX_STANDARD          17

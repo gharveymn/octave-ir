@@ -26,273 +26,79 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-common.hpp"
 #include "ir-type-std.hpp"
 
+#include <gch/optional_ref.hpp>
+
+#include <any>
+
 namespace gch
 {
   
-  // The following code is basically the same as std::tuple without
-  // some features, and extended for our purposes.
-  
-  template <typename>
-  struct ir_printer;
-  
-  class ir_operand;
-  
-  template <typename...>
   class ir_constant;
   
-  template <std::size_t Idx, typename T>
-  struct ir_constant_base
+  template <typename T>
+  optional_ref<T> data_cast(ir_constant& c) noexcept;
+  
+  template <typename T>
+  optional_ref<const T> data_cast(const ir_constant& c) noexcept;
+  
+  class ir_constant
   {
-    using value_type = T;
-    
-    constexpr ir_constant_base (void) = default;
-    
-    explicit constexpr ir_constant_base (value_type&& v)
-      : m_value (std::move (v))
-    { }
-    
-    constexpr ir_constant_base (const ir_constant_base&) = default;
-    constexpr ir_constant_base (ir_constant_base&&) noexcept = default;
-    
-    value_type& value (void) noexcept { return m_value; }
-    
-    constexpr const value_type& value (void) const noexcept
-    {
-      return m_value;
-    }
-    
-  private:
-    value_type m_value;
-  };
-  
-  template <std::size_t Idx, typename ...Ts>
-  struct ir_constant_impl;
-  
-  template <std::size_t Idx, typename Head, typename ...Tail>
-  struct ir_constant_impl<Idx, Head, Tail...>
-    : private ir_constant_base<Idx, Head>,
-      public  ir_constant_impl<Idx + 1, Tail...>
-      
-  {
-    template<std::size_t, typename ...>
-    friend struct ir_constant_impl;
-    
-    using self_type = ir_constant_impl<Idx, Head, Tail...>;
-    
-    using base_type = ir_constant_base<Idx, Head>;
-    using tail_type  = ir_constant_impl<Idx + 1, Tail...>;
-  
-    using value_type = typename base_type::value_type;
-  
-    value_type& base_value (void) noexcept
-    {
-      return base_type::value ();
-    }
-    
-    constexpr const value_type& base_value (void) const noexcept
-    {
-      return base_type::value ();
-    }
-    
-    tail_type& tail (ir_constant_impl& r) noexcept
-    {
-      return r;
-    }
-    
-    constexpr const tail_type& tail (const ir_constant_impl& r) const noexcept
-    {
-      return r;
-    }
-  
-    template <std::size_t N, typename Dummy = void>
-    struct offset : tail_type::template offset<N - 1>
-    { };
-    
-    template <typename Dummy>
-    struct offset<0, Dummy>
-    {
-      using type = self_type;
-    };
-  
-    template <typename T, typename E = void>
-    struct match : tail_type::template match<T>
-    { };
-    
-    template <typename T>
-    struct match<T, std::enable_if_t<std::is_same<value_type, T>::value>>
-    {
-      using type = self_type;
-    };
-    
-    template <std::size_t N = 1>
-    struct count_proceeding
-      : tail_type::template count_proceeding<std::size_t, N + 1>
-    { };
-    
-    constexpr ir_constant_impl (void) = default;
-    
-    explicit constexpr ir_constant_impl (const value_type& val,
-                                         const Tail... tail)
-      : base_type (val),
-        tail_type (tail...)
-    { }
-    
-    constexpr ir_constant_impl (const ir_constant_impl&) = default;
-    
-    constexpr ir_constant_impl (ir_constant_impl&& o)
-      noexcept (std::conjunction<std::is_nothrow_move_constructible<value_type>,
-                        std::is_nothrow_move_constructible<tail_type>>::value)
-      : base_type (std::forward<value_type> (o.value ())),
-        tail_type (std::move (o.tail ()))
-    { }
-  };
-  
-  template <std::size_t Idx, typename Head>
-  struct ir_constant_impl<Idx, Head>
-    : private ir_constant_base<Idx, Head>
-  {
-    template<std::size_t, typename ...>
-    friend struct ir_constant_impl;
-  
-    using base_type = ir_constant_base<Idx, Head>;
-  
-    using value_type = typename base_type::value_type;
-  
-    value_type& base_value (void) noexcept
-    {
-      return base_type::value ();
-    }
-  
-    constexpr const value_type& base_value (void) const noexcept
-    {
-      return base_type::value ();
-    }
-  
-    template <std::size_t N, typename Dummy = void>
-    struct offset
-    {
-      static_assert (N == 0, "invalid offset");
-    };
-  
-    template <typename Dummy>
-    struct offset<0, Dummy>
-    {
-      using type = ir_constant_impl;
-    };
-    
-    template <typename T, typename E = void>
-    struct match
-    {
-      static_assert (std::is_same <value_type, T>::value, "type not found");
-    };
-    
-    template <typename T>
-    struct match<T, std::enable_if_t<std::is_same<value_type, T>::value>>
-    {
-      using type = ir_constant_impl;
-    };
-  
-    template <std::size_t N = 1>
-    struct count_proceeding : std::integral_constant<std::size_t, N>
-    { };
-    
-    constexpr ir_constant_impl (void) = default;
-    
-    explicit constexpr ir_constant_impl (const value_type& val)
-      : base_type (val)
-    { }
-    
-    constexpr ir_constant_impl (const ir_constant_impl&) = default;
-    
-    constexpr ir_constant_impl (ir_constant_impl&& o)
-      noexcept (std::is_nothrow_move_constructible<value_type>::value)
-      : base_type (std::forward<value_type> (o.base_value ()))
-    { }
-    
-  };
-  
-  template <typename ...Ts>
-  class ir_constant : public ir_constant_impl<0, Ts...>
-  {
-  private:
-    
-    using impl_begin_type = ir_constant_impl<0, Ts...>;
-    
-    template <std::size_t N>
-    using impl_type = typename impl_begin_type::template offset<N>::type;
-
-    template <typename T>
-    using match_impl_type = typename impl_begin_type::template match<T>::type;
-    
   public:
-    
-    template <std::size_t N>
-    using element_t = typename impl_type<N>::value_type;
-    
-    template <std::size_t N = 0>
-    element_t<N>& get (void) noexcept
-    {
-      return impl_type<N>::base_value ();
-    }
+    ir_constant            (void)                   = default;
+    ir_constant            (const ir_constant&)     = default;
+    ir_constant            (ir_constant&&) noexcept = default;
+    ir_constant& operator= (const ir_constant&)     = default;
+    ir_constant& operator= (ir_constant&&) noexcept = default;
+    ~ir_constant           (void)                   = default;
   
-    template <std::size_t N = 0>
-    constexpr const element_t<N>& get (void) const noexcept
-    {
-      return impl_type<N>::base_value ();
-    }
-    
-    template <typename T>
-    T& get (void) noexcept
-    {
-      return match_impl_type<T>::base_value ();
-    }
-  
-    template <typename T>
-    constexpr const T& get (void) const noexcept
-    {
-      return match_impl_type<T>::base_value ();
-    }
-    
-    constexpr std::size_t cardinality (void) const noexcept
-    {
-      return impl_begin_type::count_proceeding::value;
-    }
-    
-    template <std::size_t N = 0>
-    constexpr ir_type get_ir_type (void) const noexcept
-    {
-      return ir_type::get<impl_type<N>::value_type> ();
-    }
-    
-    constexpr ir_constant (void)
-      : impl_begin_type ()
+    template <typename ...Args>
+    constexpr explicit ir_constant (Args&&... args)
+      : m_type (ir_type_v<std::decay_t<Args>...>),
+        m_data (std::forward<Args> (args)...)
     { }
     
     template <typename ...Args>
-    constexpr ir_constant (Args&&... args)
-      : impl_begin_type (std::forward<Args> (args)...)
+    constexpr explicit ir_constant (ir_type type, Args&&... args)
+      : m_type (type),
+        m_data (std::forward<Args> (args)...)
     { }
     
-    constexpr ir_constant (const ir_constant&) = default;
+    [[nodiscard]] constexpr ir_type get_type (void) const noexcept { return m_type; }
     
-    constexpr ir_constant (ir_constant&& o)
-      noexcept (std::is_nothrow_move_constructible<impl_begin_type>::value)
-      : impl_begin_type (std::forward <ir_constant_impl> (o))
-    { }
+    template <typename T>
+    [[nodiscard]] constexpr const T& get_data (void) const { std::any_cast<T> (m_data); }
+    
+    template <typename T, typename ...Args>
+    auto emplace (Args&&... args)
+    {
+      m_type = ir_type_v<T>;
+      return m_data.emplace<T> (std::forward<Args> (args)...);
+    }
+    
+    template <typename T>
+    friend optional_ref<T> data_cast (ir_constant& c) noexcept
+    {
+      return std::any_cast<T> (&c.m_data);
+    }
+    
+    template <typename T>
+    friend optional_ref<const T> data_cast (const ir_constant& c) noexcept
+    {
+      return std::any_cast<T> (&c.m_data);
+    }
   
-  protected:
-  
+  private:
+    ir_type  m_type = ir_type_v<void>;
+    std::any m_data;
   };
   
-//  constexpr ir_constant<int, long, char *> x;
-//
-//  constexpr decltype(x)::element_t<0> x0 = x.get<0> ();
-//  constexpr decltype(x)::element_t<1> x1 = x.get<1> ();
-//  constexpr decltype(x)::element_t<2> x2 = x.get<2> ();
-//
-//  constexpr int xi    = x.get<int> ();
-//  constexpr long xl   = x.get<long> ();
-//  constexpr char *xcp = x.get<char *> ();
+  class ir_operand;
+  
+  template <typename T>
+  constexpr optional_ref<T> get_if (ir_operand& op) noexcept;
+  
+  template <typename T>
+  constexpr optional_ref<const T> get_if (const ir_operand& op) noexcept;
 
 }
 
