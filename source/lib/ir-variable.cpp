@@ -129,7 +129,7 @@ namespace gch
   {
     return *(m_undef_var = std::make_unique<ir_variable> (get_module (), undef_name (*this)));
   }
-  
+
   // ir_variable::tracker_type::citer
   // ir_variable::find (const ir_def& d) const
   // {
@@ -215,24 +215,24 @@ namespace gch
   //
   // ir_use
   //
-  
+
   ir_use::ir_use (ir_instruction& instr, ir_use_timeline& tkr)
     : reporter_type (tag::bind, tkr, tkr.cend ()),
       m_instr (instr)
   { }
-  
+
   template <>
   ir_use::ir_use (ir_instruction& instr, ir_use_timeline& tkr, ir_use_timeline::citer pos)
     : reporter_type (tag::bind, tkr, pos),
       m_instr (instr)
   { }
-  
+
   ir_use_timeline&
   ir_use::get_timeline (void) noexcept
   {
     return get_remote ();
   }
-  
+
   const ir_use_timeline&
   ir_use::get_timeline (void) const noexcept
   {
@@ -244,65 +244,69 @@ namespace gch
   {
     return get_remote ().get_def ();
   }
-  
+
   const ir_def&
   ir_use::get_def (void) const noexcept
   {
     return get_remote ().get_def ();
   }
-  
+
   ir_variable&
   ir_use::get_var (void) noexcept
   {
     return get_def ().get_var ();
   }
-  
+
   const ir_variable&
   ir_use::get_var (void) const noexcept
   {
     return get_def ().get_var ();
   }
-  
+
   ir_basic_block&
   ir_use::get_block (void) noexcept
   {
     return get_instruction ().get_block ();
   }
-  
+
   const ir_basic_block&
   ir_use::get_block (void) const noexcept
   {
     return get_instruction ().get_block ();
   }
-  
+
   ir_type
   ir_use::get_type (void) const noexcept
   {
     return get_def ().get_type ();
   }
-  
+
   const std::string&
   ir_use::get_name (void) const
   {
     return get_def ().get_name ();
   }
-  
+
   std::size_t
   ir_use::get_id (void)
   {
     return get_position ();
   }
-  
+
   [[nodiscard]]
-  ir_def& ir_use_timeline::get_def (void) noexcept
+  ir_def&
+  ir_use_timeline::
+  get_def (void) noexcept
   {
-    return get_instruction ().get_return ();
+    return get_instruction_pos ()->get_return ();
   }
-  
+
   [[nodiscard]]
-  const ir_def& ir_use_timeline::get_def (void) const noexcept
+  const ir_def&
+  ir_use_timeline::
+  get_def (void) const noexcept
   {
-    return get_instruction ().get_return ();
+    return get_instruction_pos ()->get_return ();
   }
-  
+
 }

@@ -184,7 +184,6 @@ namespace gch
     : public intrusive_tracker<ir_def_timeline, remote::intrusive_tracker<ir_incoming_node>>
   {
   public:
-
     using use_timeline_list = std::list<ir_use_timeline>;
     using iter              = use_timeline_list::iterator;
     using citer             = use_timeline_list::const_iterator;
@@ -206,6 +205,11 @@ namespace gch
 
     using succ_iter  = succ_tracker::iter;
     using succ_citer = succ_tracker::citer;
+
+    using instr_iter   = ir_instruction_iter;
+    using instr_citer  = ir_instruction_citer;
+    using instr_riter  = ir_instruction_riter;
+    using instr_criter = ir_instruction_criter;
 
     ir_def_timeline (void)                               = delete;
     ir_def_timeline (const ir_def_timeline&)                = delete;
@@ -304,6 +308,42 @@ namespace gch
     [[nodiscard]] auto  succs_size    (void) const noexcept { return succ_tracker::size ();    }
     /* clang-format on */
 
+    [[nodiscard]] static instr_iter  begin   (iter  pos) noexcept { return pos->get_def_pos (); }
+    [[nodiscard]] static instr_citer begin   (citer pos) noexcept { return pos->get_def_pos (); }
+    [[nodiscard]] static instr_citer cbegin  (citer pos) noexcept { return begin (pos); }
+
+    [[nodiscard]] instr_iter  end     (iter  pos) const noexcept;
+    [[nodiscard]] instr_citer end     (citer pos) const noexcept;
+    [[nodiscard]] instr_citer cend    (citer pos) const noexcept { return end (pos); }
+
+    [[nodiscard]] auto rbegin  (iter  pos) const noexcept { return instr_riter  { end (pos) }; }
+    [[nodiscard]] auto rbegin  (citer pos) const noexcept { return instr_criter { end (pos) }; }
+    [[nodiscard]] auto crbegin (citer pos) const noexcept { return rbegin (pos); }
+
+    [[nodiscard]] static auto rend  (iter  pos) noexcept { return instr_riter  { begin (pos) }; }
+    [[nodiscard]] static auto rend  (citer pos) noexcept { return instr_criter { begin (pos) }; }
+    [[nodiscard]] static auto crend (citer pos) noexcept { return rend (pos); }
+
+    [[nodiscard]] auto& front (citer pos)       noexcept { return *begin (pos); }
+    [[nodiscard]] auto& front (citer pos) const noexcept { return *begin (pos); }
+
+    [[nodiscard]] auto& back  (citer pos)       noexcept { return *std::prev (end (pos)); }
+    [[nodiscard]] auto& back  (citer pos) const noexcept { return *std::prev (end (pos)); }
+
+    [[nodiscard]]
+    auto
+    size (citer pos) const noexcept
+    {
+      return std::distance (begin (pos), end (pos));
+    }
+
+    [[nodiscard]]
+    bool
+    empty (citer pos) const noexcept
+    {
+      return begin (pos) == end (pos);
+    }
+
     [[nodiscard]] constexpr
     ir_basic_block&
     get_block (void) noexcept
@@ -345,34 +385,10 @@ namespace gch
     }
 
     iter
-    emplace_before (citer pos, ir_def& d)
-    {
-      return m_use_timelines.emplace (pos, d.get_instruction ());
-    }
+    emplace_before (citer pos, instr_iter instr_pos);
 
     ir_use_timeline&
-    emplace_front (ir_def& d)
-    {
-      return m_use_timelines.emplace_front (d.get_instruction ());
-    }
-
-    ir_use_timeline&
-    emplace_back (ir_def& d)
-    {
-      return m_use_timelines.emplace_back (d.get_instruction ());
-    }
-
-    iter
-    emplace_before (citer pos, ir_instruction& instr)
-    {
-      return m_use_timelines.emplace (pos, instr);
-    }
-
-    ir_use_timeline&
-    emplace_back (ir_instruction& instr)
-    {
-      return m_use_timelines.emplace_back (instr);
-    }
+    emplace_back (instr_iter instr_pos);
 
     iter
     erase (citer pos)
@@ -504,8 +520,6 @@ namespace gch
     {
       phi   = 0,
       body  = 1,
-      undef = 2,
-      term  = 3,
     };
 
     /* clang-format off */
@@ -563,13 +577,20 @@ namespace gch
     [[nodiscard]] auto  body_size    (void) const noexcept { return get_body ().size ();    }
     [[nodiscard]] auto  body_empty   (void) const noexcept { return get_body ().empty ();   }
 
-    // undefined
-    [[nodiscard]] constexpr auto& get_undef_range (void)       noexcept { return get_subrange<2> (m_instr_partition); }
-    [[nodiscard]] constexpr auto& get_undef_range (void) const noexcept { return get_subrange<2> (m_instr_partition); }
+    template <range Tag, typename ...Args>
+    decltype (auto)
+    emplace (Args&&... args)
+    {
+      return get<Tag> ().emplace (std::forward<Args> (args)...);
+    }
 
-    // termination
-    [[nodiscard]] constexpr auto& get_term_range (void)       noexcept { return get_subrange<3> (m_instr_partition); }
-    [[nodiscard]] constexpr auto& get_term_range (void) const noexcept { return get_subrange<3> (m_instr_partition); }
+    template <range Tag, typename ...Args>
+    decltype (auto)
+    emplace_back (Args&&... args)
+    {
+      return get<Tag> ().emplace_back (std::forward<Args> (args)...);
+    }
+
     /* clang-format on */
 
     ir_basic_block& split_into (citer pivot, ir_basic_block& dest);
@@ -636,10 +657,11 @@ namespace gch
 
   public:
     template <typename ...Args>
-    ir_instruction& create_phi (ir_variable& var, Args&&... args)
+    iter
+    create_phi (ir_variable& var, Args&&... args)
     {
-      return get_phi_range ().emplace_back (
-        ir_instruction::create<ir_opcode::phi> (var, std::forward<Args> (args)...));
+      return emplace<range::phi> (ir_instruction::create<ir_opcode::phi> (
+        var, std::forward<Args> (args)...));
     }
 
     // unsafe
@@ -653,7 +675,7 @@ namespace gch
       // error checking
       if (pos == get<range::phi> ().end ())
         throw ir_exception ("tried to erase a nonexistent phi instruction");
-      return get_phi_range ().erase (pos);
+      return get<range::phi> ().erase (pos);
     }
 
     std::optional<ir_operand_pre::use_pair> prepare_operand (citer pos, ir_variable& var);

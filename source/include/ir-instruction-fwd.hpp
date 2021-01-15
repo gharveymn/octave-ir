@@ -28,12 +28,6 @@ along with Octave; see the file COPYING.  If not, see
 #include <plf_list.h>
 #include <list>
 
-namespace plf
-{
-  template <typename T, typename A>
-  class list;
-}
-
 namespace gch
 {
   // fwds
@@ -42,6 +36,12 @@ namespace gch
   class ir_instruction;
   class ir_def;
   class ir_use;
+
+  using ir_instruction_container = std::list<ir_instruction>;
+  using ir_instruction_iter      = ir_instruction_container::iterator;
+  using ir_instruction_citer     = ir_instruction_container::const_iterator;
+  using ir_instruction_riter     = ir_instruction_container::reverse_iterator;
+  using ir_instruction_criter    = ir_instruction_container::const_reverse_iterator;
 
 }
 

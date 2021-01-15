@@ -115,6 +115,23 @@ namespace gch
     return *this;
   }
 
+  auto
+  ir_def_timeline::
+  emplace_before (citer pos, instr_iter instr_pos)
+    -> iter
+  {
+    if (! local_empty () && is_a<ir_opcode::phi> (local_front ().get_def_instruction ()))
+      throw ir_exception ("cannot place def before the phi def");
+    return m_use_timelines.emplace (pos, instr_pos);
+  }
+
+  ir_use_timeline&
+  ir_def_timeline::
+  emplace_back (instr_iter instr_pos)
+  {
+    return m_use_timelines.emplace_back (instr_pos);
+  }
+
   void
   ir_def_timeline::transfer_successors (ir_def_timeline& src)
   {
@@ -172,6 +189,26 @@ namespace gch
   {
     auto find_pred = [&](const ir_incoming_node& e) { return &e == &node; };
     return succ_tracker::erase (std::find_if (succs_begin (), succs_end (), find_pred));
+  }
+
+  [[nodiscard]]
+  ir_instruction_iter
+  ir_def_timeline::
+  end (iter pos) const noexcept
+  {
+    if (pos != local_cend ())
+      return std::next (pos)->get_def_pos ();
+    return m_block->body_end ();
+  }
+
+  [[nodiscard]]
+  ir_instruction_citer
+  ir_def_timeline::
+  end (citer pos) const noexcept
+  {
+    if (pos != local_cend ())
+      return std::next (pos)->get_def_pos ();
+    return m_block->body_cend ();
   }
 
   ir_basic_block&

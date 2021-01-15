@@ -279,39 +279,51 @@ namespace gch
     ~ir_use_timeline (void)                                 = default;
 
     template <typename ...TrackerArgs>
-    constexpr /* implicit */ ir_use_timeline (ir_instruction& origin, TrackerArgs&&... args)
+    /* implicit */
+    ir_use_timeline (ir_instruction_iter origin_pos, TrackerArgs&&... args)
       : use_tracker (std::forward<TrackerArgs> (args)...),
-        m_origin_instr (origin)
+        m_instruction_pos (origin_pos)
     { }
 
     [[nodiscard]]       ir_def& get_def (void)       noexcept;
     [[nodiscard]] const ir_def& get_def (void) const noexcept;
 
     [[nodiscard]]
-    constexpr
-    ir_instruction&
-    get_instruction (void) noexcept
+    ir_instruction_iter
+    get_def_pos (void) noexcept
     {
-      return *m_origin_instr;
+      return m_instruction_pos;
     }
 
     [[nodiscard]]
-    constexpr
-    const ir_instruction&
-    get_instruction (void) const noexcept
+    ir_instruction_citer
+    get_def_pos (void) const noexcept
     {
-      return *m_origin_instr;
+      return m_instruction_pos;
     }
 
-    constexpr
+    [[nodiscard]]
     ir_instruction&
-    set_instruction (ir_instruction& instr) noexcept
+    get_def_instruction (void) noexcept
     {
-      return m_origin_instr.emplace (instr);
+      return *get_def_pos ();
+    }
+
+    [[nodiscard]]
+    const ir_instruction&
+    get_def_instruction (void) const noexcept
+    {
+      return *get_def_pos ();
+    }
+
+    void
+    set_instruction_pos (ir_instruction_iter instr) noexcept
+    {
+      m_instruction_pos = instr;
     }
 
   private:
-    nonnull_ptr<ir_instruction> m_origin_instr;
+    ir_instruction_iter m_instruction_pos;
   };
 
   class ir_operand
