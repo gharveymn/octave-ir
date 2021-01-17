@@ -225,40 +225,49 @@ namespace gch
     ir_use& operator= (ir_use&&) noexcept = default;
     ~ir_use           (void)              = default;
 
-    ir_use (ir_instruction& instr, ir_use_timeline& tkr);
+    ir_use (ir_instruction& instr, ir_use_timeline& ut);
 
     template <typename It>
-    ir_use (ir_instruction& instr, ir_use_timeline& tkr, It pos);
+    ir_use (ir_instruction& instr, ir_use_timeline& ut, It ut_pos);
 
     ir_use (ir_instruction& instr, std::insert_iterator<ir_use_timeline>& ut);
 
-    [[nodiscard]] ir_use_timeline& get_timeline (void) noexcept;
+    [[nodiscard]] ir_use_timeline&       get_timeline (void)       noexcept;
     [[nodiscard]] const ir_use_timeline& get_timeline (void) const noexcept;
 
-    [[nodiscard]] ir_def& get_def (void) noexcept;
+    [[nodiscard]] ir_def&       get_def (void)       noexcept;
     [[nodiscard]] const ir_def& get_def (void) const noexcept;
 
-    [[nodiscard]] ir_variable& get_var (void) noexcept;
+    [[nodiscard]] ir_variable&       get_var (void)       noexcept;
     [[nodiscard]] const ir_variable& get_var (void) const noexcept;
 
-    [[nodiscard]]
-    constexpr ir_instruction& get_instruction (void) noexcept { return *m_instr; }
-
-    [[nodiscard]]
-    constexpr const ir_instruction& get_instruction (void) const noexcept { return *m_instr; }
-
-    constexpr void set_instruction (ir_instruction& instr) noexcept { m_instr.emplace (instr); }
-
-    [[nodiscard]] ir_basic_block& get_block (void) noexcept;
-    [[nodiscard]] const ir_basic_block& get_block (void) const noexcept;
-
     [[nodiscard]] ir_type get_type (void) const noexcept;
+
     [[nodiscard]] const std::string& get_name (void) const;
+
     [[nodiscard]] std::size_t get_id (void);
 
-  private:
+    [[nodiscard]]
+    ir_instruction&
+    get_instruction (void) noexcept
+    {
+      return *m_instr;
+    }
 
-    //! Where this use occurs.
+    [[nodiscard]]
+    const ir_instruction&
+    get_instruction (void) const noexcept
+    {
+      return *m_instr;
+    }
+
+    void
+    set_instruction (ir_instruction& instr) noexcept
+    {
+      m_instr.emplace (instr);
+    }
+
+  private:
     nonnull_ptr<ir_instruction> m_instr;
   };
 

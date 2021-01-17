@@ -216,14 +216,14 @@ namespace gch
   // ir_use
   //
 
-  ir_use::ir_use (ir_instruction& instr, ir_use_timeline& tkr)
-    : reporter_type (tag::bind, tkr, tkr.cend ()),
+  ir_use::ir_use (ir_instruction& instr, ir_use_timeline& ut)
+    : reporter_type (tag::bind, ut, ut.cend ()),
       m_instr (instr)
   { }
 
   template <>
-  ir_use::ir_use (ir_instruction& instr, ir_use_timeline& tkr, ir_use_timeline::citer pos)
-    : reporter_type (tag::bind, tkr, pos),
+  ir_use::ir_use (ir_instruction& instr, ir_use_timeline& ut, ir_use_timeline::citer ut_pos)
+    : reporter_type (tag::bind, ut, ut_pos),
       m_instr (instr)
   { }
 
@@ -263,18 +263,6 @@ namespace gch
     return get_def ().get_var ();
   }
 
-  ir_basic_block&
-  ir_use::get_block (void) noexcept
-  {
-    return get_instruction ().get_block ();
-  }
-
-  const ir_basic_block&
-  ir_use::get_block (void) const noexcept
-  {
-    return get_instruction ().get_block ();
-  }
-
   ir_type
   ir_use::get_type (void) const noexcept
   {
@@ -298,7 +286,7 @@ namespace gch
   ir_use_timeline::
   get_def (void) noexcept
   {
-    return get_instruction_pos ()->get_return ();
+    return get_def_instruction ().get_return ();
   }
 
   [[nodiscard]]
@@ -306,7 +294,7 @@ namespace gch
   ir_use_timeline::
   get_def (void) const noexcept
   {
-    return get_instruction_pos ()->get_return ();
+    return get_def_instruction ().get_return ();
   }
 
 }

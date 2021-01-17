@@ -89,7 +89,6 @@ namespace gch
       m_block                 (other.m_block),
       m_var                   (other.m_var),
       m_incoming              (std::move (other.m_incoming)),
-      m_incoming_use_timeline (std::move (other.m_incoming_use_timeline)),
       m_use_timelines         (std::move (other.m_use_timelines))
   {
     std::for_each (m_incoming.begin (), m_incoming.end (),
@@ -103,10 +102,9 @@ namespace gch
       return *this;
 
     // m_block stays the same
-    m_var                   = other.m_var;
-    m_incoming              = std::move (other.m_incoming);
-    m_incoming_use_timeline = std::move (other.m_incoming_use_timeline);
-    m_use_timelines         = std::move (other.m_use_timelines);
+    m_var           = other.m_var;
+    m_incoming      = std::move (other.m_incoming);
+    m_use_timelines = std::move (other.m_use_timelines);
     succ_tracker::operator= (std::move (other));
 
     for (ir_incoming_node& node : m_incoming)
@@ -149,7 +147,7 @@ namespace gch
     {
       // if we don't have any incoming yet we need to start up the use_timeline
       if (incoming_empty ())
-        m_incoming_use_timeline.emplace (m_block->create_phi (*m_var));
+        m_use_timelines.emplace_front (m_block->create_phi (*m_var));
       m_incoming.emplace_back (*this, incoming_block, pred);
     }
   }
@@ -194,7 +192,31 @@ namespace gch
   [[nodiscard]]
   ir_instruction_iter
   ir_def_timeline::
-  end (iter pos) const noexcept
+  instr_begin (iter pos) noexcept
+  {
+    return pos->get_def_pos ();
+  }
+
+  [[nodiscard]]
+  ir_instruction_citer
+  ir_def_timeline::
+  instr_begin (citer pos) noexcept
+  {
+    return pos->get_def_pos ();
+  }
+
+  [[nodiscard]]
+  ir_instruction_citer
+  ir_def_timeline::
+  instr_cbegin (citer pos) noexcept
+  {
+    return instr_begin (pos);
+  }
+
+  [[nodiscard]]
+  ir_instruction_iter
+  ir_def_timeline::
+  instr_end (iter pos) const noexcept
   {
     if (pos != local_cend ())
       return std::next (pos)->get_def_pos ();
@@ -204,11 +226,101 @@ namespace gch
   [[nodiscard]]
   ir_instruction_citer
   ir_def_timeline::
-  end (citer pos) const noexcept
+  instr_end (citer pos) const noexcept
   {
     if (pos != local_cend ())
       return std::next (pos)->get_def_pos ();
     return m_block->body_cend ();
+  }
+
+  [[nodiscard]]
+  ir_instruction_citer
+  ir_def_timeline::
+  instr_cend (citer pos) const noexcept
+  {
+    return instr_end (pos);
+  }
+
+  [[nodiscard]]
+  ir_instruction_riter
+  ir_def_timeline::
+  instr_rbegin (iter pos) const noexcept
+  {
+    return instr_riter  { instr_end (pos) };
+  }
+
+  [[nodiscard]]
+  ir_instruction_criter
+  ir_def_timeline::
+  instr_rbegin (citer pos) const noexcept
+  {
+    return instr_criter  { instr_cend (pos) };
+  }
+
+  [[nodiscard]]
+  ir_instruction_criter
+  ir_def_timeline::
+  instr_crbegin (citer pos) const noexcept
+  {
+    return instr_rbegin (pos);
+  }
+
+  [[nodiscard]]
+  ir_instruction_riter
+  ir_def_timeline::
+  instr_rend (iter pos) noexcept
+  {
+    return instr_riter  { instr_begin (pos) };
+  }
+
+  [[nodiscard]]
+  ir_instruction_criter
+  ir_def_timeline::
+  instr_rend (citer pos) noexcept
+  {
+    return instr_criter  { instr_cbegin (pos) };
+  }
+
+  [[nodiscard]]
+  ir_instruction_criter
+  ir_def_timeline::
+  instr_crend (citer pos) noexcept
+  {
+    return instr_rend (pos);
+  }
+
+  ir_use_timeline::iter
+  ir_def_timeline::
+  find_first_after (const iter ut_it, const instr_citer pos) const noexcept
+  {
+    // we reverse iterate because the instruction is more likely to
+    // be near the back of the timeline.
+    // note: multiple uses may be associated to the same instruction
+    //       so we need to make sure we iterate to one past that
+    //       instruction, rather than just find the first instance
+    //       of that instruction.
+    auto rcurr = ut_it->rbegin ();
+    for (auto it = std::prev (instr_end (ut_it)); it != pos && rcurr != ut_it->rend (); --it)
+    {
+      while (&(*it) == &rcurr->get_instruction ())
+        ++rcurr;
+    }
+    return rcurr.base ();
+  }
+
+  ir_use_timeline::citer
+  ir_def_timeline::
+  find_first_after (const citer ut_it, const instr_citer pos) const noexcept
+  {
+    auto rcurr = ut_it->rbegin ();
+    for (auto it = std::prev (instr_end (ut_it));
+         it != pos && rcurr != ut_it->rend ();
+         --it)
+    {
+      while (&(*it) == &rcurr->get_instruction ())
+        ++rcurr;
+    }
+    return rcurr.base ();
   }
 
   ir_basic_block&
@@ -272,49 +384,24 @@ namespace gch
   }
 
   ir_def_timeline::riter
-  ir_basic_block::find_latest_timeline_before (ir_def_timeline& dt, const citer pos) const
+  ir_basic_block::
+  find_latest_timeline_before (ir_def_timeline& dt, const citer pos) const
   {
     if (pos == body_cbegin ())
       return dt.local_rend ();
 
-    return std::find_if (dt.local_rbegin (), dt.local_rend (),
-                         [rfirst = body_crbegin (),
-                          rlast  = body_crend (),
-                          cmp    = &(*std::prev (pos))](const ir_use_timeline& tl) mutable
-                         {
-                           const ir_instruction *tl_instr  = &tl.get_instruction ();
-                           for (; rfirst != rlast && &(*rfirst) != tl_instr; ++rfirst)
-                           {
-                             if (&(*rfirst) == cmp)
-                               return true;
-                           }
-                           return false;
-                         });
-  }
+    // reverse iterate over the instructions
+    // reverse iterate over the def timeline
+    // compare pos with the position of the def instruction in each use timeline
+          auto   dt_rcurr = dt.local_rbegin ();
+    const auto   dt_rend  = dt.has_incoming () ? std::prev (dt.local_rend ()) : dt.local_rend ();
 
-  std::pair<ir_def_timeline::riter, ir_basic_block::criter>
-  ir_basic_block::find_pair_latest_timeline_before (ir_def_timeline& dt, const citer pos) const
-  {
-    if (pos == body_cbegin ())
-      return { dt.local_rend (), body_rend () };
-
-    criter curr_tl_rfirst = body_crbegin ();
-    auto dt_rpivot = std::find_if (dt.local_rbegin (), dt.local_rend (),
-                                   [&curr_tl_rfirst,
-                                    rfirst = body_crbegin (),
-                                    rlast = body_crend (),
-                                    cmp = &(*std::prev (pos))](const ir_use_timeline& tl) mutable
-                                   {
-                                     const ir_instruction *tl_instr  = &tl.get_instruction ();
-                                     for (; rfirst != rlast && &(*rfirst) != tl_instr; ++rfirst)
-                                     {
-                                       if (&(*rfirst) == cmp)
-                                         return true;
-                                     }
-                                     curr_tl_rfirst = rfirst;
-                                     return false;
-                                   });
-    return { dt_rpivot, curr_tl_rfirst };
+    for (auto it = body_end (); it != pos && dt_rcurr != dt_rend; --it)
+    {
+      if (std::prev (it) == dt_rcurr->get_def_pos ())
+        ++dt_rcurr;
+    }
+    return dt_rcurr;
   }
 
   optional_ref<ir_use_timeline>
