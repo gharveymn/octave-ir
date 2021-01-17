@@ -111,7 +111,7 @@ namespace gch
   class ir_instruction_metadata
   {
   public:
-    enum class arity : int
+    enum class arity_class : int
     {
       n_ary    = -1,
       nullary  =  0,
@@ -123,23 +123,23 @@ namespace gch
   private:
     struct impl
     {
-      const char *    m_name;
-      const impl *    m_base;
-      const ir_opcode m_opcode;
-      const arity     m_arity;
-      const bool      m_has_return;
-      const bool      m_is_abstract;
+      const char *      m_name;
+      const impl *      m_base;
+      const ir_opcode   m_opcode;
+      const arity_class m_arity;
+      const bool        m_has_return;
+      const bool        m_is_abstract;
     };
 
     static_assert (std::is_standard_layout_v<const char*> && std::is_trivial_v<const char*>);
     static_assert (std::is_standard_layout_v<const impl*> && std::is_trivial_v<const impl*>);
     static_assert (std::is_standard_layout_v<ir_opcode> && std::is_trivial_v<ir_opcode>);
-    static_assert (std::is_standard_layout_v<arity> && std::is_trivial_v<arity>);
+    static_assert (std::is_standard_layout_v<arity_class> && std::is_trivial_v<arity_class>);
     static_assert (std::is_standard_layout_v<bool> && std::is_trivial_v<bool>);
     static_assert (std::is_standard_layout_v<impl>
                      && std::is_trivially_constructible_v<impl, impl&>);
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     struct instance;
 
     static_assert (std::is_standard_layout_v<impl> && std::is_trivial_v<impl>);
@@ -156,194 +156,214 @@ namespace gch
     ir_instruction_metadata& operator= (ir_instruction_metadata&&) noexcept = default;
     ~ir_instruction_metadata           (void)                = default;
 
-    [[nodiscard]] constexpr ir_opcode    get_opcode  (void) const noexcept { return  m_ptr->m_opcode;      }
-    [[nodiscard]] constexpr const char * get_name    (void) const noexcept { return  m_ptr->m_name;        }
-    [[nodiscard]] constexpr bool         is_abstract (void) const noexcept { return  m_ptr->m_is_abstract; }
-    [[nodiscard]] constexpr ir_instruction_metadata     get_base    (void) const noexcept { return *m_ptr->m_base;        }
-    [[nodiscard]] constexpr bool         has_return  (void) const noexcept { return  m_ptr->m_has_return;  }
-    [[nodiscard]] constexpr arity        get_arity   (void) const noexcept { return  m_ptr->m_arity;       }
+    [[nodiscard]] constexpr ir_opcode               get_opcode  (void) const noexcept { return  m_ptr->m_opcode;      }
+    [[nodiscard]] constexpr const char *            get_name    (void) const noexcept { return  m_ptr->m_name;        }
+    [[nodiscard]] constexpr bool                    is_abstract (void) const noexcept { return  m_ptr->m_is_abstract; }
+    [[nodiscard]] constexpr ir_instruction_metadata get_base    (void) const noexcept { return *m_ptr->m_base;        }
+    [[nodiscard]] constexpr bool                    has_return  (void) const noexcept { return  m_ptr->m_has_return;  }
+    [[nodiscard]] constexpr arity_class             get_arity   (void) const noexcept { return  m_ptr->m_arity;       }
 
     [[nodiscard]] constexpr bool has_base (void) const noexcept { return m_ptr->m_base != nullptr; }
 
-    [[nodiscard]] constexpr bool is_n_ary   (void)  const noexcept  { return  get_arity () ==  arity::n_ary;   }
-    [[nodiscard]] constexpr bool is_nullary (void)  const noexcept  { return  get_arity () ==  arity::nullary; }
-    [[nodiscard]] constexpr bool is_unary   (void)  const noexcept  { return  get_arity () ==  arity::unary;   }
-    [[nodiscard]] constexpr bool is_binary  (void)  const noexcept  { return  get_arity () ==  arity::binary;  }
-    [[nodiscard]] constexpr bool is_ternary (void)  const noexcept  { return  get_arity () ==  arity::ternary; }
+    [[nodiscard]] constexpr bool is_n_ary   (void)  const noexcept  { return  get_arity () ==  arity_class::n_ary;   }
+    [[nodiscard]] constexpr bool is_nullary (void)  const noexcept  { return  get_arity () ==  arity_class::nullary; }
+    [[nodiscard]] constexpr bool is_unary   (void)  const noexcept  { return  get_arity () ==  arity_class::unary;   }
+    [[nodiscard]] constexpr bool is_binary  (void)  const noexcept  { return  get_arity () ==  arity_class::binary;  }
+    [[nodiscard]] constexpr bool is_ternary (void)  const noexcept  { return  get_arity () ==  arity_class::ternary; }
 
-    [[nodiscard]] constexpr bool valid_num_args (const std::size_t n) const noexcept
+    [[nodiscard]] constexpr
+    bool
+    valid_num_args (const std::size_t n) const noexcept
     {
       return is_n_ary () || (n == static_cast<std::size_t> (get_arity ()));
     }
 
-    [[nodiscard]] constexpr bool operator== (const ir_instruction_metadata& other) const noexcept
+    [[nodiscard]] constexpr
+    bool
+    operator== (const ir_instruction_metadata& other) const noexcept
     {
       return m_ptr == other.m_ptr;
     }
 
-    [[nodiscard]] constexpr bool operator!= (const ir_instruction_metadata& other) const noexcept
+    [[nodiscard]] constexpr
+    bool
+    operator!= (const ir_instruction_metadata& other) const noexcept
     {
       return ! (other == *this);
     }
 
-    template <ir_opcode Tag>
-    [[nodiscard]] static constexpr ir_instruction_metadata get (void) noexcept { return instance<Tag>::data; }
+    template <ir_opcode Op>
+    [[nodiscard]]
+    static constexpr
+    ir_instruction_metadata
+    get (void) noexcept { return instance<Op>::data; }
 
-    [[nodiscard]] constexpr bool is_a (ir_instruction_metadata cmp) const noexcept
+    [[nodiscard]] constexpr
+    bool
+    is_a (ir_instruction_metadata cmp) const noexcept
     {
-      return cmp == *this ? true : (has_base () ? get_base ().is_a (cmp) : false);
+      return (cmp == *this) || (has_base () && get_base ().is_a (cmp));
     }
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     [[nodiscard]] constexpr bool is_a (void) const noexcept
     {
-      return is_a (get<Tag> ());
+      return is_a (get<Op> ());
     }
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     [[nodiscard]]
-    static constexpr bool get_opcode (void) noexcept
+    static constexpr ir_opcode opcode (void) noexcept
     {
-      return get<Tag> ().get_opcode ();
+      return get<Op> ().get_opcode ();
     }
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     [[nodiscard]]
-    static constexpr const char * get_name (void) noexcept
+    static constexpr const char * name (void) noexcept
     {
-      return get<Tag> ().get_name ();
+      return get<Op> ().get_name ();
     }
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     [[nodiscard]]
     static constexpr bool is_abstract (void) noexcept
     {
-      return get<Tag> ().is_abstract ();
+      return get<Op> ().is_abstract ();
     }
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     [[nodiscard]]
     static constexpr bool has_base (void) noexcept
     {
-      return get<Tag> ().has_base ();
+      return get<Op> ().has_base ();
     }
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     [[nodiscard]]
-    static constexpr std::enable_if_t<get<Tag> ().has_base (), ir_instruction_metadata>
-    get_base (void) noexcept
+    static constexpr std::enable_if_t<get<Op> ().has_base (), ir_instruction_metadata>
+    base (void) noexcept
     {
-      return get<Tag> ().get_base ();
+      return get<Op> ().get_base ();
     }
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     [[nodiscard]]
     static constexpr bool has_return (void) noexcept
     {
-      return get<Tag> ().has_return ();
+      return get<Op> ().has_return ();
     }
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     [[nodiscard]]
-    static constexpr arity get_arity (void) noexcept
+    static constexpr arity_class arity (void) noexcept
     {
-      return get<Tag> ().get_arity ();
+      return get<Op> ().get_arity ();
     }
 
-    template <ir_opcode BaseTag>
+    template <ir_opcode BaseOp>
     [[nodiscard]]
     static constexpr bool is_a (ir_instruction_metadata m) noexcept
     {
-      return m.is_a (get<BaseTag> ());
+      return m.is_a (get<BaseOp> ());
     }
 
-    template <ir_opcode Tag, ir_opcode BaseTag>
+    template <ir_opcode Op, ir_opcode BaseOp>
     [[nodiscard]]
     static constexpr bool is_a (void) noexcept
     {
-      return is_a<BaseTag> (get<Tag> ());
+      return is_a<BaseOp> (get<Op> ());
     }
+
+    // template <ir_opcode Op> static constexpr auto opcode_v      = opcode<Op> ();
+    // template <ir_opcode Op> static constexpr auto name_v        = name<Op> ();
+    // template <ir_opcode Op> static constexpr auto is_abstract_v = is_abstract<Op> ();
+    // template <ir_opcode Op> static constexpr auto has_base_v    = has_base<Op> ();
+    // template <ir_opcode Op> static constexpr auto base_v        = base<Op> ();
+    // template <ir_opcode Op> static constexpr auto has_return_v  = has_return<Op> ();
+    // template <ir_opcode Op> static constexpr auto arity_v       = arity<Op> ();
 
   private:
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     [[nodiscard]]
     static constexpr const impl* get_pointer (void) noexcept
     {
-      return get<Tag> ().m_ptr;
+      return get<Op> ().m_ptr;
     }
 
-    template <ir_opcode Tag, ir_opcode BaseTag>
+    template <ir_opcode Op, ir_opcode BaseOp>
     static constexpr impl create_type (const char* name, bool has_return,
-                                       arity n = get_arity<BaseTag> (),
+                                       arity_class n = arity<BaseOp> (),
                                        bool is_abstract = false) noexcept
     {
-      return { name, get_pointer<BaseTag> (), Tag, n, has_return, is_abstract };
+      return { name, get_pointer<BaseOp> (), Op, n, has_return, is_abstract };
     }
 
-    template <ir_opcode Tag, ir_opcode BaseTag>
-    static constexpr impl create_type (const char* name, arity n,
+    template <ir_opcode Op, ir_opcode BaseOp>
+    static constexpr impl create_type (const char* name, arity_class n,
                                        bool is_abstract = false) noexcept
     {
-      return { name, get_pointer<BaseTag> (), Tag, n, has_return<BaseTag> (), is_abstract };
+      return { name, get_pointer<BaseOp> (), Op, n, has_return<BaseOp> (), is_abstract };
     }
 
-    template <ir_opcode Tag, ir_opcode BaseTag>
+    template <ir_opcode Op, ir_opcode BaseOp>
     static constexpr impl create_type (const char* name, bool is_abstract = false) noexcept
     {
-      return { name, get_pointer<BaseTag> (), Tag, get_arity<BaseTag> (), has_return<BaseTag> (),
+      return { name, get_pointer<BaseOp> (), Op, arity<BaseOp> (), has_return<BaseOp> (),
                is_abstract };
     }
 
-    template <ir_opcode Tag>
-    static constexpr impl create_type (const char* name, bool has_return, arity n = arity::n_ary,
+    template <ir_opcode Op>
+    static constexpr impl create_type (const char* name, bool has_return,
+                                       arity_class n = arity_class::n_ary,
                                        bool is_abstract = false) noexcept
     {
-      return { name, nullptr, Tag, n, has_return, is_abstract };
+      return { name, nullptr, Op, n, has_return, is_abstract };
     }
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     static constexpr impl create_type (const char* name, bool has_return,
                                        bool is_abstract = false) noexcept
     {
-      return { name, nullptr, Tag, arity::n_ary, has_return, is_abstract };
+      return { name, nullptr, Op, arity_class::n_ary, has_return, is_abstract };
     }
 
-    template <ir_opcode Tag>
-    static constexpr impl create_type (const char* name, arity n = arity::n_ary,
+    template <ir_opcode Op>
+    static constexpr impl create_type (const char* name, arity_class n = arity_class::n_ary,
                                        bool is_abstract = false) noexcept
     {
-      return { name, nullptr, Tag, n, false, is_abstract };
+      return { name, nullptr, Op, n, false, is_abstract };
     }
 
     nonnull_ptr<const impl> m_ptr;
   };
 
-  template <ir_opcode Tag>
+  template <ir_opcode Op>
   inline constexpr
   ir_instruction_metadata
-  ir_instruction_metadata_v = ir_instruction_metadata::get<Tag> ();
+  ir_instruction_metadata_v = ir_instruction_metadata::get<Op> ();
 
-  template <ir_opcode Tag>
+  template <ir_opcode Op>
   struct ir_instruction_type_t
   {
     explicit ir_instruction_type_t (void) = default;
   };
 
-  template <ir_opcode Tag>
-  inline constexpr ir_instruction_type_t<Tag> ir_instruction_type { };
+  template <ir_opcode Op>
+  inline constexpr ir_instruction_type_t<Op> ir_instruction_type { };
 
-  template <> struct ir_instruction_metadata::instance<ir_opcode::phi>     { static constexpr impl data { create_type<ir_opcode::phi>     ("phi",     true, arity::n_ary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::assign>  { static constexpr impl data { create_type<ir_opcode::assign>  ("assign",  true, arity::unary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::call>    { static constexpr impl data { create_type<ir_opcode::call>    ("call",    true, arity::n_ary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::fetch>   { static constexpr impl data { create_type<ir_opcode::fetch>   ("fetch",   true, arity::unary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::convert> { static constexpr impl data { create_type<ir_opcode::convert> ("convert", true, arity::unary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::phi>     { static constexpr impl data { create_type<ir_opcode::phi>     ("phi",     true, arity_class::n_ary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::assign>  { static constexpr impl data { create_type<ir_opcode::assign>  ("assign",  true, arity_class::unary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::call>    { static constexpr impl data { create_type<ir_opcode::call>    ("call",    true, arity_class::n_ary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::fetch>   { static constexpr impl data { create_type<ir_opcode::fetch>   ("fetch",   true, arity_class::unary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::convert> { static constexpr impl data { create_type<ir_opcode::convert> ("convert", true, arity_class::unary) }; };
 
-  template <> struct ir_instruction_metadata::instance<ir_opcode::branch>   { static constexpr impl data { create_type<ir_opcode::branch> ("branch", false, arity::n_ary) }; };     // abstract
-  template <> struct ir_instruction_metadata::instance<ir_opcode::cbranch>  { static constexpr impl data { create_type<ir_opcode::cbranch, ir_opcode::branch>  ("br",  arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::ucbranch> { static constexpr impl data { create_type<ir_opcode::ucbranch, ir_opcode::branch> ("ubr", arity::unary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::branch>   { static constexpr impl data { create_type<ir_opcode::branch> ("branch", false, arity_class::n_ary) }; };     // abstract
+  template <> struct ir_instruction_metadata::instance<ir_opcode::cbranch>  { static constexpr impl data { create_type<ir_opcode::cbranch, ir_opcode::branch>  ("br",  arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::ucbranch> { static constexpr impl data { create_type<ir_opcode::ucbranch, ir_opcode::branch> ("ubr", arity_class::unary) }; };
 
-  template <> struct ir_instruction_metadata::instance<ir_opcode::relation> { static constexpr impl data { create_type<ir_opcode::relation> ("relation", true, arity::binary, true) }; };     // abstract
+  template <> struct ir_instruction_metadata::instance<ir_opcode::relation> { static constexpr impl data { create_type<ir_opcode::relation> ("relation", true, arity_class::binary, true) }; };     // abstract
   template <> struct ir_instruction_metadata::instance<ir_opcode::eq>       { static constexpr impl data { create_type<ir_opcode::eq, ir_opcode::relation> ("==") }; };
   template <> struct ir_instruction_metadata::instance<ir_opcode::ne>       { static constexpr impl data { create_type<ir_opcode::ne, ir_opcode::relation> ("!=") }; };
   template <> struct ir_instruction_metadata::instance<ir_opcode::lt>       { static constexpr impl data { create_type<ir_opcode::lt, ir_opcode::relation> ("<") }; };
@@ -352,35 +372,35 @@ namespace gch
   template <> struct ir_instruction_metadata::instance<ir_opcode::ge>       { static constexpr impl data { create_type<ir_opcode::ge, ir_opcode::relation> (">=") }; };
 
   template <> struct ir_instruction_metadata::instance<ir_opcode::arithmetic> { static constexpr impl data { create_type<ir_opcode::arithmetic> ("arithmetic", true, true) }; };   // abstract
-  template <> struct ir_instruction_metadata::instance<ir_opcode::add>        { static constexpr impl data { create_type<ir_opcode::add, ir_opcode::arithmetic> ("+",   arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::sub>        { static constexpr impl data { create_type<ir_opcode::sub, ir_opcode::arithmetic> ("-",   arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::mul>        { static constexpr impl data { create_type<ir_opcode::mul, ir_opcode::arithmetic> ("*",   arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::div>        { static constexpr impl data { create_type<ir_opcode::div, ir_opcode::arithmetic> ("/",   arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::mod>        { static constexpr impl data { create_type<ir_opcode::mod, ir_opcode::arithmetic> ("%",   arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::rem>        { static constexpr impl data { create_type<ir_opcode::rem, ir_opcode::arithmetic> ("rem", arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::neg>        { static constexpr impl data { create_type<ir_opcode::neg, ir_opcode::arithmetic> ("-",   arity::unary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::add>        { static constexpr impl data { create_type<ir_opcode::add, ir_opcode::arithmetic> ("+",   arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::sub>        { static constexpr impl data { create_type<ir_opcode::sub, ir_opcode::arithmetic> ("-",   arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::mul>        { static constexpr impl data { create_type<ir_opcode::mul, ir_opcode::arithmetic> ("*",   arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::div>        { static constexpr impl data { create_type<ir_opcode::div, ir_opcode::arithmetic> ("/",   arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::mod>        { static constexpr impl data { create_type<ir_opcode::mod, ir_opcode::arithmetic> ("%",   arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::rem>        { static constexpr impl data { create_type<ir_opcode::rem, ir_opcode::arithmetic> ("rem", arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::neg>        { static constexpr impl data { create_type<ir_opcode::neg, ir_opcode::arithmetic> ("-",   arity_class::unary) }; };
 
   template <> struct ir_instruction_metadata::instance<ir_opcode::logical> { static constexpr impl data { create_type<ir_opcode::logical> ("logical", true, true) }; };      // abstract
-  template <> struct ir_instruction_metadata::instance<ir_opcode::land>    { static constexpr impl data { create_type<ir_opcode::land, ir_opcode::logical> ("&&", arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::lor>     { static constexpr impl data { create_type<ir_opcode::lor,  ir_opcode::logical> ("||", arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::lnot>    { static constexpr impl data { create_type<ir_opcode::lnot, ir_opcode::logical> ("!",  arity::unary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::land>    { static constexpr impl data { create_type<ir_opcode::land, ir_opcode::logical> ("&&", arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::lor>     { static constexpr impl data { create_type<ir_opcode::lor,  ir_opcode::logical> ("||", arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::lnot>    { static constexpr impl data { create_type<ir_opcode::lnot, ir_opcode::logical> ("!",  arity_class::unary) }; };
 
   template <> struct ir_instruction_metadata::instance<ir_opcode::bitwise>  { static constexpr impl data { create_type<ir_opcode::bitwise> ("bitwise", true, true) }; };      // abstract
-  template <> struct ir_instruction_metadata::instance<ir_opcode::band>     { static constexpr impl data { create_type<ir_opcode::band,     ir_opcode::bitwise> ("&",  arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::bor>      { static constexpr impl data { create_type<ir_opcode::bor,      ir_opcode::bitwise> ("|",  arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::bxor>     { static constexpr impl data { create_type<ir_opcode::bxor,     ir_opcode::bitwise> ("^",  arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::bshiftl>  { static constexpr impl data { create_type<ir_opcode::bshiftl,  ir_opcode::bitwise> ("<<", arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::bashiftr> { static constexpr impl data { create_type<ir_opcode::bashiftr, ir_opcode::bitwise> (">>", arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::blshiftr> { static constexpr impl data { create_type<ir_opcode::blshiftr, ir_opcode::bitwise> (">>", arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::bnot>     { static constexpr impl data { create_type<ir_opcode::bnot,     ir_opcode::bitwise> ("~",  arity::unary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::band>     { static constexpr impl data { create_type<ir_opcode::band,     ir_opcode::bitwise> ("&",  arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::bor>      { static constexpr impl data { create_type<ir_opcode::bor,      ir_opcode::bitwise> ("|",  arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::bxor>     { static constexpr impl data { create_type<ir_opcode::bxor,     ir_opcode::bitwise> ("^",  arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::bshiftl>  { static constexpr impl data { create_type<ir_opcode::bshiftl,  ir_opcode::bitwise> ("<<", arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::bashiftr> { static constexpr impl data { create_type<ir_opcode::bashiftr, ir_opcode::bitwise> (">>", arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::blshiftr> { static constexpr impl data { create_type<ir_opcode::blshiftr, ir_opcode::bitwise> (">>", arity_class::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::bnot>     { static constexpr impl data { create_type<ir_opcode::bnot,     ir_opcode::bitwise> ("~",  arity_class::unary) }; };
 
   class ir_instruction
   {
   public:
     using metadata = ir_instruction_metadata;
 
-    template <ir_opcode Tag>
-    static constexpr metadata metadata_v = ir_instruction_metadata_v<Tag>;
+    template <ir_opcode Op>
+    static constexpr metadata metadata_v = ir_instruction_metadata_v<Op>;
 
     using args_container_type     = std::vector<ir_operand>;
     using iterator                = typename args_container_type::iterator;
@@ -408,63 +428,127 @@ namespace gch
 //  ir_instruction& operator= (ir_instruction&&) noexcept = impl;
     ~ir_instruction           (void)                      = default;
 
-    template <ir_opcode Tag, typename ...Args>
-    ir_instruction (ir_instruction_type_t<Tag>, ir_variable& ret_var, Args&&... args)
-      : m_metadata (metadata_v<Tag>),
-        m_return   (std::in_place, ret_var, *this),
-        m_args     ({ create_operand (std::forward<Args> (args))... })
+    template <ir_opcode Op>
+    static constexpr void assert_not_abstract (void)
     {
-      static_assert (! metadata_v<Tag>.is_abstract (),
+      static_assert (! metadata_v<Op>.is_abstract (),
                      "Cannot instantiate abstract instruction");
-      static_assert (metadata_v<Tag>.has_return (),
+    }
+
+    template <ir_opcode Op>
+    static constexpr void assert_has_return (void)
+    {
+      static_assert (metadata_v<Op>.has_return (),
                      "Instruction metadata specified no such return.");
-      static_assert (metadata_v<Tag>.valid_num_args (sizeof...(Args)),
+    }
+
+    template <ir_opcode Op>
+    static constexpr void assert_no_return (void)
+    {
+      static_assert (! metadata_v<Op>.has_return (),
+                     "Instruction metadata specified a return.");
+    }
+
+    template <ir_opcode Op, std::size_t N>
+    static constexpr void assert_valid_num_args (void)
+    {
+      static_assert (metadata_v<Op>.valid_num_args (N),
                      "Instruction metadata specified a different number of arguments.");
     }
 
-    template <ir_opcode Tag, typename ...Args>
-    ir_instruction (ir_instruction_type_t<Tag>, ir_operand_pre& op, Args&&... args)
-      : m_metadata (metadata_v<Tag>),
+    template <ir_opcode Op>
+    static constexpr void assert_no_args (void)
+    {
+      static_assert (metadata_v<Op>.valid_num_args (0),
+                     "Instruction metadata specified at least one argument");
+    }
+
+    template <ir_opcode Op, typename ...Args>
+    ir_instruction (ir_instruction_type_t<Op>, ir_variable& ret_var, Args&&... args)
+      : m_metadata (metadata_v<Op>),
+        m_return   (std::in_place, ret_var, *this),
+        m_args     ({ create_operand (std::forward<Args> (args))... })
+    {
+      assert_not_abstract<Op> ();
+      assert_has_return<Op> ();
+      assert_valid_num_args<Op, 1 + sizeof...(Args)> ();
+    }
+
+    template <ir_opcode Op, typename ...Args>
+    ir_instruction (ir_instruction_type_t<Op>, ir_operand_pre& op, Args&&... args)
+      : m_metadata (metadata_v<Op>),
         m_return   (std::nullopt),
         m_args     { create_operand (op),
                      create_operand (std::forward<Args> (args))... }
     {
-      static_assert (! metadata_v<Tag>.is_abstract (),
-                     "Cannot instantiate abstract instruction");
-      static_assert (! metadata_v<Tag>.has_return (),
-                     "Instruction metadata specified a return.");
-      static_assert (metadata_v<Tag>.valid_num_args (1 + sizeof...(Args)),
-                     "Instruction metadata specified a different number of arguments.");
+      assert_not_abstract<Op> ();
+      assert_no_return<Op> ();
+      assert_valid_num_args<Op, 1 + sizeof...(Args)> ();
     }
 
-    template <ir_opcode Tag, typename ...Args>
-    ir_instruction (ir_instruction_type_t<Tag>, ir_constant&& c, Args&&... args)
-      : m_metadata (metadata_v<Tag>),
+    template <ir_opcode Op, typename ...Args>
+    ir_instruction (ir_instruction_type_t<Op>, ir_constant&& c, Args&&... args)
+      : m_metadata (metadata_v<Op>),
         m_return   (std::nullopt),
         m_args     { create_operand (std::move (c)),
                      create_operand (std::forward<Args> (args))... }
     {
-      static_assert (! metadata_v<Tag>.is_abstract (),
-                     "Cannot instantiate abstract instruction");
-      static_assert (! metadata_v<Tag>.has_return (),
-                     "Instruction metadata specified a return.");
-      static_assert (metadata_v<Tag>.valid_num_args (1 + sizeof...(Args)),
-                     "Instruction metadata specified a different number of arguments.");
+      assert_not_abstract<Op> ();
+      assert_no_return<Op> ();
+      assert_valid_num_args<Op, 1 + sizeof...(Args)> ();
     }
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     explicit
-    ir_instruction (ir_instruction_type_t<Tag>)
-      : m_metadata (metadata_v<Tag>),
+    ir_instruction (ir_instruction_type_t<Op>)
+      : m_metadata (metadata_v<Op>),
         m_return   (std::nullopt),
         m_args     ()
     {
-      static_assert (! metadata_v<Tag>.is_abstract (),
-                     "Cannot instantiate abstract instruction");
-      static_assert (! metadata_v<Tag>.has_return (),
-                     "Instruction metadata specified a return.");
-      static_assert (metadata_v<Tag>.valid_num_args (0),
-                     "Instruction metadata specified at least one argument");
+      assert_not_abstract<Op> ();
+      assert_no_return<Op> ();
+      assert_no_args<Op> ();
+    }
+
+    template <ir_opcode Op, std::size_t N>
+    explicit
+    ir_instruction (ir_instruction_type_t<Op>, ir_variable& ret_var,
+                    std::array<ir_operand_pre, N>& args)
+      : m_metadata (metadata_v<Op>),
+        m_return   (std::in_place, ret_var, *this),
+        m_args     ()
+    {
+      assert_not_abstract<Op> ();
+      assert_has_return<Op> ();
+      assert_valid_num_args<Op, N> ();
+
+      std::transform (std::move_iterator { args.begin () },
+                      std::move_iterator { args.end () },
+                      std::back_inserter (m_args),
+                      [this](ir_operand_pre&& op)
+                      {
+                        return op.construct (*this);
+                      });
+    }
+
+    template <ir_opcode Op, std::size_t N>
+    explicit
+    ir_instruction (ir_instruction_type_t<Op>, std::array<ir_operand_pre, N>& args)
+      : m_metadata (metadata_v<Op>),
+        m_return   (std::nullopt),
+        m_args     ()
+    {
+      assert_not_abstract<Op> ();
+      assert_no_return<Op> ();
+      assert_valid_num_args<Op, N> ();
+
+      std::transform (std::move_iterator { args.begin () },
+                      std::move_iterator { args.end () },
+                      std::back_inserter (m_args),
+                      [this](ir_operand_pre&& op)
+                      {
+                        return op.construct (*this);
+                      });
     }
 
     ir_instruction (ir_instruction&& other) noexcept
@@ -490,77 +574,59 @@ namespace gch
       return *this;
     }
 
-    template <ir_opcode Tag, typename ...Ts>
-    static ir_instruction create (ir_variable& ret_var, Ts&&... ts)
+    template <ir_opcode Op, typename ...Args>
+    static ir_instruction create (ir_variable& ret_var, Args&&... args)
     {
-      static_assert (! metadata_v<Tag>.is_abstract (),
-                     "Cannot instantiate abstract instruction");
-      static_assert (metadata_v<Tag>.has_return (),
-                     "Instruction metadata specified no such return.");
-      static_assert (metadata_v<Tag>.valid_num_args (sizeof...(Ts)),
-                     "Instruction metadata specified a different number of arguments.");
-      return { metadata_v<Tag>, ret_var, std::forward<Ts> (ts)... };
+      assert_not_abstract<Op> ();
+      assert_has_return<Op> ();
+      assert_valid_num_args<Op, 1 + sizeof...(Args)> ();
+      return { metadata_v<Op>, ret_var, std::forward<Args> (args)... };
     }
 
-    template <ir_opcode Tag, typename T, typename ...Ts>
-    static ir_instruction create (ir_operand_pre& op, Ts&&... ts)
+    template <ir_opcode Op, typename T, typename ...Args>
+    static ir_instruction create (ir_operand_pre& op, Args&&... args)
     {
-      static_assert (! metadata_v<Tag>.is_abstract (),
-                     "Cannot instantiate abstract instruction");
-      static_assert (! metadata_v<Tag>.has_return (),
-                     "Instruction metadata specified a return.");
-      static_assert (metadata_v<Tag>.valid_num_args (1 + sizeof...(Ts)),
-                     "Instruction metadata specified a different number of arguments.");
-      return { metadata_v<Tag>, std::nullopt, op, std::forward<Ts> (ts)... };
+      assert_not_abstract<Op> ();
+      assert_no_return<Op> ();
+      assert_valid_num_args<Op, 1 + sizeof...(Args)> ();
+      return { metadata_v<Op>, std::nullopt, op, std::forward<Args> (args)... };
     }
 
-    template <ir_opcode Tag, typename T, typename ...Ts>
-    static ir_instruction create (ir_constant&& c, Ts&&... ts)
+    template <ir_opcode Op, typename T, typename ...Args>
+    static ir_instruction create (ir_constant&& c, Args&&... args)
     {
-      static_assert (! metadata_v<Tag>.is_abstract (),
-                     "Cannot instantiate abstract instruction");
-      static_assert (! metadata_v<Tag>.has_return (),
-                     "Instruction metadata specified a return.");
-      static_assert (metadata_v<Tag>.valid_num_args (1 + sizeof...(Ts)),
-                     "Instruction metadata specified a different number of arguments.");
-      return { metadata_v<Tag>, std::nullopt, std::move (c), std::forward<Ts> (ts)... };
+      assert_not_abstract<Op> ();
+      assert_no_return<Op> ();
+      assert_valid_num_args<Op, 1 + sizeof...(Args)> ();
+      return { metadata_v<Op>, std::nullopt, std::move (c), std::forward<Args> (args)... };
     }
 
-    template <ir_opcode Tag>
+    template <ir_opcode Op>
     static ir_instruction create (void)
     {
-      static_assert (! metadata_v<Tag>.is_abstract (),
-                     "Cannot instantiate abstract instruction");
-      static_assert (! metadata_v<Tag>.has_return (),
-                     "Instruction metadata specified a return.");
-      static_assert (metadata_v<Tag>.valid_num_args (0),
-                     "Instruction metadata specified at least one argument");
-      return { metadata_v<Tag>, std::nullopt };
+      assert_not_abstract<Op> ();
+      assert_no_return<Op> ();
+      assert_no_args<Op> ();
+      return { metadata_v<Op>, std::nullopt };
     }
 
-    template <ir_opcode Tag, std::size_t N>
+    template <ir_opcode Op, std::size_t N>
     static ir_instruction create (ir_variable& ret_var,
                                   const std::array<ir_operand_pre, N>& args)
     {
-      static_assert (! metadata_v<Tag>.is_abstract (),
-                     "Cannot instantiate abstract instruction");
-      static_assert (metadata_v<Tag>.has_return (),
-                     "Instruction metadata specified no such return.");
-      static_assert (metadata_v<Tag>.valid_num_args (N),
-                     "Instruction metadata specified a different number of arguments.");
-      return { metadata_v<Tag>, ret_var, args };
+      assert_not_abstract<Op> ();
+      assert_has_return<Op> ();
+      assert_valid_num_args<Op, N> ();
+      return { metadata_v<Op>, ret_var, args };
     }
 
-    template <ir_opcode Tag, std::size_t N>
+    template <ir_opcode Op, std::size_t N>
     static ir_instruction create (const std::array<ir_operand_pre, N>& args)
     {
-      static_assert (! metadata_v<Tag>.is_abstract (),
-                     "Cannot instantiate abstract instruction");
-      static_assert (! metadata_v<Tag>.has_return (),
-                     "Instruction metadata specified a return.");
-      static_assert (metadata_v<Tag>.valid_num_args (N),
-                     "Instruction metadata specified a different number of arguments.");
-      return { metadata_v<Tag>, std::nullopt, args };
+      assert_not_abstract<Op> ();
+      assert_no_return<Op> ();
+      assert_valid_num_args<Op, N> ();
+      return { metadata_v<Op>, std::nullopt, args };
     }
 
     [[nodiscard]] auto  begin   (void)       noexcept { return m_args.begin ();   }
@@ -641,9 +707,9 @@ namespace gch
       std::transform (std::move_iterator { args.begin () },
                       std::move_iterator { args.end () },
                       std::back_inserter (m_args),
-                      [this] (ir_operand_pre&& op)
+                      [this](ir_operand_pre&& op)
                       {
-                        op.construct (*this);
+                        return op.construct (*this);
                       });
     }
 
@@ -668,12 +734,12 @@ namespace gch
     args_container_type m_args;
   };
 
-  template <ir_opcode Tag>
+  template <ir_opcode Op>
   constexpr
   bool
   is_a (const ir_instruction& instr) noexcept
   {
-    return instr.get_metadata ().is_a<Tag> ();
+    return instr.get_metadata ().is_a<Op> ();
   }
 
   constexpr

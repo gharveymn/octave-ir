@@ -353,11 +353,10 @@ namespace gch
 
     [[nodiscard]]
     ir_use_timeline::iter
-    find_first_after (const iter ut_it, const instr_citer pos) const noexcept;
+    find_first_after (iter ut_it, instr_citer pos) const noexcept;
 
-    [[nodiscard]]
-    ir_use_timeline::citer
-    find_first_after (const citer ut_it, const instr_citer pos) const noexcept;
+    [[nodiscard]] ir_use_timeline::citer
+    find_first_after (citer ut_it, instr_citer pos) const noexcept;
 
     [[nodiscard]] constexpr
     ir_basic_block&
@@ -496,7 +495,6 @@ namespace gch
   class ir_basic_block : public ir_component
   {
   public:
-
     using instruction_container = std::list<ir_instruction>;
 
     using iter   = instruction_container::iterator;
@@ -509,11 +507,9 @@ namespace gch
     using diff_t = instruction_container::difference_type;
 
   private:
-
     using def_timeline_map = std::unordered_map<const ir_variable *, ir_def_timeline>;
 
   public:
-
     ir_basic_block            (void)                      = delete;
     ir_basic_block            (const ir_basic_block&)     = delete;
     ir_basic_block            (ir_basic_block&&) noexcept = default;
@@ -528,8 +524,8 @@ namespace gch
 
     enum class range : std::size_t
     {
-      phi   = 0,
-      body  = 1,
+      phi  = 0,
+      body = 1,
     };
 
     /* clang-format off */
@@ -540,91 +536,44 @@ namespace gch
       return m_instr_partition.data_view ();
     }
 
-    template <range Tag>
+    template <range Range>
     [[nodiscard]]
     constexpr auto& get (void) noexcept
     {
-      return get_subrange<Tag> (m_instr_partition);
+      return get_subrange<Range> (m_instr_partition);
     }
 
-    template <range Tag>
+    template <range Range>
     [[nodiscard]]
     constexpr auto& get (void) const noexcept
     {
-      return get_subrange<Tag> (m_instr_partition);
+      return get_subrange<Range> (m_instr_partition);
     }
 
-    // phi
-    [[nodiscard]] constexpr auto& get_phi_range (void)       noexcept { return get_subrange<0> (m_instr_partition); }
-    [[nodiscard]] constexpr auto& get_phi_range (void) const noexcept { return get_subrange<0> (m_instr_partition); }
+    template <range Range> [[nodiscard]] auto  begin   (void)       noexcept { return get<Range> ().begin ();   }
+    template <range Range> [[nodiscard]] auto  begin   (void) const noexcept { return get<Range> ().begin ();   }
+    template <range Range> [[nodiscard]] auto  cbegin  (void) const noexcept { return get<Range> ().cbegin ();  }
 
-    // body
-    [[nodiscard]] constexpr auto& get_body (void)       noexcept { return get_subrange<1> (m_instr_partition); }
-    [[nodiscard]] constexpr auto& get_body (void) const noexcept { return get_subrange<1> (m_instr_partition); }
+    template <range Range> [[nodiscard]] auto  end     (void)       noexcept { return get<Range> ().end ();     }
+    template <range Range> [[nodiscard]] auto  end     (void) const noexcept { return get<Range> ().end ();     }
+    template <range Range> [[nodiscard]] auto  cend    (void) const noexcept { return get<Range> ().cend ();    }
 
-    [[nodiscard]] auto  body_begin   (void)       noexcept { return get_body ().begin ();   }
-    [[nodiscard]] auto  body_begin   (void) const noexcept { return get_body ().begin ();   }
-    [[nodiscard]] auto  body_cbegin  (void) const noexcept { return get_body ().cbegin ();  }
+    template <range Range> [[nodiscard]] auto  rbegin  (void)       noexcept { return get<Range> ().rbegin ();  }
+    template <range Range> [[nodiscard]] auto  rbegin  (void) const noexcept { return get<Range> ().rbegin ();  }
+    template <range Range> [[nodiscard]] auto  crbegin (void) const noexcept { return get<Range> ().crbegin (); }
 
-    [[nodiscard]] auto  body_end     (void)       noexcept { return get_body ().end ();     }
-    [[nodiscard]] auto  body_end     (void) const noexcept { return get_body ().end ();     }
-    [[nodiscard]] auto  body_cend    (void) const noexcept { return get_body ().cend ();    }
+    template <range Range> [[nodiscard]] auto  rend    (void)       noexcept { return get<Range> ().rend ();    }
+    template <range Range> [[nodiscard]] auto  rend    (void) const noexcept { return get<Range> ().rend ();    }
+    template <range Range> [[nodiscard]] auto  crend   (void) const noexcept { return get<Range> ().crend ();   }
 
-    [[nodiscard]] auto  body_rbegin  (void)       noexcept { return get_body ().rbegin ();  }
-    [[nodiscard]] auto  body_rbegin  (void) const noexcept { return get_body ().rbegin ();  }
-    [[nodiscard]] auto  body_crbegin (void) const noexcept { return get_body ().crbegin (); }
+    template <range Range> [[nodiscard]] auto& front   (void)       noexcept { return get<Range> ().front ();   }
+    template <range Range> [[nodiscard]] auto& front   (void) const noexcept { return get<Range> ().front ();   }
 
-    [[nodiscard]] auto  body_rend    (void)       noexcept { return get_body ().rend ();    }
-    [[nodiscard]] auto  body_rend    (void) const noexcept { return get_body ().rend ();    }
-    [[nodiscard]] auto  body_crend   (void) const noexcept { return get_body ().crend ();   }
+    template <range Range> [[nodiscard]] auto& back    (void)       noexcept { return get<Range> ().back ();    }
+    template <range Range> [[nodiscard]] auto& back    (void) const noexcept { return get<Range> ().back ();    }
 
-    [[nodiscard]] auto& body_front   (void)       noexcept { return get_body ().front ();   }
-    [[nodiscard]] auto& body_front   (void) const noexcept { return get_body ().front ();   }
-
-    [[nodiscard]] auto& body_back    (void)       noexcept { return get_body ().back ();    }
-    [[nodiscard]] auto& body_back    (void) const noexcept { return get_body ().back ();    }
-
-    [[nodiscard]] auto  body_size    (void) const noexcept { return get_body ().size ();    }
-    [[nodiscard]] auto  body_empty   (void) const noexcept { return get_body ().empty ();   }
-
-    template <range Tag> [[nodiscard]] auto  begin   (void)       noexcept { return get<Tag> ().begin ();   }
-    template <range Tag> [[nodiscard]] auto  begin   (void) const noexcept { return get<Tag> ().begin ();   }
-    template <range Tag> [[nodiscard]] auto  cbegin  (void) const noexcept { return get<Tag> ().cbegin ();  }
-
-    template <range Tag> [[nodiscard]] auto  end     (void)       noexcept { return get<Tag> ().end ();     }
-    template <range Tag> [[nodiscard]] auto  end     (void) const noexcept { return get<Tag> ().end ();     }
-    template <range Tag> [[nodiscard]] auto  cend    (void) const noexcept { return get<Tag> ().cend ();    }
-
-    template <range Tag> [[nodiscard]] auto  rbegin  (void)       noexcept { return get<Tag> ().rbegin ();  }
-    template <range Tag> [[nodiscard]] auto  rbegin  (void) const noexcept { return get<Tag> ().rbegin ();  }
-    template <range Tag> [[nodiscard]] auto  crbegin (void) const noexcept { return get<Tag> ().crbegin (); }
-
-    template <range Tag> [[nodiscard]] auto  rend    (void)       noexcept { return get<Tag> ().rend ();    }
-    template <range Tag> [[nodiscard]] auto  rend    (void) const noexcept { return get<Tag> ().rend ();    }
-    template <range Tag> [[nodiscard]] auto  crend   (void) const noexcept { return get<Tag> ().crend ();   }
-
-    template <range Tag> [[nodiscard]] auto& front   (void)       noexcept { return get<Tag> ().front ();   }
-    template <range Tag> [[nodiscard]] auto& front   (void) const noexcept { return get<Tag> ().front ();   }
-
-    template <range Tag> [[nodiscard]] auto& back    (void)       noexcept { return get<Tag> ().back ();    }
-    template <range Tag> [[nodiscard]] auto& back    (void) const noexcept { return get<Tag> ().back ();    }
-
-    template <range Tag> [[nodiscard]] auto  size    (void) const noexcept { return get<Tag> ().size ();    }
-    template <range Tag> [[nodiscard]] auto  empty   (void) const noexcept { return get<Tag> ().empty ();   }
-
-    template <range Tag, ir_opcode Type, typename ...Args>
-    decltype (auto)
-    emplace (Args&&... args)
-    {
-      return get<Tag> ().emplace (ir_instruction_type<Type>, std::forward<Args> (args)...);
-    }
-
-    template <range Tag, typename ...Args>
-    decltype (auto)
-    emplace_back (Args&&... args)
-    {
-      return get<Tag> ().emplace_back (std::forward<Args> (args)...);
-    }
+    template <range Range> [[nodiscard]] auto  size    (void) const noexcept { return get<Range> ().size ();    }
+    template <range Range> [[nodiscard]] auto  empty   (void) const noexcept { return get<Range> ().empty ();   }
 
     /* clang-format on */
 
@@ -662,6 +611,48 @@ namespace gch
     }
 
   private:
+    template <range Range, ir_opcode Op, typename ...Args>
+    decltype (auto)
+    emplace_front (Args&&... args)
+    {
+      return get<Range> ().emplace_front (ir_instruction_type<Op>, std::forward<Args> (args)...);
+    }
+
+    template <range Range, ir_opcode Op, typename ...Args>
+    decltype (auto)
+    emplace (citer pos, Args&&... args)
+    {
+      return get<Range> ().emplace (pos, ir_instruction_type<Op>, std::forward<Args> (args)...);
+    }
+
+    template <range Range, ir_opcode Op, typename ...Args>
+    decltype (auto)
+    emplace_back (Args&&... args)
+    {
+      return get<Range> ().emplace_back (ir_instruction_type<Op>, std::forward<Args> (args)...);
+    }
+
+    template <range Range, typename ...Args>
+    decltype (auto)
+    splice (citer pos, ir_basic_block& other, Args&&... args)
+    {
+      return get<Range> ().splice (pos, other.get<Range> (), std::forward<Args> (args)...);
+    }
+
+    template <range Range>
+    decltype (auto)
+    pop_front (void)
+    {
+      return get<Range> ().pop_front ();
+    }
+
+    template <range Range>
+    decltype (auto)
+    pop_back (void)
+    {
+      return get<Range> ().pop_back ();
+    }
+
     optional_ref<ir_def_timeline> maybe_join_incoming (ir_variable& var);
 
     std::vector<nonnull_ptr<ir_def_timeline>> collect_defs_incoming (ir_variable& var);
@@ -691,7 +682,8 @@ namespace gch
     iter
     create_phi (ir_variable& var, Args&&... args)
     {
-      return emplace<range::phi, ir_opcode::phi> (var, std::forward<Args> (args)...);
+      emplace_back<range::phi, ir_opcode::phi> (var, std::forward<Args> (args)...);
+      return std::prev (end<range::phi> ());
     }
 
     // unsafe
@@ -722,65 +714,66 @@ namespace gch
     }
 
     // with return
-    template <ir_opcode Tag, typename ...Args,
-              std::enable_if_t<ir_instruction_metadata_v<Tag>.has_return ()>* = nullptr>
-    ir_instruction& append_instruction (ir_variable& v, Args&&... args)
+    template <ir_opcode Op, typename ...Args,
+              std::enable_if_t<ir_instruction_metadata::has_return<Op> ()>* = nullptr>
+    ir_instruction& append_instruction (ir_variable& var, Args&&... args)
     {
-      ir_instruction& instr = get_body ().emplace_back (ir_instruction::create<Tag> (v,
-        prepare_operand (body_end (), std::forward<Args> (args))...));
+      iter it = emplace<range::body, Op> (end<range::body> (), var,
+        prepare_operand (end<range::body> (), std::forward<Args> (args))...);
+
       try
       {
-        get_def_timeline (v).emplace_back (instr);
+        get_def_timeline (var).emplace_back (it);
       }
       catch (...)
       {
-        get_body ().pop_back ();
+        pop_back<range::body> ();
         throw;
       }
-      return instr;
+      return *it;
     }
 
     // no return
-    template <ir_opcode Tag, typename ...Args,
-      std::enable_if_t<! ir_instruction::has_return_v<Tag>>* = nullptr>
+    template <ir_opcode Op, typename ...Args,
+      std::enable_if_t<! ir_instruction_metadata::has_return<Op> ()>* = nullptr>
     ir_instruction& append_instruction (Args&&... args)
     {
-      return get_body ().emplace_back (ir_instruction::create<Tag> (
-        prepare_operand (body_end (), std::forward<Args> (args))...));
+      return emplace_back<range::body, Op> (
+        prepare_operand (end<range::body> (), std::forward<Args> (args))...);
     }
 
     // with return (places instruction at the front of the body)
-    template <ir_opcode Tag, typename ...Args,
-      std::enable_if_t<ir_instruction::has_return_v<Tag>>* = nullptr>
+    template <ir_opcode Op, typename ...Args,
+      std::enable_if_t<ir_instruction_metadata::has_return<Op> ()>* = nullptr>
     ir_instruction& prepend_instruction (ir_variable& v, Args&&... args)
     {
-      ir_instruction& instr = get_body ().emplace_front (ir_instruction::create<Tag> (v,
-        prepare_operand (body_begin (), std::forward<Args> (args))...));
+      ir_instruction& instr = emplace_front<range::body, Op> (v,
+        prepare_operand (begin<range::body> (), std::forward<Args> (args))...);
       try
       {
         ir_def_timeline& dt = get_def_timeline (v);
-        dt.emplace_before (find_latest_timeline_before (dt, body_begin ()).base (), instr);
+        dt.emplace_before (find_latest_timeline_before (dt, begin<range::body> ()).base (), instr);
       }
       catch (...)
       {
-        get_body ().pop_front ();
+        pop_front<range::body> ();
         throw;
       }
       return instr;
     }
 
     // no return (places instruction at the front of the body)
-    template <ir_opcode Tag, typename ...Args,
-      std::enable_if_t<! ir_instruction::has_return_v<Tag>>* = nullptr>
+    template <ir_opcode Op, typename ...Args,
+      std::enable_if_t<! ir_instruction_metadata::has_return<Op> ()>* = nullptr>
     ir_instruction& prepend_instruction (Args&&... args)
     {
       return get<range::body> ().emplace_front (ir_instruction::create<Tag> (
-        prepare_operand (body_begin (), std::forward<Args> (args))...));
+        prepare_operand (begin<range::body> (), std::forward<Args> (args))...));
     }
 
     // with return (places instruction immediately before `pos`)
-    template <ir_opcode Tag, typename ...Args,
-      std::enable_if_t<ir_instruction::has_return_v<Tag>>* = nullptr>
+    template <ir_opcode Op, typename ...Args,
+      std::enable_if_t<ir_instruction_metadata::has_return<Op> ()>* = nullptr>
     ir_instruction& emplace_instruction (const citer pos, ir_variable& v, Args&&... args)
     {
       iter it = get_body ().emplace (ir_instruction::create<Tag> (v,
@@ -799,8 +792,8 @@ namespace gch
     }
 
     // no return (places instruction immediately before `pos`)
-    template <ir_opcode Tag, typename ...Args,
-      std::enable_if_t<! ir_instruction::has_return_v<Tag>>* = nullptr>
+    template <ir_opcode Op, typename ...Args,
+      std::enable_if_t<! ir_instruction_metadata::has_return<Op> ()>* = nullptr>
     ir_instruction& emplace_instruction (const citer pos, Args&&... args)
     {
       return *get_body ().emplace(pos, ir_instruction::create<Tag> (
@@ -822,7 +815,7 @@ namespace gch
     bool has_preds (void) { return preds_begin () != preds_end (); }
 
     [[nodiscard]]
-    bool has_preds (citer pos) { return pos != get_body ().begin () || has_preds (); }
+    bool has_preds (citer pos) { return pos != begin<range::body> () || has_preds (); }
 
     [[nodiscard]]
     bool has_multiple_preds (void) { return num_preds () > 1; }
@@ -836,7 +829,7 @@ namespace gch
     nonnull_ptr<ir_basic_block> succs_back  (void) { return *(--succs_end ()); }
 
     bool has_succs (void)            { return succs_begin () != succs_end (); }
-    bool has_succs (citer pos) { return pos != get_body ().end () || has_succs (); }
+    bool has_succs (citer pos) { return pos != end<range::body> () || has_succs (); }
 
     bool has_multiple_succs (void) { return num_succs () > 1; }
 

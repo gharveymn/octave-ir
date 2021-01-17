@@ -339,7 +339,7 @@ namespace gch
                     });
 
     // move the range into dest
-    dest.get_body ().splice (dest.body_begin (), get_body (), pivot, body_end ());
+    dest.splice<range::body> (dest.begin<range::body> (), *this, pivot, end<range::body> ());
     return dest;
   }
 
@@ -415,7 +415,7 @@ namespace gch
   optional_ref<ir_use_timeline>
   ir_basic_block::get_latest_timeline_before (const citer pos, ir_variable& var)
   {
-    if (pos == get_body ().end ())
+    if (pos == end<range::body> ())
       return get_latest_timeline (var);
     if (optional_ref<ir_def_timeline> dt = maybe_join_incoming (var))
     {
@@ -494,7 +494,8 @@ namespace gch
                      return std::make_pair (block, block->collect_defs_outgoing (var));
                    });
 
-    auto found = std::find_if_not (selecting<1> (pred_dts.begin ()), selecting<1> (pred_dts.end ()),
+    auto found = std::find_if_not (selecting<1> (pred_dts.begin ()),
+                                   selecting<1> (pred_dts.end ()),
                                    &dt_vector::empty);
 
     if (found == pred_dts.end ())
