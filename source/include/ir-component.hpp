@@ -23,10 +23,12 @@ along with Octave; see the file COPYING.  If not, see
 #if ! defined (ir_component_h)
 #define ir_component_h 1
 
+#include "ir-component-handle.hpp"
 #include "ir-common-util.hpp"
 
-#include <gch/optional_ref.hpp>
 #include <gch/nonnull_ptr.hpp>
+#include <gch/optional_ref.hpp>
+#include <gch/small_vector.hpp>
 #include <gch/variant-iterator.hpp>
 
 #include <list>
@@ -37,7 +39,7 @@ along with Octave; see the file COPYING.  If not, see
 namespace gch
 {
 
-  class ir_basic_block;
+  class ir_block;
   class ir_function;
   class ir_def;
   class ir_variable;
@@ -48,29 +50,9 @@ namespace gch
   class ir_component
   {
   public:
-  
-    using component_list  = std::list<std::unique_ptr<ir_component>>;
-    using comp_iter       = component_list::iterator;
-    using comp_citer      = component_list::const_iterator;
-    using comp_riter      = component_list::reverse_iterator;
-    using comp_criter     = component_list::const_reverse_iterator;
-    using comp_ref        = component_list::reference;
-    using comp_cref       = component_list::const_reference;
-    
-    using component_handle = variant_iterator<comp_iter, value_iter<std::unique_ptr<ir_component>>>;
-
-    using link_cache_vect  = std::vector<nonnull_ptr<ir_basic_block>>;
-    using link_cache_iter  = link_cache_vect::iterator;
-    using link_cache_citer = link_cache_vect::const_iterator;
-
-    using link_iter  = variant_iterator<link_cache_iter,
-                                        value_iter<nonnull_ptr<ir_basic_block>>,
-                                        void_iter<nonnull_ptr<ir_basic_block>>>;
-    
-    
-    using link_citer = variant_iterator<link_cache_citer,
-                                        value_citer<nonnull_ptr<ir_basic_block>>,
-                                        void_citer<nonnull_ptr<ir_basic_block>>>;
+    using link_vector = small_vector<nonnull_ptr<ir_block>, 1>;
+    using link_iter   = link_vector::iterator;
+    using link_citer  = link_vector::const_iterator;
 
     ir_component            (void)                    = delete;
     ir_component            (const ir_component&)     = default;
@@ -78,45 +60,127 @@ namespace gch
     ir_component& operator= (const ir_component&)     = default;
     ir_component& operator= (ir_component&&) noexcept = default;
     virtual ~ir_component (void) noexcept             = 0;
-    
-    constexpr explicit ir_component (ir_structure& s)
+
+    explicit
+    ir_component (ir_structure& s)
       : m_parent (s)
     { }
-  
-    constexpr explicit ir_component (nullopt_t)
+
+    explicit
+    ir_component (nullopt_t)
       : m_parent (nullopt)
     { }
-  
-    virtual void reset (void) noexcept = 0;
 
-    [[nodiscard]] virtual link_iter leaf_begin (void) = 0;
-    [[nodiscard]] virtual link_iter leaf_end   (void) = 0;
+    [[nodiscard]] auto  leaves_begin   (void)       noexcept { return get_leaves ().begin ();   }
+    [[nodiscard]] auto  leaves_begin   (void) const noexcept { return get_leaves ().begin ();   }
+    [[nodiscard]] auto  leaves_cbegin  (void) const noexcept { return get_leaves ().cbegin ();  }
 
-    [[nodiscard]] virtual ir_function& get_function (void) noexcept = 0;
-    
+    [[nodiscard]] auto  leaves_end     (void)       noexcept { return get_leaves ().end ();     }
+    [[nodiscard]] auto  leaves_end     (void) const noexcept { return get_leaves ().end ();     }
+    [[nodiscard]] auto  leaves_cend    (void) const noexcept { return get_leaves ().cend ();    }
+
+    [[nodiscard]] auto  leaves_rbegin  (void)       noexcept { return get_leaves ().rbegin ();  }
+    [[nodiscard]] auto  leaves_rbegin  (void) const noexcept { return get_leaves ().rbegin ();  }
+    [[nodiscard]] auto  leaves_crbegin (void) const noexcept { return get_leaves ().crbegin (); }
+
+    [[nodiscard]] auto  leaves_rend    (void)       noexcept { return get_leaves ().rend ();    }
+    [[nodiscard]] auto  leaves_rend    (void) const noexcept { return get_leaves ().rend ();    }
+    [[nodiscard]] auto  leaves_crend   (void) const noexcept { return get_leaves ().crend ();   }
+
+    [[nodiscard]] auto& leaves_front   (void)       noexcept { return get_leaves ().front ();   }
+    [[nodiscard]] auto& leaves_front   (void) const noexcept { return get_leaves ().front ();   }
+
+    [[nodiscard]] auto& leaves_back    (void)       noexcept { return get_leaves ().back ();    }
+    [[nodiscard]] auto& leaves_back    (void) const noexcept { return get_leaves ().back ();    }
+
+    [[nodiscard]] auto  leaves_size    (void) const noexcept { return get_leaves ().size ();    }
+    [[nodiscard]] auto  leaves_empty   (void) const noexcept { return get_leaves ().empty ();   }
+
+  protected:
     [[nodiscard]]
-    const ir_function& get_function (void) const noexcept
+    virtual
+    const link_vector&
+    get_leaves (void) = 0;
+
+    [[nodiscard]]
+    const link_vector&
+    get_leaves (void) const
+    {
+      return const_cast<ir_component *> (this)->get_leaves ();
+    }
+
+  public:
+    virtual
+    void
+    reset (void) noexcept = 0;
+
+    [[nodiscard]]
+    virtual
+    ir_function&
+    get_function (void) noexcept = 0;
+
+    [[nodiscard]]
+    const ir_function&
+    get_function (void) const noexcept
     {
       return const_cast<ir_component *> (this)->get_function ();
     }
 
-    [[nodiscard]] virtual ir_basic_block& get_entry_block (void) noexcept = 0;
-  
     [[nodiscard]]
-    const ir_basic_block& get_entry_block (void) const noexcept
+    virtual
+    ir_block&
+    get_entry_block (void) noexcept = 0;
+
+    [[nodiscard]]
+    const ir_block&
+    get_entry_block (void) const noexcept
     {
       return const_cast<ir_component *> (this)->get_entry_block ();
     }
-    
-    virtual std::vector<std::pair<nonnull_ptr<ir_basic_block>, optional_ref<ir_def_timeline>>>
+
+    virtual
+    std::vector<std::pair<nonnull_ptr<ir_block>, optional_ref<ir_def_timeline>>>
     collect_outgoing (ir_variable& var);
-    
+
     [[nodiscard]]
-    virtual std::list<nonnull_ptr<ir_def>> get_latest_defs (ir_variable& var) noexcept = 0;
-    
-    [[nodiscard]] constexpr       bool  has_parent (void) const noexcept { return bool (m_parent); }
-    [[nodiscard]] constexpr       auto& get_parent (void)       noexcept { return *m_parent;       }
-    [[nodiscard]] constexpr const auto& get_parent (void) const noexcept { return *m_parent;       }
+    virtual
+    std::list<nonnull_ptr<ir_def>>
+    get_latest_defs (ir_variable& var) noexcept;
+
+    [[nodiscard]] constexpr
+    bool
+    has_parent (void) const noexcept
+    {
+      return m_parent.has_value ();
+    }
+
+    [[nodiscard]] constexpr
+    ir_structure&
+    get_parent (void) noexcept
+    {
+      return *m_parent;
+    }
+
+    [[nodiscard]] constexpr
+    const ir_structure&
+    get_parent (void) const noexcept
+    {
+      return *m_parent;
+    }
+
+    [[nodiscard]] constexpr
+    optional_ref<ir_structure>
+    get_maybe_parent (void) noexcept
+    {
+      return m_parent;
+    }
+
+    [[nodiscard]] constexpr
+    optional_cref<ir_structure>
+    get_maybe_parent (void) const noexcept
+    {
+      return m_parent;
+    }
 
     template <typename T>
     using is_component = std::is_base_of<ir_component, T>;

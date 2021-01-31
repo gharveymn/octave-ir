@@ -33,8 +33,6 @@ along with Octave; see the file COPYING.  If not, see
 #include <gch/tracker.hpp>
 #include <plf_list.h>
 
-#include <deque>
-#include <unordered_set>
 #include <vector>
 #include <variant>
 #include <any>
@@ -42,9 +40,9 @@ along with Octave; see the file COPYING.  If not, see
 namespace gch
 {
   class ir_instruction;
-  class ir_basic_block;
+  class ir_block;
   class ir_function;
-  class ir_basic_block;
+  class ir_block;
 
   class ir_def;
   class ir_use;
@@ -53,7 +51,7 @@ namespace gch
   {
   public:
 
-    using block_def_pair = std::pair<nonnull_ptr<ir_basic_block>, nonnull_ptr<ir_def>>;
+    using block_def_pair = std::pair<nonnull_ptr<ir_block>, nonnull_ptr<ir_def>>;
     using block_def_vect = std::vector<block_def_pair>;
 
     static constexpr const char anonymous_name[] = "<@>";
@@ -92,7 +90,7 @@ namespace gch
     [[nodiscard]]
     ir_variable& get_sentinel (void);
 
-    void mark_uninit (ir_basic_block& blk);
+    void mark_uninit (ir_block& blk);
 
     [[nodiscard]]
     constexpr ir_function& get_function (void) noexcept
@@ -135,8 +133,9 @@ namespace gch
     int curr_id = 0;
   };
 
-  [[nodiscard]]
-  std::string undef_name (ir_variable& var)
+  [[nodiscard]] inline
+  std::string
+  make_undef_name (ir_variable& var)
   {
     return "_undef_" + var.get_name ();
   }
@@ -206,6 +205,8 @@ namespace gch
     int                         m_id;
   };
 
+  class ir_use_info;
+
   class ir_use
     : public intrusive_reporter<ir_use, remote::intrusive_tracker<ir_use_timeline>>
   {
@@ -225,12 +226,9 @@ namespace gch
     ir_use& operator= (ir_use&&) noexcept = default;
     ~ir_use           (void)              = default;
 
-    ir_use (ir_instruction& instr, ir_use_timeline& ut);
+    ir_use (ir_instruction& instr, ir_use_timeline& ut, base::remote_interface_type::citer pos);
 
-    template <typename It>
-    ir_use (ir_instruction& instr, ir_use_timeline& ut, It ut_pos);
-
-    ir_use (ir_instruction& instr, std::insert_iterator<ir_use_timeline>& ut);
+    ir_use (ir_instruction& instr, const ir_use_info& info);
 
     [[nodiscard]] ir_use_timeline&       get_timeline (void)       noexcept;
     [[nodiscard]] const ir_use_timeline& get_timeline (void) const noexcept;
@@ -335,6 +333,115 @@ namespace gch
     ir_instruction_iter m_instruction_pos;
   };
 
+  [[nodiscard]] constexpr
+  bool
+  has_same_def (const ir_use_timeline& lhs, const ir_use_timeline& rhs)
+  {
+    return &lhs.get_def () == &rhs.get_def ();
+  }
+
+  class ir_use_info
+  {
+  public:
+    ir_use_info            (void)                   = delete;
+    ir_use_info            (const ir_use_info&)     = default;
+    ir_use_info            (ir_use_info&&) noexcept = default;
+    ir_use_info& operator= (const ir_use_info&)     = default;
+    ir_use_info& operator= (ir_use_info&&) noexcept = default;
+    ~ir_use_info           (void)                   = default;
+
+    ir_use_info (ir_use_timeline& ut, ir_use_timeline::citer pos)
+      : m_timeline (ut),
+        m_position (pos)
+    { }
+
+    [[nodiscard]]
+    ir_use_timeline&
+    get_timeline (void) const noexcept
+    {
+      return *m_timeline;
+    }
+
+    [[nodiscard]]
+    ir_use_timeline::citer
+    get_position (void) const noexcept
+    {
+      return m_position;
+    }
+
+  private:
+    nonnull_ptr<ir_use_timeline> m_timeline;
+    ir_use_timeline::citer       m_position;
+  };
+
+  class ir_operand_in
+  {
+  public:
+    ir_operand_in (void)                                = delete;
+    ir_operand_in (const ir_operand_in&)                = default;
+    ir_operand_in (ir_operand_in&&) noexcept            = default;
+    ir_operand_in& operator= (const ir_operand_in&)     = default;
+    ir_operand_in& operator= (ir_operand_in&&) noexcept = default;
+    ~ir_operand_in (void)                               = default;
+
+    ir_operand_in (const ir_use_info& info)
+      : m_data (std::in_place_type<ir_use_info>, info)
+    { }
+
+    ir_operand_in (ir_constant&& c)
+      : m_data (std::in_place_type<ir_constant>, std::move (c))
+    { }
+
+    [[nodiscard]] constexpr
+    std::size_t
+    index (void) const noexcept
+    {
+      return m_data.index ();
+    }
+
+    template <typename T>
+    friend constexpr
+    optional_ref<T>
+    maybe_get (ir_operand_in&);
+
+    template <typename T>
+    friend constexpr
+    optional_cref<T>
+    maybe_get (const ir_operand_in&);
+
+    template <typename T, typename U>
+    friend constexpr
+    std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_operand_in>, match_cvref_t<U, T>>
+    get (U&&);
+
+  private:
+    std::variant<ir_constant, ir_use_info> m_data;
+  };
+
+  template <typename T>
+  [[nodiscard]] constexpr
+  optional_ref<T>
+  maybe_get (ir_operand_in& in)
+  {
+    return std::get_if<T> (&in.m_data);
+  }
+
+  template <typename T>
+  [[nodiscard]] constexpr
+  optional_cref<T>
+  maybe_get (const ir_operand_in& in)
+  {
+    return std::get_if<T> (&in.m_data);
+  }
+
+  template <typename T, typename U>
+  [[nodiscard]] constexpr
+  std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_operand_in>, match_cvref_t<U, T>>
+  get (U&& in)
+  {
+    return static_cast<match_cvref_t<U, T>> (*std::get_if<T> (&in.m_data));
+  }
+
   class ir_operand
   {
   public:
@@ -345,64 +452,93 @@ namespace gch
     ir_operand& operator= (ir_operand&&) noexcept = default;
     ~ir_operand           (void)                  = default;
 
-    ir_operand (ir_instruction& instr, ir_use_timeline& tl, ir_use_timeline::citer pos)
-      : m_data (std::in_place_type<ir_use>, instr, tl, pos)
+    ir_operand (ir_instruction& instr, ir_operand_in&& in)
+    {
+      if (optional_ref<ir_constant> c = maybe_get<ir_constant> (in))
+        m_data.emplace<ir_constant> (std::move (*c));
+      else
+        m_data.emplace<ir_use> (instr, get<ir_use_info> (std::move (in)));
+    }
+
+    ir_operand (ir_instruction&, ir_constant&& c)
+      : m_data (std::in_place_type<ir_constant>, std::move (c))
     { }
 
     template <typename T>
-    constexpr ir_operand (ir_type type, T&& data)
-      : m_data (std::in_place_type<ir_constant>, type, std::forward<T> (data))
-    { }
+    friend constexpr
+    optional_ref<T>
+    maybe_get (ir_operand&);
 
-    constexpr ir_operand (const ir_constant& c)
-      : m_data (c)
-    { }
+    template <typename T>
+    friend constexpr
+    optional_cref<T>
+    maybe_get (const ir_operand&);
 
-    constexpr ir_operand (ir_constant&& c)
-      : m_data (std::move (c))
-    { }
+    template <typename T, typename U>
+    friend constexpr
+    std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_operand>, match_cvref_t<U, T>>
+    get (U&&);
 
-    [[nodiscard]]
-    constexpr ir_type get_type (void) const
+    [[nodiscard]] constexpr
+    ir_type
+    get_type (void) const noexcept
     {
+      if (auto u = maybe_get<ir_use> (*this))
+
+
       return std::visit ([] (auto&& x) -> ir_type { return x.get_type (); }, m_data);
     }
 
-    template <typename T>
-    [[nodiscard]] constexpr T& as_type (void) { return std::get<T> (m_data); }
-
-    template <typename T>
-    [[nodiscard]] constexpr const T& as_type (void) const { return std::get<T> (m_data); }
-
-    [[nodiscard]]
-    constexpr bool is_constant (void) const noexcept
+    [[nodiscard]] constexpr
+    bool
+    is_constant (void) const noexcept
     {
       return std::holds_alternative<ir_constant> (m_data);
     }
 
-    [[nodiscard]]
-    constexpr bool is_use (void) const noexcept
+    [[nodiscard]] constexpr
+    bool
+    is_use (void) const noexcept
     {
       return std::holds_alternative<ir_use> (m_data);
-    }
-
-    friend struct ir_printer<ir_operand>;
-
-    template <typename T>
-    friend constexpr optional_ref<T> get_if (ir_operand& op) noexcept
-    {
-      return std::get_if<T> (&op.m_data);
-    }
-
-    template <typename T>
-    friend constexpr optional_ref<const T> get_if (const ir_operand& op) noexcept
-    {
-      return std::get_if<T> (&op.m_data);
     }
 
   private:
     std::variant<ir_constant, ir_use> m_data;
   };
+
+  template <typename T>
+  [[nodiscard]] constexpr
+  optional_ref<T>
+  maybe_get (ir_operand& op)
+  {
+    return std::get_if<T> (&op.m_data);
+  }
+
+  template <typename T>
+  [[nodiscard]] constexpr
+  optional_cref<T>
+  maybe_get (const ir_operand& op)
+  {
+    return std::get_if<T> (&op.m_data);
+  }
+
+  template <typename T, typename U>
+  [[nodiscard]] constexpr
+  std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_operand>, match_cvref_t<U, T>>
+  get (U&& op)
+  {
+    return static_cast<match_cvref_t<U, T>> (*std::get_if<T> (&op.m_data));
+  }
+
+  [[nodiscard]] constexpr
+  ir_type
+  get_type (const ir_operand& op) noexcept
+  {
+    if (optional_cref<ir_use> u = maybe_get<ir_use> (op))
+      return u->get_type ();
+    return get<ir_constant> (op).get_type ();
+  }
 
 }
 

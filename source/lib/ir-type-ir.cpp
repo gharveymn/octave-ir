@@ -29,5 +29,5 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace gch
 {
-  constexpr ir_type::impl ir_type::instance<ir_basic_block *>::m_impl;
+  constexpr ir_type::impl ir_type::instance<ir_block *>::m_impl;
 }

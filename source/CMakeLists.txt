@@ -13,6 +13,7 @@ SET(HEADERS
     "ir-common.hpp"
     "ir-common-util.hpp"
     "ir-component.hpp"
+    "ir-component-handle.hpp"
     "ir-constant.hpp"
     "ir-function.hpp"
     "ir-instruction.hpp"

@@ -79,5 +79,4 @@ namespace gch
 //  static_assert(is_string<const char16_t[]>::value, "is_string not working");
 //  static_assert(! is_string<int>::value, "is_string not working");
 
-
 }

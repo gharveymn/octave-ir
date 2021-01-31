@@ -32,15 +32,7 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace gch
 {
-  
-  class ir_constant;
-  
-  template <typename T>
-  optional_ref<T> data_cast(ir_constant& c) noexcept;
-  
-  template <typename T>
-  optional_ref<const T> data_cast(const ir_constant& c) noexcept;
-  
+
   class ir_constant
   {
   public:
@@ -50,55 +42,78 @@ namespace gch
     ir_constant& operator= (const ir_constant&)     = default;
     ir_constant& operator= (ir_constant&&) noexcept = default;
     ~ir_constant           (void)                   = default;
-  
-    template <typename ...Args>
-    constexpr explicit ir_constant (Args&&... args)
-      : m_type (ir_type_v<std::decay_t<Args>...>),
-        m_data (std::forward<Args> (args)...)
+
+    template <typename T,
+              std::enable_if_t<! std::is_same_v<std::decay_t<T>, ir_constant>> * = nullptr>
+    explicit
+    ir_constant (T&& t)
+      : m_type (ir_type_v<std::decay_t<T>>),
+        m_data (std::forward<T> (t))
     { }
-    
+
     template <typename ...Args>
-    constexpr explicit ir_constant (ir_type type, Args&&... args)
+    explicit
+    ir_constant (ir_type type, Args&&... args)
       : m_type (type),
         m_data (std::forward<Args> (args)...)
     { }
-    
-    [[nodiscard]] constexpr ir_type get_type (void) const noexcept { return m_type; }
-    
-    template <typename T>
-    [[nodiscard]] constexpr const T& get_data (void) const { std::any_cast<T> (m_data); }
-    
+
+    [[nodiscard]] constexpr
+    ir_type
+    get_type (void) const noexcept
+    {
+      return m_type;
+    }
+
     template <typename T, typename ...Args>
-    auto emplace (Args&&... args)
+    decltype (auto)
+    emplace (Args&&... args)
     {
       m_type = ir_type_v<T>;
       return m_data.emplace<T> (std::forward<Args> (args)...);
     }
-    
+
     template <typename T>
-    friend optional_ref<T> data_cast (ir_constant& c) noexcept
-    {
-      return std::any_cast<T> (&c.m_data);
-    }
-    
+    friend
+    optional_ref<T>
+    maybe_cast (ir_constant& c) noexcept;
+
     template <typename T>
-    friend optional_ref<const T> data_cast (const ir_constant& c) noexcept
-    {
-      return std::any_cast<T> (&c.m_data);
-    }
-  
+    friend
+    optional_ref<const T>
+    maybe_cast (const ir_constant& c) noexcept;
+
+    template <typename T, typename U>
+    friend constexpr
+    std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_constant>, match_cvref_t<U, T>>
+    cast (U&&);
+
   private:
     ir_type  m_type = ir_type_v<void>;
     std::any m_data;
   };
-  
-  class ir_operand;
-  
+
   template <typename T>
-  constexpr optional_ref<T> get_if (ir_operand& op) noexcept;
-  
+  [[nodiscard]] optional_ref<T>
+  maybe_cast (ir_constant& c) noexcept
+  {
+    return std::any_cast<T> (&c.m_data);
+  }
+
   template <typename T>
-  constexpr optional_ref<const T> get_if (const ir_operand& op) noexcept;
+  [[nodiscard]] optional_ref<const T>
+  maybe_cast (const ir_constant& c) noexcept
+  {
+    return std::any_cast<T> (&c.m_data);
+  }
+
+  template <typename T, typename U>
+  [[nodiscard]] constexpr
+  std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_constant>, match_cvref_t<U, T>>
+  cast (U&& c)
+  {
+    return static_cast<match_cvref_t<U, T>> (*std::any_cast<T> (&c.m_data));
+  }
 
 }
 

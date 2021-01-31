@@ -24,7 +24,8 @@ SET_TARGET_PROPERTIES(test_octave-ir PROPERTIES
                       LINK_OPTIONS          "${LINK_OPTS}")
 
 ADD_EXECUTABLE(scratch scratch.cpp)
-TARGET_LINK_LIBRARIES(scratch optional_ref plf_list tracker variant-iterator nonnull_ptr)
+TARGET_LINK_LIBRARIES(scratch PRIVATE optional_ref plf_list tracker variant-iterator nonnull_ptr)
+TARGET_INCLUDE_DIRECTORIES(scratch PRIVATE ../include)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   SET(COMPILE_OPTS -fno-rtti --coverage -Wall -Wextra)
@@ -43,7 +44,7 @@ if (UNIX)
 endif()
 
 SET_TARGET_PROPERTIES(scratch PROPERTIES
-                      CXX_STANDARD          11
+                      CXX_STANDARD          17
                       CXX_STANDARD_REQUIRED NO
                       CXX_EXTENSIONS        NO
                       COMPILE_OPTIONS       "${COMPILE_OPTS}"

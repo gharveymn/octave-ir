@@ -44,10 +44,10 @@ namespace gch
 #else
   inline constexpr bool OCTAVE_IR_DEBUG = true;
 #endif
-  
+
   using any = octave_base_value *;
   using single = float;
-  
+
   class ir_exception : public std::exception
   {
   public:
@@ -154,29 +154,29 @@ namespace gch
 //  template <typename T> using criter = typename T::const_reverse_iterator;
 //  template <typename T> using ref    = typename T::reference;
 //  template <typename T> using cref   = typename T::const_reference;
-  
+
   namespace detail
   {
-  
+
     template <typename T, typename ...Ts>
     struct all_same : std::conjunction<std::is_same<T, Ts>...>
     { };
-  
+
     template <std::size_t I, typename T, typename ...Ts>
     struct pack_select
       : pack_select<I - 1, Ts...>
     { };
-  
+
     template <typename T, typename ...Ts>
     struct pack_select<0, T, Ts...>
     {
       using type = T;
     };
-    
+
     template <std::size_t I, typename T, typename Head, typename ...Tail>
     struct pack_index : detail::pack_index<I + 1, T, Tail...>
     { };
-    
+
     template <std::size_t I, typename T, typename ...Rest>
     struct pack_index<I, T, T, Rest...>
       : std::integral_constant<std::size_t, I>
@@ -199,11 +199,11 @@ namespace gch
     struct is_element<T, std::void_t<typename pack_index<0, T, Ts...>::type>, Ts...>
       : std::true_type
     { };
-  
+
     template <typename It, typename = void>
     struct is_iterator : std::false_type
     { };
-  
+
     template <typename It>
     struct is_iterator<It, std::void_t<std::iterator_traits<It>>>
       : std::true_type
@@ -218,27 +218,78 @@ namespace gch
 
   template <std::size_t I, typename ...Ts>
   using pack_select_t    = typename pack_select<I, Ts...>::type;
-  
+
   template <typename T, typename ...Ts>
   using pack_index       = detail::pack_index<0, T, Ts...>;
 
   template <typename T, typename ...Ts>
   using is_element  = detail::is_element<T, void, Ts...>;
-  
+
   template <typename It>
   using is_iterator = detail::is_iterator<It>;
 
   template <typename ...Ts>
   inline constexpr bool        all_same_v    = all_same<Ts...>::value;
-  
+
   template <typename T, typename ...Ts>
   inline constexpr std::size_t pack_index_v       = pack_index<T, Ts...>::value;
-  
+
   template <typename T, typename ...Ts>
   inline constexpr std::size_t is_element_v  = is_element<T, Ts...>::value;
-  
+
   template <typename It>
   inline constexpr bool        is_iterator_v = is_iterator<It>::value;
+
+  template <typename From, typename To>
+  struct match_cv
+  {
+    using type = std::conditional_t<std::is_const_v<From>,
+                                    std::conditional_t<std::is_volatile_v<From>,
+                                                       std::add_cv_t<To>,
+                                                       std::add_const_t<To>>,
+                                    std::conditional_t<std::is_volatile_v<From>,
+                                                       std::add_volatile_t<To>,
+                                                       To>>;
+  };
+
+  template <typename From, typename To>
+  using match_cv_t = typename match_cv<From, To>::type;
+
+  template <typename From, typename To>
+  struct match_ref
+  {
+    using type = std::conditional_t<std::is_lvalue_reference_v<From>,
+                                    std::add_lvalue_reference_t<To>,
+                                    std::conditional_t<std::is_rvalue_reference_v<From>,
+                                                       std::add_rvalue_reference_t<To>,
+                                                       To>>;
+  };
+
+  template <typename From, typename To>
+  using match_ref_t = typename match_ref<From, To>::type;
+
+  template <typename From, typename To>
+  struct match_cvref
+    : match_ref<From, match_cv_t<std::remove_reference_t<From>, To>>
+  { };
+
+  template <typename From, typename To>
+  using match_cvref_t = typename match_cvref<From, To>::type;
+
+  static_assert (std::is_same_v<match_cvref_t<               int, long>,                long>);
+  static_assert (std::is_same_v<match_cvref_t<const          int, long>, const          long>);
+  static_assert (std::is_same_v<match_cvref_t<      volatile int, long>,       volatile long>);
+  static_assert (std::is_same_v<match_cvref_t<const volatile int, long>, const volatile long>);
+
+  static_assert (std::is_same_v<match_cvref_t<               int&, long>,                long&>);
+  static_assert (std::is_same_v<match_cvref_t<const          int&, long>, const          long&>);
+  static_assert (std::is_same_v<match_cvref_t<      volatile int&, long>,       volatile long&>);
+  static_assert (std::is_same_v<match_cvref_t<const volatile int&, long>, const volatile long&>);
+
+  static_assert (std::is_same_v<match_cvref_t<               int&&, long>,                long&&>);
+  static_assert (std::is_same_v<match_cvref_t<const          int&&, long>, const          long&&>);
+  static_assert (std::is_same_v<match_cvref_t<      volatile int&&, long>,       volatile long&&>);
+  static_assert (std::is_same_v<match_cvref_t<const volatile int&&, long>, const volatile long&&>);
 
 }
 

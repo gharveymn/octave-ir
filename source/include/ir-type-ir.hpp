@@ -28,12 +28,12 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace gch
 {
-  class ir_basic_block;
-  
+  class ir_block;
+
   template <>
-  struct ir_type::instance<ir_basic_block *>
+  struct ir_type::instance<ir_block *>
   {
-    using type = ir_basic_block *;
+    using type = ir_block *;
     static constexpr impl m_impl { create_type<type> ("block_ptr") };
   };
 }

@@ -28,25 +28,7 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace gch
 {
-  
-  //
-  // ir_operand_precursor
-  //
-  
-  ir_operand
-  ir_operand_pre::construct (ir_instruction& instr)
-  {
-    return std::visit (overloaded
-                       {
-                         [&instr] (const use_pair& ut) -> ir_operand
-                         {
-                           return { instr, *std::get<nonnull_ptr<ir_use_timeline>> (ut),
-                                    std::get<ir_use_timeline::citer> (ut) };
-                         },
-                         [](ir_constant&& c) -> ir_operand { return { std::move (c) }; }
-                       }, std::move (m_data));
-  }
-  
+
   //
   // ir_instruction
   //

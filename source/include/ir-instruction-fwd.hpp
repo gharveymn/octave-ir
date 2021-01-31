@@ -32,7 +32,7 @@ namespace gch
 {
   // fwds
 
-  class ir_basic_block;
+  class ir_block;
   class ir_instruction;
   class ir_def;
   class ir_use;

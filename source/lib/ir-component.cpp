@@ -28,5 +28,13 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace gch
 {
-  ir_component::~ir_component (void) noexcept = default;
+  ir_component::
+  ~ir_component (void) noexcept = default;
+
+  // void
+  // ir_component::
+  // leaves_append (ir_block& blk)
+  // {
+  //   m_leaf_cache.emplace_back (blk);
+  // }
 }

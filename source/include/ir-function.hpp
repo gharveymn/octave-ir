@@ -28,27 +28,22 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace gch
 {
-  
+
   class ir_function : public ir_sequence
   {
   public:
-  
+
 //  ir_function            (void)                   = impl;
     ir_function            (const ir_function&)     = delete;
     ir_function            (ir_function&&) noexcept = default;
     ir_function& operator= (const ir_function&)     = delete;
     ir_function& operator= (ir_function&&) noexcept = delete;
     ~ir_function           (void) override          = default;
-    
+
     ir_function (void)
       : ir_sequence (nullopt)
     { }
-  
-    ir_component::link_iter preds_begin (ir_component& c) override;
-    ir_component::link_iter preds_end   (ir_component& c) override;
-    ir_component::link_iter succs_begin (ir_component& c) override;
-    ir_component::link_iter succs_end   (ir_component& c) override;
-    
+
     void invalidate_leaf_cache (void) noexcept override
     {
       clear_leaf_cache ();
@@ -56,12 +51,6 @@ namespace gch
 
     [[nodiscard]]
     ir_function& get_function (void) noexcept override
-    {
-      return *this;
-    }
-
-    [[nodiscard]]
-    const ir_function& get_function (void) const noexcept override
     {
       return *this;
     }

@@ -38,10 +38,6 @@ along with Octave; see the file COPYING.  If not, see
 namespace gch
 {
 
-  constexpr ir_type::impl ir_type::instance<ir_def* >::m_impl;
-
-  constexpr ir_type::impl ir_type::instance<ir_use *>::m_impl;
-
   //
   // ir_variable
   //
@@ -60,55 +56,49 @@ namespace gch
 //    o.m_defs.clear ();
 //  }
 
-  ir_def
-  ir_variable::create_def (ir_type ty, ir_def_instruction& instr)
-  {
-    return { *this, ty, instr };
-  }
-
-  ir_type
-  ir_variable::normalize_types (block_def_vect& pairs)
-  {
-    if (pairs.empty ())
-      throw ir_exception ("block-def pair list unexpectedly empty.");
-
-    auto get_block  = [] (auto&& pair)
-                      {
-                        return std::get<nonnull_ptr<ir_basic_block>> (pair);
-                      };
-
-    auto get_def  = [] (auto&& pair)
-                    {
-                      return std::get<nonnull_ptr<ir_def>> (pair);
-                    };
-
-    auto get_type = [&get_def] (auto&& pair) -> ir_type
-                    {
-                      return get_def (pair)->get_type ();
-                    };
-
-    // find the closest common type
-    ir_type common_ty = std::accumulate (++pairs.begin (), pairs.end (), get_type (pairs.front ()),
-                                         [&get_type] (ir_type curr, auto&& pair)
-                                         {
-                                           return ir_type::lca (curr, get_type (pair));
-                                         });
-
-    if (common_ty == ir_type_v<void>)
-      throw ir_exception ("no common type");
-
-    std::for_each (pairs.begin (), pairs.end (),
-                   [&get_type, common_ty] (auto& pair)
-                   {
-                     auto& [block, def] = pair;
-                     if (def->get_type () != common_ty)
-                     {
-                       auto& instr = block->template emplace_back<ir_convert> (common_ty, def);
-                       def = instr->get_def ();
-                     }
-                   });
-    return common_ty;
-  }
+  // ir_type
+  // ir_variable::normalize_types (block_def_vect& pairs)
+  // {
+  //   if (pairs.empty ())
+  //     throw ir_exception ("block-def pair list unexpectedly empty.");
+  //
+  //   auto get_block  = [] (auto&& pair)
+  //                     {
+  //                       return std::get<nonnull_ptr<ir_block>> (pair);
+  //                     };
+  //
+  //   auto get_def  = [] (auto&& pair)
+  //                   {
+  //                     return std::get<nonnull_ptr<ir_def>> (pair);
+  //                   };
+  //
+  //   auto get_type = [&get_def] (auto&& pair) -> ir_type
+  //                   {
+  //                     return get_def (pair)->get_type ();
+  //                   };
+  //
+  //   // find the closest common type
+  //   ir_type common_ty = std::accumulate (++pairs.begin (), pairs.end (), get_type (pairs.front ()),
+  //                                        [&get_type] (ir_type curr, auto&& pair)
+  //                                        {
+  //                                          return ir_type::lca (curr, get_type (pair));
+  //                                        });
+  //
+  //   if (common_ty == ir_type_v<void>)
+  //     throw ir_exception ("no common type");
+  //
+  //   std::for_each (pairs.begin (), pairs.end (),
+  //                  [&get_type, common_ty] (auto& pair)
+  //                  {
+  //                    auto& [block, def] = pair;
+  //                    if (def->get_type () != common_ty)
+  //                    {
+  //                      auto& instr = block->template emplace_back<ir_convert> (common_ty, def);
+  //                      def = instr->get_def ();
+  //                    }
+  //                  });
+  //   return common_ty;
+  // }
 
   ir_variable&
   ir_variable::get_sentinel (void)
@@ -118,60 +108,11 @@ namespace gch
     return *m_undef_var;
   }
 
-  std::string
-  ir_variable::get_undef_name (void) const
-  {
-    return "_undef_" + m_name;
-  }
-
   ir_variable&
   ir_variable::get_undef_var (void)
   {
-    return *(m_undef_var = std::make_unique<ir_variable> (get_module (), undef_name (*this)));
+    return *(m_undef_var = std::make_unique<ir_variable> (get_module (), make_undef_name (*this)));
   }
-
-  // ir_variable::tracker_type::citer
-  // ir_variable::find (const ir_def& d) const
-  // {
-  //   return std::find_if (m_def_tracker.begin (), m_def_tracker.end (),
-  //                        [&d](const ir_def& x) { return &x == &d; });
-  // }
-
-//  void
-//  ir_variable::mark_uninit (ir_basic_block& blk)
-//  {
-//    ir_variable& sentinel = get_sentinel ();
-//  }
-
-//  ir_variable::use
-//  ir_variable::create_use (ir_basic_block& blk, const ir_instruction& instr)
-//  {
-//    // search for def
-//    // if it's in this block we're done
-//    // if not we need to check if we might need a phi node, checking all
-//    // branches
-//
-//    if (blk.back ().get () == &instr)
-//      {
-//        // this is the last instruction, so we can just check the cache
-//        if (def *d = blk.fetch_cached_def (*this))
-//          return {*d, instr};
-//      }
-//    else if (def *d = blk.fetch_proximate_def (*this, instr))
-//      return {*d, instr};
-//
-//    // def was not in the initial block
-//    def *d_latest = blk.join_pred_defs (*this);
-//
-//    if (d_latest == nullptr)
-//      throw ir_exception ("variable not defined.");
-//
-//    // cache the latest def
-//    blk.set_cached_def (*d_latest);
-//
-//    return {*d_latest, instr};
-//
-//  }
 
   //
   // ir_def
@@ -186,7 +127,7 @@ namespace gch
       {
         if (curr_ty == ir_type::get<any> ())
           return curr_ty;
-        curr_ty = ir_type::lca (curr_ty, *first->get_type ());
+        curr_ty = lca (curr_ty, *first->get_type ());
       }
     // couldn't find a common type
     if (curr_ty == ir_type::get<void> ())
@@ -206,25 +147,17 @@ namespace gch
     return get_var ().get_name ();
   }
 
-  std::size_t
-  ir_def::get_id (void) const
-  {
-    return m_id;
-  }
-
   //
   // ir_use
   //
 
-  ir_use::ir_use (ir_instruction& instr, ir_use_timeline& ut)
-    : reporter_type (tag::bind, ut, ut.cend ()),
+  ir_use::ir_use (ir_instruction& instr, ir_use_timeline& ut, ir_use_timeline::citer pos)
+    : reporter_type (tag::bind, ut, pos),
       m_instr (instr)
   { }
 
-  template <>
-  ir_use::ir_use (ir_instruction& instr, ir_use_timeline& ut, ir_use_timeline::citer ut_pos)
-    : reporter_type (tag::bind, ut, ut_pos),
-      m_instr (instr)
+  ir_use::ir_use (ir_instruction& instr, const ir_use_info& info)
+    : ir_use (instr, info.get_timeline (), info.get_position ())
   { }
 
   ir_use_timeline&
