@@ -641,14 +641,12 @@ namespace gch
     explicit
     ir_block (ir_structure& parent)
       : ir_component (parent),
-        m_instr_partition (),
-        m_self_link { *this }
+        m_instr_partition ()
     { }
 
     ir_block (ir_block&& other) noexcept
       : ir_component (std::move (other)),
-        m_instr_partition (std::move (other.m_instr_partition)),
-        m_self_link { *this }
+        m_instr_partition (std::move (other.m_instr_partition))
     { }
 
     using range = ir_instruction_range;
@@ -994,21 +992,11 @@ namespace gch
 
     bool has_multiple_succs (void) { return num_succs () > 1; }
 
-    [[nodiscard]]
-    const link_vector&
-    get_leaves (void) noexcept override
-    {
-      return m_self_link;
-    }
-
     ir_block&
     get_entry_block (void) noexcept override
     {
       return *this;
     }
-
-    ir_function&
-    get_function (void) noexcept override;
 
     void
     reset (void) noexcept override;
@@ -1049,7 +1037,6 @@ namespace gch
   private:
     list_partition<ir_instruction, 2> m_instr_partition;
     def_timeline_map                  m_timeline_map;
-    const link_vector                 m_self_link;
   };
 
   class ir_condition_block : public ir_block

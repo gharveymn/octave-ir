@@ -29,7 +29,6 @@ along with Octave; see the file COPYING.  If not, see
 #include <gch/nonnull_ptr.hpp>
 #include <gch/optional_ref.hpp>
 #include <gch/small_vector.hpp>
-#include <gch/variant-iterator.hpp>
 
 #include <list>
 #include <type_traits>
@@ -71,82 +70,6 @@ namespace gch
       : m_parent (nullopt)
     { }
 
-    [[nodiscard]] auto  leaves_begin   (void)       noexcept { return get_leaves ().begin ();   }
-    [[nodiscard]] auto  leaves_begin   (void) const noexcept { return get_leaves ().begin ();   }
-    [[nodiscard]] auto  leaves_cbegin  (void) const noexcept { return get_leaves ().cbegin ();  }
-
-    [[nodiscard]] auto  leaves_end     (void)       noexcept { return get_leaves ().end ();     }
-    [[nodiscard]] auto  leaves_end     (void) const noexcept { return get_leaves ().end ();     }
-    [[nodiscard]] auto  leaves_cend    (void) const noexcept { return get_leaves ().cend ();    }
-
-    [[nodiscard]] auto  leaves_rbegin  (void)       noexcept { return get_leaves ().rbegin ();  }
-    [[nodiscard]] auto  leaves_rbegin  (void) const noexcept { return get_leaves ().rbegin ();  }
-    [[nodiscard]] auto  leaves_crbegin (void) const noexcept { return get_leaves ().crbegin (); }
-
-    [[nodiscard]] auto  leaves_rend    (void)       noexcept { return get_leaves ().rend ();    }
-    [[nodiscard]] auto  leaves_rend    (void) const noexcept { return get_leaves ().rend ();    }
-    [[nodiscard]] auto  leaves_crend   (void) const noexcept { return get_leaves ().crend ();   }
-
-    [[nodiscard]] auto& leaves_front   (void)       noexcept { return get_leaves ().front ();   }
-    [[nodiscard]] auto& leaves_front   (void) const noexcept { return get_leaves ().front ();   }
-
-    [[nodiscard]] auto& leaves_back    (void)       noexcept { return get_leaves ().back ();    }
-    [[nodiscard]] auto& leaves_back    (void) const noexcept { return get_leaves ().back ();    }
-
-    [[nodiscard]] auto  leaves_size    (void) const noexcept { return get_leaves ().size ();    }
-    [[nodiscard]] auto  leaves_empty   (void) const noexcept { return get_leaves ().empty ();   }
-
-  protected:
-    [[nodiscard]]
-    virtual
-    const link_vector&
-    get_leaves (void) = 0;
-
-    [[nodiscard]]
-    const link_vector&
-    get_leaves (void) const
-    {
-      return const_cast<ir_component *> (this)->get_leaves ();
-    }
-
-  public:
-    virtual
-    void
-    reset (void) noexcept = 0;
-
-    [[nodiscard]]
-    virtual
-    ir_function&
-    get_function (void) noexcept = 0;
-
-    [[nodiscard]]
-    const ir_function&
-    get_function (void) const noexcept
-    {
-      return const_cast<ir_component *> (this)->get_function ();
-    }
-
-    [[nodiscard]]
-    virtual
-    ir_block&
-    get_entry_block (void) noexcept = 0;
-
-    [[nodiscard]]
-    const ir_block&
-    get_entry_block (void) const noexcept
-    {
-      return const_cast<ir_component *> (this)->get_entry_block ();
-    }
-
-    virtual
-    std::vector<std::pair<nonnull_ptr<ir_block>, optional_ref<ir_def_timeline>>>
-    collect_outgoing (ir_variable& var);
-
-    [[nodiscard]]
-    virtual
-    std::list<nonnull_ptr<ir_def>>
-    get_latest_defs (ir_variable& var) noexcept;
-
     [[nodiscard]] constexpr
     bool
     has_parent (void) const noexcept
@@ -170,14 +93,14 @@ namespace gch
 
     [[nodiscard]] constexpr
     optional_ref<ir_structure>
-    get_maybe_parent (void) noexcept
+    maybe_get_parent (void) noexcept
     {
       return m_parent;
     }
 
     [[nodiscard]] constexpr
     optional_cref<ir_structure>
-    get_maybe_parent (void) const noexcept
+    maybe_get_parent (void) const noexcept
     {
       return m_parent;
     }
@@ -185,9 +108,53 @@ namespace gch
     template <typename T>
     using is_component = std::is_base_of<ir_component, T>;
 
+    //
+    // virtual functions
+    //
+
+    [[nodiscard]]
+    virtual
+    ir_block&
+    get_entry_block (void) noexcept = 0;
+
+    virtual
+    void
+    reset (void) noexcept = 0;
+
+    virtual
+    std::vector<std::pair<nonnull_ptr<ir_block>, optional_ref<ir_def_timeline>>>
+    collect_outgoing (ir_variable& var);
+
+    [[nodiscard]]
+    virtual
+    std::list<nonnull_ptr<ir_def>>
+    get_latest_defs (ir_variable& var) noexcept;
+
+    //
+    // virtual function accessories
+    //
+
+    [[nodiscard]]
+    const ir_block&
+    get_entry_block (void) const noexcept
+    {
+      return const_cast<ir_component *> (this)->get_entry_block ();
+    }
+
   private:
     optional_ref<ir_structure> m_parent;
   };
+
+  [[nodiscard]]
+  ir_function&
+  get_function (ir_component& c);
+
+  [[nodiscard]] inline
+  const ir_function&
+  get_function (const ir_component& c)
+  {
+    return get_function (const_cast<ir_component&> (c));
+  }
 
 }
 

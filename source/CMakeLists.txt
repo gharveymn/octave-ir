@@ -13,7 +13,10 @@ SET(HEADERS
     "ir-common.hpp"
     "ir-common-util.hpp"
     "ir-component.hpp"
+    "ir-component-fork.hpp"
     "ir-component-handle.hpp"
+    "ir-component-loop.hpp"
+    "ir-component-sequence.hpp"
     "ir-constant.hpp"
     "ir-function.hpp"
     "ir-instruction.hpp"
@@ -29,6 +32,9 @@ SET(SOURCES
     "ir-block.cpp"
     "ir-common-util.cpp"
     "ir-component.cpp"
+    "ir-component-fork.cpp"
+    "ir-component-loop.cpp"
+    "ir-component-sequence.cpp"
     "ir-constant.cpp"
     "ir-function.cpp"
     "ir-instruction.cpp"
@@ -47,7 +53,7 @@ CREATE_PACKAGE(AUTHOR       gharveymn
                DEPENDENCIES optional_ref
                             plf_list
                             tracker
-                            variant-iterator
+#                            variant-iterator
                             nonnull_ptr
                             select-iterator
                             partition

@@ -24,17 +24,23 @@ along with Octave; see the file COPYING.  If not, see
 #  include "config.h"
 #endif
 
-#include <ir-component.hpp>
+#include "ir-component.hpp"
+#include "ir-function.hpp"
+#include "ir-structure.hpp"
 
 namespace gch
 {
   ir_component::
   ~ir_component (void) noexcept = default;
 
-  // void
-  // ir_component::
-  // leaves_append (ir_block& blk)
-  // {
-  //   m_leaf_cache.emplace_back (blk);
-  // }
+  ir_function&
+  get_function (ir_component& c)
+  {
+    for (optional_ref curr { c }; curr.has_value (); curr = curr->maybe_get_parent ())
+    {
+      if (optional_ref opt_func { dynamic_cast<ir_function *> (curr.get_pointer ()) })
+        return *opt_func;
+    }
+    throw ir_exception ("function not found");
+  }
 }

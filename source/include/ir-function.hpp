@@ -24,12 +24,14 @@ along with Octave; see the file COPYING.  If not, see
 #define ir_function_h 1
 
 #include "ir-structure.hpp"
+#include "ir-component-sequence.hpp"
+
 #include <optional>
 
 namespace gch
 {
 
-  class ir_function : public ir_sequence
+  class ir_function : public ir_component_sequence
   {
   public:
 
@@ -41,18 +43,12 @@ namespace gch
     ~ir_function           (void) override          = default;
 
     ir_function (void)
-      : ir_sequence (nullopt)
+      : ir_component_sequence (nullopt)
     { }
 
     void invalidate_leaf_cache (void) noexcept override
     {
       clear_leaf_cache ();
-    }
-
-    [[nodiscard]]
-    ir_function& get_function (void) noexcept override
-    {
-      return *this;
     }
 
   private:

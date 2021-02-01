@@ -1090,12 +1090,6 @@ namespace gch
     return get_parent ().num_succs (*this);
   }
 
-  ir_function&
-  ir_block::get_function (void) noexcept
-  {
-    return get_parent ().get_function ();
-  }
-
   void
   ir_block::reset (void) noexcept
   {

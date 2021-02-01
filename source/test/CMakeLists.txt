@@ -24,7 +24,7 @@ SET_TARGET_PROPERTIES(test_octave-ir PROPERTIES
                       LINK_OPTIONS          "${LINK_OPTS}")
 
 ADD_EXECUTABLE(scratch scratch.cpp)
-TARGET_LINK_LIBRARIES(scratch PRIVATE optional_ref plf_list tracker variant-iterator nonnull_ptr)
+TARGET_LINK_LIBRARIES(scratch PRIVATE optional_ref plf_list tracker nonnull_ptr)
 TARGET_INCLUDE_DIRECTORIES(scratch PRIVATE ../include)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

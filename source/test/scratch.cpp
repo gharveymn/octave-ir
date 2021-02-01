@@ -47,11 +47,24 @@ namespace gch
     std::stack<phi_manager> stack;
   };
 
+  const std::vector<int>&
+  test_ext_helper (const std::vector<int>& v = { 1, 2, 3, 4 })
+  {
+    return v;
+  }
+
+  std::vector<int>
+  test_ext (void)
+  {
+    return test_ext_helper ();
+  }
+
 }
 
 int main (void)
 {
   using namespace gch;
+
   management_stack s;
   ir_component_handle x = make_ir_component<ir_component> ();
   ir_component_handle y = make_ir_component<ir_component> ();
@@ -76,6 +89,13 @@ int main (void)
 
   assert (nullptr != x);
   assert (nullptr != y);
+
+  int yy = 1;
+  optional_ref op { *nonnull_ptr<int> { yy } };
+
+  // int * xx = optional_ref<int>::to_address (nonnull_ptr<int> { yy });
+
+  std::vector<int> v = test_ext ();
 
   return 0;
 }
