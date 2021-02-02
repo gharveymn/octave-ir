@@ -32,28 +32,28 @@ namespace gch
     // link_iter succs_end   (ir_component& c) override;
 
     [[nodiscard]] constexpr
-    const ir_component_handle&
+    ir_component_handle
     get_start_component (void) const noexcept
     {
       return m_start;
     }
 
     [[nodiscard]] constexpr
-    const ir_component_handle&
+    ir_component_handle
     get_condition_component (void) const noexcept
     {
       return m_condition;
     }
 
     [[nodiscard]] constexpr
-    const ir_component_handle&
+    ir_component_handle
     get_body_component (void) const noexcept
     {
       return m_body;
     }
 
     [[nodiscard]] constexpr
-    const ir_component_handle&
+    ir_component_handle
     get_update_component (void) const noexcept
     {
       return m_update;
@@ -61,28 +61,28 @@ namespace gch
 
     [[nodiscard]] constexpr
     bool
-    is_start_component (const ir_component_handle& comp) const noexcept
+    is_start_component (ir_component_handle comp) const noexcept
     {
       return comp == get_start_component ();
     }
 
     [[nodiscard]] constexpr
     bool
-    is_condition_component (const ir_component_handle& comp) const noexcept
+    is_condition_component (ir_component_handle comp) const noexcept
     {
       return comp == get_condition_component ();
     }
 
     [[nodiscard]] constexpr
     bool
-    is_body_component (const ir_component_handle& comp) const noexcept
+    is_body_component (ir_component_handle comp) const noexcept
     {
       return comp == get_body_component ();
     }
 
     [[nodiscard]] constexpr
     bool
-    is_update_component (const ir_component_handle& comp) const noexcept
+    is_update_component (ir_component_handle comp) const noexcept
     {
       return comp == get_update_component ();
     }
@@ -147,18 +147,18 @@ namespace gch
     //
 
     [[nodiscard]]
-    const ir_component_handle&
+    ir_component_handle
     get_entry_component (void) override;
 
     [[nodiscard]]
-    const ir_component_handle&
+    ir_component_handle
     get_handle (const ir_component& c) const override;
 
     link_vector
-    get_preds (const ir_component_handle& comp) override;
+    get_preds (ir_component_handle comp) override;
 
     link_vector
-    get_succs (const ir_component_handle& comp) override;
+    get_succs (ir_component_handle comp) override;
 
     ir_use_timeline&
     join_incoming_at (ir_component_handle& block_handle, ir_def_timeline& dt) override;
@@ -168,17 +168,17 @@ namespace gch
 
     [[nodiscard]]
     bool
-    is_leaf_component (const ir_component_handle& comp) noexcept override;
+    is_leaf_component (ir_component_handle comp) noexcept override;
 
   private:
     link_iter cond_succ_begin (void);
 
     link_iter cond_succ_end (void);
 
-    ir_component_handle m_start;     // preds: [pred]        | succs: condition
-    ir_component_handle m_condition; // preds: start, update | succs: body, [succ]
-    ir_component_handle m_body;      // preds: condition     | succs: update
-    ir_component_handle m_update;    // preds: body          | succs: condition
+    ir_component_storage m_start;     // preds: [pred]        | succs: condition
+    ir_component_storage m_condition; // preds: start, update | succs: body, [succ]
+    ir_component_storage m_body;      // preds: condition     | succs: update
+    ir_component_storage m_update;    // preds: body          | succs: condition
 
     //          +-----+     +---------+
     // [] +---> |start| +-> |condition| +---> []

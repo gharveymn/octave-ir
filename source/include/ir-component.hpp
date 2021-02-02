@@ -31,9 +31,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <gch/small_vector.hpp>
 
 #include <list>
-#include <type_traits>
 #include <memory>
-#include <vector>
 
 namespace gch
 {

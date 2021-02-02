@@ -46,12 +46,12 @@ namespace gch
 
   void
   ir_structure::
-  leaves_append (const ir_component_handle& comp)
+  leaves_append (ir_component_handle comp)
   {
-    if (optional_ref s { maybe_cast_to<ir_structure> (comp) })
+    if (optional_ref s { maybe_get_as<ir_structure> (comp) })
       m_leaf_cache.insert (m_leaf_cache.end (), s->leaves_begin (), s->leaves_end ());
     else
-      m_leaf_cache.emplace_back (cast_to<ir_block> (comp));
+      m_leaf_cache.emplace_back (get_as<ir_block> (comp));
   }
 
   void
@@ -78,22 +78,22 @@ namespace gch
   get_entry_block (ir_structure& s)
   {
     nonnull_ptr curr_entry { s.get_entry_component () };
-    while (optional_ref opt_struct { maybe_cast_to<ir_structure> (*curr_entry) })
+    while (optional_ref opt_struct { maybe_get_as<ir_structure> (*curr_entry) })
       curr_entry.emplace (opt_struct->get_entry_component ());
-    return cast_to<ir_block> (*curr_entry);
+    return get_as<ir_block> (*curr_entry);
   }
 
   [[nodiscard]]
   ir_structure::link_vector
-  copy_leaves (const ir_component_handle& comp)
+  copy_leaves (ir_component_handle comp)
   {
-    // if the component is an ir_block return a singleton vector
+    // if the component is an ir_block, return a singleton vector
     // containing just that component
-    if (optional_ref opt_block { maybe_cast_to<ir_block> (comp) })
+    if (optional_ref opt_block { maybe_get_as<ir_block> (comp) })
       return { *opt_block };
 
     // otherwise delegate to the ir_structure
-    return cast_to<ir_structure> (comp).get_leaves ();
+    return get_as<ir_structure> (comp).get_leaves ();
   }
 
 }

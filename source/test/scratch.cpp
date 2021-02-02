@@ -66,8 +66,11 @@ int main (void)
   using namespace gch;
 
   management_stack s;
-  ir_component_handle x = make_ir_component<ir_component> ();
-  ir_component_handle y = make_ir_component<ir_component> ();
+  ir_component_storage xs = make_ir_component<ir_component> ();
+  ir_component_storage ys = make_ir_component<ir_component> ();
+
+  ir_component_handle x { xs };
+  ir_component_handle y { ys };
 
   assert (x != y);
 
@@ -79,7 +82,7 @@ int main (void)
   assert (n == x);
   assert (n != y);
 
-  ir_component *p = x.get ().get_pointer ();
+  ir_component *p = x.get_component_pointer ();
   assert (p == x);
   assert (p != y);
 

@@ -89,7 +89,7 @@ namespace gch
 
   auto
   ir_component_loop::
-  get_preds (const ir_component_handle& comp)
+  get_preds (ir_component_handle comp)
     -> link_vector
   {
     if (is_entry_component (comp))
@@ -105,7 +105,7 @@ namespace gch
     throw ir_exception ("component was not in the loop component");
   }
 
-  const ir_component_handle&
+  ir_component_handle
   ir_component_loop::
   get_entry_component (void)
   {
@@ -121,7 +121,7 @@ namespace gch
 
   bool
   ir_component_loop::
-  is_leaf_component (const ir_component_handle& comp) noexcept
+  is_leaf_component (ir_component_handle comp) noexcept
   {
     return comp == m_condition;
   }

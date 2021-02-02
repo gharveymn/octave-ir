@@ -15,7 +15,7 @@ namespace gch
   class ir_component_fork : public ir_structure
   {
   public:
-    using component_container     = std::vector<ir_component_handle>;
+    using component_container     = std::vector<ir_component_storage>;
     using iterator                = typename component_container::iterator;
     using const_iterator          = typename component_container::const_iterator;
     using reverse_iterator        = typename component_container::reverse_iterator;
@@ -51,15 +51,16 @@ namespace gch
     { }
 
     [[nodiscard]] constexpr
-    const ir_component_handle&
+    ir_component_handle
     get_condition_component (void) const noexcept
     {
+      ir_component_handle x { m_condition };
       return m_condition;
     }
 
     [[nodiscard]] constexpr
     bool
-    is_condition_component (const ir_component_handle& comp) const noexcept
+    is_condition_component (ir_component_handle comp) const noexcept
     {
       return comp == get_condition_component ();
     }
@@ -111,18 +112,18 @@ namespace gch
     //
 
     [[nodiscard]]
-    const ir_component_handle&
+    ir_component_handle
     get_entry_component (void) override;
 
     [[nodiscard]]
-    const ir_component_handle&
+    ir_component_handle
     get_handle (const ir_component& c) const override;
 
     link_vector
-    get_preds (const ir_component_handle& comp) override;
+    get_preds (ir_component_handle comp) override;
 
     link_vector
-    get_succs (const ir_component_handle& comp) override;
+    get_succs (ir_component_handle comp) override;
 
     ir_use_timeline&
     join_incoming_at (ir_component_handle& block_handle, ir_def_timeline& dt) override;
@@ -132,7 +133,7 @@ namespace gch
 
     [[nodiscard]]
     bool
-    is_leaf_component (const ir_component_handle& comp) noexcept override;
+    is_leaf_component (ir_component_handle comp) noexcept override;
 
   private:
     link_iter sub_entry_begin (void);
@@ -140,7 +141,7 @@ namespace gch
 
     void generate_sub_entry_cache (void);
 
-    ir_component_handle m_condition;
+    ir_component_storage m_condition;
     component_container m_subcomponents;
 
     // holds entry blocks for subcomponents

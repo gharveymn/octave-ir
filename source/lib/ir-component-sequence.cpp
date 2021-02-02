@@ -31,7 +31,7 @@ namespace gch
 
   auto
   ir_component_sequence::
-  get_pos (const ir_component_handle& comp)
+  get_pos (ir_component_handle comp)
     -> iter
   {
     return std::next (begin (), std::distance (&*cbegin (), &comp));
@@ -51,7 +51,7 @@ namespace gch
   [[nodiscard]]
   std::list<nonnull_ptr<ir_def>>
   ir_component_sequence::
-  get_latest_defs (ir_variable& var) noexcept override
+  get_latest_defs (ir_variable& var) noexcept
   {
     for (auto rit = rbegin (); rit != rend (); ++rit)
     {
@@ -79,14 +79,14 @@ namespace gch
   // virtual from ir_structure
   //
 
-  const ir_component_handle&
+  ir_component_handle
   ir_component_sequence::
   get_entry_component (void)
   {
     return front ();
   }
 
-  const ir_component_handle&
+  ir_component_handle
   ir_component_sequence::
   get_handle (const ir_component& c) const
   {
@@ -95,7 +95,7 @@ namespace gch
 
   auto
   ir_component_sequence::
-  get_preds (const ir_component_handle& comp)
+  get_preds (ir_component_handle comp)
     -> link_vector
   {
     if (is_entry_component (comp))
@@ -113,7 +113,7 @@ namespace gch
 
   bool
   ir_component_sequence::
-  is_leaf_component (const ir_component_handle& comp) noexcept
+  is_leaf_component (ir_component_handle comp) noexcept
   {
     return comp == back ();
   }

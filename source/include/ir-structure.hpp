@@ -174,7 +174,7 @@ namespace gch
     }
 
     void
-    leaves_append (const ir_component_handle& comp);
+    leaves_append (ir_component_handle comp);
 
     template <typename Component, typename ...Args,
               typename = std::enable_if_t<is_component<Component>::value>>
@@ -191,21 +191,21 @@ namespace gch
   public:
     [[nodiscard]]
     virtual
-    const ir_component_handle&
+    ir_component_handle
     get_entry_component (void) = 0;
 
     [[nodiscard]]
     virtual
-    const ir_component_handle&
+    ir_component_handle
     get_handle (const ir_component& c) const = 0;
 
     virtual
     link_vector
-    get_preds (const ir_component_handle& comp) = 0;
+    get_preds (ir_component_handle comp) = 0;
 
     virtual
     link_vector
-    get_succs (const ir_component_handle& comp) = 0;
+    get_succs (ir_component_handle comp) = 0;
 
     virtual
     ir_use_timeline&
@@ -218,7 +218,7 @@ namespace gch
     [[nodiscard]]
     virtual
     bool
-    is_leaf_component (const ir_component_handle& comp) noexcept = 0;
+    is_leaf_component (ir_component_handle comp) noexcept = 0;
 
     //
     // virtual function accessories
@@ -258,7 +258,7 @@ namespace gch
 
     [[nodiscard]]
     bool
-    is_entry_component (const ir_component_handle& comp) noexcept
+    is_entry_component (ir_component_handle comp) noexcept
     {
       return comp == get_entry_component ();
     }
@@ -292,12 +292,12 @@ namespace gch
 
   [[nodiscard]]
   ir_structure::link_vector
-  copy_leaves (const ir_component_handle& comp);
+  copy_leaves (ir_component_handle comp);
 
   template <typename ...Args>
   [[nodiscard]] inline
   ir_structure::link_vector
-  copy_leaves (const ir_component_handle& comp, Args&&... args)
+  copy_leaves (ir_component_handle comp, Args&&... args)
   {
     auto concatenate = [](ir_structure::link_vector& l, ir_structure::link_vector&& r)
                        { l.insert (l.end (), r.begin (), r.end ()); };

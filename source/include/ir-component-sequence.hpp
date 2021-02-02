@@ -16,7 +16,7 @@ namespace gch
   class ir_component_sequence : public ir_structure
   {
   public:
-    using component_container     = std::vector<ir_component_handle>;
+    using component_container     = std::vector<ir_component_storage>;
     using iterator                = typename component_container::iterator;
     using const_iterator          = typename component_container::const_iterator;
     using reverse_iterator        = typename component_container::reverse_iterator;
@@ -144,11 +144,11 @@ namespace gch
 
     [[nodiscard]]
     iter
-    get_pos (const ir_component_handle& comp);
+    get_pos (ir_component_handle comp);
 
     [[nodiscard]]
     citer
-    get_pos (const ir_component_handle& comp) const
+    get_pos (ir_component_handle comp) const
     {
       return const_cast<ir_component_sequence *> (this)->get_pos (comp);
     }
@@ -171,26 +171,8 @@ namespace gch
       return *back ();
     }
 
-    template <typename T, typename S>
-    T&
-    emplace_instruction_before (ir_block& blk,
-                                std::initializer_list<std::reference_wrapper<S>>,
-                                ir_variable& var)
-    {
-
-      // find latest def before this one if this is not at the very end
-
-    }
-
-    ir_block&
-    split (ir_block& blk, ir_instruction_iter pivot) //override
-    {
-      auto  ret_it = emplace_before<ir_block> (must_find (blk));
-      auto& ret    = static_cast<ir_block&> (**ret_it);
-
-      // transfer instructions which occur after the pivot
-      blk.split (pivot, ret);
-    }
+    ir_component_handle
+    split (ir_component_handle block_handle, ir_instruction_iter pivot);
 
     [[nodiscard]]
     std::list<nonnull_ptr<ir_def>>
@@ -216,18 +198,18 @@ namespace gch
     //
 
     [[nodiscard]]
-    const ir_component_handle&
+    ir_component_handle
     get_entry_component (void) override;
 
     [[nodiscard]]
-    const ir_component_handle&
+    ir_component_handle
     get_handle (const ir_component& c) const override;
 
     link_vector
-    get_preds (const ir_component_handle& comp) override;
+    get_preds (ir_component_handle comp) override;
 
     link_vector
-    get_succs (const ir_component_handle& comp) override;
+    get_succs (ir_component_handle comp) override;
 
     ir_use_timeline&
     join_incoming_at (ir_component_handle& block_handle, ir_def_timeline& dt) override;
@@ -237,7 +219,7 @@ namespace gch
 
     [[nodiscard]]
     bool
-    is_leaf_component (const ir_component_handle& comp) noexcept override;
+    is_leaf_component (ir_component_handle comp) noexcept override;
 
   protected:
     citer must_find (const ir_component& c)
