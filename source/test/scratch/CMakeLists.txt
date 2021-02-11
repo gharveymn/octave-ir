@@ -1,13 +1,17 @@
 SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-SET(TEST_NAME octave-ir)
-SET(SOURCE_FILES main.cpp)
+SET(TEST_NAME scratch)
+SET(SOURCE_FILES scratch.cpp
+                 ${PROJECT_SOURCE_DIR}/source/lib/ir-link-set.cpp)
 
 SET(TARGET_VERSIONS 17 20)
 
-SET(COMPILE_OPTS )
-SET(LINK_OPTS )
-SET(LINK_LIBS optional_ref plf_list tracker nonnull_ptr)
+SET(LINK_LIBS optional_ref
+              plf_list
+              tracker
+              nonnull_ptr
+              small_vector)
+
 SET(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/source/include)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -41,12 +45,10 @@ FOREACH(version ${TARGET_VERSIONS})
 
   TARGET_COMPILE_OPTIONS(${target_name} PRIVATE ${COMPILE_OPTS})
   TARGET_LINK_OPTIONS   (${target_name} PRIVATE ${LINK_OPTS})
-  TARGET_LINK_LIBRARIES (${target_name} PRIVATE octave-ir.c++${version} ${LINK_LIBS})
+  TARGET_LINK_LIBRARIES (${target_name} PRIVATE ${LINK_LIBS})
 
   SET_TARGET_PROPERTIES(${target_name} PROPERTIES
                         CXX_STANDARD          ${version}
                         CXX_STANDARD_REQUIRED NO
                         CXX_EXTENSIONS        NO)
 ENDFOREACH()
-
-ADD_SUBDIRECTORY(scratch)

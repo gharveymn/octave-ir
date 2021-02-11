@@ -144,7 +144,7 @@ namespace gch
   const std::string&
   ir_def::get_name (void) const
   {
-    return get_var ().get_name ();
+    return get_variable ().get_name ();
   }
 
   //
@@ -166,34 +166,16 @@ namespace gch
     return get_remote ();
   }
 
-  const ir_use_timeline&
-  ir_use::get_timeline (void) const noexcept
-  {
-    return get_remote ();
-  }
-
   ir_def&
   ir_use::get_def (void) noexcept
   {
     return get_remote ().get_def ();
   }
 
-  const ir_def&
-  ir_use::get_def (void) const noexcept
-  {
-    return get_remote ().get_def ();
-  }
-
   ir_variable&
-  ir_use::get_var (void) noexcept
+  ir_use::get_variable (void) noexcept
   {
-    return get_def ().get_var ();
-  }
-
-  const ir_variable&
-  ir_use::get_var (void) const noexcept
-  {
-    return get_def ().get_var ();
+    return get_def ().get_variable ();
   }
 
   ir_type
@@ -214,7 +196,6 @@ namespace gch
     return get_position ();
   }
 
-  [[nodiscard]]
   ir_def&
   ir_use_timeline::
   get_def (void) noexcept
@@ -222,12 +203,32 @@ namespace gch
     return get_def_instruction ().get_return ();
   }
 
-  [[nodiscard]]
-  const ir_def&
+  ir_instruction_iter
   ir_use_timeline::
-  get_def (void) const noexcept
+  get_def_pos (void) noexcept
   {
-    return get_def_instruction ().get_return ();
+    return m_instruction_pos;
+  }
+
+  ir_instruction&
+  ir_use_timeline::
+  get_def_instruction (void) noexcept
+  {
+    return *get_def_pos ();
+  }
+
+  ir_variable&
+  ir_use_timeline::
+  get_variable (void) noexcept
+  {
+    return get_def ().get_variable ();
+  }
+
+  void
+  ir_use_timeline::
+  set_instruction_pos (const ir_instruction_iter instr) noexcept
+  {
+    m_instruction_pos = instr;
   }
 
 }

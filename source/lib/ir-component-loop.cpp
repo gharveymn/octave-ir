@@ -7,123 +7,130 @@
 
 #include "ir-component-loop.hpp"
 #include "ir-component-sequence.hpp"
+#include "ir-block.hpp"
 
 namespace gch
 {
 
   ir_component_loop::
   ir_component_loop (ir_structure& parent)
-    : ir_structure (parent),
-      m_entry     (create_component<ir_block> ()),
-      m_condition (create_component<ir_condition_block> ()),
-      m_body      (create_component<ir_component_sequence> (std::in_place_type<ir_block>)),
-      m_cond_preds { m_entry, get_update_block () },
-      m_succ_cache { m_body.get_entry_block (), m_exit }
+    : ir_substructure { parent },
+      m_start         { create_component<ir_block> ()                                            },
+      m_condition     { create_component<ir_condition_block> ()                                  },
+      m_body          { create_component<ir_component_sequence> (ir_subcomponent_type<ir_block>) },
+      m_update        { create_component<ir_block> ()                                            }
   { }
 
   ir_component_loop::
   ~ir_component_loop (void) noexcept = default;
 
-  ir_component::link_iter
-  ir_component_loop::
-  preds_begin (ir_component& c)
-  {
-    if      (is_entry (c))     return m_parent.preds_begin (*this);
-    else if (is_condition (c)) return m_cond_preds.begin ();
-    else if (is_body (c))      return m_condition;
-    else                       throw ir_exception ("Component was not in the loop component.");
-  }
-
-  ir_component::link_iter
-  ir_component_loop::
-  preds_end (ir_component& c)
-  {
-    if      (is_entry (c))     return m_parent.preds_end (*this);
-    else if (is_condition (c)) return m_cond_preds.end ();
-    else if (is_body (c))      return ++link_iter (m_condition);
-    else                       throw ir_exception ("Component was not in the loop component.");
-  }
-
-  ir_component::link_iter
-  ir_component_loop::
-  succs_begin (ir_component& c)
-  {
-    if      (is_entry (c))     return m_condition;
-    else if (is_condition (c)) return cond_succ_begin ();
-    else if (is_body (c))      return m_condition;
-    else                       throw ir_exception ("Component was not in the loop component.");
-  }
-
-  ir_component::link_iter
-  ir_component_loop::
-  succs_end (ir_component& c)
-  {
-    if      (is_entry (c))     return ++link_iter (m_condition);
-    else if (is_condition (c)) return cond_succ_end ();
-    else if (is_body (c))      return ++link_iter (m_condition);
-    else                       throw ir_exception ("component was not in the loop component");
-  }
-
-  ir_component::link_iter
-  ir_component_loop::
-  cond_succ_begin (void)
-  {
-    m_succ_cache.front () = m_body.get_entry_block ();
-    return m_succ_cache.begin ();
-  }
-
-  ir_component::link_iter
-  ir_component_loop::
-  cond_succ_end (void)
-  {
-    return m_succ_cache.end ();
-  }
-
   //
   // virtual from ir_component
   //
+
+  bool
+  ir_component_loop::
+  reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
+                         ir_def_timeline& new_dt, std::vector<nonnull_ptr<ir_block>>& until)
+  {
+    return get_start ()    ->reassociate_timelines (old_dts, new_dt, until)
+       ||  get_condition ()->reassociate_timelines (old_dts, new_dt, until)
+       ||  get_body ()     ->reassociate_timelines (old_dts, new_dt, until)
+       ||  get_update ()   ->reassociate_timelines (old_dts, new_dt, until);
+  }
 
   //
   // virtual from ir_structure
   //
 
-  auto
+  ir_component_ptr
   ir_component_loop::
-  get_preds (ir_component_handle comp)
-    -> link_vector
+  get_ptr (ir_component& c) const
   {
-    if (is_entry_component (comp))
-      return get_parent ().get_preds (*this);
+    if (is_start (c))
+      return as_mutable (*this).get_start ();
+    if (is_condition (c))
+      return as_mutable (*this).get_condition ();
+    if (is_body (c))
+      return as_mutable (*this).get_body ();
+    if (is_update (c))
+      return as_mutable (*this).get_update ();
 
-    if (is_condition_component (comp))
-      return copy_leaves (get_start_component (), get_update_component ());
-    if (is_body_component (comp))
-      return copy_leaves (get_condition_component ());
-    if (is_update_component (comp))
-      return copy_leaves (get_body_component ());
-
-    throw ir_exception ("component was not in the loop component");
+    throw ir_exception ("could not find the specified component in the loop");
   }
 
-  ir_component_handle
+  ir_component_ptr
   ir_component_loop::
-  get_entry_component (void)
+  get_entry_ptr (void)
   {
-    return get_start_component ();
+    return get_start ();
+  }
+
+  ir_link_set
+  ir_component_loop::
+  get_predecessors (ir_component_cptr comp)
+  {
+    if (is_start (comp))
+      return get_parent ().get_predecessors (*this);
+
+    if (is_condition (comp))
+      return copy_leaves (get_start (), get_update ());
+
+    if (is_body (comp))
+      return copy_leaves (get_condition ());
+
+    if (is_update (comp))
+      return copy_leaves (get_body ());
+
+    throw ir_exception ("specified component was not in the loop component");
+  }
+
+  ir_link_set
+  ir_component_loop::
+  get_successors (ir_component_cptr comp)
+  {
+    if (is_start (comp))
+      return { nonnull_ptr { get_entry_block (get_condition ()) } };
+
+    if (is_condition (comp))
+    {
+      ir_link_set ret { get_parent ().get_successors (*this) };
+      ret.emplace (get_entry_block (get_body ()));
+      return ret;
+    }
+
+    if (is_body (comp))
+      return { nonnull_ptr { get_entry_block (get_update ()) } };
+
+    if (is_update (comp))
+      return { nonnull_ptr { get_entry_block (get_condition ()) } };
+
+    throw ir_exception ("specified component was not in the loop component");
+  }
+
+  bool
+  ir_component_loop::
+  is_leaf (ir_component_cptr comp) noexcept
+  {
+    return is_condition (comp);
   }
 
   void
   ir_component_loop::
   generate_leaf_cache (void)
   {
-    throw ir_exception ("this should not run");
+    assert (leaf_cache_empty ());
+    leaves_append (get_condition ());
   }
 
-  bool
+  void
   ir_component_loop::
-  is_leaf_component (ir_component_handle comp) noexcept
+  recursive_flatten (void)
   {
-    return comp == m_condition;
+    maybe_get_as<ir_structure> (get_start ())     >>= &ir_structure::recursive_flatten;
+    maybe_get_as<ir_structure> (get_condition ()) >>= &ir_structure::recursive_flatten;
+    maybe_get_as<ir_structure> (get_body ())      >>= &ir_structure::recursive_flatten;
+    maybe_get_as<ir_structure> (get_update ())    >>= &ir_structure::recursive_flatten;
   }
 
 }

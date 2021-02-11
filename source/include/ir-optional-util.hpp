@@ -33,10 +33,9 @@ namespace gch
                std::invoke_result_t<Functor, just_t<Optional>, Args...>>
     {
       using ret_type = std::invoke_result_t<Functor, just_t<Optional>, Args...>;
-      if (opt)
-        return std::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
-                            std::forward<Args> (args)...);
-      return ret_type ();
+      return opt ? std::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
+                                std::forward<Args> (args)...)
+                 : ret_type ();
     }
 
     template <typename Optional, typename Functor, typename ...Args>
@@ -53,11 +52,9 @@ namespace gch
     {
       using ret_type = optional_ref<std::remove_reference_t<
         std::invoke_result_t<Functor, just_t<Optional>, Args...>>>;
-
-      if (opt)
-        return ret_type { std::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
-                                       std::forward<Args> (args)...) };
-      return nullopt;
+      return opt ? ret_type (std::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
+                                          std::forward<Args> (args)...))
+                 : ret_type ();
     }
 
     template <typename Optional, typename Functor, typename ...Args>
@@ -178,6 +175,36 @@ namespace gch
     return maybe_invoke (opt, f);
   }
 
+  template <typename T>
+  constexpr
+  auto
+  operator>>= (const std::optional<T>& opt, void (* f) (const T&))
+    -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
+                        maybe_invoke_result_t<decltype (opt), decltype (f)>>
+  {
+    return maybe_invoke (opt, f);
+  }
+
+  template <typename T>
+  constexpr
+  auto
+  operator>>= (std::optional<T>&& opt, void (* f) (T&&))
+    -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
+                        maybe_invoke_result_t<decltype (opt), decltype (f)>>
+  {
+    return maybe_invoke (opt, f);
+  }
+
+  template <typename T>
+  constexpr
+  auto
+  operator>>= (const std::optional<T>&& opt, void (* f) (const T&&))
+    -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
+                        maybe_invoke_result_t<decltype (opt), decltype (f)>>
+  {
+    return maybe_invoke (opt, f);
+  }
+
   template <typename T, typename Return>
   constexpr
   auto
@@ -186,6 +213,36 @@ namespace gch
                         maybe_invoke_result_t<decltype (opt), decltype (f)>>
   {
     return maybe_invoke (opt, f);
+  }
+
+  template <typename T, typename Return>
+  constexpr
+  auto
+  operator>>= (const std::optional<T>& opt, Return (* f) (const T&))
+    -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
+                        maybe_invoke_result_t<decltype (opt), decltype (f)>>
+  {
+    return maybe_invoke (opt, f);
+  }
+
+  template <typename T, typename Return>
+  constexpr
+  auto
+  operator>>= (std::optional<T>&& opt, Return (* f) (T&&))
+    -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
+                        maybe_invoke_result_t<decltype (opt), decltype (f)>>
+  {
+    return maybe_invoke (std::move (opt), f);
+  }
+
+  template <typename T, typename Return>
+  constexpr
+  auto
+  operator>>= (const std::optional<T>&& opt, Return (* f) (const T&&))
+    -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
+                        maybe_invoke_result_t<decltype (opt), decltype (f)>>
+  {
+    return maybe_invoke (std::move (opt), f);
   }
 
   template <typename T, typename Base, typename Return,
@@ -207,26 +264,6 @@ namespace gch
   auto
   operator>>= (std::optional<T>& opt, Return (Base::* f) (void) &)
     -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
-                      maybe_invoke_result_t<decltype (opt), decltype (f)>>
-  {
-    return maybe_invoke (opt, f);
-  }
-
-  template <typename T>
-  constexpr
-  auto
-  operator>>= (const std::optional<T>& opt, void (* f) (const T&))
-    -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
-                        maybe_invoke_result_t<decltype (opt), decltype (f)>>
-  {
-    return maybe_invoke (opt, f);
-  }
-
-  template <typename T, typename Return>
-  constexpr
-  auto
-  operator>>= (const std::optional<T>& opt, Return (* f) (const T&))
-    -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
                         maybe_invoke_result_t<decltype (opt), decltype (f)>>
   {
     return maybe_invoke (opt, f);
@@ -239,7 +276,7 @@ namespace gch
   auto
   operator>>= (const std::optional<T>& opt, Return (Base::* f) (void) const)
     -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
-                      maybe_invoke_result_t<decltype (opt), decltype (f)>>
+                        maybe_invoke_result_t<decltype (opt), decltype (f)>>
   {
     return maybe_invoke (opt, f);
   }
@@ -251,29 +288,9 @@ namespace gch
   auto
   operator>>= (const std::optional<T>& opt, Return (Base::* f) (void) const &)
     -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
-                    maybe_invoke_result_t<decltype (opt), decltype (f)>>
-  {
-    return maybe_invoke (opt, f);
-  }
-
-  template <typename T>
-  constexpr
-  auto
-  operator>>= (std::optional<T>&& opt, void (* f) (T&&))
-    -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
-                        maybe_invoke_result_t<decltype (opt), decltype (f)>>
-  {
-    return maybe_invoke (opt, f);
-  }
-
-  template <typename T, typename Return>
-  constexpr
-  auto
-  operator>>= (std::optional<T>&& opt, Return (* f) (T&&))
-    -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
                       maybe_invoke_result_t<decltype (opt), decltype (f)>>
   {
-    return maybe_invoke (std::move (opt), f);
+    return maybe_invoke (opt, f);
   }
 
   template <typename T, typename Base, typename Return,
@@ -283,7 +300,7 @@ namespace gch
   auto
   operator>>= (std::optional<T>&& opt, Return (Base::* f) (void))
     -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
-                      maybe_invoke_result_t<decltype (opt), decltype (f)>>
+                        maybe_invoke_result_t<decltype (opt), decltype (f)>>
   {
     return maybe_invoke (std::move (opt), f);
   }
@@ -295,27 +312,7 @@ namespace gch
   auto
   operator>>= (std::optional<T>&& opt, Return (Base::* f) (void) &&)
     -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
-                      maybe_invoke_result_t<decltype (opt), decltype (f)>>
-  {
-    return maybe_invoke (std::move (opt), f);
-  }
-
-  template <typename T>
-  constexpr
-  auto
-  operator>>= (const std::optional<T>&& opt, void (* f) (const T&&))
-    -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
                         maybe_invoke_result_t<decltype (opt), decltype (f)>>
-  {
-    return maybe_invoke (opt, f);
-  }
-
-  template <typename T, typename Return>
-  constexpr
-  auto
-  operator>>= (const std::optional<T>&& opt, Return (* f) (const T&&))
-    -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
-                      maybe_invoke_result_t<decltype (opt), decltype (f)>>
   {
     return maybe_invoke (std::move (opt), f);
   }
@@ -327,7 +324,7 @@ namespace gch
   auto
   operator>>= (const std::optional<T>&& opt, Return (Base::* f) (void) const)
     -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
-                      maybe_invoke_result_t<decltype (opt), decltype (f)>>
+                        maybe_invoke_result_t<decltype (opt), decltype (f)>>
   {
     return maybe_invoke (std::move (opt), f);
   }
@@ -339,9 +336,53 @@ namespace gch
   auto
   operator>>= (const std::optional<T>&& opt, Return (Base::* f) (void) const &&)
     -> std::enable_if_t<is_maybe_invocable_v<decltype (opt), decltype (f)>,
-                      maybe_invoke_result_t<decltype (opt), decltype (f)>>
+                        maybe_invoke_result_t<decltype (opt), decltype (f)>>
   {
     return maybe_invoke (std::move (opt), f);
+  }
+
+  template <typename T, typename Functor,
+    std::enable_if_t<
+      is_maybe_invocable_v<
+        std::optional<T>&, decltype (std::declval<Functor> () ()) (T&)>> * = nullptr>
+  constexpr
+  decltype (auto)
+  operator>> (std::optional<T>& opt, Functor&& f)
+  {
+    return opt >>= [&f](T&) { return std::forward<Functor> (f); };
+  }
+
+ template <typename T, typename Functor,
+    std::enable_if_t<
+      is_maybe_invocable_v<
+        const std::optional<T>&, decltype (std::declval<Functor> () ()) (const T&)>> * = nullptr>
+  constexpr
+  decltype (auto)
+  operator>> (const std::optional<T>& opt, Functor&& f)
+  {
+    return opt >>= [&f](const T&) { return std::forward<Functor> (f); };
+  }
+
+  template <typename T, typename Functor,
+    std::enable_if_t<
+      is_maybe_invocable_v<
+        std::optional<T>&&, decltype (std::declval<Functor> () ()) (T&&)>> * = nullptr>
+  constexpr
+  decltype (auto)
+  operator>> (std::optional<T>&& opt, Functor&& f)
+  {
+    return opt >>= [&f](T&&) { return std::forward<Functor> (f); };
+  }
+
+  template <typename T, typename Functor,
+    std::enable_if_t<
+      is_maybe_invocable_v<
+        const std::optional<T>&&, decltype (std::declval<Functor> () ()) (const T&&)>> * = nullptr>
+  constexpr
+  decltype (auto)
+  operator>> (const std::optional<T>&& opt, Functor&& f)
+  {
+    return opt >>= [&f](const T&&) { return std::forward<Functor> (f); };
   }
 
 }

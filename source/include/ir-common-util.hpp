@@ -25,8 +25,8 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "ir-common.hpp"
 
-#include <gch/optional_ref.hpp>
 #include <gch/nonnull_ptr.hpp>
+#include <gch/optional_ref.hpp>
 
 #include <iosfwd>
 #include <memory>
@@ -39,15 +39,45 @@ namespace gch
 {
   class ir_type;
 
+  class ir_exception : public std::exception
+  {
+  public:
+    explicit ir_exception (const char *str)
+      : m_str (str)
+    { }
+
+    explicit ir_exception (std::string str)
+      : m_str (std::move (str))
+    { }
+
+    const char* what (void) const noexcept override
+    {
+      return m_str.c_str ();
+    }
+
+  private:
+    std::string m_str;
+  };
+
+  template <typename T>
+  constexpr
+  std::remove_const_t<T>&
+  as_mutable (T& ref)
+  {
+    return const_cast<std::remove_const_t<T>&> (ref);
+  }
+
+  template <typename T>
+  void
+  as_mutable (const T&&) = delete;
+
   template <typename T>
   struct ir_printer
   {
     using ir_class = T;
 
     static std::ostream& short_print (std::ostream& os, const ir_class&);
-
-    static std::ostream& long_print (std::ostream& os, const ir_class&);
-
+    static std::ostream& long_print  (std::ostream& os, const ir_class&);
   };
 
   std::ostream& operator<< (std::ostream& os, const ir_type& ty);
@@ -55,24 +85,20 @@ namespace gch
   template <typename T>
   using is_pointer_ref = std::is_pointer<typename std::remove_reference<T>::type>;
 
-  template <typename T, typename S>
-  constexpr bool is_a (const S* x)
+  template <typename T, typename U>
+  inline
+  bool
+  is_a (U *x)
   {
-    return dynamic_cast<const T*> (x) != nullptr;
+    return dynamic_cast<const T *> (x) != nullptr;
   }
 
-  template <typename T, typename S,
-        typename std::enable_if<! std::is_pointer<S>::value>::type * = nullptr>
-  constexpr bool is_a (const S& x)
+  template <typename T, typename U>
+  inline
+  bool
+  is_a (U& x)
   {
-    return dynamic_cast<const T*> (&x) != nullptr;
-  }
-
-  template <typename T, typename S,
-          typename std::enable_if<std::is_pointer<S>::value>::type * = nullptr>
-  constexpr bool is_a (const S& x)
-  {
-    return dynamic_cast<const T*> (x) != nullptr;
+    return is_a<T> (&x);
   }
 
   template <typename ...Ts>
@@ -80,6 +106,7 @@ namespace gch
   {
     using Ts::operator()...;
   };
+
   template <typename ...Ts> overloaded (Ts...) -> overloaded<Ts...>;
 
   template <typename R, typename Overloaded>
@@ -106,52 +133,12 @@ namespace gch
     return overloaded_ret<R, overloaded<Ts...>> { std::forward<Ts> (ts)... };
   }
 
-  template <typename Optional, typename Function>
-  constexpr auto operator>>= (Optional&& opt, Function&& f)
-    -> std::enable_if_t<std::is_invocable_v<Function, decltype (*opt)>,
-                        decltype (std::invoke (std::forward<Function> (f), *opt))>
-  {
-    using ret_type = decltype (std::invoke (std::forward<Function> (f), *opt));
-    if (opt)
-      return std::invoke (std::forward<Function> (f), *opt);
-    return ret_type ();
-  }
-
-  // nonconst member function
-  template <typename Optional, typename Ret>
-  constexpr auto
-  operator>>= (Optional&& opt,
-               Ret (std::decay_t<decltype (*std::declval<Optional> ())>::*f) (void))
-  -> std::enable_if_t<std::is_invocable_v<decltype (f), decltype (*opt)>
-                  &&! std::is_const_v<decltype (*opt)>,
-                      decltype (std::invoke (f, *opt))>
-  {
-    using ret_type = decltype (std::invoke (f, *opt));
-    if (opt)
-      return std::invoke (f, *opt);
-    return ret_type ();
-  }
-
-  // const member function
-  template <typename Optional, typename Ret>
-  constexpr auto
-  operator>>= (Optional&& opt,
-               Ret (std::decay_t<decltype (*std::declval<Optional> ())>::*f) (void) const)
-    -> std::enable_if_t<std::is_invocable_v<decltype (f), decltype (*opt)>
-                    &&  std::is_const_v<decltype (*opt)>,
-                        decltype (std::invoke (f, *opt))>
-  {
-    using ret_type = decltype (std::invoke (f, *opt));
-    if (opt)
-      return std::invoke (f, *opt);
-    return ret_type ();
-  }
-
   template <typename Function>
   struct maybe
   {
     template <typename ...Args>
-    decltype (auto) operator() (Args&&... args)
+    decltype (auto)
+    operator() (Args&&... args)
     {
       return std::make_optional (std::invoke (m_func, std::forward<Args> (args)...));
     }
@@ -160,11 +147,25 @@ namespace gch
 
   template <typename Function> maybe (Function&&) -> maybe<Function>;
 
+  template <typename Optional, typename TrueFunction, typename FalseFunction>
+  constexpr
+  auto
+  conditional_transform (Optional&& opt, TrueFunction&& tf, FalseFunction&& ff)
+    -> std::enable_if_t<std::is_invocable_v<TrueFunction, decltype (*opt)>
+                    &&  std::is_invocable_v<FalseFunction>,
+                        decltype (std::invoke (std::forward<TrueFunction> (tf), *opt))>
+  {
+    if (opt)
+      return std::invoke (std::forward<TrueFunction> (tf), *opt);
+    return std::invoke (std::forward<FalseFunction> (ff));
+  }
+
   template <typename T, typename Function>
   struct selected
   {
     template <typename ...Args>
-    decltype (auto) operator() (Args&&... args)
+    decltype (auto)
+    operator() (Args&&... args)
     {
       return std::invoke (m_func, std::get<T> (std::forward<Args> (args))...);
     }
@@ -227,7 +228,7 @@ namespace gch
     ~contiguous_read_iterator (void)                                          = default;
 
 #ifdef NDEBUG
-    contiguous_iterator (void) = default;
+    contiguous_read_iterator (void) = default;
 #else
     constexpr
     contiguous_read_iterator (void) noexcept
@@ -490,6 +491,85 @@ namespace gch
   {
     return contiguous_read_iterator<std::remove_reference_t<decltype (*it)>> (*it);
   }
+
+  template <typename T>
+  class mover
+  {
+  public:
+    mover            (void)             = delete;
+    mover            (const mover&)     = default;
+    mover            (mover&&) noexcept = default;
+    mover& operator= (const mover&)     = default;
+    mover& operator= (mover&&) noexcept = default;
+    ~mover           (void)             = default;
+
+    constexpr explicit
+    mover (T& ref)
+      : m_ptr (ref)
+    { }
+
+    constexpr /* implicit */
+    mover (T&& ref)
+      : m_ptr (ref)
+    { }
+
+    constexpr /* implicit */
+    operator T&& (void) const
+    {
+      return std::move (*m_ptr);
+    }
+
+  private:
+    nonnull_ptr<T> m_ptr;
+  };
+
+  struct init_counter
+  {
+    init_counter (void) noexcept
+    {
+      reset_nums ();
+    }
+
+    init_counter (const init_counter&) noexcept
+    {
+      ++num_copies;
+    }
+
+    init_counter (init_counter&&) noexcept
+    {
+      ++num_moves;
+    }
+
+    init_counter&
+    operator= (const init_counter&) noexcept
+    {
+      ++num_copy_assigns;
+      return *this;
+    }
+
+    init_counter&
+    operator= (init_counter&&) noexcept
+    {
+      ++num_move_assigns;
+      return *this;
+    }
+
+    static
+    void
+    reset_nums (void)
+    {
+      num_copies       = 0;
+      num_moves        = 0;
+      num_copy_assigns = 0;
+      num_move_assigns = 0;
+    }
+
+    static inline std::size_t num_copies;
+    static inline std::size_t num_moves;
+    static inline std::size_t num_copy_assigns;
+    static inline std::size_t num_move_assigns;
+
+  };
 
 }
 

@@ -76,12 +76,12 @@ namespace gch
     template <typename T>
     friend
     optional_ref<T>
-    maybe_cast (ir_constant& c) noexcept;
+    maybe_get_as (ir_constant& c) noexcept;
 
     template <typename T>
     friend
     optional_ref<const T>
-    maybe_cast (const ir_constant& c) noexcept;
+    maybe_get_as (const ir_constant& c) noexcept;
 
     template <typename T, typename U>
     friend constexpr
@@ -95,14 +95,14 @@ namespace gch
 
   template <typename T>
   [[nodiscard]] optional_ref<T>
-  maybe_cast (ir_constant& c) noexcept
+  maybe_get_as (ir_constant& c) noexcept
   {
     return std::any_cast<T> (&c.m_data);
   }
 
   template <typename T>
   [[nodiscard]] optional_ref<const T>
-  maybe_cast (const ir_constant& c) noexcept
+  maybe_get_as (const ir_constant& c) noexcept
   {
     return std::any_cast<T> (&c.m_data);
   }

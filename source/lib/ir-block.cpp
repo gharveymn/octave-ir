@@ -58,18 +58,16 @@ namespace gch
   ir_incoming_node::
   ir_incoming_node (ir_def_timeline& parent, ir_block& incoming_block,
                                       ir_def_timeline& pred)
-    : base     (tag::bind, pred),
-      m_parent (parent),
+    : base             (tag::bind, pred),
+      m_parent         (parent),
       m_incoming_block (incoming_block)
   { }
 
   ir_incoming_node::
   ir_incoming_node (ir_def_timeline& parent, ir_block& incoming_block)
-    : m_parent (parent),
+    : m_parent         (parent),
       m_incoming_block (incoming_block)
-  {
-    // find all time
-  }
+  { }
 
   ir_incoming_node&
   ir_incoming_node::operator= (ir_incoming_node&& other) noexcept
@@ -208,7 +206,7 @@ namespace gch
   {
     m_incoming.erase (pos);
     if (m_incoming.empty ())
-      destroy_phi ();
+      destroy_incoming_timeline ();
   }
 
   auto
@@ -374,9 +372,154 @@ namespace gch
     return rcurr.base ();
   }
 
+  std::ptrdiff_t
+  ir_def_timeline::
+  num_instrs (citer pos) const noexcept
+  {
+    return std::distance (instr_begin (pos), instr_end (pos));
+  }
+
+  bool
+  ir_def_timeline::
+  has_instrs (citer pos) const noexcept
+  {
+    return instr_begin (pos) == instr_end (pos);
+  }
+
+  bool
+  ir_def_timeline::
+  has_incoming (void) const noexcept
+  {
+    return ! incoming_empty ();
+  }
+
+  bool
+  ir_def_timeline::
+  has_timelines (void) const noexcept
+  {
+    return ! timelines_empty<range::all> ();
+  }
+
+  bool
+  ir_def_timeline::
+  has_incoming_timeline (void) const noexcept
+  {
+    return ! timelines_empty<range::phi> ();
+  }
+
+  bool
+  ir_def_timeline::
+  has_local_timelines (void) const noexcept
+  {
+    return ! timelines_empty<range::body> ();
+  }
+
   ir_use_timeline&
   ir_def_timeline::
-  create_phi (void)
+  get_incoming_timeline (void) noexcept
+  {
+    return timelines_front<range::phi> ();
+  }
+
+  const ir_use_timeline&
+  ir_def_timeline::
+  get_incoming_timeline (void) const noexcept
+  {
+    return as_mutable (*this).get_incoming_timeline ();
+  }
+
+  optional_ref<ir_use_timeline>
+  ir_def_timeline::
+  maybe_get_incoming_timeline (void) noexcept
+  {
+    if (has_incoming_timeline ())
+      return optional_ref { get_incoming_timeline () };
+    return nullopt;
+  }
+
+  optional_ref<const ir_use_timeline>
+  ir_def_timeline::
+  maybe_get_incoming_timeline (void) const noexcept
+  {
+    return as_mutable (*this).maybe_get_incoming_timeline ();
+  }
+
+  [[nodiscard]]
+  optional_ref<ir_instruction>
+  ir_def_timeline::
+  maybe_get_incoming_instruction (void) noexcept
+  {
+    return maybe_get_incoming_timeline () >>= &ir_use_timeline::get_def_instruction;
+  }
+
+  optional_ref<const ir_instruction>
+  ir_def_timeline::
+  maybe_get_incoming_instruction (void) const noexcept
+  {
+    return as_mutable (*this).maybe_get_incoming_instruction ();
+  }
+
+  ir_use_timeline&
+  ir_def_timeline::
+  get_outgoing_timeline (void) noexcept
+  {
+    return timelines_back<range::all> ();
+  }
+
+  const ir_use_timeline&
+  ir_def_timeline::
+  get_outgoing_timeline (void) const noexcept
+  {
+    return as_mutable (*this).get_outgoing_timeline ();
+  }
+
+  optional_ref<ir_use_timeline>
+  ir_def_timeline::
+  maybe_get_outgoing_timeline (void) noexcept
+  {
+    if (has_timelines ())
+      return optional_ref { get_outgoing_timeline () };
+    return nullopt;
+  }
+
+  optional_cref<ir_use_timeline>
+  ir_def_timeline::
+  maybe_get_outgoing_timeline (void) const noexcept
+  {
+    return as_mutable (*this).maybe_get_outgoing_timeline ();
+  }
+
+  ir_def&
+  ir_def_timeline::
+  get_outgoing_def (void) noexcept
+  {
+    return get_outgoing_timeline ().get_def ();
+  }
+
+  const ir_def&
+  ir_def_timeline::
+  get_outgoing_def (void) const noexcept
+  {
+    return as_mutable (*this).get_outgoing_def ();
+  }
+
+  optional_ref<ir_def>
+  ir_def_timeline::
+  maybe_get_outgoing_def (void) noexcept
+  {
+    return maybe_get_outgoing_timeline () >>= &ir_use_timeline::get_def;
+  }
+
+  optional_cref<ir_def>
+  ir_def_timeline::
+  maybe_get_outgoing_def (void) const noexcept
+  {
+    return as_mutable (*this).maybe_get_outgoing_def ();
+  }
+
+  ir_use_timeline&
+  ir_def_timeline::
+  create_incoming_timeline (void)
   {
     instr_iter phi_it = m_block->append_phi (*m_var);
     try
@@ -392,7 +535,7 @@ namespace gch
 
   void
   ir_def_timeline::
-  destroy_phi (void)
+  destroy_incoming_timeline (void)
   {
     if (timelines_empty<range::phi> ())
       throw ir_exception ("could not find phi in def timeline");
@@ -489,8 +632,8 @@ namespace gch
     return dt_rcurr;
   }
 
-  ir_use_timeline&
-  ir_block::get_latest_timeline (ir_def_timeline& dt)
+  optional_ref<ir_use_timeline>
+  ir_block::get_latest_timeline (ir_variable& var)
   {
     if (dt.defs_empty ())
     {
@@ -649,7 +792,6 @@ namespace gch
   std::vector<nonnull_ptr<ir_def_timeline>>
   ir_block::forward_incoming_timelines (ir_variable& var)
   {
-
 
     // collect associated blocks and timelines
     std::vector<ir_associated_incoming> incoming_assoc;
@@ -863,7 +1005,7 @@ namespace gch
     auto found = std::find_if (get<range::undef> ().rbegin (), get<range::undef> ().rend (),
                                [&undef_var](ir_instruction& instr)
                                {
-                                 return &instr.get_return ().get_var () == &undef_var;
+                                 return &instr.get_return ().get_variable () == &undef_var;
                                });
 
     if (found != get<range::undef> ().rend ())
@@ -938,7 +1080,7 @@ namespace gch
     if (will_return (*pos))
     {
       // do some stuff to relink the dependent uses
-      ir_def_timeline& dt = get_def_timeline (pos->get_return ().get_var ());
+      ir_def_timeline& dt = get_def_timeline (pos->get_return ().get_variable ());
       if (! dt.has_timelines ())
       {
         // need to terminate
@@ -973,9 +1115,10 @@ namespace gch
                        return;
 
                      const ir_def& d = instr.get_return ();
-                     if (std::none_of (unlinked_vars.begin (), unlinked_vars.end (), &d.get_var ()))
+                     if (std::none_of (unlinked_vars.begin (), unlinked_vars.end (), &d
+                       .get_variable ()))
                      {
-                       ir_def_timeline& dt = *find_def_timeline (d.get_var ());
+                       ir_def_timeline& dt = *find_def_timeline (d.get_variable ());
                        if (! dt.has_timelines ())
                        {
                          // need to terminate
@@ -1000,7 +1143,7 @@ namespace gch
                          found_tl.splice_back (*def_tl);
                          dt.erase (dt.local_begin (), def_tl.base ());
                        }
-                       unlinked_vars.emplace_back (d.get_var ());
+                       unlinked_vars.emplace_back (d.get_variable ());
                      }
                    });
     return erase<range::body> (first, last);
@@ -1054,40 +1197,26 @@ namespace gch
                          }).base ();
   }
 
-  ir_component::link_iter
-  ir_block::preds_begin (void)
+  bool
+  ir_block::
+  reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
+                         ir_def_timeline& new_dt, std::vector<nonnull_ptr<ir_block>>& until)
   {
-    return get_parent ().preds_begin (*this);
-  }
+    auto found = std::find (until.begin (), until.end (), this);
+    if (found != until.end ())
+    {
+      until.erase (found);
+      return true;
+    }
 
-  ir_component::link_iter
-  ir_block::preds_end (void)
-  {
-    return get_parent ().preds_end (*this);
-  }
-
-  std::size_t
-  ir_block::num_preds (void)
-  {
-    return get_parent ().num_preds (*this);
-  }
-
-  ir_component::link_iter
-  ir_block::succs_begin (void)
-  {
-    return get_parent ().succs_begin (*this);
-  }
-
-  ir_component::link_iter
-  ir_block::succs_end (void)
-  {
-    return get_parent ().succs_end (*this);
-  }
-
-  std::size_t
-  ir_block::num_succs (void)
-  {
-    return get_parent ().num_succs (*this);
+    ir_variable& var = new_dt.get_variable ();
+    if (optional_ref local_dt { find_def_timeline (var) })
+    {
+      assert (local_dt->has_timelines () && "def timeline should not be empty");
+      if (local_dt->has_incoming ())
+      return true;
+    }
+    return false;
   }
 
   void

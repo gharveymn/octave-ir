@@ -22,6 +22,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "ir-block.hpp"
 #include "ir-instruction.hpp"
+#include "ir-optional-util.hpp"
 #include "ir-variable.hpp"
 #include <algorithm>
 #include <list>
@@ -32,5 +33,39 @@ namespace gch
   //
   // ir_instruction
   //
+
+  ir_instruction::
+  ir_instruction (ir_instruction&& other) noexcept
+    : m_metadata (other.m_metadata),
+      m_return   (other.m_return ? std::optional<ir_def> (std::in_place,
+                                                          std::move (*other.m_return), *this)
+                                 : std::nullopt),
+      m_args     (std::move (other.m_args))
+  {
+    std::for_each (m_args.begin (), m_args.end (),
+                   [this](ir_operand& arg)
+                   {
+                     maybe_get<ir_use> (arg) >>= [this](ir_use& u) { u.set_instruction (*this); };
+                   });
+  }
+
+  void
+  ir_instruction::
+  set_return (std::optional<ir_def>&& ret)
+  {
+    (m_return = std::move (ret)) >>= [this](ir_def& d) { d.set_instruction (*this); };
+  }
+
+  void
+  ir_instruction::
+  set_args (args_container_type&& args)
+  {
+    m_args = std::move (args);
+    std::for_each (m_args.begin (), m_args.end (),
+                   [this](ir_operand& arg)
+                   {
+                     maybe_get<ir_use> (arg) >>= [this](ir_use& u) { u.set_instruction (*this); };
+                   });
+  }
 
 }

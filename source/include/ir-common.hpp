@@ -27,133 +27,37 @@ along with Octave; see the file COPYING.  If not, see
 #include <exception>
 #include <string>
 
-#define PRINT_SIZE(TYPE) \
-char (*__fail)(void)[sizeof(TYPE)] = 1;
+#define GCH_PRINT_SIZE(TYPE) \
+char (*__gch__fail) (void)[sizeof(TYPE)] = 1;
 
-#define strcat_(x, y) x ## y
-#define strcat(x, y) strcat_(x, y)
-#define PRINT_VALUE(x) \
-template <int> struct strcat(strcat(value_of_, x), _is); \
-static_assert(strcat(strcat(value_of_, x), _is)<x>::x, "");
+#define GCH_STRCAT_(x, y) x ## y
+#define GCH_STRCAT(x, y) GCH_STRCAT_(x, y)
+#define GCH_PRINT_VALUE(x) \
+template <int> struct GCH_STRCAT(GCH_STRCAT(value_of_, x), _is); \
+static_assert(GCH_STRCAT(GCH_STRCAT(value_of_, x), _is)<x>::x, " ");
+
+#ifndef GCH_ACCUMULATE_REF
+#  if __cplusplus > 201703L
+#    define GCH_ACCUMULATE_LHS(TYPE) TYPE&&
+#  else
+#    define GCH_ACCUMULATE_LHS(TYPE) TYPE&
+#  endif
+#endif
 
 class octave_base_value;
 namespace gch
 {
+  inline constexpr
+  bool
+  OCTAVE_IR_DEBUG
 #ifdef NDEBUG
-  inline constexpr bool OCTAVE_IR_DEBUG = false;
+    = false;
 #else
-  inline constexpr bool OCTAVE_IR_DEBUG = true;
+    = true;
 #endif
 
   using any = octave_base_value *;
   using single = float;
-
-  class ir_exception : public std::exception
-  {
-  public:
-    explicit ir_exception (const char *str)
-    : m_str (str)
-    { }
-
-    explicit ir_exception (std::string str)
-    : m_str (std::move (str))
-    { }
-
-    const char* what (void) const noexcept override
-    {
-      return m_str.c_str ();
-    }
-
-  private:
-    std::string m_str;
-  };
-
-//  template <typename T, typename = void>
-//  struct is_char : std::false_type
-//  { };
-//
-//  template <typename T>
-//  struct is_char<
-//    T,
-//    std::enable_if<
-//      disjunction<
-//        std::is_same<char, typename std::remove_cv<T>::type>,
-//        std::is_same<wchar_t, typename std::remove_cv<T>::type>,
-//        std::is_same<char16_t, typename std::remove_cv<T>::type>,
-//        std::is_same<char32_t, typename std::remove_cv<T>::type>
-//      >::value
-//    >
-//  > : std::true_type
-//  { };
-//
-//#if __cpp_char8_t >= 201811L
-//  template <typename T>
-//  struct is_char<
-//           T,
-//           typename std::enable_if<
-//               std::is_same<char8_t, typename std::remove_cv<T>::type>>::value
-//           >::type
-//         > : std::true_type
-//  { };
-//  static_assert (is_char<const volatile char8_t>::value, "is_char not working");
-//  static_assert (is_char<char8_t>::value, "is_char not working");
-//#endif
-//
-//  template <typename T, typename = void>
-//  struct is_string : std::false_type
-//  { };
-//
-//  // check if std::basic_string
-//  template <template <typename ...> class S, typename ...Ts>
-//  struct is_string<
-//    S<Ts...>,
-//    std::enable_if_t<
-//      std::is_same<std::basic_string<Ts...>, S<Ts...>>::value
-//    >
-//  > : std::true_type
-//  { };
-//
-//  // check if const std::basic_string
-//  template <template <typename ...> class S, typename ...Ts>
-//  struct is_string<const S<Ts...>> : is_string<S<Ts...>>
-//  { };
-//
-//  // check if c-string
-//  template <typename T>
-//  struct is_string<
-//    T *,
-//    std::enable_if_t<is_char<T>::value>
-//  > : std::true_type
-//  { };
-//
-//  // check if array c-string
-//  template <typename T>
-//  struct is_string<
-//    T[],
-//    std::enable_if_t<is_char<T>::value>
-//  > : std::true_type
-//  { };
-//
-//  // map the type to another type
-//  // useful for deferring resolution
-//  template <typename T, typename B>
-//  struct map_to : B
-//  { };
-//
-//  template <typename T>
-//  struct map_to_true : std::true_type
-//  { };
-//
-//  template <typename T>
-//  struct map_to_false : std::false_type
-//  { };
-
-//  template <typename T> using iter   = typename T::iterator;
-//  template <typename T> using citer  = typename T::const_iterator;
-//  template <typename T> using riter  = typename T::reverse_iterator;
-//  template <typename T> using criter = typename T::const_reverse_iterator;
-//  template <typename T> using ref    = typename T::reference;
-//  template <typename T> using cref   = typename T::const_reference;
 
   namespace detail
   {

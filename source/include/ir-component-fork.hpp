@@ -12,97 +12,239 @@
 
 namespace gch
 {
-  class ir_component_fork : public ir_structure
+
+  class ir_component_fork;
+
+  template <>
+  struct ir_subcomponent_type_t<ir_component_fork>
+  {
+    explicit ir_subcomponent_type_t (void) = default;
+  };
+
+  class ir_component_fork
+    : public ir_substructure
   {
   public:
-    using component_container     = std::vector<ir_component_storage>;
-    using iterator                = typename component_container::iterator;
-    using const_iterator          = typename component_container::const_iterator;
-    using reverse_iterator        = typename component_container::reverse_iterator;
-    using const_reverse_iterator  = typename component_container::const_reverse_iterator;
-    using reference               = typename component_container::reference;
-    using const_reference         = typename component_container::const_reference;
-    using value_type              = typename component_container::value_type;
-    using allocator_type          = typename component_container::allocator_type;
-    using size_type               = typename component_container::size_type;
-    using difference_type         = typename component_container::difference_type;
+    using component_container = std::vector<ir_component_storage>;
+    using container_iter      = typename component_container::iterator;
+    using container_citer     = typename component_container::const_iterator;
+    using container_riter     = typename component_container::reverse_iterator;
+    using container_criter    = typename component_container::const_reverse_iterator;
+    using container_ref       = typename component_container::reference;
+    using container_cref      = typename component_container::const_reference;
+    using container_val_t     = typename component_container::value_type;
+    using container_alloc_t   = typename component_container::allocator_type;
+    using container_size_t    = typename component_container::size_type;
+    using container_diff_t    = typename component_container::difference_type;
 
-    using iter    = iterator;
-    using citer   = const_iterator;
-    using riter   = reverse_iterator;
-    using criter  = const_reverse_iterator;
-    using ref     = reference;
-    using cref    = const_reference;
-    using val_t   = value_type;
-    using alloc_t = allocator_type;
-    using size_t  = size_type;
-    using diff_t  = difference_type;
+  private:
+    class find_cache
+    {
+    public:
 
-    ir_component_fork (void)                         = delete;
-    ir_component_fork (const ir_component_fork&)     = delete;
-    ir_component_fork (ir_component_fork&&) noexcept = delete;
+      find_cache            (void)                  = default;
+      find_cache            (const find_cache&)     = default;
+      find_cache            (find_cache&&) noexcept = default;
+      find_cache& operator= (const find_cache&)     = default;
+      find_cache& operator= (find_cache&&) noexcept = default;
+      ~find_cache           (void)                  = default;
+
+      explicit
+      find_cache (ir_component_handle it) noexcept
+        : m_handle (it)
+      { }
+
+      void
+      emplace (ir_component_handle it) noexcept
+      {
+        m_handle = it;
+      }
+
+      [[nodiscard]] constexpr
+      bool
+      contains (const ir_component& c) const noexcept
+      {
+        return &c == m_handle;
+      }
+
+      [[nodiscard]]
+      ir_component_handle
+      get (void) const noexcept
+      {
+        return m_handle;
+      }
+
+    private:
+      ir_component_handle m_handle;
+    };
+
+  public:
+    ir_component_fork (void)                                    = delete;
+    ir_component_fork (const ir_component_fork&)                = delete;
+    ir_component_fork (ir_component_fork&&) noexcept            = delete;
     ir_component_fork& operator= (const ir_component_fork&)     = delete;
     ir_component_fork& operator= (ir_component_fork&&) noexcept = delete;
     ~ir_component_fork (void)       noexcept override;
 
-    explicit ir_component_fork (ir_structure& parent)
-      : ir_structure (parent),
-        m_condition (create_component<ir_condition_block> (*this))
-    { }
+    explicit
+    ir_component_fork (ir_structure& parent);
 
     [[nodiscard]] constexpr
-    ir_component_handle
-    get_condition_component (void) const noexcept
+    ir_component_ptr
+    get_condition (void) noexcept
     {
-      ir_component_handle x { m_condition };
-      return m_condition;
+      return ir_component_ptr { &m_condition };
+    }
+
+    [[nodiscard]] constexpr
+    ir_component_cptr
+    get_condition (void) const noexcept
+    {
+      return ir_component_cptr { &m_condition };
     }
 
     [[nodiscard]] constexpr
     bool
-    is_condition_component (ir_component_handle comp) const noexcept
+    is_condition (ir_component_cptr comp) const noexcept
     {
-      return comp == get_condition_component ();
+      return comp == get_condition ();
+    }
+
+    [[nodiscard]] constexpr
+    bool
+    is_condition (const ir_component& c) const noexcept
+    {
+      return &c == get_condition ();
     }
 
     [[nodiscard]]
-    std::list<nonnull_ptr<ir_def>>
-    get_latest_defs (ir_variable& var) noexcept override
+    ptr
+    cases_begin (void) noexcept
     {
-      bool condition_visited = false;
-      std::list<nonnull_ptr<ir_def>> ret;
-
-      for (auto&& comp : m_subcomponents)
-      {
-        auto defs = comp->get_latest_defs (var);
-        if (defs.empty ())
-        {
-          if (! condition_visited)
-          {
-            ret.splice (ret.end (), m_condition.get_latest_defs (var));
-            condition_visited = true;
-          }
-        }
-        else
-        {
-          ret.splice (ret.end (), defs);
-        }
-      }
-      return ret;
+      return make_ptr (m_cases.begin ());
     }
 
     [[nodiscard]]
-    std::list<nonnull_ptr<ir_def>>
-    get_latest_defs_before (ir_variable& var, component_handle comp) override
+    cptr
+    cases_begin (void) const noexcept
     {
-      if (comp->get () == &m_condition)
-        return { };
-      return m_condition.get_latest_defs (var);
+      return make_ptr (m_cases.begin ());
+    }
+
+    [[nodiscard]]
+    cptr
+    cases_cbegin (void) const noexcept
+    {
+      return as_mutable (*this).cases_begin ();
+    }
+
+    [[nodiscard]]
+    ptr
+    cases_end (void) noexcept
+    {
+      return make_ptr (m_cases.end ());
+    }
+
+    [[nodiscard]]
+    cptr
+    cases_end (void) const noexcept
+    {
+      return make_ptr (m_cases.end ());
+    }
+
+    [[nodiscard]]
+    cptr
+    cases_cend (void) const noexcept
+    {
+      return as_mutable (*this).cases_end ();
+    }
+
+    [[nodiscard]]
+    rptr
+    cases_rbegin (void) noexcept
+    {
+      return std::make_reverse_iterator (cases_end ());
+    }
+
+    [[nodiscard]]
+    crptr
+    cases_rbegin (void) const noexcept
+    {
+      return std::make_reverse_iterator (cases_end ());
+    }
+
+    [[nodiscard]]
+    crptr
+    cases_crbegin (void) const noexcept
+    {
+      return as_mutable (*this).cases_rbegin ();
+    }
+
+    [[nodiscard]]
+    rptr
+    cases_rend (void) noexcept
+    {
+      return std::make_reverse_iterator (cases_begin ());
+    }
+
+    [[nodiscard]]
+    crptr
+    cases_rend (void) const noexcept
+    {
+      return std::make_reverse_iterator (cases_begin ());
+    }
+
+    [[nodiscard]]
+    crptr
+    cases_crend (void) const noexcept
+    {
+      return as_mutable (*this).cases_rend ();
+    }
+
+    [[nodiscard]]
+    size_ty
+    cases_size (void) const noexcept
+    {
+      return m_cases.size ();
+    }
+
+    [[nodiscard]]
+    bool
+    cases_empty (void) const noexcept
+    {
+      return m_cases.empty ();
+    }
+
+    [[nodiscard]]
+    ptr
+    find_case (ir_component& c) const;
+
+    [[nodiscard]]
+    cptr
+    find_case (const ir_component& c) const
+    {
+      return find_case (as_mutable (c));
+    }
+
+    [[nodiscard]]
+    ptr
+    find (ir_component& c) const;
+
+    [[nodiscard]]
+    cptr
+    find (const ir_component& c) const
+    {
+      return find (as_mutable (c));
     }
 
     //
     // virtual from ir_component
     //
+
+    bool
+    reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
+                           ir_def_timeline& new_dt,
+                           std::vector<nonnull_ptr<ir_block>>& until) override;
 
     void
     reset (void) noexcept override;
@@ -112,41 +254,40 @@ namespace gch
     //
 
     [[nodiscard]]
-    ir_component_handle
-    get_entry_component (void) override;
+    ir_component_ptr
+    get_ptr (ir_component& c) const override;
 
     [[nodiscard]]
-    ir_component_handle
-    get_handle (const ir_component& c) const override;
+    ir_component_ptr
+    get_entry_ptr (void) override;
 
-    link_vector
-    get_preds (ir_component_handle comp) override;
+    [[nodiscard]]
+    ir_link_set
+    get_predecessors (ir_component_cptr comp) override;
 
-    link_vector
-    get_succs (ir_component_handle comp) override;
+    [[nodiscard]]
+    ir_link_set
+    get_successors (ir_component_cptr comp) override;
 
-    ir_use_timeline&
-    join_incoming_at (ir_component_handle& block_handle, ir_def_timeline& dt) override;
+    [[nodiscard]]
+    bool
+    is_leaf (ir_component_cptr comp) noexcept override;
 
     void
     generate_leaf_cache (void) override;
 
-    [[nodiscard]]
-    bool
-    is_leaf_component (ir_component_handle comp) noexcept override;
+    ir_use_timeline&
+    join_incoming_at (ir_component_ptr pos, ir_def_timeline& dt) override;
+
+    void
+    recursive_flatten (void) override;
 
   private:
-    link_iter sub_entry_begin (void);
-    link_iter sub_entry_end   (void);
-
-    void generate_sub_entry_cache (void);
-
     ir_component_storage m_condition;
-    component_container m_subcomponents;
-
-    // holds entry blocks for subcomponents
-    link_vector m_sub_entry_cache;
+    component_container  m_cases;
+    mutable find_cache   m_find_cache;
   };
+
 }
 
 #endif // OCTAVE_IR_IR_COMPONENT_FORK_HPP

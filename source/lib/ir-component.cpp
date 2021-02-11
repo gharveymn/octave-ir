@@ -27,20 +27,34 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-component.hpp"
 #include "ir-function.hpp"
 #include "ir-structure.hpp"
+#include "ir-block.hpp"
 
 namespace gch
 {
+
   ir_component::
   ~ir_component (void) noexcept = default;
 
   ir_function&
   get_function (ir_component& c)
   {
-    for (optional_ref curr { c }; curr.has_value (); curr = curr->maybe_get_parent ())
+    for (optional_ref curr { c }; curr; curr = curr->maybe_get_parent ())
     {
-      if (optional_ref opt_func { dynamic_cast<ir_function *> (curr.get_pointer ()) })
+      if (optional_ref opt_func { maybe_cast<ir_function> (curr) })
         return *opt_func;
     }
     throw ir_exception ("function not found");
   }
+
+  ir_block&
+  get_entry_block (ir_component& c)
+  {
+    nonnull_ptr<ir_component> curr { c };
+    while (optional_ref s { maybe_cast<ir_structure> (curr) })
+      curr = *s->get_entry_ptr ();
+
+    assert (is_a<ir_block> (curr));
+    return static_cast<ir_block&> (*curr);
+  }
+
 }

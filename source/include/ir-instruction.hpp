@@ -240,66 +240,59 @@ namespace gch
     }
 
   private:
-    template <ir_opcode Op>
     [[nodiscard]]
     static constexpr
     impl
-    create_type (const char* name, bool will_return, arity n = arity::n_ary,
+    create_type (ir_opcode Op, const char* name, bool will_return, arity n = arity::n_ary,
                  bool is_abstract = false) noexcept
     {
       return { name, nullptr, Op, n, will_return, is_abstract };
     }
 
-    template <ir_opcode Op>
     [[nodiscard]]
     static constexpr
     impl
-    create_type (const char* name, bool will_return, bool is_abstract = false) noexcept
+    create_type (ir_opcode Op, const char* name, bool will_return,
+                 bool is_abstract = false) noexcept
     {
       return { name, nullptr, Op, arity::n_ary, will_return, is_abstract };
     }
 
-    template <ir_opcode Op>
     [[nodiscard]]
     static constexpr
     impl
-    create_type (const char* name, arity n = arity::n_ary, bool is_abstract = false) noexcept
+    create_type (ir_opcode Op, const char* name, arity n = arity::n_ary,
+                 bool is_abstract = false) noexcept
     {
       return { name, nullptr, Op, n, false, is_abstract };
     }
 
-    template <ir_opcode Op>
-    [[nodiscard]]
-    constexpr
+    [[nodiscard]] constexpr
     impl
-    derive (const char* name, bool will_return, bool is_abstract = false) const noexcept
+    derive (ir_opcode Op, const char* name, bool will_return,
+            bool is_abstract = false) const noexcept
     {
       return { name, m_ptr, Op, get_arity (), will_return, is_abstract };
     }
 
-    template <ir_opcode Op>
-    [[nodiscard]]
-    constexpr
+    [[nodiscard]] constexpr
     impl
-    derive (const char* name, bool will_return, arity n, bool is_abstract = false) const noexcept
+    derive (ir_opcode Op, const char* name, bool will_return, arity n,
+            bool is_abstract = false) const noexcept
     {
       return { name, m_ptr, Op, n, will_return, is_abstract };
     }
 
-    template <ir_opcode Op>
-    [[nodiscard]]
-    constexpr
+    [[nodiscard]] constexpr
     impl
-    derive (const char* name, arity n, bool is_abstract = false) const noexcept
+    derive (ir_opcode Op, const char* name, arity n, bool is_abstract = false) const noexcept
     {
       return { name, m_ptr, Op, n, will_return (), is_abstract };
     }
 
-    template <ir_opcode Op>
-    [[nodiscard]]
-    constexpr
+    [[nodiscard]] constexpr
     impl
-    derive (const char* name, bool is_abstract = false) const noexcept
+    derive (ir_opcode Op, const char* name, bool is_abstract = false) const noexcept
     {
       return { name, m_ptr, Op, get_arity (), will_return (), is_abstract };
     }
@@ -321,56 +314,56 @@ namespace gch
     return ! (lhs == rhs);
   }
 
-  template <> struct ir_instruction_metadata::instance<ir_opcode::phi>     { static constexpr impl data { create_type<ir_opcode::phi>     ("phi",     true, arity::n_ary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::assign>  { static constexpr impl data { create_type<ir_opcode::assign>  ("assign",  true, arity::unary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::call>    { static constexpr impl data { create_type<ir_opcode::call>    ("call",    true, arity::n_ary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::fetch>   { static constexpr impl data { create_type<ir_opcode::fetch>   ("fetch",   true, arity::unary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::convert> { static constexpr impl data { create_type<ir_opcode::convert> ("convert", true, arity::unary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::phi>     { static constexpr impl data { create_type (ir_opcode::phi,     "phi",     true, arity::n_ary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::assign>  { static constexpr impl data { create_type (ir_opcode::assign,  "assign",  true, arity::unary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::call>    { static constexpr impl data { create_type (ir_opcode::call,    "call",    true, arity::n_ary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::fetch>   { static constexpr impl data { create_type (ir_opcode::fetch,   "fetch",   true, arity::unary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::convert> { static constexpr impl data { create_type (ir_opcode::convert, "convert", true, arity::unary) }; };
 
-  template <> struct ir_instruction_metadata::instance<ir_opcode::branch>   { static constexpr impl data { create_type<ir_opcode::branch> ("branch", false, arity::n_ary) }; };     // abstract
-  template <> struct ir_instruction_metadata::instance<ir_opcode::cbranch>  { static constexpr impl data { get<ir_opcode::branch> ().derive<ir_opcode::cbranch>  ("br",  arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::ucbranch> { static constexpr impl data { get<ir_opcode::branch> ().derive<ir_opcode::ucbranch> ("ubr", arity::unary)  }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::branch>   { static constexpr impl data { create_type (ir_opcode::branch, "branch", false, arity::n_ary) }; };     // abstract
+  template <> struct ir_instruction_metadata::instance<ir_opcode::cbranch>  { static constexpr impl data { get<ir_opcode::branch> ().derive (ir_opcode::cbranch,  "br",  arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::ucbranch> { static constexpr impl data { get<ir_opcode::branch> ().derive (ir_opcode::ucbranch, "ubr", arity::unary)  }; };
 
-  template <> struct ir_instruction_metadata::instance<ir_opcode::relation> { static constexpr impl data { create_type<ir_opcode::relation> ("relation", true, arity::binary, true) }; };     // abstract
-  template <> struct ir_instruction_metadata::instance<ir_opcode::eq>       { static constexpr impl data { get<ir_opcode::relation> ().derive<ir_opcode::eq> ("==") }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::ne>       { static constexpr impl data { get<ir_opcode::relation> ().derive<ir_opcode::ne> ("!=") }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::lt>       { static constexpr impl data { get<ir_opcode::relation> ().derive<ir_opcode::lt> ("<") }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::le>       { static constexpr impl data { get<ir_opcode::relation> ().derive<ir_opcode::le> ("<=") }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::gt>       { static constexpr impl data { get<ir_opcode::relation> ().derive<ir_opcode::gt> (">") }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::ge>       { static constexpr impl data { get<ir_opcode::relation> ().derive<ir_opcode::ge> (">=") }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::relation> { static constexpr impl data { create_type (ir_opcode::relation, "relation", true, arity::binary, true) }; };     // abstract
+  template <> struct ir_instruction_metadata::instance<ir_opcode::eq>       { static constexpr impl data { get<ir_opcode::relation> ().derive (ir_opcode::eq, "==") }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::ne>       { static constexpr impl data { get<ir_opcode::relation> ().derive (ir_opcode::ne, "!=") }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::lt>       { static constexpr impl data { get<ir_opcode::relation> ().derive (ir_opcode::lt, "<" ) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::le>       { static constexpr impl data { get<ir_opcode::relation> ().derive (ir_opcode::le, "<=") }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::gt>       { static constexpr impl data { get<ir_opcode::relation> ().derive (ir_opcode::gt, ">" ) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::ge>       { static constexpr impl data { get<ir_opcode::relation> ().derive (ir_opcode::ge, ">=") }; };
 
-  template <> struct ir_instruction_metadata::instance<ir_opcode::arithmetic> { static constexpr impl data { create_type<ir_opcode::arithmetic> ("arithmetic", true, true) }; };   // abstract
-  template <> struct ir_instruction_metadata::instance<ir_opcode::add>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive<ir_opcode::add> ("+",   arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::sub>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive<ir_opcode::sub> ("-",   arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::mul>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive<ir_opcode::mul> ("*",   arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::div>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive<ir_opcode::div> ("/",   arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::mod>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive<ir_opcode::mod> ("%",   arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::rem>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive<ir_opcode::rem> ("rem", arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::neg>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive<ir_opcode::neg> ("-",   arity::unary)  }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::arithmetic> { static constexpr impl data { create_type (ir_opcode::arithmetic, "arithmetic", true, true) }; };   // abstract
+  template <> struct ir_instruction_metadata::instance<ir_opcode::add>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive (ir_opcode::add, "+",   arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::sub>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive (ir_opcode::sub, "-",   arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::mul>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive (ir_opcode::mul, "*",   arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::div>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive (ir_opcode::div, "/",   arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::mod>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive (ir_opcode::mod, "%",   arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::rem>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive (ir_opcode::rem, "rem", arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::neg>        { static constexpr impl data { get<ir_opcode::arithmetic> ().derive (ir_opcode::neg, "-",   arity::unary ) }; };
 
-  template <> struct ir_instruction_metadata::instance<ir_opcode::logical> { static constexpr impl data { create_type<ir_opcode::logical> ("logical", true, true) }; };      // abstract
-  template <> struct ir_instruction_metadata::instance<ir_opcode::land>    { static constexpr impl data { get<ir_opcode::logical> ().derive<ir_opcode::land> ("&&", arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::lor>     { static constexpr impl data { get<ir_opcode::logical> ().derive<ir_opcode::lor>  ("||", arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::lnot>    { static constexpr impl data { get<ir_opcode::logical> ().derive<ir_opcode::lnot> ("!",  arity::unary)  }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::logical> { static constexpr impl data { create_type (ir_opcode::logical, "logical", true, true) }; };      // abstract
+  template <> struct ir_instruction_metadata::instance<ir_opcode::land>    { static constexpr impl data { get<ir_opcode::logical> ().derive (ir_opcode::land, "&&", arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::lor>     { static constexpr impl data { get<ir_opcode::logical> ().derive (ir_opcode::lor,  "||", arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::lnot>    { static constexpr impl data { get<ir_opcode::logical> ().derive (ir_opcode::lnot, "!",  arity::unary ) }; };
 
-  template <> struct ir_instruction_metadata::instance<ir_opcode::bitwise>  { static constexpr impl data { create_type<ir_opcode::bitwise> ("bitwise", true, true) }; };      // abstract
-  template <> struct ir_instruction_metadata::instance<ir_opcode::band>     { static constexpr impl data { get<ir_opcode::bitwise> ().derive<ir_opcode::band>     ("&",  arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::bor>      { static constexpr impl data { get<ir_opcode::bitwise> ().derive<ir_opcode::bor>      ("|",  arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::bxor>     { static constexpr impl data { get<ir_opcode::bitwise> ().derive<ir_opcode::bxor>     ("^",  arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::bshiftl>  { static constexpr impl data { get<ir_opcode::bitwise> ().derive<ir_opcode::bshiftl>  ("<<", arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::bashiftr> { static constexpr impl data { get<ir_opcode::bitwise> ().derive<ir_opcode::bashiftr> (">>", arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::blshiftr> { static constexpr impl data { get<ir_opcode::bitwise> ().derive<ir_opcode::blshiftr> (">>", arity::binary) }; };
-  template <> struct ir_instruction_metadata::instance<ir_opcode::bnot>     { static constexpr impl data { get<ir_opcode::bitwise> ().derive<ir_opcode::bnot>     ("~",  arity::unary)  }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::bitwise>  { static constexpr impl data { create_type (ir_opcode::bitwise, "bitwise", true, true) }; };      // abstract
+  template <> struct ir_instruction_metadata::instance<ir_opcode::band>     { static constexpr impl data { get<ir_opcode::bitwise> ().derive (ir_opcode::band,     "&",  arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::bor>      { static constexpr impl data { get<ir_opcode::bitwise> ().derive (ir_opcode::bor,      "|",  arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::bxor>     { static constexpr impl data { get<ir_opcode::bitwise> ().derive (ir_opcode::bxor,     "^",  arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::bshiftl>  { static constexpr impl data { get<ir_opcode::bitwise> ().derive (ir_opcode::bshiftl,  "<<", arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::bashiftr> { static constexpr impl data { get<ir_opcode::bitwise> ().derive (ir_opcode::bashiftr, ">>", arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::blshiftr> { static constexpr impl data { get<ir_opcode::bitwise> ().derive (ir_opcode::blshiftr, ">>", arity::binary) }; };
+  template <> struct ir_instruction_metadata::instance<ir_opcode::bnot>     { static constexpr impl data { get<ir_opcode::bitwise> ().derive (ir_opcode::bnot,     "~",  arity::unary ) }; };
 
   template <ir_opcode Op>
   inline constexpr
   ir_instruction_metadata ir_instruction_metadata_v { ir_instruction_metadata::get<Op> () };
 
   template <ir_opcode Op>
-  struct ir_instruction_type
+  struct ir_instruction_traits
   {
     explicit
-    ir_instruction_type (void) = default;
+    ir_instruction_traits (void) = default;
 
     static constexpr auto metadata    = ir_instruction_metadata_v<Op>;
     static constexpr auto opcode      = metadata.get_opcode ();
@@ -405,15 +398,14 @@ namespace gch
     static constexpr
     bool
     is_valid_num_args = is_n_ary || (static_cast<std::size_t> (arity) == N);
-
   };
 
-  static_assert (ir_instruction_type<ir_opcode::band>::is_a<ir_opcode::bitwise>);
+  static_assert (ir_instruction_traits<ir_opcode::band>::is_a<ir_opcode::bitwise>);
 
   class ir_instruction
   {
     template <ir_opcode Op>
-    using type = ir_instruction_type<Op>;
+    using type = ir_instruction_traits<Op>;
 
   public:
     template <ir_opcode Op>
@@ -443,7 +435,7 @@ namespace gch
 
     ir_instruction            (void)                      = delete;
     ir_instruction            (const ir_instruction&)     = delete;
-//  ir_instruction            (ir_instruction&&) noexcept = impl;
+    ir_instruction            (ir_instruction&&) noexcept;
     ir_instruction& operator= (const ir_instruction&)     = delete;
 //  ir_instruction& operator= (ir_instruction&&) noexcept = impl;
     ~ir_instruction           (void)                      = default;
@@ -569,21 +561,6 @@ namespace gch
       assert_no_args<Op> ();
     }
 
-    ir_instruction (ir_instruction&& other) noexcept
-      : m_metadata (other.m_metadata),
-        m_return   (other.m_return ? std::optional<ir_def> (std::in_place,
-                                                            std::move (*other.m_return), *this)
-                                   : std::nullopt),
-        m_args     (std::move (other.m_args))
-    {
-      std::for_each (m_args.begin (), m_args.end (),
-                     [this](ir_operand& arg)
-                     {
-                       if (optional_ref<ir_use> u = maybe_get<ir_use> (arg))
-                         u->set_instruction (*this);
-                     });
-    }
-
     ir_instruction&
     operator= (ir_instruction&& other) noexcept
     {
@@ -669,23 +646,10 @@ namespace gch
     };
 
     void
-    set_return (std::optional<ir_def>&& ret)
-    {
-      if ((m_return = std::move (ret)))
-        m_return->set_instruction (*this);
-    }
+    set_return (std::optional<ir_def>&& ret);
 
     void
-    set_args (args_container_type&& args)
-    {
-      m_args = std::move (args);
-      std::for_each (m_args.begin (), m_args.end (),
-                     [this](ir_operand& arg)
-                     {
-                       if (optional_ref<ir_use> u = maybe_get<ir_use> (arg))
-                         u->set_instruction (*this);
-                     });
-    }
+    set_args (args_container_type&& args);
 
     template <typename ...Args>
     ir_operand&

@@ -24,47 +24,116 @@ along with Octave; see the file COPYING.  If not, see
 #  include "config.h"
 #endif
 
-#include <gch/variant-iterator.hpp>
-#include <gch/nonnull_ptr.hpp>
-
 #include "ir-function.hpp"
+
+#include "ir-component.hpp"
+#include "ir-block.hpp"
+
+#include <gch/nonnull_ptr.hpp>
 
 namespace gch
 {
-  ir_component::link_iter
-  ir_function::preds_begin (ir_component& c)
+  ir_function::
+  ir_function (void)
+    : ir_structure (nullopt),
+      m_body (create_component<ir_component_sequence> (ir_subcomponent_type<ir_block>))
+  { }
+
+  //
+  // virtual from ir_component
+  //
+
+  bool
+  ir_function::
+  reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
+                         ir_def_timeline& new_dt, std::vector<nonnull_ptr<ir_block>>& until)
   {
-    auto cit = must_find (c);
-    if (cit == begin ())
-      return void_it;
-    return (*--cit)->leaf_begin ();
+    get_body_component ().reassociate_timelines (old_dts, new_dt, until);
+    return true;
   }
-  
-  ir_component::link_iter
-  ir_function::preds_end (ir_component& c)
+
+  void
+  ir_function::
+  reset (void) noexcept
   {
-    comp_citer cit = must_find (c);
-    if (cit == begin ())
-      return void_it;
-    return (*--cit)->leaf_end ();
+    // get_body_component ().reset ();
+    // get_body_component ().emplace_back<ir_block> ();
   }
-  
-  ir_component::link_iter
-  ir_function::succs_begin (ir_component& c)
+
+  //
+  // virtual from ir_structure
+  //
+
+  ir_component_ptr
+  ir_function::
+  get_ptr (ir_component&) const noexcept
   {
-    comp_citer cit = must_find (c);
-    if (cit == last ())
-      return void_it;
-    return (*++cit)->get_entry_block ().leaf_begin ();
+    return as_mutable (*this).get_body ();
   }
-  
-  ir_component::link_iter
-  ir_function::succs_end (ir_component& c)
+
+  ir_component_ptr
+  ir_function::
+  get_entry_ptr (void) noexcept
   {
-    comp_citer cit = must_find (c);
-    if (cit == last ())
-      return void_it;
-    return (*++cit)->get_entry_block ().leaf_end ();
+    return as_mutable (*this).get_body ();
   }
-  
+
+  auto
+  ir_function::
+  get_predecessors (ir_component_cptr comp) noexcept
+    -> link_vector
+  {
+    return { };
+  }
+
+  auto
+  ir_function::
+  get_successors (ir_component_cptr comp) noexcept
+    -> link_vector
+  {
+    return { };
+  }
+
+  [[nodiscard]]
+  bool
+  ir_function::
+  is_leaf (ir_component_cptr) noexcept
+  {
+    return true;
+  }
+
+  void
+  ir_function::
+  generate_leaf_cache (void)
+  {
+    leaves_append (get_body ());
+  }
+
+  ir_use_timeline&
+  ir_function::
+  join_incoming_at (ir_component_ptr pos, ir_def_timeline& dt)
+  {
+    assert (is_body (pos) && "pos is not the body component");
+
+    if (dt.has_incoming_timeline ())
+      throw ir_exception ("def timeline already holds an incoming timeline");
+    return dt.create_incoming_timeline ();
+  }
+
+  void
+  ir_function::
+  recursive_flatten (void)
+  {
+    get_body_component ().recursive_flatten ();
+  }
+
+  void
+  ir_function::
+  reassociate_timelines_after (ir_component_ptr pos, ir_def_timeline&,
+                               std::vector<nonnull_ptr<ir_block>>&)
+  {
+    assert (is_body (pos) && "pos is not the body component");
+    static_cast<void> (pos);
+  }
+
 }

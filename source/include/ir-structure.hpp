@@ -25,8 +25,11 @@ along with Octave; see the file COPYING.  If not, see
 
 #include <gch/small_vector.hpp>
 
+#include "ir-link-set.hpp"
 #include "ir-component.hpp"
+#include "ir-instruction-fwd.hpp"
 
+#include <stack>
 #include <vector>
 
 namespace gch
@@ -40,51 +43,39 @@ namespace gch
   // class ir_structure_descender;
   // class ir_structure_ascender;
 
-  class def_resolve_node
-  {
-    class incoming_pair
-    {
-      incoming_pair            (void)                     = delete;
-      incoming_pair            (const incoming_pair&)     = default;
-      incoming_pair            (incoming_pair&&) noexcept = default;
-      incoming_pair& operator= (const incoming_pair&)     = default;
-      incoming_pair& operator= (incoming_pair&&) noexcept = default;
-      ~incoming_pair           (void)                     = default;
-
-      [[nodiscard]] constexpr
-      ir_block&
-      get_block (void) const noexcept
-      {
-        return *m_block;
-      }
-
-      [[nodiscard]] constexpr
-      ir_def_timeline&
-      get_timeline (void) const noexcept
-      {
-        return *m_timeline;
-      }
-
-      [[nodiscard]] constexpr
-      bool
-      has_timeline (void) const noexcept
-      {
-        return m_timeline.has_value ();
-      }
-
-    private:
-      nonnull_ptr<ir_block> m_block;
-      optional_ref<ir_def_timeline>  m_timeline;
-    };
-
-    nonnull_ptr<ir_block>      m_target;
-    nonnull_ptr<ir_block>      m_join_at;
-    std::vector<incoming_pair> m_incoming;
-  };
-
-  class ir_structure : public ir_component
+  class ir_structure
+    : public ir_component
   {
   public:
+    using ptr     = ir_component_ptr;
+    using cptr    = ir_component_cptr;
+    using rptr    = std::reverse_iterator<ptr>;
+    using crptr   = std::reverse_iterator<cptr>;
+    using ref     = ir_component&;
+    using cref    = const ir_component&;
+    using val_t   = ir_component;
+    using size_ty = std::size_t;
+    using diff_ty = typename std::iterator_traits<ptr>::difference_type;
+
+    using leaves_container_type          = ir_link_set<ir_block>;
+    using leaves_value_type              = typename leaves_container_type::value_type;
+    using leaves_size_type               = typename leaves_container_type::size_type;
+    using leaves_difference_type         = typename leaves_container_type::difference_type;
+
+    using leaves_iterator                = typename leaves_container_type::iterator;
+    using leaves_const_iterator          = typename leaves_container_type::const_iterator;
+    using leaves_reverse_iterator        = typename leaves_container_type::reverse_iterator;
+    using leaves_const_reverse_iterator  = typename leaves_container_type::const_reverse_iterator;
+
+    using leaves_val_t   = leaves_value_type;
+    using leaves_size_ty = leaves_size_type;
+    using leaves_diff_ty = leaves_difference_type;
+
+    using leaves_iter    = leaves_iterator;
+    using leaves_citer   = leaves_const_iterator;
+    using leaves_riter   = leaves_reverse_iterator;
+    using leaves_criter  = leaves_const_reverse_iterator;
+
     static constexpr struct construct_with_parent_tag { } construct_with_parent { };
 
     ir_structure            (void)                    = delete;
@@ -92,7 +83,7 @@ namespace gch
     ir_structure            (ir_structure&&) noexcept = default;
     ir_structure& operator= (const ir_structure&)     = default;
     ir_structure& operator= (ir_structure&&) noexcept = default;
-    ~ir_structure           (void)  override          = 0;
+    ~ir_structure           (void) override           = 0;
 
     explicit
     ir_structure (construct_with_parent_tag, ir_structure& parent)
@@ -104,84 +95,135 @@ namespace gch
       : ir_component (nullopt)
     { }
 
-    [[nodiscard]] auto  leaves_begin   (void)       noexcept { return get_leaves ().begin ();   }
-    [[nodiscard]] auto  leaves_begin   (void) const noexcept { return get_leaves ().begin ();   }
-    [[nodiscard]] auto  leaves_cbegin  (void) const noexcept { return get_leaves ().cbegin ();  }
-
-    [[nodiscard]] auto  leaves_end     (void)       noexcept { return get_leaves ().end ();     }
-    [[nodiscard]] auto  leaves_end     (void) const noexcept { return get_leaves ().end ();     }
-    [[nodiscard]] auto  leaves_cend    (void) const noexcept { return get_leaves ().cend ();    }
-
-    [[nodiscard]] auto  leaves_rbegin  (void)       noexcept { return get_leaves ().rbegin ();  }
-    [[nodiscard]] auto  leaves_rbegin  (void) const noexcept { return get_leaves ().rbegin ();  }
-    [[nodiscard]] auto  leaves_crbegin (void) const noexcept { return get_leaves ().crbegin (); }
-
-    [[nodiscard]] auto  leaves_rend    (void)       noexcept { return get_leaves ().rend ();    }
-    [[nodiscard]] auto  leaves_rend    (void) const noexcept { return get_leaves ().rend ();    }
-    [[nodiscard]] auto  leaves_crend   (void) const noexcept { return get_leaves ().crend ();   }
-
-    [[nodiscard]] auto& leaves_front   (void)       noexcept { return get_leaves ().front ();   }
-    [[nodiscard]] auto& leaves_front   (void) const noexcept { return get_leaves ().front ();   }
-
-    [[nodiscard]] auto& leaves_back    (void)       noexcept { return get_leaves ().back ();    }
-    [[nodiscard]] auto& leaves_back    (void) const noexcept { return get_leaves ().back ();    }
-
-    [[nodiscard]] auto  leaves_size    (void) const noexcept { return get_leaves ().size ();    }
-    [[nodiscard]] auto  leaves_empty   (void) const noexcept { return get_leaves ().empty ();   }
-
-  public:
     [[nodiscard]]
-    const link_vector&
+    leaves_const_iterator
+    leaves_begin (void) const noexcept
+    {
+     return get_leaves ().begin ();
+    }
+
+    [[nodiscard]]
+    leaves_const_iterator
+    leaves_end (void) const noexcept
+    {
+     return get_leaves ().end ();
+    }
+
+    [[nodiscard]]
+    leaves_const_reverse_iterator
+    leaves_rbegin (void) const noexcept
+    {
+     return get_leaves ().rbegin ();
+    }
+
+    [[nodiscard]]
+    leaves_const_reverse_iterator
+    leaves_rend (void) const noexcept
+    {
+     return get_leaves ().rend ();
+    }
+
+    [[nodiscard]]
+    leaves_value_type
+    front (void) const noexcept
+    {
+      return *leaves_begin ();
+    }
+
+    [[nodiscard]]
+    leaves_value_type
+    back (void) const noexcept
+    {
+      return *leaves_rbegin ();
+    }
+
+    [[nodiscard]]
+    leaves_size_type
+    leaves_size (void) const noexcept
+    {
+     return get_leaves ().size ();
+    }
+
+    [[nodiscard]]
+    bool
+    leaves_empty (void) const noexcept
+    {
+      return get_leaves ().empty ();
+    }
+
+    [[nodiscard]]
+    const ir_link_set<ir_block>&
     get_leaves (void);
 
     [[nodiscard]]
-    const link_vector&
+    const ir_link_set<ir_block>&
     get_leaves (void) const
     {
-      return const_cast<ir_structure *> (this)->get_leaves ();
+      return as_mutable (*this).get_leaves ();
     }
 
     // mutate a component inside a structure to a different type of component
     template <typename T>
     T&
-    mutate (ir_component_handle& handle)
+    mutate (ir_component_handle comp)
     {
-      return *(handle = make_ir_component<T> (std::move (*handle)));
+      comp.get_storage () = create_component<T> (make_mover (comp));
+      return get_as<T> (comp);
     }
 
     void
     invalidate_leaf_cache (void) noexcept;
 
-  protected:
     void
-    clear_leaf_cache (void) noexcept
+    invalidate_entry_cache (void) noexcept;
+
+    // returns ptrs to the newly split blocks (inside the mutated block_ptr)
+    std::pair<ir_component_ptr, ir_component_ptr>
+    split (ir_component_ptr block_ptr, ir_instruction_iter pivot);
+
+  protected:
+    static
+    ir_component_handle
+    make_handle (ir_component_ptr comp) noexcept
     {
-      m_leaf_cache.clear ();
+      return ir_component_handle { as_mutable (comp.get_storage ()) };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     leaf_cache_empty (void) const noexcept
     {
       return m_leaf_cache.empty ();
     }
 
-    [[nodiscard]] constexpr
-    link_vector&
-    get_leaf_cache (void)
+    void
+    clear_leaf_cache (void) noexcept
     {
-      return m_leaf_cache;
+      m_leaf_cache.clear ();
     }
 
     void
-    leaves_append (ir_component_handle comp);
+    leaves_append (ir_component_ptr comp);
+
+    [[nodiscard]]
+    bool
+    entry_cache_empty (void) const noexcept
+    {
+      return ! m_entry_cache.has_value ();
+    }
+
+    ir_block&
+    set_entry_cache (ir_block& block)
+    {
+      return m_entry_cache.emplace (block);
+    }
 
     template <typename Component, typename ...Args,
               typename = std::enable_if_t<is_component<Component>::value>>
-    ir_component_handle
+    std::unique_ptr<Component>
     create_component (Args&&... args)
     {
-      return make_ir_component<Component> (*this, std::forward<Args> (args)...);
+      return std::make_unique<Component> (*this, std::forward<Args> (args)...);
     }
 
     //
@@ -191,65 +233,76 @@ namespace gch
   public:
     [[nodiscard]]
     virtual
-    ir_component_handle
-    get_entry_component (void) = 0;
+    ir_component_ptr
+    get_ptr (ir_component& c) const = 0;
 
     [[nodiscard]]
     virtual
-    ir_component_handle
-    get_handle (const ir_component& c) const = 0;
+    ir_component_ptr
+    get_entry_ptr (void) = 0;
 
+    [[nodiscard]]
     virtual
-    link_vector
-    get_preds (ir_component_handle comp) = 0;
+    ir_link_set
+    get_predecessors (ir_component_cptr comp) = 0;
 
+    [[nodiscard]]
     virtual
-    link_vector
-    get_succs (ir_component_handle comp) = 0;
+    ir_link_set
+    get_successors (ir_component_cptr comp) = 0;
 
+    [[nodiscard]]
     virtual
-    ir_use_timeline&
-    join_incoming_at (ir_component_handle& block_handle, ir_def_timeline& dt) = 0;
+    bool
+    is_leaf (ir_component_cptr comp) noexcept = 0;
 
     virtual
     void
     generate_leaf_cache (void) = 0;
 
-    [[nodiscard]]
     virtual
-    bool
-    is_leaf_component (ir_component_handle comp) noexcept = 0;
+    ir_use_timeline&
+    join_incoming_at (ir_component_ptr pos, ir_def_timeline& dt) = 0;
+
+    virtual
+    void
+    recursive_flatten (void) = 0;
+
+    virtual
+    void
+    reassociate_timelines_after (ir_component_ptr pos, ir_def_timeline& dt,
+                                 std::vector<nonnull_ptr<ir_block>>& until) = 0;
 
     //
     // virtual function accessories
     //
 
     [[nodiscard]]
-    ir_component_handle&
-    get_handle (ir_component& c) const
+    ir_component_cptr
+    get_ptr (const ir_component& c) const
     {
-      return const_cast<ir_component_handle&> (get_handle (const_cast<const ir_component&> (c)));
+      return get_ptr (as_mutable (c));
     }
 
     ir_use_timeline&
     join_incoming_at (ir_block& block, ir_variable& var);
 
-    link_vector
-    get_preds (const ir_component& c)
+    ir_link_set
+    get_predecessors (const ir_component& c)
     {
-      return get_preds (get_handle (c));
+      return get_predecessors (get_ptr (c));
     }
 
-    link_vector
-    get_succs (const ir_component& c)
+    ir_link_set
+    get_successors (const ir_component& c)
     {
-      return get_succs (get_handle (c));
+      return get_successors (get_ptr (c));
     }
 
     bool
-    is_leaf_component (const ir_component& c) noexcept
+    is_leaf (const ir_component& c) noexcept
     {
-      return is_leaf_component (get_handle (c));
+      return is_leaf (get_ptr (c));
     }
 
     //
@@ -257,54 +310,80 @@ namespace gch
     //
 
     [[nodiscard]]
-    bool
-    is_entry_component (ir_component_handle comp) noexcept
+    ir_component_cptr
+    get_entry_ptr (void) const
     {
-      return comp == get_entry_component ();
+      return as_mutable (*this).get_entry_ptr ();
     }
 
     [[nodiscard]]
     bool
-    is_entry_component (const ir_component& c) noexcept
+    is_entry (ir_component_cptr comp) noexcept
     {
-      return &c == get_entry_component ();
+      return comp == get_entry_ptr ();
     }
-
-    [[nodiscard]]
-    virtual
-    ir_block&
-    get_entry_block (void) noexcept;
 
   private:
-    link_vector m_leaf_cache;
+    optional_ref<ir_block> m_entry_cache;
+    ir_link_set            m_leaf_cache;
   };
 
-  [[nodiscard]]
+  // a substructure is any structure that isn't an function
+  class ir_substructure
+    : public ir_structure
+  {
+  public:
+    ir_substructure            (void)                       = delete;
+    ir_substructure            (const ir_substructure&)     = default;
+    ir_substructure            (ir_substructure&&) noexcept = default;
+    ir_substructure& operator= (const ir_substructure&)     = default;
+    ir_substructure& operator= (ir_substructure&&) noexcept = default;
+    ~ir_substructure           (void) override              = 0;
+
+    explicit
+    ir_substructure (ir_structure& parent)
+      : ir_structure (construct_with_parent, parent)
+    { }
+
+    [[nodiscard]] constexpr
+    ir_structure&
+    get_parent (void) noexcept
+    {
+      return *maybe_get_parent ();
+    }
+
+    [[nodiscard]] constexpr
+    const ir_structure&
+    get_parent (void) const noexcept
+    {
+      return *maybe_get_parent ();
+    }
+  };
+
+  [[nodiscard]] inline
   ir_block&
-  get_entry_block (ir_structure& s);
+  get_entry_block (ir_structure& s)
+  {
+    return get_entry_block (*s.get_entry_ptr ());
+  }
 
   [[nodiscard]] inline
   const ir_block&
   get_entry_block (const ir_structure& s)
   {
-    return get_entry_block (const_cast<ir_structure&> (s));
+    return get_entry_block (*s.get_entry_ptr ());
   }
 
   [[nodiscard]]
-  ir_structure::link_vector
-  copy_leaves (ir_component_handle comp);
+  ir_link_set
+  copy_leaves (ir_component_ptr comp);
 
   template <typename ...Args>
   [[nodiscard]] inline
-  ir_structure::link_vector
-  copy_leaves (ir_component_handle comp, Args&&... args)
+  ir_link_set
+  copy_leaves (ir_component_ptr comp, Args&&... args)
   {
-    auto concatenate = [](ir_structure::link_vector& l, ir_structure::link_vector&& r)
-                       { l.insert (l.end (), r.begin (), r.end ()); };
-
-    ir_structure::link_vector ret = copy_leaves (comp);
-    (concatenate (ret, copy_leaves (std::forward<Args> (args))), ...);
-    return std::move (ret);
+    return (copy_leaves (comp) | ... | copy_leaves (std::forward<Args> (args)));
   }
 
 }

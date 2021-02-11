@@ -168,10 +168,10 @@ namespace gch
     { }
 
     [[nodiscard]]
-    constexpr ir_variable& get_var (void) noexcept { return *m_var; };
+    constexpr ir_variable& get_variable (void) noexcept { return *m_var; };
 
     [[nodiscard]]
-    constexpr const ir_variable& get_var (void) const noexcept { return *m_var; };
+    constexpr const ir_variable& get_variable (void) const noexcept { return *m_var; };
 
     std::ostream& print (std::ostream& os) const;
 
@@ -182,7 +182,7 @@ namespace gch
     constexpr auto get_id (void) const { return m_id; };
 
     [[nodiscard]]
-    constexpr ir_type get_type (void) const noexcept { return get_var ().get_type (); }
+    constexpr ir_type get_type (void) const noexcept { return get_variable ().get_type (); }
 
 //    template <typename ...Args>
 //    void transfer_bindings (ir_def& src, Args&&... args)
@@ -230,20 +230,50 @@ namespace gch
 
     ir_use (ir_instruction& instr, const ir_use_info& info);
 
-    [[nodiscard]] ir_use_timeline&       get_timeline (void)       noexcept;
-    [[nodiscard]] const ir_use_timeline& get_timeline (void) const noexcept;
+    [[nodiscard]]
+    ir_use_timeline&
+    get_timeline (void) noexcept;
 
-    [[nodiscard]] ir_def&       get_def (void)       noexcept;
-    [[nodiscard]] const ir_def& get_def (void) const noexcept;
+    [[nodiscard]]
+    const ir_use_timeline&
+    get_timeline (void) const noexcept
+    {
+      return as_mutable (*this).get_timeline ();
+    }
 
-    [[nodiscard]] ir_variable&       get_var (void)       noexcept;
-    [[nodiscard]] const ir_variable& get_var (void) const noexcept;
+    [[nodiscard]]
+    ir_def&
+    get_def (void) noexcept;
 
-    [[nodiscard]] ir_type get_type (void) const noexcept;
+    [[nodiscard]]
+    const ir_def&
+    get_def (void) const noexcept
+    {
+      return as_mutable (*this).get_def ();
+    }
 
-    [[nodiscard]] const std::string& get_name (void) const;
+    [[nodiscard]]
+    ir_variable&
+    get_variable (void) noexcept;
 
-    [[nodiscard]] std::size_t get_id (void);
+    [[nodiscard]]
+    const ir_variable&
+    get_variable (void) const noexcept
+    {
+      return as_mutable (*this).get_variable ();
+    }
+
+    [[nodiscard]]
+    ir_type
+    get_type (void) const noexcept;
+
+    [[nodiscard]]
+    const std::string&
+    get_name (void) const;
+
+    [[nodiscard]]
+    std::size_t
+    get_id (void);
 
     [[nodiscard]]
     ir_instruction&
@@ -256,7 +286,7 @@ namespace gch
     const ir_instruction&
     get_instruction (void) const noexcept
     {
-      return *m_instr;
+      return as_mutable (*this).get_instruction ();
     }
 
     void
@@ -292,52 +322,83 @@ namespace gch
         m_instruction_pos (origin_pos)
     { }
 
-    [[nodiscard]]       ir_def& get_def (void)       noexcept;
-    [[nodiscard]] const ir_def& get_def (void) const noexcept;
+    [[nodiscard]]
+    ir_def&
+    get_def (void) noexcept;
+
+    [[nodiscard]]
+    const ir_def&
+    get_def (void) const noexcept
+    {
+      return as_mutable (*this).get_def ();
+    }
 
     [[nodiscard]]
     ir_instruction_iter
-    get_def_pos (void) noexcept
-    {
-      return m_instruction_pos;
-    }
+    get_def_pos (void) noexcept;
 
     [[nodiscard]]
     ir_instruction_citer
     get_def_pos (void) const noexcept
     {
-      return m_instruction_pos;
+      return as_mutable (*this).get_def_pos ();
     }
 
     [[nodiscard]]
     ir_instruction&
-    get_def_instruction (void) noexcept
-    {
-      return *get_def_pos ();
-    }
+    get_def_instruction (void) noexcept;
 
     [[nodiscard]]
     const ir_instruction&
     get_def_instruction (void) const noexcept
     {
-      return *get_def_pos ();
+      return as_mutable (*this).get_def_instruction ();
+    }
+
+    [[nodiscard]]
+    ir_variable&
+    get_variable (void) noexcept;
+
+    [[nodiscard]]
+    const ir_variable&
+    get_variable (void) const noexcept
+    {
+      return as_mutable (*this).get_variable ();
     }
 
     void
-    set_instruction_pos (ir_instruction_iter instr) noexcept
-    {
-      m_instruction_pos = instr;
-    }
+    set_instruction_pos (ir_instruction_iter instr) noexcept;
 
   private:
     ir_instruction_iter m_instruction_pos;
   };
 
-  [[nodiscard]] constexpr
+  [[nodiscard]] inline
   bool
-  has_same_def (const ir_use_timeline& lhs, const ir_use_timeline& rhs)
+  has_same_def (const ir_use_timeline& l, const ir_use_timeline& r)
   {
-    return &lhs.get_def () == &rhs.get_def ();
+    return l.get_def_pos () == r.get_def_pos ();
+  }
+
+  [[nodiscard]] inline
+  bool
+  has_same_def (optional_ref<const ir_use_timeline> lhs, const ir_use_timeline& r)
+  {
+    return lhs >>= [&r](const ir_use_timeline& l) { return has_same_def (l, r); };
+  }
+
+  [[nodiscard]] inline
+  bool
+  has_same_def (const ir_use_timeline& l, optional_ref<const ir_use_timeline> rhs)
+  {
+    return has_same_def (rhs, l);
+  }
+
+  [[nodiscard]] inline
+  bool
+  has_same_def (optional_ref<const ir_use_timeline> lhs, optional_ref<const ir_use_timeline> rhs)
+  {
+    return lhs >>= [rhs](const ir_use_timeline& l) { return has_same_def (l, rhs); };
   }
 
   class ir_use_info

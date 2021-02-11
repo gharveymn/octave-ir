@@ -26,32 +26,111 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-structure.hpp"
 #include "ir-component-sequence.hpp"
 
-#include <optional>
-
 namespace gch
 {
 
-  class ir_function : public ir_component_sequence
+  class ir_function
+    : public ir_structure
   {
   public:
 
-//  ir_function            (void)                   = impl;
+    ir_function            (void);
     ir_function            (const ir_function&)     = delete;
     ir_function            (ir_function&&) noexcept = default;
     ir_function& operator= (const ir_function&)     = delete;
     ir_function& operator= (ir_function&&) noexcept = delete;
     ~ir_function           (void) override          = default;
 
-    ir_function (void)
-      : ir_component_sequence (nullopt)
-    { }
-
-    void invalidate_leaf_cache (void) noexcept override
+    [[nodiscard]]
+    constexpr
+    ptr
+    get_body (void) noexcept
     {
-      clear_leaf_cache ();
+      return ptr { &m_body };
     }
 
+    [[nodiscard]]
+    constexpr
+    cptr
+    get_body (void) const noexcept
+    {
+      return as_mutable (*this).get_body ();
+    }
+
+    [[nodiscard]] constexpr
+    bool
+    is_body (cptr comp) const noexcept
+    {
+      return comp == get_body ();
+    }
+
+    [[nodiscard]]
+    constexpr
+    ir_component_sequence&
+    get_body_component (void) noexcept
+    {
+      return get_as<ir_component_sequence> (get_body ());
+    }
+
+    [[nodiscard]]
+    constexpr
+    const ir_component_sequence&
+    get_body_component (void) const noexcept
+    {
+      return as_mutable (*this).get_body_component ();
+    }
+
+    //
+    // virtual from ir_component
+    //
+
+    bool
+    reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
+                           ir_def_timeline& new_dt,
+                           std::vector<nonnull_ptr<ir_block>>& until) override;
+
+    void
+    reset (void) noexcept override;
+
+    //
+    // virtual from ir_structure
+    //
+
+    [[nodiscard]]
+    ir_component_ptr
+    get_ptr (ir_component&) const noexcept override;
+
+    [[nodiscard]]
+    ir_component_ptr
+    get_entry_ptr (void) noexcept override;
+
+    [[nodiscard]]
+    link_vector
+    get_predecessors (ir_component_cptr) noexcept override;
+
+    [[nodiscard]]
+    link_vector
+    get_successors (ir_component_cptr) noexcept override;
+
+    [[nodiscard]]
+    bool
+    is_leaf (ir_component_cptr) noexcept override;
+
+    void
+    generate_leaf_cache (void) override;
+
+    ir_use_timeline&
+    join_incoming_at (ir_component_ptr pos, ir_def_timeline& dt) override;
+
+    void
+    recursive_flatten (void) override;
+
+    void
+    reassociate_timelines_after (ir_component_ptr pos, ir_def_timeline& dt,
+                                 const std::vector<nonnull_ptr<ir_block>>& until) override;
+
   private:
+    ir_component_storage m_body;
   };
 
 }

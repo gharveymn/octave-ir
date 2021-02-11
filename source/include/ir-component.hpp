@@ -47,10 +47,6 @@ namespace gch
   class ir_component
   {
   public:
-    using link_vector = small_vector<nonnull_ptr<ir_block>, 1>;
-    using link_iter   = link_vector::iterator;
-    using link_citer  = link_vector::const_iterator;
-
     ir_component            (void)                    = delete;
     ir_component            (const ir_component&)     = default;
     ir_component            (ir_component&&) noexcept = default;
@@ -59,8 +55,8 @@ namespace gch
     virtual ~ir_component (void) noexcept             = 0;
 
     explicit
-    ir_component (ir_structure& s)
-      : m_parent (s)
+    ir_component (nonnull_ptr<ir_structure> parent)
+      : m_parent (parent)
     { }
 
     explicit
@@ -73,20 +69,6 @@ namespace gch
     has_parent (void) const noexcept
     {
       return m_parent.has_value ();
-    }
-
-    [[nodiscard]] constexpr
-    ir_structure&
-    get_parent (void) noexcept
-    {
-      return *m_parent;
-    }
-
-    [[nodiscard]] constexpr
-    const ir_structure&
-    get_parent (void) const noexcept
-    {
-      return *m_parent;
     }
 
     [[nodiscard]] constexpr
@@ -103,6 +85,13 @@ namespace gch
       return m_parent;
     }
 
+    constexpr
+    void
+    set_parent (ir_structure& s) noexcept
+    {
+      m_parent.emplace (s);
+    }
+
     template <typename T>
     using is_component = std::is_base_of<ir_component, T>;
 
@@ -110,34 +99,20 @@ namespace gch
     // virtual functions
     //
 
-    [[nodiscard]]
+    // returns whether the caller should stop executing
     virtual
-    ir_block&
-    get_entry_block (void) noexcept = 0;
+    bool
+    reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
+                           ir_def_timeline& new_dt,
+                           std::vector<nonnull_ptr<ir_block>>& until) = 0;
 
     virtual
     void
     reset (void) noexcept = 0;
 
-    virtual
-    std::vector<std::pair<nonnull_ptr<ir_block>, optional_ref<ir_def_timeline>>>
-    collect_outgoing (ir_variable& var);
-
-    [[nodiscard]]
-    virtual
-    std::list<nonnull_ptr<ir_def>>
-    get_latest_defs (ir_variable& var) noexcept;
-
     //
     // virtual function accessories
     //
-
-    [[nodiscard]]
-    const ir_block&
-    get_entry_block (void) const noexcept
-    {
-      return const_cast<ir_component *> (this)->get_entry_block ();
-    }
 
   private:
     optional_ref<ir_structure> m_parent;
@@ -151,8 +126,39 @@ namespace gch
   const ir_function&
   get_function (const ir_component& c)
   {
-    return get_function (const_cast<ir_component&> (c));
+    return get_function (as_mutable (c));
   }
+
+  [[nodiscard]]
+  ir_block&
+  get_entry_block (ir_component& c);
+
+  [[nodiscard]] inline
+  const ir_block&
+  get_entry_block (const ir_component& c)
+  {
+    return get_entry_block (as_mutable (c));
+  }
+
+  [[nodiscard]] inline
+  ir_block&
+  get_entry_block (ir_component_ptr comp)
+  {
+    return get_entry_block (*comp);
+  }
+
+  [[nodiscard]] inline
+  const ir_block&
+  get_entry_block (ir_component_cptr comp)
+  {
+    return get_entry_block (*comp);
+  }
+
+  template <typename Component>
+  struct ir_subcomponent_type_t;
+
+  template <typename Component>
+  inline constexpr ir_subcomponent_type_t<Component> ir_subcomponent_type { };
 
 }
 

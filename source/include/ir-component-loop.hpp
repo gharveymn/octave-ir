@@ -12,9 +12,21 @@
 
 namespace gch
 {
-  class ir_component_loop : public ir_structure
+
+  class ir_component_loop;
+
+  template <>
+  struct ir_subcomponent_type_t<ir_component_loop>
+  {
+    explicit ir_subcomponent_type_t (void) = default;
+  };
+
+  class ir_component_loop
+    : public ir_substructure
   {
   public:
+    using ptr  = ir_component_ptr;
+    using cptr = ir_component_cptr;
 
     ir_component_loop (void)                                    = delete;
     ir_component_loop (const ir_component_loop&)                = delete;
@@ -26,118 +38,126 @@ namespace gch
     explicit
     ir_component_loop (ir_structure& parent);
 
-    // link_iter preds_begin (ir_component& c) override;
-    // link_iter preds_end   (ir_component& c) override;
-    // link_iter succs_begin (ir_component& c) override;
-    // link_iter succs_end   (ir_component& c) override;
-
     [[nodiscard]] constexpr
-    ir_component_handle
-    get_start_component (void) const noexcept
+    ptr
+    get_start (void) noexcept
     {
-      return m_start;
+      return ptr { &m_start };
     }
 
     [[nodiscard]] constexpr
-    ir_component_handle
-    get_condition_component (void) const noexcept
+    cptr
+    get_start (void) const noexcept
     {
-      return m_condition;
+      return cptr { &m_start };
     }
 
     [[nodiscard]] constexpr
-    ir_component_handle
-    get_body_component (void) const noexcept
+    ptr
+    get_condition (void) noexcept
     {
-      return m_body;
+      return ptr { &m_condition };
     }
 
     [[nodiscard]] constexpr
-    ir_component_handle
-    get_update_component (void) const noexcept
+    cptr
+    get_condition (void) const noexcept
     {
-      return m_update;
+      return cptr { &m_condition };
+    }
+
+    [[nodiscard]] constexpr
+    ptr
+    get_body (void) noexcept
+    {
+      return ptr { &m_body };
+    }
+
+    [[nodiscard]] constexpr
+    cptr
+    get_body (void) const noexcept
+    {
+      return cptr { &m_body };
+    }
+
+    [[nodiscard]] constexpr
+    ptr
+    get_update (void) noexcept
+    {
+      return ptr { &m_update };
+    }
+
+    [[nodiscard]] constexpr
+    cptr
+    get_update (void) const noexcept
+    {
+      return cptr { &m_update };
     }
 
     [[nodiscard]] constexpr
     bool
-    is_start_component (ir_component_handle comp) const noexcept
+    is_start (cptr comp) const noexcept
     {
-      return comp == get_start_component ();
+      return comp == get_start ();
     }
 
     [[nodiscard]] constexpr
     bool
-    is_condition_component (ir_component_handle comp) const noexcept
+    is_start (const ir_component& c) const noexcept
     {
-      return comp == get_condition_component ();
+      return &c == get_start ();
     }
 
     [[nodiscard]] constexpr
     bool
-    is_body_component (ir_component_handle comp) const noexcept
+    is_condition (cptr comp) const noexcept
     {
-      return comp == get_body_component ();
+      return comp == get_condition ();
     }
 
     [[nodiscard]] constexpr
     bool
-    is_update_component (ir_component_handle comp) const noexcept
+    is_condition (const ir_component& c) const noexcept
     {
-      return comp == get_update_component ();
+      return &c == get_condition ();
     }
 
-    [[nodiscard]]
-    std::list<nonnull_ptr<ir_def>> get_latest_defs (ir_variable& var) noexcept override
+    [[nodiscard]] constexpr
+    bool
+    is_body (cptr comp) const noexcept
     {
-
-      if (auto opt_def = m_exit.get_latest_def (var))
-        return { *opt_def };
-
-      if (auto opt_def = m_condition.get_latest_def (var))
-        return { *opt_def };
-
-      std::list<nonnull_ptr<ir_def>> ret = m_body.get_latest_defs (var);
-      ret.splice (ret.end (), m_entry.get_latest_defs (var));
-      return ret;
+      return comp == get_body ();
     }
 
-    [[nodiscard]]
-    std::list<nonnull_ptr<ir_def>>
-    get_latest_defs_before (ir_variable& var, component_handle comp) override
+    [[nodiscard]] constexpr
+    bool
+    is_body (const ir_component& c) const noexcept
     {
-      if (is_entry (comp->get ()))
-      {
-        return { };
-      }
-      else if (is_body (comp->get ()))
-      {
-        return m_entry.get_latest_defs (var);
-      }
-      else if (is_condition (comp->get ()))
-      {
-        std::list<nonnull_ptr<ir_def>> ret = m_body.get_latest_defs (var);
-        ret.splice (ret.end (), m_entry.get_latest_defs (var));
-        return ret;
-      }
-      else if (is_exit (comp->get ()))
-      {
-        if (auto opt_def = m_condition.get_latest_def (var))
-          return { *opt_def };
+      return &c == get_body ();
+    }
 
-        std::list<nonnull_ptr<ir_def>> ret = m_body.get_latest_defs (var);
-        ret.splice (ret.end (), m_entry.get_latest_defs (var));
-        return ret;
-      }
-      else
-      {
-        throw ir_exception ("unexpected component handle");
-      }
+    [[nodiscard]] constexpr
+    bool
+    is_update (cptr comp) const noexcept
+    {
+      return comp == get_update ();
+    }
+
+    [[nodiscard]] constexpr
+    bool
+    is_update (const ir_component& c) const noexcept
+    {
+      return &c == get_update ();
     }
 
     //
     // virtual from ir_component
     //
+
+    bool
+    reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
+                           ir_def_timeline& new_dt,
+                           std::vector<nonnull_ptr<ir_block>>& until) override;
 
     void
     reset (void) noexcept override;
@@ -147,34 +167,35 @@ namespace gch
     //
 
     [[nodiscard]]
-    ir_component_handle
-    get_entry_component (void) override;
+    ir_component_ptr
+    get_ptr (ir_component& c) const override;
 
     [[nodiscard]]
-    ir_component_handle
-    get_handle (const ir_component& c) const override;
+    ir_component_ptr
+    get_entry_ptr (void) override;
 
-    link_vector
-    get_preds (ir_component_handle comp) override;
+    [[nodiscard]]
+    ir_link_set
+    get_predecessors (ir_component_cptr comp) override;
 
-    link_vector
-    get_succs (ir_component_handle comp) override;
+    [[nodiscard]]
+    ir_link_set
+    get_successors (ir_component_cptr comp) override;
 
-    ir_use_timeline&
-    join_incoming_at (ir_component_handle& block_handle, ir_def_timeline& dt) override;
+    [[nodiscard]]
+    bool
+    is_leaf (ir_component_cptr comp) noexcept override;
 
     void
     generate_leaf_cache (void) override;
 
-    [[nodiscard]]
-    bool
-    is_leaf_component (ir_component_handle comp) noexcept override;
+    ir_use_timeline&
+    join_incoming_at (ir_component_ptr pos, ir_def_timeline& dt) override;
+
+    void
+    recursive_flatten (void) override;
 
   private:
-    link_iter cond_succ_begin (void);
-
-    link_iter cond_succ_end (void);
-
     ir_component_storage m_start;     // preds: [pred]        | succs: condition
     ir_component_storage m_condition; // preds: start, update | succs: body, [succ]
     ir_component_storage m_body;      // preds: condition     | succs: update
@@ -191,11 +212,6 @@ namespace gch
     //                   +----+     +------+
     //                   |body| +-> |update|
     //                   +----+     +------+
-
-    // does not change
-    link_vector m_cond_preds;
-
-    link_vector m_succ_cache;
 
   };
 }

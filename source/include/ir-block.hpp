@@ -47,6 +47,8 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace gch
 {
+
+  class ir_block;
   class ir_structure;
   class ir_variable;
   class ir_def;
@@ -54,6 +56,12 @@ namespace gch
 
   class ir_def_timeline;
   class ir_incoming_node;
+
+  template <>
+  struct ir_subcomponent_type_t<ir_block>
+  {
+    explicit ir_subcomponent_type_t (void) = default;
+  };
 
   enum class ir_instruction_range : std::size_t
   {
@@ -352,121 +360,90 @@ namespace gch
     [[nodiscard]] const auto& instr_back (citer pos) const noexcept { return *instr_rbegin (pos); }
 
     [[nodiscard]]
-    auto
-    num_instrs (citer pos) const noexcept
-    {
-      return std::distance (instr_begin (pos), instr_end (pos));
-    }
+    std::ptrdiff_t
+    num_instrs (citer pos) const noexcept;
 
     [[nodiscard]]
     bool
-    has_instrs (citer pos) const noexcept
-    {
-      return instr_begin (pos) == instr_end (pos);
-    }
+    has_instrs (citer pos) const noexcept;
 
     [[nodiscard]]
     bool
-    has_incoming (void) const noexcept
-    {
-      return ! incoming_empty ();
-    }
+    has_incoming (void) const noexcept;
 
     [[nodiscard]]
     bool
-    has_timelines (void) const noexcept
-    {
-      return ! timelines_empty<range::all> ();
-    }
+    has_timelines (void) const noexcept;
 
     [[nodiscard]]
     bool
-    has_incoming_timeline (void) const noexcept
-    {
-      return ! timelines_empty<range::phi> ();
-    }
+    has_incoming_timeline (void) const noexcept;
 
     [[nodiscard]]
     bool
-    has_local_timelines (void) const noexcept
-    {
-      return ! timelines_empty<range::body> ();
-    }
+    has_local_timelines (void) const noexcept;
 
     [[nodiscard]]
     ir_use_timeline&
-    get_incoming_timeline (void) noexcept
-    {
-      return timelines_front<range::phi> ();
-    }
+    get_incoming_timeline (void) noexcept;
 
     [[nodiscard]]
     const ir_use_timeline&
-    get_incoming_timeline (void) const noexcept
-    {
-      return timelines_front<range::phi> ();
-    }
+    get_incoming_timeline (void) const noexcept;
 
     [[nodiscard]]
     optional_ref<ir_use_timeline>
-    maybe_get_incoming_timeline (void) noexcept
-    {
-      if (has_incoming_timeline ())
-        return get_incoming_timeline ();
-      return nullopt;
-    }
+    maybe_get_incoming_timeline (void) noexcept;
 
     [[nodiscard]]
     optional_ref<const ir_use_timeline>
-    maybe_get_incoming_timeline (void) const noexcept
-    {
-      return const_cast<ir_def_timeline *> (this)->maybe_get_incoming_timeline ();
-    }
+    maybe_get_incoming_timeline (void) const noexcept;
 
     [[nodiscard]]
     optional_ref<ir_instruction>
-    maybe_get_incoming_instruction (void) noexcept
-    {
-      if (auto tl = maybe_get_incoming_timeline ())
-        return tl->get_def_instruction ();
-      return nullopt;
-    }
+    maybe_get_incoming_instruction (void) noexcept;
 
     [[nodiscard]]
     optional_ref<const ir_instruction>
-    maybe_get_incoming_instruction (void) const noexcept
-    {
-      return const_cast<ir_def_timeline *> (this)->maybe_get_incoming_instruction ();
-    }
+    maybe_get_incoming_instruction (void) const noexcept;
 
     [[nodiscard]]
     ir_use_timeline&
-    get_outgoing_timeline (void) noexcept
-    {
-      return timelines_back<range::all> ();
-    }
+    get_outgoing_timeline (void) noexcept;
 
     [[nodiscard]]
     const ir_use_timeline&
-    get_outgoing_timeline (void) const noexcept
-    {
-      return timelines_back<range::all> ();
-    }
+    get_outgoing_timeline (void) const noexcept;
 
     [[nodiscard]]
     optional_ref<ir_use_timeline>
-    maybe_get_outgoing_timeline (void) noexcept
-    {
-      if (has_timelines ())
-        return get_outgoing_timeline ();
-      return nullopt;
-    }
+    maybe_get_outgoing_timeline (void) noexcept;
 
     [[nodiscard]]
     optional_cref<ir_use_timeline>
-    maybe_get_outgoing_timeline (void) const noexcept
+    maybe_get_outgoing_timeline (void) const noexcept;
+
+    [[nodiscard]]
+    ir_def&
+    get_outgoing_def (void) noexcept;
+
+    [[nodiscard]]
+    const ir_def&
+    get_outgoing_def (void) const noexcept;
+
+    [[nodiscard]]
+    optional_ref<ir_def>
+    maybe_get_outgoing_def (void) noexcept;
+
+    [[nodiscard]]
+    optional_cref<ir_def>
+    maybe_get_outgoing_def (void) const noexcept;
+
+    [[nodiscard]]
+    bool
+    has_outgoing_timeline (void) const noexcept
     {
-      return const_cast<ir_def_timeline *> (this)->maybe_get_outgoing_timeline ();
+      return ! timelines_empty<range::all> ();
     }
 
     template <range R>
@@ -549,9 +526,9 @@ namespace gch
     ir_incoming_node&
     append_incoming (ir_block& incoming_block, Args&&... args)
     {
-      // if we don't have any incoming yet we need to start up the use_timeline
+      // if we don't have any incoming yet we need to start up the use-timeline
       if (incoming_empty ())
-        create_phi ();
+        create_incoming_timeline ();
 
       try
       {
@@ -559,7 +536,7 @@ namespace gch
       }
       catch (...)
       {
-        destroy_phi ();
+        destroy_incoming_timeline ();
         throw;
       }
     }
@@ -581,16 +558,16 @@ namespace gch
     incoming_citer
     find_incoming (const ir_block& block) const noexcept
     {
-      return const_cast<ir_def_timeline *> (this)->find_incoming (block);
+      return as_mutable (*this).find_incoming (block);
     }
 
-  private:
     ir_use_timeline&
-    create_phi (void);
+    create_incoming_timeline (void);
 
     void
-    destroy_phi (void);
+    destroy_incoming_timeline (void);
 
+  private:
     nonnull_ptr<ir_block>    m_block;
     nonnull_ptr<ir_variable> m_var;
     incoming_container       m_incoming;
@@ -613,7 +590,8 @@ namespace gch
     return get_parent ().get_block ();
   }
 
-  class ir_block : public ir_component
+  class ir_block
+    : public ir_component
   {
   public:
     using instruction_container = std::list<ir_instruction>;
@@ -862,7 +840,7 @@ namespace gch
       auto pos = std::find_if (begin<range::phi> (), end<range::phi> (),
                                [&var] (const ir_instruction& instr)
                                {
-                                 return &instr.get_return ().get_var () == &var;
+                                 return &instr.get_return ().get_variable () == &var;
                                });
       // error checking
       if (pos == get<range::phi> ().end ())
@@ -872,7 +850,7 @@ namespace gch
 
     // with return
     template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<ir_instruction_type<Op>::will_return> * = nullptr>
+              std::enable_if_t<ir_instruction_traits<Op>::will_return> * = nullptr>
     ir_instruction&
     append_instruction (ir_variable& v, Args&&... args)
     {
@@ -893,7 +871,7 @@ namespace gch
 
     // no return
     template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<! ir_instruction_type<Op>::will_return> * = nullptr>
+              std::enable_if_t<! ir_instruction_traits<Op>::will_return> * = nullptr>
     ir_instruction&
     append_instruction (Args&&... args)
     {
@@ -903,7 +881,7 @@ namespace gch
 
     // with return (places instruction at the front of the body)
     template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<ir_instruction_type<Op>::will_return> * = nullptr>
+              std::enable_if_t<ir_instruction_traits<Op>::will_return> * = nullptr>
     ir_instruction&
     prepend_instruction (ir_variable& v, Args&&... args)
     {
@@ -923,7 +901,7 @@ namespace gch
 
     // no return (places instruction at the front of the body)
     template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<! ir_instruction_type<Op>::will_return> * = nullptr>
+              std::enable_if_t<! ir_instruction_traits<Op>::will_return> * = nullptr>
     ir_instruction&
     prepend_instruction (Args&&... args)
     {
@@ -933,7 +911,7 @@ namespace gch
 
     // with return (places instruction immediately before `pos`)
     template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<ir_instruction_type<Op>::will_return> * = nullptr>
+              std::enable_if_t<ir_instruction_traits<Op>::will_return> * = nullptr>
     ir_instruction&
     emplace_instruction (const citer pos, ir_variable& v, Args&&... args)
     {
@@ -952,51 +930,27 @@ namespace gch
 
     // no return (places instruction immediately before `pos`)
     template <ir_opcode Op, typename ...Args,
-      std::enable_if_t<! ir_instruction_type<Op>::will_return> * = nullptr>
+      std::enable_if_t<! ir_instruction_traits<Op>::will_return> * = nullptr>
     ir_instruction&
     emplace_instruction (const citer pos, Args&&... args)
     {
       return *emplace<range::body, Op> (pos, prepare_operand (pos, std::forward<Args> (args))...);
     }
 
-    iter remove_instruction (citer pos);
-    iter remove_range       (citer first, citer last) noexcept;
+    iter
+    remove_instruction (citer pos);
 
-    // predecessors
-    link_iter   preds_begin (void);
-    link_iter   preds_end   (void);
-    std::size_t num_preds   (void);
+    iter
+    remove_range (citer first, citer last) noexcept;
 
-    ir_block& preds_front (void) { return **preds_begin ();   }
-    ir_block& preds_back  (void) { return **(--preds_end ()); }
+    //
+    // virtual from ir_component
+    //
 
-    [[nodiscard]]
-    bool has_preds (void) { return preds_begin () != preds_end (); }
-
-    [[nodiscard]]
-    bool has_preds (citer pos) { return pos != begin<range::body> () || has_preds (); }
-
-    [[nodiscard]]
-    bool has_multiple_preds (void) { return num_preds () > 1; }
-
-    // successors
-    link_iter   succs_begin (void);
-    link_iter   succs_end   (void);
-    std::size_t num_succs  (void);
-
-    ir_block& succs_front (void) { return **succs_begin ();   }
-    ir_block& succs_back  (void) { return **(--succs_end ()); }
-
-    bool has_succs (void)      { return succs_begin () != succs_end ();             }
-    bool has_succs (citer pos) { return pos != end<range::body> () || has_succs (); }
-
-    bool has_multiple_succs (void) { return num_succs () > 1; }
-
-    ir_block&
-    get_entry_block (void) noexcept override
-    {
-      return *this;
-    }
+    bool
+    reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
+                           ir_def_timeline& new_dt,
+                           std::vector<nonnull_ptr<ir_block>>& until) override;
 
     void
     reset (void) noexcept override;
@@ -1015,23 +969,40 @@ namespace gch
     ir_use_timeline::iter find_first_use_after (ir_use_timeline& tl, citer pos,
                                                 citer last);
 
-    optional_ref<const ir_def_timeline> find_def_timeline (const ir_variable& var) const
+    optional_ref<const ir_def_timeline>
+    find_def_timeline (const ir_variable& var) const
     {
       if (auto cit = m_timeline_map.find (&var); cit != m_timeline_map.end ())
         return std::get<ir_def_timeline> (*cit);
       return nullopt;
     }
 
-    optional_ref<ir_def_timeline> find_def_timeline (const ir_variable& var)
+    optional_ref<ir_def_timeline>
+    find_def_timeline (const ir_variable& var)
     {
       if (auto cit = m_timeline_map.find (&var); cit != m_timeline_map.end ())
         return std::get<ir_def_timeline> (*cit);
       return nullopt;
     }
 
-    ir_def_timeline& get_def_timeline (const ir_variable& var)
+    ir_def_timeline&
+    get_def_timeline (const ir_variable& var)
     {
       return std::get<ir_def_timeline> (*m_timeline_map.try_emplace (&var, *this).first);
+    }
+
+    [[nodiscard]] constexpr
+    ir_structure&
+    get_parent (void) noexcept
+    {
+      return *maybe_get_parent ();
+    }
+
+    [[nodiscard]] constexpr
+    const ir_structure&
+    get_parent (void) const noexcept
+    {
+      return *maybe_get_parent ();
     }
 
   private:
