@@ -29,6 +29,35 @@ namespace gch
   public:
     using substack_ptr   = std::unique_ptr<ir_def_resolution_stack>;
 
+    using container_type          = std::vector<substack_ptr>;
+    using value_type              = typename container_type::value_type;
+    using allocator_type          = typename container_type::allocator_type;
+    using size_type               = typename container_type::size_type;
+    using difference_type         = typename container_type::difference_type;
+    using reference               = typename container_type::reference;
+    using const_reference         = typename container_type::const_reference;
+    using pointer                 = typename container_type::pointer;
+    using const_pointer           = typename container_type::const_pointer;
+
+    using iterator                = typename container_type::iterator;
+    using const_iterator          = typename container_type::const_iterator;
+    using reverse_iterator        = typename container_type::reverse_iterator;
+    using const_reverse_iterator  = typename container_type::const_reverse_iterator;
+
+    using val_t   = value_type;
+    using alloc_t = allocator_type;
+    using size_ty = size_type;
+    using diff_ty = difference_type;
+    using ref     = reference;
+    using cref    = const_reference;
+    using ptr     = pointer;
+    using cptr    = const_pointer;
+
+    using iter    = iterator;
+    using citer   = const_iterator;
+    using riter   = reverse_iterator;
+    using criter  = const_reverse_iterator;
+
     ir_def_resolution_frame            (void)                               = delete;
     ir_def_resolution_frame            (const ir_def_resolution_frame&)     = default;
     ir_def_resolution_frame            (ir_def_resolution_frame&&) noexcept = default;
@@ -39,30 +68,61 @@ namespace gch
     explicit
     ir_def_resolution_frame (ir_block& join_block, const ir_link_set<ir_block>& v);
 
-    [[nodiscard]] auto  begin   (void)       noexcept { return m_incoming.begin ();   }
-    [[nodiscard]] auto  begin   (void) const noexcept { return m_incoming.begin ();   }
-    [[nodiscard]] auto  cbegin  (void) const noexcept { return m_incoming.cbegin ();  }
+    [[nodiscard]]
+    const_iterator
+    begin (void) const noexcept
+    {
+     return m_incoming.begin ();
+    }
 
-    [[nodiscard]] auto  end     (void)       noexcept { return m_incoming.end ();     }
-    [[nodiscard]] auto  end     (void) const noexcept { return m_incoming.end ();     }
-    [[nodiscard]] auto  cend    (void) const noexcept { return m_incoming.cend ();    }
+    [[nodiscard]]
+    const_iterator
+    end (void) const noexcept
+    {
+     return m_incoming.end ();
+    }
 
-    [[nodiscard]] auto  rbegin  (void)       noexcept { return m_incoming.rbegin ();  }
-    [[nodiscard]] auto  rbegin  (void) const noexcept { return m_incoming.rbegin ();  }
-    [[nodiscard]] auto  crbegin (void) const noexcept { return m_incoming.crbegin (); }
+    [[nodiscard]]
+    const_reverse_iterator
+    rbegin (void) const noexcept
+    {
+     return m_incoming.rbegin ();
+    }
 
-    [[nodiscard]] auto  rend    (void)       noexcept { return m_incoming.rend ();    }
-    [[nodiscard]] auto  rend    (void) const noexcept { return m_incoming.rend ();    }
-    [[nodiscard]] auto  crend   (void) const noexcept { return m_incoming.crend ();   }
+    [[nodiscard]]
+    const_reverse_iterator
+    rend (void) const noexcept
+    {
+     return m_incoming.rend ();
+    }
 
-    [[nodiscard]] auto& front   (void)       noexcept { return m_incoming.front ();   }
-    [[nodiscard]] auto& front   (void) const noexcept { return m_incoming.front ();   }
+    [[nodiscard]]
+    const_reference
+    front (void) const
+    {
+      return *begin ();
+    }
 
-    [[nodiscard]] auto& back    (void)       noexcept { return m_incoming.back ();    }
-    [[nodiscard]] auto& back    (void) const noexcept { return m_incoming.back ();    }
+    [[nodiscard]]
+    const_reference
+    back (void) const
+    {
+      return *rbegin ();
+    }
 
-    [[nodiscard]] auto  size    (void) const noexcept { return m_incoming.size ();    }
-    [[nodiscard]] auto  empty   (void) const noexcept { return m_incoming.empty ();   }
+    [[nodiscard]]
+    size_type
+    size (void) const noexcept
+    {
+     return m_incoming.size ();
+    }
+
+    [[nodiscard]]
+    bool
+    empty (void) const noexcept
+    {
+      return m_incoming.empty ();
+    }
 
     [[nodiscard]]
     bool
@@ -105,6 +165,10 @@ namespace gch
     is_resolved_nonempty (void) const noexcept;
 
     [[nodiscard]]
+    const std::optional<ir_link_set<ir_def_timeline>>&
+    maybe_get_resolution (void) const noexcept;
+
+    [[nodiscard]]
     const ir_link_set<ir_def_timeline>&
     get_resolution (void) const noexcept;
 
@@ -119,6 +183,10 @@ namespace gch
     [[nodiscard]]
     optional_ref<ir_def>
     maybe_get_resolved_def (void) const;
+
+    [[nodiscard]]
+    ir_block&
+    get_leaf_block (void) const noexcept;
 
   private:
     nonnull_ptr<ir_block>                       m_leaf_block;

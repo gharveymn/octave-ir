@@ -47,8 +47,8 @@ namespace gch
   ir_def_resolution_frame::
   is_joinable (void) const noexcept
   {
-    // ie. all the incoming_pairs are resolved
-    return std::all_of (begin (), end (), &ir_associated_incoming::is_resolved);
+    // ie. all the substacks are resolved
+    return std::all_of (begin (), end (), [](const substack_ptr& u) { u->is_resolved (); });
   }
 
   ir_link_set<ir_def_timeline>
@@ -59,19 +59,21 @@ namespace gch
 
     // find the first non-empty association
     auto found_nonempty = std::find_if (begin (), end (),
-                                        &ir_associated_incoming::is_resolved_nonempty);
-
+                                        [](const substack_ptr& u)
+                                        {
+                                          return u->is_resolved_nonempty ();
+                                        });
     if (found_nonempty == end ())
       return { };
 
     // check if all the incoming timelines have the same parent def
     // if they do we can skip creation of an incoming-timeline in the current block
-    ir_use_timeline& cmp = found_nonempty->get_outgoing_timeline ();
+    const ir_def& cmp = (*found_nonempty)->get_resolved_def ();
     auto found_hetero = std::find_if (std::next (found_nonempty), end (),
-                                      [&cmp](const ir_associated_incoming& inc)
+                                      [&cmp](const substack_ptr& u)
                                       {
-                                        if (inc.is_resolved_nonempty ())
-                                          return &inc.get_outgoing_timeline () == &cmp;
+                                        return ! u->is_resolved ()
+                                             ||  &cmp == &u->get_resolved_def ();
                                       });
 
     if (found_hetero == end ())
@@ -79,30 +81,28 @@ namespace gch
       // if homogeneous and we can skip creation of the incoming-timeline
       // and forward the timelines
       return std::accumulate (std::next (found_nonempty), end (),
-                              found_nonempty->release_timelines (),
-                              [](GCH_ACCUMULATE_LHS (timelines_container) ret,
-                                 ir_associated_incoming& inc)
+                              (*found_nonempty)->get_resolution (),
+                              [](auto&& ret, const substack_ptr& u) -> decltype (auto)
                               {
-                                ret.insert (ret.end (),
-                                            inc.get_timelines ().begin (),
-                                            inc.get_timelines ().end ());
+                                ret.insert (u->get_resolution ().begin (),
+                                            u->get_resolution ().end ());
                                 return std::move (ret);
                               });
     }
 
     // otherwise we need to create an incoming-timeline
-    ir_variable&     var = cmp.get_variable ();
-    ir_def_timeline& dt  = m_join_block->get_def_timeline (var);
+    const ir_variable& var = cmp.get_variable ();
+    ir_def_timeline&   dt  = m_join_block->get_def_timeline (var);
 
     assert (! dt.has_incoming ()          && "the block already has incoming blocks");
     assert (! dt.has_incoming_timeline () && "the block already has an incoming timeline");
 
     std::for_each (begin (), found_nonempty,
-                   [&dt](const ir_associated_incoming& inc)
+                   [&dt](const substack_ptr& u)
                    {
-                     dt.append_incoming (inc.get_incoming_block (),
-                                         inc.get_timelines ().begin (),
-                                         inc.get_timelines ().end ());
+                     dt.append_incoming (u->get_leaf_block (),
+                                         u->get_resolution ().begin (),
+                                         u->get_resolution ().end ());
                    });
 
     // Q: Do we need to re-point references to the found predecessor timelines
@@ -127,7 +127,6 @@ namespace gch
   join_with (ir_link_set<ir_def_timeline>&& c)
   {
     assert_all_same_nonnull_outgoing (c);
-    std::sort (c.begin (), c.end ());
 
     // find the first non-empty association
     auto found_nonempty = std::find_if (begin (), end (),
@@ -151,7 +150,7 @@ namespace gch
                                             [&cmp](const substack_ptr& u)
                                             {
                                               return ! u->is_resolved ()
-                                                 ||  &cmp == &u->get_resolved_def ();
+                                                   ||  &cmp == &u->get_resolved_def ();
                                             });
 
       if (found_hetero == end ())
@@ -159,33 +158,31 @@ namespace gch
         // if homogeneous and we can skip creation of the incoming-timeline
         // and forward the timelines
         return std::accumulate (std::next (found_nonempty), end (), std::move (c),
-                                [](GCH_ACCUMULATE_LHS (ir_link_set<ir_def_timeline>) ret,
-                                   const substack_ptr& u)
+                                [](auto&& ret, const substack_ptr& u) -> decltype (auto)
                                 {
-
-                                  ret.insert (ret.end (),
-                                              u->get_resolution ().get_timelines ().begin (),
-                                              inc.get_timelines ().end ());
+                                  if (const auto& r = u->maybe_get_resolution ())
+                                    ret.insert (r->begin (), r->end ());
                                   return std::move (ret);
                                 });
       }
     }
-    ir_use_timeline& cmp = found_nonempty->get_outgoing_timeline ();
 
+    const ir_def& cmp = (*found_nonempty)->get_resolved_def ();
 
     // otherwise we need to create an incoming-timeline
-    ir_variable&     var = cmp.get_variable ();
-    ir_def_timeline& dt  = m_join_block->get_def_timeline (var);
+    const ir_variable& var = cmp.get_variable ();
+    ir_def_timeline&   dt  = m_join_block->get_def_timeline (var);
 
     assert (! dt.has_incoming ()          && "the block already has incoming blocks");
     assert (! dt.has_incoming_timeline () && "the block already has an incoming timeline");
 
     std::for_each (begin (), found_nonempty,
-                   [&dt](const ir_associated_incoming& inc)
+                   [&](const substack_ptr& u)
                    {
-                     dt.append_incoming (inc.get_incoming_block (),
-                                         inc.get_timelines ().begin (),
-                                         inc.get_timelines ().end ());
+                     if (const auto& r = u->maybe_get_resolution ())
+                       dt.append_incoming (u->get_leaf_block (), r->begin (), r->end ());
+                     else
+                       dt.append_incoming (u->get_leaf_block (), c.begin (), c.end ());
                    });
 
     // Q: Do we need to re-point references to the found predecessor timelines
@@ -262,11 +259,25 @@ namespace gch
     return is_resolved () && ! m_resolution->empty ();
   }
 
+  const std::optional<ir_link_set<ir_def_timeline>>&
+  ir_def_resolution_stack::
+  maybe_get_resolution (void) const noexcept
+  {
+    return m_resolution;
+  }
+
   const ir_link_set<ir_def_timeline>&
   ir_def_resolution_stack::
   get_resolution (void) const noexcept
   {
     return *m_resolution;
+  }
+
+  ir_block&
+  ir_def_resolution_stack::
+  get_leaf_block (void) const noexcept
+  {
+    return *m_leaf_block;
   }
 
   bool

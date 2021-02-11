@@ -699,20 +699,23 @@ test_links (void)
     assert (l == r);
   }
   {
-    ir_link_set<ir_block>::reset_nums ();
+    // ir_link_set<ir_block>::reset_nums ();
     ir_link_set l (copy_leaves (1, 2, 3, 4, 5));
-    std::cout << "num copies:       " << ir_link_set<ir_block>::num_copies << std::endl;
-    std::cout << "num moves:        " << ir_link_set<ir_block>::num_moves << std::endl;
-    std::cout << "num copy assigns: " << ir_link_set<ir_block>::num_copy_assigns << std::endl;
-    std::cout << "num move assigns: " << ir_link_set<ir_block>::num_move_assigns << std::endl;
+    // std::cout << "num copies:       " << ir_link_set<ir_block>::num_copies << std::endl;
+    // std::cout << "num moves:        " << ir_link_set<ir_block>::num_moves << std::endl;
+    // std::cout << "num copy assigns: " << ir_link_set<ir_block>::num_copy_assigns << std::endl;
+    // std::cout << "num move assigns: " << ir_link_set<ir_block>::num_move_assigns << std::endl;
   }
   {
     using namespace std::chrono;
     using clock = high_resolution_clock;
     using time = clock::time_point;
 
-    constexpr std::size_t num_values  = 10000000;
-    constexpr std::size_t num_samples = 1000000;
+    // constexpr std::size_t num_values  = 10000000;
+    // constexpr std::size_t num_samples = 1000000;
+
+    constexpr std::size_t num_values  = 100000;
+    constexpr std::size_t num_samples = 10000;
 
     std::vector<ir_block> s (num_values);
     std::vector<nonnull_ptr<ir_block>> ptrs;
@@ -811,7 +814,7 @@ main (void)
   std::vector<std::string> va (15, "hi");
 
   auto ta = std::accumulate (va.begin (), va.end (), test_accum { },
-                             [](test_accum& ta, const std::string& s)
+                             [](auto&& ta, const std::string& s) -> decltype (auto)
                              {
                                ta.append (s);
                                return std::move (ta);
