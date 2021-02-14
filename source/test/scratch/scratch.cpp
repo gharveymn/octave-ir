@@ -952,6 +952,8 @@ namespace gch
     func (bl);
     std::function<bool (ir_block&)> func2 = std::move (func);
     blah *p2 = func2.target<blah> ();
+    (void)p1;
+    (void)p2;
     func2 (bl);
   }
 
@@ -959,13 +961,32 @@ namespace gch
 
   struct some_other_class
   {
-    std::stack<some_class> m_stack;
+    // std::stack<some_class> m_stack;
   };
 
   struct some_class
   {
-
+    std::vector<some_class> v;
+    small_vector<some_class, 0> m_self;
   };
+
+  struct blahk;
+
+  struct incom
+  {
+    std::vector<blahk> v;
+    small_vector<blahk, 0> sv;
+  };
+
+  void
+  g (void)
+  {
+    some_class x { };
+    // x.m_self.begin ();
+
+    some_other_class y { };
+    // y.m_stack.emplace ();
+  }
 
 }
 
@@ -977,6 +998,7 @@ main (void)
   using namespace gch;
 
   f ();
+  g ();
 
   test_visitor ();
 

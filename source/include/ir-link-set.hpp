@@ -15,6 +15,7 @@
 
 namespace gch
 {
+
   template <typename T>
   class ir_link_set
     // : public init_counter
@@ -53,9 +54,9 @@ namespace gch
     class view_type
     {
     public:
-      using iterator        = const_iterator;
-      using difference_type = difference_type;
-      using value_type      = value_type;
+      using iterator        = ir_link_set::const_iterator;
+      using difference_type = ir_link_set::difference_type;
+      using value_type      = ir_link_set::value_type;
 
       view_type            (void)                 = default;
       view_type            (const view_type&)     = default;

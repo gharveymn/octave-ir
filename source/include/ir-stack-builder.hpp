@@ -60,11 +60,8 @@ namespace gch
         return ir_substructure_ascender { *this } (c);
     }
 
-    ir_resolution_stack_builder
-    dispatch_fork ()
-    {
-
-    }
+    small_vector<ir_def_resolution_stack_builder, 1>
+    dispatch_fork (ir_component& c);
 
     void
     dispatch_parent (ir_component& c)
@@ -74,7 +71,6 @@ namespace gch
     }
 
   private:
-    nonnull_ptr<ir_block>   m_current_join_block;
     ir_def_resolution_stack m_stack;
   };
 

@@ -91,6 +91,8 @@ namespace gch
     top (void) const;
 
   private:
+    ir_component_ptr                            m_component;
+    std::vector<ir_def_resolution_stack>        m_leaves;
     nonnull_ptr<ir_block>                       m_leaf_block;
     std::stack<ir_def_resolution_frame>         m_stack;
     std::optional<ir_link_set<ir_def_timeline>> m_resolution;

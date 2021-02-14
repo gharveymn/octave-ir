@@ -593,8 +593,10 @@ namespace gch
     return dynamic_cast<const T*> (comp.get_component_pointer ()) != nullptr;
   }
 
-#ifdef GCH_CONCEPTS
+#ifdef GCH_LIB_CONCEPTS
+
   static_assert (std::contiguous_iterator<ir_component_ptr>);
+
 #endif
 
   [[nodiscard]]
