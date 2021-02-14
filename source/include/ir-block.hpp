@@ -746,9 +746,6 @@ namespace gch
     std::vector<nonnull_ptr<ir_def_timeline>>
     forward_outgoing_timelines (ir_variable& var);
 
-    std::vector<std::pair<nonnull_ptr<ir_block>, optional_ref<ir_def_timeline>>>
-    collect_outgoing (ir_variable& var) override;
-
     ir_def_timeline&
     append_incoming (ir_variable& var, ir_def_timeline& dt, ir_block& incoming_block,
                      ir_def_timeline& pred);
@@ -943,18 +940,6 @@ namespace gch
     iter
     remove_range (citer first, citer last) noexcept;
 
-    //
-    // virtual from ir_component
-    //
-
-    bool
-    reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
-                           ir_def_timeline& new_dt,
-                           std::vector<nonnull_ptr<ir_block>>& until) override;
-
-    void
-    reset (void) noexcept override;
-
     /**
      * Create a def before the specified position.
      *
@@ -969,20 +954,13 @@ namespace gch
     ir_use_timeline::iter find_first_use_after (ir_use_timeline& tl, citer pos,
                                                 citer last);
 
+    optional_ref<ir_def_timeline>
+    find_def_timeline (const ir_variable& var);
+
     optional_ref<const ir_def_timeline>
     find_def_timeline (const ir_variable& var) const
     {
-      if (auto cit = m_timeline_map.find (&var); cit != m_timeline_map.end ())
-        return std::get<ir_def_timeline> (*cit);
-      return nullopt;
-    }
-
-    optional_ref<ir_def_timeline>
-    find_def_timeline (const ir_variable& var)
-    {
-      if (auto cit = m_timeline_map.find (&var); cit != m_timeline_map.end ())
-        return std::get<ir_def_timeline> (*cit);
-      return nullopt;
+      return as_mutable (*this).find_def_timeline (var);
     }
 
     ir_def_timeline&
@@ -1002,8 +980,19 @@ namespace gch
     const ir_structure&
     get_parent (void) const noexcept
     {
-      return *maybe_get_parent ();
+      return as_mutable (*this).get_parent ();
     }
+
+    //
+    // virtual from ir_component
+    //
+
+    bool
+    reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
+                           std::vector<nonnull_ptr<ir_block>>& until) override;
+
+    void
+    reset (void) noexcept override;
 
   private:
     list_partition<ir_instruction, 2> m_instr_partition;

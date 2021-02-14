@@ -42,7 +42,6 @@ namespace gch
     ~ir_function           (void) override          = default;
 
     [[nodiscard]]
-    constexpr
     ptr
     get_body (void) noexcept
     {
@@ -50,14 +49,13 @@ namespace gch
     }
 
     [[nodiscard]]
-    constexpr
     cptr
     get_body (void) const noexcept
     {
       return as_mutable (*this).get_body ();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     is_body (cptr comp) const noexcept
     {
@@ -65,7 +63,6 @@ namespace gch
     }
 
     [[nodiscard]]
-    constexpr
     ir_component_sequence&
     get_body_component (void) noexcept
     {
@@ -73,7 +70,6 @@ namespace gch
     }
 
     [[nodiscard]]
-    constexpr
     const ir_component_sequence&
     get_body_component (void) const noexcept
     {
@@ -85,7 +81,7 @@ namespace gch
     //
 
     bool
-    reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
+    reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts,
                            ir_def_timeline& new_dt,
                            std::vector<nonnull_ptr<ir_block>>& until) override;
 
@@ -105,11 +101,11 @@ namespace gch
     get_entry_ptr (void) noexcept override;
 
     [[nodiscard]]
-    link_vector
+    ir_link_set<ir_block>
     get_predecessors (ir_component_cptr) noexcept override;
 
     [[nodiscard]]
-    link_vector
+    ir_link_set<ir_block>
     get_successors (ir_component_cptr) noexcept override;
 
     [[nodiscard]]
@@ -124,10 +120,6 @@ namespace gch
 
     void
     recursive_flatten (void) override;
-
-    void
-    reassociate_timelines_after (ir_component_ptr pos, ir_def_timeline& dt,
-                                 const std::vector<nonnull_ptr<ir_block>>& until) override;
 
   private:
     ir_component_storage m_body;

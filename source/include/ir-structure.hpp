@@ -28,6 +28,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "ir-link-set.hpp"
 #include "ir-component.hpp"
 #include "ir-instruction-fwd.hpp"
+#include "ir-def-resolution.hpp"
 
 #include <stack>
 #include <vector>
@@ -42,6 +43,16 @@ namespace gch
   class ir_use_timeline;
   // class ir_structure_descender;
   // class ir_structure_ascender;
+
+  class ir_component_fork;
+  class ir_component_loop;
+  class ir_component_sequence;
+  class ir_function;
+
+  using visitable_structures = visitable_types<ir_component_fork,
+                                               ir_component_loop,
+                                               ir_component_sequence,
+                                               ir_function>;
 
   class ir_structure
     : public ir_component
@@ -174,9 +185,6 @@ namespace gch
     void
     invalidate_leaf_cache (void) noexcept;
 
-    void
-    invalidate_entry_cache (void) noexcept;
-
     // returns ptrs to the newly split blocks (inside the mutated block_ptr)
     std::pair<ir_component_ptr, ir_component_ptr>
     split (ir_component_ptr block_ptr, ir_instruction_iter pivot);
@@ -243,12 +251,12 @@ namespace gch
 
     [[nodiscard]]
     virtual
-    ir_link_set
+    ir_link_set<ir_block>
     get_predecessors (ir_component_cptr comp) = 0;
 
     [[nodiscard]]
     virtual
-    ir_link_set
+    ir_link_set<ir_block>
     get_successors (ir_component_cptr comp) = 0;
 
     [[nodiscard]]
@@ -268,11 +276,6 @@ namespace gch
     void
     recursive_flatten (void) = 0;
 
-    virtual
-    void
-    reassociate_timelines_after (ir_component_ptr pos, ir_def_timeline& dt,
-                                 std::vector<nonnull_ptr<ir_block>>& until) = 0;
-
     //
     // virtual function accessories
     //
@@ -287,13 +290,13 @@ namespace gch
     ir_use_timeline&
     join_incoming_at (ir_block& block, ir_variable& var);
 
-    ir_link_set
+    ir_link_set<ir_block>
     get_predecessors (const ir_component& c)
     {
       return get_predecessors (get_ptr (c));
     }
 
-    ir_link_set
+    ir_link_set<ir_block>
     get_successors (const ir_component& c)
     {
       return get_successors (get_ptr (c));
@@ -325,7 +328,7 @@ namespace gch
 
   private:
     optional_ref<ir_block> m_entry_cache;
-    ir_link_set            m_leaf_cache;
+    ir_link_set<ir_block>  m_leaf_cache;
   };
 
   // a substructure is any structure that isn't an function
@@ -345,14 +348,14 @@ namespace gch
       : ir_structure (construct_with_parent, parent)
     { }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     ir_structure&
     get_parent (void) noexcept
     {
       return *maybe_get_parent ();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     const ir_structure&
     get_parent (void) const noexcept
     {
@@ -375,12 +378,12 @@ namespace gch
   }
 
   [[nodiscard]]
-  ir_link_set
+  ir_link_set<ir_block>
   copy_leaves (ir_component_ptr comp);
 
   template <typename ...Args>
   [[nodiscard]] inline
-  ir_link_set
+  ir_link_set<ir_block>
   copy_leaves (ir_component_ptr comp, Args&&... args)
   {
     return (copy_leaves (comp) | ... | copy_leaves (std::forward<Args> (args)));

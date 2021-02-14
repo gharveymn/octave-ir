@@ -45,8 +45,8 @@ namespace gch
 
   bool
   ir_function::
-  reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
-                         ir_def_timeline& new_dt, std::vector<nonnull_ptr<ir_block>>& until)
+  reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
+                         std::vector<nonnull_ptr<ir_block>>& until)
   {
     get_body_component ().reassociate_timelines (old_dts, new_dt, until);
     return true;
@@ -78,18 +78,16 @@ namespace gch
     return as_mutable (*this).get_body ();
   }
 
-  auto
+  ir_link_set<ir_block>
   ir_function::
   get_predecessors (ir_component_cptr comp) noexcept
-    -> link_vector
   {
     return { };
   }
 
-  auto
+  ir_link_set<ir_block>
   ir_function::
   get_successors (ir_component_cptr comp) noexcept
-    -> link_vector
   {
     return { };
   }
@@ -125,15 +123,6 @@ namespace gch
   recursive_flatten (void)
   {
     get_body_component ().recursive_flatten ();
-  }
-
-  void
-  ir_function::
-  reassociate_timelines_after (ir_component_ptr pos, ir_def_timeline&,
-                               std::vector<nonnull_ptr<ir_block>>&)
-  {
-    assert (is_body (pos) && "pos is not the body component");
-    static_cast<void> (pos);
   }
 
 }

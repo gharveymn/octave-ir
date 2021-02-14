@@ -8,281 +8,494 @@
 #ifndef OCTAVE_IR_IR_TRAVERSER_HPP
 #define OCTAVE_IR_IR_TRAVERSER_HPP
 
+#include "ir-component.hpp"
 #include "ir-structure.hpp"
+#include "ir-component-fork.hpp"
+#include "ir-component-loop.hpp"
+#include "ir-component-sequence.hpp"
+#include "ir-function.hpp"
+
+#include <algorithm>
 
 namespace gch
 {
-  class ir_structure_descender
+  class ir_component;
+  class ir_block;
+
+  class ir_structure;
+  class ir_function;
+
+  class ir_substructure;
+  class ir_component_fork;
+  class ir_component_loop;
+  class ir_component_sequence;
+
+  enum class ir_traverser_state : bool
   {
+    run  = false,
+    stop = true ,
+  };
+
+  template <typename Derived>
+  class ir_substructure_traverser;
+
+  template <template <typename> typename DerivedT, typename BlockVisitor>
+  class ir_substructure_traverser<DerivedT<BlockVisitor>>
+  {
+    using derived_type = DerivedT<BlockVisitor>;
+
   public:
-    using comp_list = std::vector<nonnull_ptr<ir_component>>;
-    using iter       = comp_list::iterator;
-    using citer      = comp_list::const_iterator;
-    using riter      = comp_list::reverse_iterator;
-    using criter     = comp_list::const_reverse_iterator;
-    using ref        = comp_list::reference;
-    using cref       = comp_list::const_reference;
+    using block_visitor_type = BlockVisitor;
 
-    [[nodiscard]] iter   begin (void)       noexcept   { return m_components.begin ();   }
-    [[nodiscard]] citer  begin (void) const noexcept   { return m_components.begin ();   }
-    [[nodiscard]] citer  cbegin (void) const noexcept  { return m_components.cbegin ();  }
-
-    [[nodiscard]] iter   end (void)       noexcept     { return m_components.end ();     }
-    [[nodiscard]] citer  end (void) const noexcept     { return m_components.end ();     }
-    [[nodiscard]] citer  cend (void) const noexcept    { return m_components.cend ();    }
-
-    [[nodiscard]] riter  rbegin (void)       noexcept  { return m_components.rbegin ();  }
-    [[nodiscard]] criter rbegin (void) const noexcept  { return m_components.rbegin ();  }
-    [[nodiscard]] criter crbegin (void) const noexcept { return m_components.crbegin (); }
-
-    [[nodiscard]] riter  rend (void)       noexcept    { return m_components.rend ();    }
-    [[nodiscard]] criter rend (void) const noexcept    { return m_components.rend ();    }
-    [[nodiscard]] criter crend (void) const noexcept   { return m_components.crend ();   }
-
-    [[nodiscard]] ref    front (void)                  { return m_components.front ();   }
-    [[nodiscard]] cref   front (void) const            { return m_components.front ();   }
-
-    [[nodiscard]] ref    back (void)                   { return m_components.back ();    }
-    [[nodiscard]] cref   back (void) const             { return m_components.back ();    }
-
-    ir_structure_descender (void)                              = delete;
-    ir_structure_descender (const ir_structure_descender&)     = default;
-    ir_structure_descender (ir_structure_descender&&) noexcept = default;
-    ir_structure_descender& operator= (const ir_structure_descender&)     = default;
-    ir_structure_descender& operator= (ir_structure_descender&&) noexcept = default;
-    ~ir_structure_descender (void)                              = default;
-
-    ir_structure_descender (comp_list&& l, iter start, bool is_fork)
-      : m_components (std::move (l)),
-        m_start      (start),
-        m_is_fork    (is_fork)
+    explicit
+    ir_substructure_traverser (BlockVisitor& block_visitor) noexcept
+      : m_block_visitor (block_visitor),
+        m_state   (ir_traverser_state::run)
     { }
 
-    template <typename F, typename Ret, typename... Args>
-    std::enable_if_t<std::is_same_v<std::invoke_result_t<F, ir_block&, Args&&...>,
-                                    bool>,
-                     std::vector<Ret>>
-    collect (F func, Args&&... args)
+    void
+    visit (ir_block& c)
     {
-      auto f = std::bind (func, std::placeholders::_1, std::forward<Args> (args)...);
-      return select_collect (f);
+      set_state (m_block_visitor.visit (c));
+    }
+
+    [[nodiscard]]
+    ir_traverser_state
+    get_state (void) const noexcept
+    {
+      return m_state;
+    }
+
+    ir_traverser_state
+    set_state (bool state) noexcept
+    {
+      return (m_state = static_cast<ir_traverser_state> (state));
+    }
+
+    [[nodiscard]]
+    bool
+    is_stopped (void) const noexcept
+    {
+      return get_state () == ir_traverser_state::stop;
+    }
+
+    [[nodiscard]]
+    explicit
+    operator bool (void) const noexcept
+    {
+      return is_stopped ();
+    }
+
+    bool
+    operator() (ir_component& c)
+    {
+      c.accept (static_cast<derived_type&> (*this));
+      return is_stopped ();
+    }
+
+    bool
+    dispatch_child (ir_component& c)
+    {
+      return m_block_visitor.dispatch_child (c);
+    }
+
+    bool
+    dispatch_child (ir_component_ptr comp)
+    {
+      return dispatch_child (*comp);
     }
 
   private:
+    BlockVisitor&      m_block_visitor;
+    ir_traverser_state m_state         = ir_traverser_state::stop;
+  };
 
-    template <typename F, typename Ret>
-    constexpr std::pair<bool, std::vector<Ret>> select_collect (F f)
+  template <typename BlockVisitor>
+  class ir_substructure_descender
+    : public ir_substructure_traverser<ir_substructure_descender<BlockVisitor>>
+  {
+    using base = ir_substructure_traverser<ir_substructure_descender<BlockVisitor>>;
+
+  public:
+    using block_visitor_type = BlockVisitor;
+
+    using ir_substructure_traverser<ir_substructure_descender<BlockVisitor>>::
+      ir_substructure_traverser;
+
+    using base::dispatch_child;
+    using base::set_state;
+
+    void
+    visit (ir_component_fork& fork)
     {
-      return m_is_fork ? sequence_collect (f) : fork_collect (f);
+      set_state (dispatch_child (fork.get_condition ())
+             ||  std::all_of (fork.cases_begin (), fork.cases_end (),
+                              [&](ir_component& sub) { return dispatch_child (sub); }));
     }
 
-    template <typename B, typename Ret>
-    std::pair<bool, std::vector<Ret>> sequence_collect (B unary_func)
+    void
+    visit (ir_component_loop& loop)
     {
-      std::vector<Ret> ret_vec { };
-      return { std::any_of (m_start, m_components.end (),
-                             [&ret_vec, unary_func] (nonnull_ptr<ir_component> c)
+      set_state (dispatch_child (loop.get_start ()    )
+             ||  dispatch_child (loop.get_condition ())
+             ||  dispatch_child (loop.get_body ()     )
+             ||  dispatch_child (loop.get_update ()   ));
+    }
+
+    void
+    visit (ir_component_sequence& seq)
+    {
+      set_state (std::any_of (seq.begin (), seq.end (),
+                              [&](ir_component& sub) { return dispatch_child (sub); }));
+    }
+
+    void
+    visit (ir_function& func)
+    {
+      dispatch_child (func.get_body ());
+      set_state (ir_traverser_state::stop);
+    }
+  };
+
+  template <typename BlockVisitor>
+  class ir_substructure_ascender
+    : public ir_substructure_traverser<ir_substructure_ascender<BlockVisitor>>
+  {
+    using base = ir_substructure_traverser<ir_substructure_ascender<BlockVisitor>>;
+
+  public:
+    using block_visitor_type = BlockVisitor;
+
+    using ir_substructure_traverser<ir_substructure_ascender<BlockVisitor>>::
+      ir_substructure_traverser;
+
+    using base::dispatch_child;
+    using base::set_state;
+    using base::is_stopped;
+
+    void
+    visit (ir_component_fork& fork)
+    {
+      set_state (std::all_of (fork.cases_begin (), fork.cases_end (),
+                              [&](ir_component& sub) { return dispatch_child (sub); })
+             ||  dispatch_child (fork.get_condition ()));
+    }
+
+    void
+    visit (ir_component_loop& loop)
+    {
+      set_state (dispatch_child (loop.get_condition ()));
+      if (! is_stopped ())
+      {
+        if (! dispatch_child (loop.get_update ()))
+          dispatch_child (loop.get_body ());
+        set_state (dispatch_child (loop.get_start ()));
+      }
+    }
+
+    void
+    visit (ir_component_sequence& seq)
+    {
+      set_state (std::any_of (seq.rbegin (), seq.rend (),
+                              [&](ir_component& sub) { return dispatch_child (sub); }));
+    }
+
+    void
+    visit (ir_function& func)
+    {
+      dispatch_child (func.get_body ());
+      set_state (ir_traverser_state::stop);
+    }
+  };
+
+  template <typename Derived>
+  class ir_superstructure_traverser;
+
+  template <template <typename> typename DerivedT, typename BlockVisitor>
+  class ir_superstructure_traverser<DerivedT<BlockVisitor>>
+  {
+    using derived_type = DerivedT<BlockVisitor>;
+
+  public:
+    ir_superstructure_traverser (BlockVisitor& block_visitor, ir_component& subcomponent) noexcept
+      : m_block_visitor (block_visitor),
+        m_subcomponent  (subcomponent)
+    { }
+
+    BlockVisitor&
+    operator() (ir_structure& s)
+    {
+      s.accept (static_cast<derived_type&> (*this));
+      return m_block_visitor;
+    }
+
+    [[nodiscard]]
+    ir_component&
+    get_subcomponent (void) const noexcept
+    {
+      return m_subcomponent;
+    }
+
+  protected:
+    bool
+    dispatch_child (ir_component& c)
+    {
+      return m_block_visitor.dispatch_child (c);
+    }
+
+    bool
+    dispatch_child (ir_component_ptr comp)
+    {
+      return dispatch_child (*comp);
+    }
+
+    void
+    dispatch_parent (ir_substructure& s)
+    {
+      m_block_visitor.dispatch_parent (s);
+    }
+
+    void
+    visit (ir_function&)
+    { }
+
+  private:
+    BlockVisitor   m_block_visitor;
+    ir_component&  m_subcomponent;
+  };
+
+  // descend after the subcomponent
+  template <typename BlockVisitor>
+  class ir_superstructure_descender
+    : public ir_superstructure_traverser<ir_superstructure_descender<BlockVisitor>>
+  {
+    using base = ir_superstructure_traverser<ir_superstructure_descender<BlockVisitor>>;
+
+  public:
+    using block_visitor_type = BlockVisitor;
+
+    using ir_superstructure_traverser<ir_superstructure_descender<BlockVisitor>>::
+      ir_superstructure_traverser;
+
+    using base::get_subcomponent;
+    using base::dispatch_child;
+    using base::dispatch_parent;
+
+    void
+    visit (ir_component_fork& fork)
+    {
+      if (fork.is_condition (get_subcomponent ()))
+      {
+        if (! std::all_of (fork.cases_begin (), fork.cases_end (),
+                           [&](ir_component& sub) { return dispatch_child (sub); }))
+        {
+          return dispatch_parent (fork);
+        }
+      }
+      else
+      {
+        assert (std::any_of (fork.cases_begin (), fork.cases_end (),
+                             [&](const ir_component& sub) { return &sub == &get_subcomponent (); }));
+      }
+    }
+
+    void
+    visit (ir_component_loop& loop)
+    {
+      using id = ir_component_loop::subcomponent_id;
+
+      // we could do some fallthroughs here, but I think it's less readable
+      bool stop = false;
+      switch (loop.get_id (get_subcomponent ()))
+      {
+        case id::start:
+        {
+          stop = dispatch_child (loop.get_condition ())
+             ||  dispatch_child (loop.get_body ()     )
+             ||  dispatch_child (loop.get_update ()   );
+          break;
+        }
+        case id::condition:
+        {
+
+          stop = dispatch_child (loop.get_body ()  )
+             ||  dispatch_child (loop.get_update ());
+          break;
+        }
+        case id::body:
+        {
+          stop = dispatch_child (loop.get_update ());
+          break;
+        }
+        case id::update:
+        {
+          stop = false;
+          break;
+        }
+      }
+
+      if (! stop)
+        dispatch_parent (loop);
+    }
+
+    void
+    visit (ir_component_sequence& seq)
+    {
+      ir_component_ptr pos = seq.get_ptr (get_subcomponent ());
+      assert (pos != seq.end ());
+
+      if (std::none_of (std::next (pos), seq.end (),
+                        [&](ir_component& sub) { return dispatch_child (sub); }))
+      {
+        return dispatch_parent (seq);
+      }
+    }
+  };
+
+  // ascend before the subcomponent
+  template <typename BlockVisitor>
+  class ir_superstructure_ascender
+    : public ir_superstructure_traverser<ir_superstructure_ascender<BlockVisitor>>
+  {
+    using base = ir_superstructure_traverser<ir_superstructure_ascender<BlockVisitor>>;
+
+  public:
+    using block_visitor_type = BlockVisitor;
+
+    using ir_superstructure_traverser<ir_superstructure_ascender<BlockVisitor>>::
+      ir_superstructure_traverser;
+
+    using base::get_subcomponent;
+    using base::dispatch_child;
+    using base::dispatch_parent;
+
+    void
+    visit (ir_component_fork& fork)
+    {
+      if (! fork.is_condition (get_subcomponent ()))
+      {
+        assert (std::any_of (fork.cases_begin (), fork.cases_end (),
+                             [&](const ir_component& sub)
                              {
-                               auto curr_ret = single_collect (unary_func, c);
-                               auto curr_ret_vec = std::get<std::vector<Ret>> (curr_ret);
-                               if (! curr_ret_vec.empty ())
-                                 std::move (curr_ret_vec.begin (), curr_ret_vec.end (),
-                                            std::back_inserter (ret_vec));
-                               return std::get<bool> (curr_ret);
-                             }), std::move (ret_vec) };
-    }
+                               return &sub == &get_subcomponent ();
+                             }));
 
-    template <typename B, typename Ret>
-    std::pair<bool, std::vector<Ret>> fork_collect (B unary_func)
-    {
-      auto beg = m_start;
-      if (m_components.empty ())
-        return { false, { } };
-
-      auto p = single_collect (unary_func, *beg);
-      if (beg != m_components.begin () || std::get<bool> (p))
-        return p;
-
-      bool stop_branch = true;
-      auto& ret_vec = std::get<std::vector<Ret>> (p);
-      std::for_each (++beg, m_components.end (),
-                     [&stop_branch, &ret_vec, unary_func] (nonnull_ptr<ir_component> c)
-                     {
-                       auto curr_ret = single_collect (unary_func, c);
-                       auto curr_ret_vec = std::get<std::vector<Ret>> (curr_ret);
-                       if (! curr_ret_vec.empty ())
-                         std::move (curr_ret_vec.begin (), curr_ret_vec.end (),
-                                    std::back_inserter (ret_vec));
-                       stop_branch &= std::get<bool> (curr_ret);
-                     });
-      return { stop_branch, ret_vec };
-    }
-
-    template <typename B, typename Ret>
-    static std::pair<bool, std::vector<Ret>>
-    single_collect (B unary_func, nonnull_ptr<ir_component> c)
-    {
-      if (auto *block = dynamic_cast<ir_block *> (c.get ()))
-      {
-        if (auto ret = unary_func (*block))
-          return { true, { *ret } };
-        else
-          return { false, { } };
+        if (! dispatch_child (fork.get_condition ()))
+          return dispatch_parent (fork);
       }
-      auto sub_des = static_cast<ir_structure&> (*c).create_descender ();
-      return sub_des.select_collect (unary_func);
+      else
+        return dispatch_parent (fork);
     }
 
-    comp_list  m_components;
-    iter       m_start;
-    bool       m_is_fork;
+    void
+    visit (ir_component_loop& loop)
+    {
+      using id = ir_component_loop::subcomponent_id;
+      switch (loop.get_id (get_subcomponent ()))
+      {
+        case id::condition:
+        {
+          if (! dispatch_child (loop.get_update ()))
+            dispatch_child (loop.get_body ());
+
+          if (! dispatch_child (loop.get_start ()))
+            dispatch_parent (loop);
+          break;
+        }
+        case id::update:
+        {
+          if (! dispatch_child (loop.get_body ())
+            &&! dispatch_child (loop.get_condition ())
+            &&! dispatch_child (loop.get_start ()))
+          {
+            dispatch_parent (loop);
+          }
+          break;
+        }
+        case id::body:
+        {
+          if (! dispatch_child (loop.get_condition ()))
+          {
+            dispatch_child (loop.get_update ());
+            if (! dispatch_child (loop.get_start ()))
+              dispatch_parent (loop);
+          }
+          break;
+        }
+        case id::start:
+        {
+          dispatch_parent (loop);
+          break;
+        }
+      }
+    }
+
+    void
+    visit (ir_component_sequence& seq)
+    {
+      std::reverse_iterator<ir_component_ptr> rpos { seq.get_ptr (get_subcomponent ()) };
+      assert (rpos != seq.rend ());
+
+      if (std::none_of (std::next (rpos), seq.rend (),
+                        [&](ir_component& sub) { return dispatch_child (sub); }))
+      {
+        return dispatch_parent (seq);
+      }
+    }
   };
 
-  class ir_structure_ascender
+  template <typename BlockVisitor>
+  ir_substructure_descender (BlockVisitor&)
+    -> ir_substructure_descender<BlockVisitor>;
+
+  template <typename BlockVisitor>
+  ir_substructure_ascender (BlockVisitor&)
+    -> ir_substructure_ascender<BlockVisitor>;
+
+  template <typename BlockVisitor>
+  ir_superstructure_descender (BlockVisitor&, ir_component&)
+    -> ir_superstructure_descender<BlockVisitor>;
+
+  template <typename BlockVisitor>
+  ir_superstructure_ascender (BlockVisitor&, ir_component&)
+    -> ir_superstructure_ascender<BlockVisitor>;
+
+  class ir_block_visitor_prototype
   {
-  public:
-    using comp_list = std::vector<nonnull_ptr<ir_component>>;
-    using iter       = comp_list::iterator;
-    using citer      = comp_list::const_iterator;
-    using riter      = comp_list::reverse_iterator;
-    using criter     = comp_list::const_reverse_iterator;
-    using ref        = comp_list::reference;
-    using cref       = comp_list::const_reference;
-
-    [[nodiscard]] iter   begin (void)       noexcept   { return m_components.begin ();   }
-    [[nodiscard]] citer  begin (void) const noexcept   { return m_components.begin ();   }
-    [[nodiscard]] citer  cbegin (void) const noexcept  { return m_components.cbegin ();  }
-
-    [[nodiscard]] iter   end (void)       noexcept     { return m_components.end ();     }
-    [[nodiscard]] citer  end (void) const noexcept     { return m_components.end ();     }
-    [[nodiscard]] citer  cend (void) const noexcept    { return m_components.cend ();    }
-
-    [[nodiscard]] riter  rbegin (void)       noexcept  { return m_components.rbegin ();  }
-    [[nodiscard]] criter rbegin (void) const noexcept  { return m_components.rbegin ();  }
-    [[nodiscard]] criter crbegin (void) const noexcept { return m_components.crbegin (); }
-
-    [[nodiscard]] riter  rend (void)       noexcept    { return m_components.rend ();    }
-    [[nodiscard]] criter rend (void) const noexcept    { return m_components.rend ();    }
-    [[nodiscard]] criter crend (void) const noexcept   { return m_components.crend ();   }
-
-    [[nodiscard]] ref    front (void)                  { return m_components.front ();   }
-    [[nodiscard]] cref   front (void) const            { return m_components.front ();   }
-
-    [[nodiscard]] ref    back (void)                   { return m_components.back ();    }
-    [[nodiscard]] cref   back (void) const             { return m_components.back ();    }
-
-    ir_structure_ascender (void)                              = delete;
-    ir_structure_ascender (const ir_structure_ascender&)     = default;
-    ir_structure_ascender (ir_structure_ascender&&) noexcept = default;
-    ir_structure_ascender& operator= (const ir_structure_ascender&)     = default;
-    ir_structure_ascender& operator= (ir_structure_ascender&&) noexcept = default;
-    ~ir_structure_ascender (void)                              = default;
-
-    ir_structure_ascender (comp_list&& l, riter rstart, ir_structure& structure, bool is_fork)
-      : m_components (std::move (l)),
-        m_rstart     (rstart),
-        m_structure  (structure),
-        m_is_fork    (is_fork)
-    { }
-
-    template <typename F, typename Ret, typename... Args>
-    std::enable_if_t<std::is_same_v<std::invoke_result_t<F, ir_block&, Args&&...>,
-                                    bool>,
-                     std::vector<Ret>>
-    collect (F func, Args&&... args)
+    ir_block_visitor_prototype&
+    operator() (ir_component& c)
     {
-      auto f = std::bind (func, std::placeholders::_1, std::forward<Args> (args)...);
-      return select_collect (f);
+      if (! ir_substructure_descender<ir_block_visitor_prototype> { *this } (c))
+        dispatch_parent (c);
+      return *this;
     }
 
-  private:
-
-    template <typename F, typename Ret>
-    constexpr std::pair<bool, std::vector<Ret>> select_collect (F f)
+    bool
+    visit (ir_block&)
     {
-      return m_is_fork ? sequence_collect (f) : fork_collect (f);
+      return false;
     }
 
-    template <typename B, typename Ret>
-    std::pair<bool, std::vector<Ret>> sequence_collect (B unary_func)
+    bool
+    dispatch_child (ir_component& c)
     {
-      std::vector<Ret> ret_vec { };
-      bool branch_stop = std::any_of (m_rstart, m_components.rend (),
-                                      [&ret_vec, unary_func] (nonnull_ptr<ir_component> c)
-                                      {
-                                        auto curr_ret = single_collect (unary_func, c);
-                                        auto& curr_ret_vec = std::get<std::vector<Ret>> (curr_ret);
-                                        if (! curr_ret_vec.empty ())
-                                          std::move (curr_ret_vec.begin (), curr_ret_vec.end (),
-                                                     std::back_inserter (ret_vec));
-                                        return std::get<bool> (curr_ret);
-                                      });
-      if (! branch_stop && m_structure->has_parent ())
-      {
-        ir_structure& parent = m_structure->get_parent ();
-        auto sub_asc = parent.create_ascender (*m_structure);
-        auto parent_ret = sub_asc.select_collect (unary_func);
-        branch_stop = std::get<bool> (parent_ret);
-        auto& parent_ret_vec = std::get<std::vector<Ret>> (parent_ret);
-        if (! parent_ret_vec.empty ())
-          std::move (parent_ret_vec.begin (), parent_ret_vec.end (),
-                     std::back_inserter (ret_vec));
-      }
-      return { branch_stop, std::move (ret_vec) };
+      ir_block_visitor_prototype sub;
+      // do operations needed to prepare class data for sub-scope
+
+      return ir_substructure_descender<ir_block_visitor_prototype> { sub } (c);
     }
 
-    template <typename B, typename Ret>
-    std::pair<bool, std::vector<Ret>> fork_collect (B unary_func)
+    void
+    dispatch_parent (ir_component& c)
     {
-      auto beg = m_rstart;
-      if (m_components.empty())
-        return { false, { } };
+      ir_block_visitor_prototype super;
+      // do operations needed to prepare class data for super-scope
 
-      auto p = single_descend_collect (unary_func, *beg);
-      if (beg == --m_components.rend () || std::get<bool> (p))
-        return p;
-
-      auto& curr_ret_vec = std::get<std::vector<Ret>> (p);
-      auto cond_ret = single_collect (unary_func, m_components.front ());
-      auto& cond_ret_vec = std::get<std::vector<Ret>> (p);
-
-      std::move (cond_ret_vec.begin (), cond_ret_vec.end (), std::back_inserter (curr_ret_vec));
-
-      bool branch_stop = std::get<bool> (cond_ret);
-      if (! branch_stop && m_structure->has_parent ())
-      {
-        ir_structure& parent = m_structure->get_parent ();
-        auto sub_asc = parent.create_ascender (*m_structure);
-        auto parent_ret = sub_asc.select_collect (unary_func);
-        branch_stop = std::get<bool> (parent_ret);
-        auto& parent_ret_vec = std::get<std::vector<Ret>> (parent_ret);
-        if (! parent_ret_vec.empty ())
-          std::move (parent_ret_vec.begin (), parent_ret_vec.end (),
-                     std::back_inserter (curr_ret_vec));
-      }
-      return { branch_stop, std::move (curr_ret_vec) };
+      ir_superstructure_descender<ir_block_visitor_prototype> parent { super, c };
+      parent (*c.maybe_get_parent ());
     }
-
-    template <typename B, typename Ret>
-    static std::pair<bool, std::vector<Ret>>
-    single_collect (B unary_func, nonnull_ptr<ir_component> c)
-    {
-      if (auto *block = dynamic_cast<ir_block *> (c.get ()))
-      {
-        if (auto ret = unary_func (*block))
-          return { true, { *ret } };
-        else
-          return { false, { } };
-      }
-      auto sub_asc = static_cast<ir_structure&> (*c).create_ascender ();
-      return sub_asc.select_collect (unary_func);
-    }
-
-    comp_list                 m_components;
-    riter                     m_rstart;
-    nonnull_ptr<ir_structure> m_structure;
-    bool                      m_is_fork;
   };
+
 }
 
 #endif // OCTAVE_IR_IR_TRAVERSER_HPP

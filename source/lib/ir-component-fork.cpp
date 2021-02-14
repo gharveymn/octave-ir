@@ -54,8 +54,8 @@ namespace gch
 
   bool
   ir_component_fork::
-  reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
-                         ir_def_timeline& new_dt, std::vector<nonnull_ptr<ir_block>>& until)
+  reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
+                         std::vector<nonnull_ptr<ir_block>>& until)
   {
     return get_condition ()->reassociate_timelines (old_dts, new_dt, until)
        ||  std::all_of (cases_begin (), cases_end (),
@@ -83,7 +83,7 @@ namespace gch
     return get_condition ();
   }
 
-  ir_link_set
+  ir_link_set<ir_block>
   ir_component_fork::
   get_predecessors (ir_component_cptr comp)
   {

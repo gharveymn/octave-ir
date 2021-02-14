@@ -229,532 +229,756 @@ namespace gch
     return (copy_leaves (comp) | ... | copy_leaves (std::forward<Args> (args)));
   }
 
-}
-
-static
-void
-test_links (void)
-{
-  using namespace gch;
-
-  std::array<ir_block, 10> blks { };
-
-  auto convert
-    = [&](nonnull_ptr<ir_block> p)
-      {
-        return std::to_string (p.get () - blks.data ());
-      };
-
-  auto print
-    = [&](const ir_link_set<ir_block>& l)
-      {
-        std::string s = std::accumulate (std::next (l.begin ()),
-                                         l.end (),
-                                         convert (*l.begin ()),
-                                         [&](std::string s, nonnull_ptr<ir_block> p)
-                                         {
-                                           return std::move (s) + ", " + convert (p);
-                                         });
-        std::cout << "[ " << s << " ]" << std::endl;
-      };
-
+  static
+  void
+  test_links (void)
   {
-    // range constructor
+    std::array<ir_block, 10> blks { };
+
+    auto convert
+      = [&](nonnull_ptr<ir_block> p)
+        {
+          return std::to_string (p.get () - blks.data ());
+        };
+
+    auto print
+      = [&](const ir_link_set<ir_block>& l)
+        {
+          std::string s = std::accumulate (std::next (l.begin ()),
+                                           l.end (),
+                                           convert (*l.begin ()),
+                                           [&](std::string s, nonnull_ptr<ir_block> p)
+                                           {
+                                             return std::move (s) + ", " + convert (p);
+                                           });
+          std::cout << "[ " << s << " ]" << std::endl;
+        };
 
-    std::array<nonnull_ptr<ir_block>, 4> a {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    ir_link_set<ir_block> l (a.begin (), a.end ());
-
-    assert (std::is_sorted (l.begin (), l.end ()));
-    assert (l.size () == 4);
-  }
-  {
-    // ilist constructor
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    assert (std::is_sorted (l.begin (), l.end ()));
-    assert (l.size () == 4);
-  }
-  {
-    // ilist constructor (repeats)
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[6] }
-    };
-
-    assert (std::is_sorted (l.begin (), l.end ()));
-    assert (l.size () == 1);
-  }
-  {
-    // ilist constructor (repeats)
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[3] },
-      nonnull_ptr { blks[3] }
-    };
-
-    assert (std::is_sorted (l.begin (), l.end ()));
-    assert (l.size () == 2);
-  }
-  {
-    // copy constructor
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    ir_link_set r (l);
-
-    assert (r == l);
-  }
-  {
-    // move constructor
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    ir_link_set l_copy (l);
-    ir_link_set r (std::move (l));
-
-    assert (r == l_copy);
-  }
-  {
-    // copy assignment operator
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    ir_link_set<ir_block> r;
-    r = l;
-
-    assert (r == l);
-  }
-  {
-    // move assignment operator
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    ir_link_set l_copy (l);
-    ir_link_set<ir_block> r;
-    r = std::move (l);
-
-    assert (r == l_copy);
-  }
-  {
-    // element insert
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-    print (l);
-
-    l.insert (nonnull_ptr { blks[3] });
-    print (l);
-
-    l.insert (nonnull_ptr { blks[1] });
-    print (l);
-
-    l.insert (nonnull_ptr { blks[5] });
-    print (l);
-
-    l.insert (nonnull_ptr { blks[7] });
-    print (l);
-
-    assert (std::is_sorted (l.begin (), l.end ()));
-    assert (l.size () == 8);
-  }
-  {
-    // element insert (repeats)
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    l.insert (nonnull_ptr { blks[6] });
-    l.insert (nonnull_ptr { blks[6] });
-    l.insert (nonnull_ptr { blks[2] });
-    l.insert (nonnull_ptr { blks[4] });
-
-    assert (std::is_sorted (l.begin (), l.end ()));
-    assert (l.size () == 4);
-  }
-  {
-    // range insert
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    std::array<nonnull_ptr<ir_block>, 4> a {
-      nonnull_ptr { blks[3] },
-      nonnull_ptr { blks[1] },
-      nonnull_ptr { blks[5] },
-      nonnull_ptr { blks[7] }
-    };
-
-    l.insert (a.begin (), a.end ());
-    assert (std::is_sorted (l.begin (), l.end ()));
-    assert (l.size () == 8);
-  }
-  {
-    // ilist insert
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    l.insert ({
-      nonnull_ptr { blks[3] },
-      nonnull_ptr { blks[1] },
-      nonnull_ptr { blks[5] },
-      nonnull_ptr { blks[7] }
-    });
-
-    assert (std::is_sorted (l.begin (), l.end ()));
-    assert (l.size () == 8);
-  }
-  {
-    // ilist insert (repeats)
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    l.insert ({
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[2] }
-    });
-
-    assert (std::is_sorted (l.begin (), l.end ()));
-    assert (l.size () == 4);
-  }
-  {
-    // ilist insert (repeats)
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    l.insert ({
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[2] }
-    });
-
-    assert (std::is_sorted (l.begin (), l.end ()));
-    assert (l.size () == 4);
-  }
-  {
-    // emplace
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    auto p = l.emplace (blks[3]);
-    assert (p.position == std::next (l.begin ()));
-    assert (p.inserted);
-    assert (l.emplace (blks[1]).inserted);
-    l.emplace (blks[5]);
-    l.emplace (blks[7]);
-
-    assert (! l.emplace (blks[1]).inserted);
-    assert (l.emplace (blks[1]).position == l.begin ());
-
-    assert (std::is_sorted (l.begin (), l.end ()));
-    assert (l.size () == 8);
-  }
-  {
-    // erase
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] },
-      nonnull_ptr { blks[3] },
-      nonnull_ptr { blks[1] },
-      nonnull_ptr { blks[5] },
-      nonnull_ptr { blks[7] }
-    };
-
-    const ir_link_set r {
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[3] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[5] },
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[9] },
-    };
-
-    l.erase (l.begin ());
-    l.erase (std::next (l.begin (), 5));
-
-    assert (l == r);
-  }
-  {
-    // erase key
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] },
-      nonnull_ptr { blks[3] },
-      nonnull_ptr { blks[1] },
-      nonnull_ptr { blks[5] },
-      nonnull_ptr { blks[7] }
-    };
-
-    const ir_link_set r {
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[3] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[5] },
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[9] },
-    };
-
-    assert (l.erase (blks[1]));
-    assert (l.erase (blks[7]));
-    assert (! l.erase (blks[8]));
-
-    assert (l == r);
-  }
-  {
-    // swap
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    ir_link_set r {
-      nonnull_ptr { blks[3] },
-      nonnull_ptr { blks[1] },
-      nonnull_ptr { blks[5] },
-      nonnull_ptr { blks[7] }
-    };
-
-    const ir_link_set l_copy (l);
-    const ir_link_set r_copy (r);
-
-    l.swap (r);
-    assert (r == l_copy);
-    assert (l == r_copy);
-
-    using std::swap;
-    swap (l, r);
-    assert (l == l_copy);
-    assert (r == r_copy);
-  }
-  {
-    // find
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    assert (l.find (blks[6]) == std::next (l.begin (), 2));
-    assert (l.find (blks[1]) == l.end ());
-  }
-  {
-    // contains
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[4] },
-      nonnull_ptr { blks[9] }
-    };
-
-    assert (l.contains (blks[2]));
-    assert (! l.contains (blks[3]));
-  }
-  {
-    // equal_range
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[7] },
-      nonnull_ptr { blks[5] }
-    };
-
-    auto v = l.equal_range (blks[6]);
-    assert (! v.empty ());
-    assert (v.begin () == std::next (l.begin (), 2));
-    assert (v.end () == std::next (l.begin (), 3));
-
-    auto w = l.equal_range (blks[1]);
-    assert (w.empty ());
-  }
-  {
-    // lower_bound
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[7] },
-      nonnull_ptr { blks[5] }
-    };
-
-    assert (l.lower_bound (blks[6]) == std::next (l.begin (), 2));
-    assert (l.lower_bound (blks[1]) == l.begin ());
-    assert (l.lower_bound (blks[8]) == l.end ());
-  }
-  {
-    // upper_bound
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[7] },
-      nonnull_ptr { blks[5] }
-    };
-
-    assert (l.upper_bound (blks[6]) == std::next (l.begin (), 3));
-    assert (l.upper_bound (blks[1]) == l.begin ());
-    assert (l.upper_bound (blks[8]) == l.end ());
-  }
-  {
-    // erase_if
-
-    ir_link_set l {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[2] },
-      nonnull_ptr { blks[7] },
-      nonnull_ptr { blks[5] }
-    };
-
-    const ir_link_set r {
-      nonnull_ptr { blks[6] },
-      nonnull_ptr { blks[7] },
-    };
-
-    assert (2 == erase_if (l, [&](nonnull_ptr<ir_block> b)
-                              {
-                                return b < nonnull_ptr { blks[6] };
-                              }));
-    assert (l == r);
-  }
-  {
-    // ir_link_set<ir_block>::reset_nums ();
-    ir_link_set l (copy_leaves (1, 2, 3, 4, 5));
-    // std::cout << "num copies:       " << ir_link_set<ir_block>::num_copies << std::endl;
-    // std::cout << "num moves:        " << ir_link_set<ir_block>::num_moves << std::endl;
-    // std::cout << "num copy assigns: " << ir_link_set<ir_block>::num_copy_assigns << std::endl;
-    // std::cout << "num move assigns: " << ir_link_set<ir_block>::num_move_assigns << std::endl;
-  }
-  {
-    using namespace std::chrono;
-    using clock = high_resolution_clock;
-    using time = clock::time_point;
-
-    // constexpr std::size_t num_values  = 10000000;
-    // constexpr std::size_t num_samples = 1000000;
-
-    constexpr std::size_t num_values  = 100000;
-    constexpr std::size_t num_samples = 10000;
-
-    std::vector<ir_block> s (num_values);
-    std::vector<nonnull_ptr<ir_block>> ptrs;
-    ptrs.reserve (num_values);
-
-    std::transform (s.begin (), s.end (), std::back_inserter (ptrs),
-                    [](ir_block& b) { return nonnull_ptr { b }; });
-
-    std::vector<nonnull_ptr<ir_block>> v;
-    v.reserve (num_values);
-
-    std::sample (ptrs.begin (), ptrs.end (), std::back_inserter (v), num_samples,
-                 std::mt19937 { std::random_device { } () });
-
-    const ir_link_set<ir_block> l (v.begin (), v.end ());
-
-    std::sample (ptrs.begin (), ptrs.end (), v.begin (), num_samples,
-                 std::mt19937 { std::random_device { } () });
-
-    const ir_link_set<ir_block> r (v.begin (), v.end ());
     {
-      ir_link_set p (l);
-      ir_link_set q (r);
+      // range constructor
 
-      time t1 = clock::now ();
-      p.merge (q);
-      time t2 = clock::now ();
-      std::cout << "merge done in  "
-                << duration_cast<duration<double>> (t2 - t1).count ()
-                << " ms."
-                << std::endl;
+      std::array<nonnull_ptr<ir_block>, 4> a {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      ir_link_set<ir_block> l (a.begin (), a.end ());
+
+      assert (std::is_sorted (l.begin (), l.end ()));
+      assert (l.size () == 4);
+    }
+    {
+      // ilist constructor
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      assert (std::is_sorted (l.begin (), l.end ()));
+      assert (l.size () == 4);
+    }
+    {
+      // ilist constructor (repeats)
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[6] }
+      };
+
+      assert (std::is_sorted (l.begin (), l.end ()));
+      assert (l.size () == 1);
+    }
+    {
+      // ilist constructor (repeats)
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[3] },
+        nonnull_ptr { blks[3] }
+      };
+
+      assert (std::is_sorted (l.begin (), l.end ()));
+      assert (l.size () == 2);
+    }
+    {
+      // copy constructor
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      ir_link_set r (l);
+
+      assert (r == l);
+    }
+    {
+      // move constructor
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      ir_link_set l_copy (l);
+      ir_link_set r (std::move (l));
+
+      assert (r == l_copy);
+    }
+    {
+      // copy assignment operator
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      ir_link_set<ir_block> r;
+      r = l;
+
+      assert (r == l);
+    }
+    {
+      // move assignment operator
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      ir_link_set l_copy (l);
+      ir_link_set<ir_block> r;
+      r = std::move (l);
+
+      assert (r == l_copy);
+    }
+    {
+      // element insert
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+      print (l);
+
+      l.insert (nonnull_ptr { blks[3] });
+      print (l);
+
+      l.insert (nonnull_ptr { blks[1] });
+      print (l);
+
+      l.insert (nonnull_ptr { blks[5] });
+      print (l);
+
+      l.insert (nonnull_ptr { blks[7] });
+      print (l);
+
+      assert (std::is_sorted (l.begin (), l.end ()));
+      assert (l.size () == 8);
+    }
+    {
+      // element insert (repeats)
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      l.insert (nonnull_ptr { blks[6] });
+      l.insert (nonnull_ptr { blks[6] });
+      l.insert (nonnull_ptr { blks[2] });
+      l.insert (nonnull_ptr { blks[4] });
+
+      assert (std::is_sorted (l.begin (), l.end ()));
+      assert (l.size () == 4);
+    }
+    {
+      // range insert
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      std::array<nonnull_ptr<ir_block>, 4> a {
+        nonnull_ptr { blks[3] },
+        nonnull_ptr { blks[1] },
+        nonnull_ptr { blks[5] },
+        nonnull_ptr { blks[7] }
+      };
+
+      l.insert (a.begin (), a.end ());
+      assert (std::is_sorted (l.begin (), l.end ()));
+      assert (l.size () == 8);
+    }
+    {
+      // ilist insert
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      l.insert ({
+        nonnull_ptr { blks[3] },
+        nonnull_ptr { blks[1] },
+        nonnull_ptr { blks[5] },
+        nonnull_ptr { blks[7] }
+      });
+
+      assert (std::is_sorted (l.begin (), l.end ()));
+      assert (l.size () == 8);
+    }
+    {
+      // ilist insert (repeats)
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      l.insert ({
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[2] }
+      });
+
+      assert (std::is_sorted (l.begin (), l.end ()));
+      assert (l.size () == 4);
+    }
+    {
+      // ilist insert (repeats)
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      l.insert ({
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[2] }
+      });
+
+      assert (std::is_sorted (l.begin (), l.end ()));
+      assert (l.size () == 4);
+    }
+    {
+      // emplace
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      auto p = l.emplace (blks[3]);
+      assert (p.position == std::next (l.begin ()));
+      assert (p.inserted);
+      assert (l.emplace (blks[1]).inserted);
+      l.emplace (blks[5]);
+      l.emplace (blks[7]);
+
+      assert (! l.emplace (blks[1]).inserted);
+      assert (l.emplace (blks[1]).position == l.begin ());
+
+      assert (std::is_sorted (l.begin (), l.end ()));
+      assert (l.size () == 8);
+    }
+    {
+      // erase
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] },
+        nonnull_ptr { blks[3] },
+        nonnull_ptr { blks[1] },
+        nonnull_ptr { blks[5] },
+        nonnull_ptr { blks[7] }
+      };
+
+      const ir_link_set r {
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[3] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[5] },
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[9] },
+      };
+
+      l.erase (l.begin ());
+      l.erase (std::next (l.begin (), 5));
+
+      assert (l == r);
+    }
+    {
+      // erase key
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] },
+        nonnull_ptr { blks[3] },
+        nonnull_ptr { blks[1] },
+        nonnull_ptr { blks[5] },
+        nonnull_ptr { blks[7] }
+      };
+
+      const ir_link_set r {
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[3] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[5] },
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[9] },
+      };
+
+      assert (l.erase (blks[1]));
+      assert (l.erase (blks[7]));
+      assert (! l.erase (blks[8]));
+
+      assert (l == r);
+    }
+    {
+      // swap
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      ir_link_set r {
+        nonnull_ptr { blks[3] },
+        nonnull_ptr { blks[1] },
+        nonnull_ptr { blks[5] },
+        nonnull_ptr { blks[7] }
+      };
+
+      const ir_link_set l_copy (l);
+      const ir_link_set r_copy (r);
+
+      l.swap (r);
+      assert (r == l_copy);
+      assert (l == r_copy);
+
+      using std::swap;
+      swap (l, r);
+      assert (l == l_copy);
+      assert (r == r_copy);
+    }
+    {
+      // find
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      assert (l.find (blks[6]) == std::next (l.begin (), 2));
+      assert (l.find (blks[1]) == l.end ());
+    }
+    {
+      // contains
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[4] },
+        nonnull_ptr { blks[9] }
+      };
+
+      assert (l.contains (blks[2]));
+      assert (! l.contains (blks[3]));
+    }
+    {
+      // equal_range
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[7] },
+        nonnull_ptr { blks[5] }
+      };
+
+      auto v = l.equal_range (blks[6]);
+      assert (! v.empty ());
+      assert (v.begin () == std::next (l.begin (), 2));
+      assert (v.end () == std::next (l.begin (), 3));
+
+      auto w = l.equal_range (blks[1]);
+      assert (w.empty ());
+    }
+    {
+      // lower_bound
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[7] },
+        nonnull_ptr { blks[5] }
+      };
+
+      assert (l.lower_bound (blks[6]) == std::next (l.begin (), 2));
+      assert (l.lower_bound (blks[1]) == l.begin ());
+      assert (l.lower_bound (blks[8]) == l.end ());
+    }
+    {
+      // upper_bound
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[7] },
+        nonnull_ptr { blks[5] }
+      };
+
+      assert (l.upper_bound (blks[6]) == std::next (l.begin (), 3));
+      assert (l.upper_bound (blks[1]) == l.begin ());
+      assert (l.upper_bound (blks[8]) == l.end ());
+    }
+    {
+      // erase_if
+
+      ir_link_set l {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[2] },
+        nonnull_ptr { blks[7] },
+        nonnull_ptr { blks[5] }
+      };
+
+      const ir_link_set r {
+        nonnull_ptr { blks[6] },
+        nonnull_ptr { blks[7] },
+      };
+
+      assert (2 == erase_if (l, [&](nonnull_ptr<ir_block> b)
+                                {
+                                  return b < nonnull_ptr { blks[6] };
+                                }));
+      assert (l == r);
+    }
+    {
+      // ir_link_set<ir_block>::reset_nums ();
+      ir_link_set l (copy_leaves (1, 2, 3, 4, 5));
+      // std::cout << "num copies:       " << ir_link_set<ir_block>::num_copies << std::endl;
+      // std::cout << "num moves:        " << ir_link_set<ir_block>::num_moves << std::endl;
+      // std::cout << "num copy assigns: " << ir_link_set<ir_block>::num_copy_assigns << std::endl;
+      // std::cout << "num move assigns: " << ir_link_set<ir_block>::num_move_assigns << std::endl;
+    }
+    {
+      using namespace std::chrono;
+      using clock = high_resolution_clock;
+      using time = clock::time_point;
+
+      // constexpr std::size_t num_values  = 10000000;
+      // constexpr std::size_t num_samples = 1000000;
+
+      constexpr std::size_t num_values  = 100000;
+      constexpr std::size_t num_samples = 10000;
+
+      std::vector<ir_block> s (num_values);
+      std::vector<nonnull_ptr<ir_block>> ptrs;
+      ptrs.reserve (num_values);
+
+      std::transform (s.begin (), s.end (), std::back_inserter (ptrs),
+                      [](ir_block& b) { return nonnull_ptr { b }; });
+
+      std::vector<nonnull_ptr<ir_block>> v;
+      v.reserve (num_values);
+
+      std::sample (ptrs.begin (), ptrs.end (), std::back_inserter (v), num_samples,
+                   std::mt19937 { std::random_device { } () });
+
+      const ir_link_set<ir_block> l (v.begin (), v.end ());
+
+      std::sample (ptrs.begin (), ptrs.end (), v.begin (), num_samples,
+                   std::mt19937 { std::random_device { } () });
+
+      const ir_link_set<ir_block> r (v.begin (), v.end ());
+      {
+        ir_link_set p (l);
+        ir_link_set q (r);
+
+        time t1 = clock::now ();
+        p.merge (q);
+        time t2 = clock::now ();
+        std::cout << "merge done in  "
+                  << duration_cast<duration<double>> (t2 - t1).count ()
+                  << " ms."
+                  << std::endl;
+      }
     }
   }
+
+  //*****************************************************************
+// Pre-declare the shapes.
+//*****************************************************************
+  class Square;
+  class Circle;
+  class Triangle;
+
+//*****************************************************************
+// The shape visitor base class.
+// Pure virtual 'Visit' functions will be defined for the Square,
+// Circle, and Triangle types.
+//*****************************************************************
+  class ShapeVisitor : public abstract_visitor<Square, Circle, Triangle>
+  { };
+
+  class Square;
+  class Circle;
+  class Triangle;
+
+  class StaticVisitor;
+
+  using shape_visitors = visitor_types<ShapeVisitor, StaticVisitor>;
+
+  //*****************************************************************
+// The shape base class.
+//*****************************************************************
+  class Shape
+    : public virtual abstract_visitable<shape_visitors>
+  {
+  public:
+    virtual
+    ~Shape (void) = default;
+  };
+
+  //*****************************************************************
+// The square class
+//*****************************************************************
+  class Square
+    : public Shape,
+      public visitable<Square, shape_visitors>
+  { };
+
+//*****************************************************************
+// The circle class
+//*****************************************************************
+  class Circle
+    : public Shape,
+      public visitable<Circle, shape_visitors>
+  { };
+
+//*****************************************************************
+// The triangle class
+//*****************************************************************
+  class Triangle
+    : public Shape,
+      public visitable<Triangle, shape_visitors>
+  { };
+
+  //*****************************************************************
+// The 'draw' visitor.
+//*****************************************************************
+  class DrawVisitor
+    : public ShapeVisitor
+  {
+  public:
+    void
+    visit (Square&) override
+    {
+      std::cout << "Draw the square\n";
+    }
+
+    void
+    visit (Circle&) override
+    {
+      std::cout << "Draw the circle\n";
+    }
+
+    void
+    visit (Triangle&) override
+    {
+      std::cout << "Draw the triangle\n";
+    }
+  };
+
+//*****************************************************************
+// The 'serialise' visitor.
+//*****************************************************************
+  class SerialiseVisitor
+    : public ShapeVisitor
+  {
+  public:
+    void
+    visit (Square&) override
+    {
+      std::cout << "Serialise the square\n";
+    }
+
+    void
+    visit (Circle&) override
+    {
+      std::cout << "Serialise the circle\n";
+    }
+
+    void
+    visit (Triangle&) override
+    {
+      std::cout << "Serialise the triangle\n";
+    }
+  };
+
+  class StaticVisitor
+  {
+  public:
+    void
+    visit (Square&)
+    {
+      std::cout << "static square\n";
+    }
+
+    void
+    visit (Circle&)
+    {
+      std::cout << "static circle\n";
+    }
+
+    void
+    visit (Triangle&)
+    {
+      std::cout << "static triangle\n";
+    }
+  };
+
+  static
+  void
+  test_visitor (void)
+  {
+    //*****************************************************************
+    // The actual visitors.
+    //*****************************************************************
+    DrawVisitor      draw_visitor;
+    SerialiseVisitor serialise_visitor;
+    StaticVisitor    static_visitor_v;
+
+    //*****************************************************************
+    // The list of shapes.
+    //*****************************************************************
+    std::vector<Shape *> shape_list;
+
+    auto ApplyShape
+      = [&](ShapeVisitor &visitor)
+        {
+          std::for_each (shape_list.begin (), shape_list.end (),
+                         [&](Shape *u) { apply (visitor, *u); });
+        };
+
+    auto ApplyStatic
+      = [&](StaticVisitor &visitor)
+        {
+          std::for_each (shape_list.begin (), shape_list.end (),
+                         [&](Shape *u) { u->accept (visitor); });
+        };
+
+    // Create some shapes.
+    Square   square;
+    Circle   circle;
+    Triangle triangle;
+
+    // Add them to the vector
+    shape_list.push_back(&square);
+    shape_list.push_back(&circle);
+    shape_list.push_back(&triangle);
+
+    // Apply the visitors.
+    ApplyShape (draw_visitor);
+    ApplyShape (serialise_visitor);
+    ApplyStatic (static_visitor_v);
+  }
+
+  struct blah
+  {
+    int x;
+    long y;
+    std::string z;
+
+    bool
+    operator() (ir_block&)
+    {
+      ++x;
+      ++y;
+      z += "hi";
+      return true;
+    }
+  };
+
+  void
+  f (void)
+  {
+    ir_block bl;
+    blah b { };
+    std::function<bool (ir_block&)> func { std::move (b) };
+    assert (typeid (b) == func.target_type ());
+    blah *p1 = func.target<blah> ();
+    func (bl);
+    std::function<bool (ir_block&)> func2 = std::move (func);
+    blah *p2 = func2.target<blah> ();
+    func2 (bl);
+  }
+
+  struct some_class;
+
+  struct some_other_class
+  {
+    std::stack<some_class> m_stack;
+  };
+
+  struct some_class
+  {
+
+  };
+
 }
+
+
 
 int
 main (void)
 {
   using namespace gch;
+
+  f ();
+
+  test_visitor ();
 
   test_links ();
 

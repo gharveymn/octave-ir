@@ -24,14 +24,26 @@ namespace gch
   ir_component_loop::
   ~ir_component_loop (void) noexcept = default;
 
+  auto
+  ir_component_loop::
+  get_id (const ir_component& c) const
+    -> subcomponent_id
+  {
+    if (is_start     (c)) return subcomponent_id::start;
+    if (is_condition (c)) return subcomponent_id::condition;
+    if (is_body      (c)) return subcomponent_id::body;
+    if (is_update    (c)) return subcomponent_id::update;
+    throw ir_exception ("Could not find the specified component in the loop.");
+  }
+
   //
   // virtual from ir_component
   //
 
   bool
   ir_component_loop::
-  reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
-                         ir_def_timeline& new_dt, std::vector<nonnull_ptr<ir_block>>& until)
+  reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
+                         std::vector<nonnull_ptr<ir_block>>& until)
   {
     return get_start ()    ->reassociate_timelines (old_dts, new_dt, until)
        ||  get_condition ()->reassociate_timelines (old_dts, new_dt, until)
@@ -55,7 +67,6 @@ namespace gch
       return as_mutable (*this).get_body ();
     if (is_update (c))
       return as_mutable (*this).get_update ();
-
     throw ir_exception ("could not find the specified component in the loop");
   }
 
@@ -66,7 +77,7 @@ namespace gch
     return get_start ();
   }
 
-  ir_link_set
+  ir_link_set<ir_block>
   ir_component_loop::
   get_predecessors (ir_component_cptr comp)
   {
@@ -85,7 +96,7 @@ namespace gch
     throw ir_exception ("specified component was not in the loop component");
   }
 
-  ir_link_set
+  ir_link_set<ir_block>
   ir_component_loop::
   get_successors (ir_component_cptr comp)
   {

@@ -127,8 +127,8 @@ namespace gch
 
   bool
   ir_component_sequence::
-  reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
-                         ir_def_timeline& new_dt, std::vector<nonnull_ptr<ir_block>>& until)
+  reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
+                         std::vector<nonnull_ptr<ir_block>>& until)
   {
     return std::any_of (begin (), end (),
                         [&](ir_component& c)
@@ -165,7 +165,7 @@ namespace gch
     return begin ();
   }
 
-  ir_link_set
+  ir_link_set<ir_block>
   ir_component_sequence::
   get_predecessors (ir_component_cptr comp)
   {
@@ -174,7 +174,7 @@ namespace gch
     return copy_leaves (std::prev (make_mutable (comp)));
   }
 
-  ir_link_set
+  ir_link_set<ir_block>
   ir_component_sequence::
   get_successors (ir_component_cptr comp)
   {
@@ -216,16 +216,6 @@ namespace gch
     // now flatten all subcomponents
     std::for_each (begin (), end (),
       [](ir_component& c) { maybe_cast<ir_structure> (c) >>= &ir_structure::recursive_flatten; });
-  }
-
-  void
-  ir_component_sequence::
-  reassociate_timelines_after (ir_component_ptr pos, ir_def_timeline& dt,
-                               const std::vector<nonnull_ptr<ir_block>>& until)
-  {
-    if (is_leaf (pos))
-      get_parent ().reassociate_timelines_after (pos, dt, until);
-
   }
 
   std::vector<ir_component_mover>&

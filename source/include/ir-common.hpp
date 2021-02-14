@@ -96,11 +96,11 @@ namespace gch
     { };
 
     template <typename T, typename = void, typename ...Ts>
-    struct is_element : std::false_type
+    struct pack_contains : std::false_type
     { };
 
     template <typename T, typename ...Ts>
-    struct is_element<T, std::void_t<typename pack_index<0, T, Ts...>::type>, Ts...>
+    struct pack_contains<T, std::void_t<typename pack_index<0, T, Ts...>::type>, Ts...>
       : std::true_type
     { };
 
@@ -115,34 +115,53 @@ namespace gch
   }
 
   template <typename ...Ts>
-  using all_same    = detail::all_same<Ts...>;
+  struct all_same
+    : detail::all_same<Ts...>
+  { };
 
   template <std::size_t I, typename ...Ts>
-  using pack_select      = detail::pack_select<I, Ts...>;
-
-  template <std::size_t I, typename ...Ts>
-  using pack_select_t    = typename pack_select<I, Ts...>::type;
-
-  template <typename T, typename ...Ts>
-  using pack_index       = detail::pack_index<0, T, Ts...>;
+  struct pack_select_type
+    : detail::pack_select<I, Ts...>
+  { };
 
   template <typename T, typename ...Ts>
-  using is_element  = detail::is_element<T, void, Ts...>;
+  struct pack_index
+    : detail::pack_index<0, T, Ts...>
+  { };
+
+
+  template <typename T, typename ...Ts>
+  struct pack_contains
+    : detail::pack_contains<T, void, Ts...>
+  { };
 
   template <typename It>
-  using is_iterator = detail::is_iterator<It>;
+  struct is_iterator
+    : detail::is_iterator<It>
+  { };
+
+  template <std::size_t I, typename ...Ts>
+  using pack_select_t = typename pack_select_type<I, Ts...>::type;
 
   template <typename ...Ts>
-  inline constexpr bool        all_same_v    = all_same<Ts...>::value;
+  inline constexpr
+  bool
+  all_same_v = all_same<Ts...>::value;
 
   template <typename T, typename ...Ts>
-  inline constexpr std::size_t pack_index_v       = pack_index<T, Ts...>::value;
+  inline constexpr
+  std::size_t
+  pack_index_v = pack_index<T, Ts...>::value;
 
   template <typename T, typename ...Ts>
-  inline constexpr std::size_t is_element_v  = is_element<T, Ts...>::value;
+  inline constexpr
+  std::size_t
+  pack_contains_v = pack_contains<T, Ts...>::value;
 
   template <typename It>
-  inline constexpr bool        is_iterator_v = is_iterator<It>::value;
+  inline constexpr
+  bool
+  is_iterator_v = is_iterator<It>::value;
 
   template <typename From, typename To>
   struct match_cv

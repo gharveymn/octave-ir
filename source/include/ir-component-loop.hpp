@@ -25,6 +25,14 @@ namespace gch
     : public ir_substructure
   {
   public:
+    enum class subcomponent_id
+    {
+      start    ,
+      condition,
+      body     ,
+      update   ,
+    };
+
     using ptr  = ir_component_ptr;
     using cptr = ir_component_cptr;
 
@@ -38,116 +46,127 @@ namespace gch
     explicit
     ir_component_loop (ir_structure& parent);
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     ptr
     get_start (void) noexcept
     {
       return ptr { &m_start };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     cptr
     get_start (void) const noexcept
     {
       return cptr { &m_start };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     ptr
     get_condition (void) noexcept
     {
       return ptr { &m_condition };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     cptr
     get_condition (void) const noexcept
     {
       return cptr { &m_condition };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     ptr
     get_body (void) noexcept
     {
       return ptr { &m_body };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     cptr
     get_body (void) const noexcept
     {
       return cptr { &m_body };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     ptr
     get_update (void) noexcept
     {
       return ptr { &m_update };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     cptr
     get_update (void) const noexcept
     {
       return cptr { &m_update };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     is_start (cptr comp) const noexcept
     {
       return comp == get_start ();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     is_start (const ir_component& c) const noexcept
     {
       return &c == get_start ();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     is_condition (cptr comp) const noexcept
     {
       return comp == get_condition ();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     is_condition (const ir_component& c) const noexcept
     {
       return &c == get_condition ();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     is_body (cptr comp) const noexcept
     {
       return comp == get_body ();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     is_body (const ir_component& c) const noexcept
     {
       return &c == get_body ();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     is_update (cptr comp) const noexcept
     {
       return comp == get_update ();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     is_update (const ir_component& c) const noexcept
     {
       return &c == get_update ();
+    }
+
+    [[nodiscard]]
+    subcomponent_id
+    get_id (const ir_component& c) const;
+
+    [[nodiscard]]
+    subcomponent_id
+    get_id (cptr comp) const
+    {
+      return get_id (*comp);
     }
 
     //
@@ -155,8 +174,7 @@ namespace gch
     //
 
     bool
-    reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
-                           ir_def_timeline& new_dt,
+    reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
                            std::vector<nonnull_ptr<ir_block>>& until) override;
 
     void
@@ -175,11 +193,11 @@ namespace gch
     get_entry_ptr (void) override;
 
     [[nodiscard]]
-    ir_link_set
+    ir_link_set<ir_block>
     get_predecessors (ir_component_cptr comp) override;
 
     [[nodiscard]]
-    ir_link_set
+    ir_link_set<ir_block>
     get_successors (ir_component_cptr comp) override;
 
     [[nodiscard]]

@@ -25,6 +25,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "ir-component-handle.hpp"
 #include "ir-common-util.hpp"
+#include "ir-link-set.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 #include <gch/optional_ref.hpp>
@@ -43,8 +44,28 @@ namespace gch
   class ir_structure;
   class ir_def_timeline;
 
+  template <typename BlockVisitor>
+  class ir_substructure_descender;
+
+  template <typename BlockVisitor>
+  class ir_superstructure_descender;
+
+  template <typename BlockVisitor>
+  class ir_substructure_ascender;
+
+  template <typename BlockVisitor>
+  class ir_superstructure_ascender;
+
+  class ir_block_visitor_prototype;
+
+  using traverser_types = visitor_types<ir_substructure_descender<ir_block_visitor_prototype>,
+                                        ir_superstructure_descender<ir_block_visitor_prototype>,
+                                        ir_substructure_ascender<ir_block_visitor_prototype>,
+                                        ir_superstructure_ascender<ir_block_visitor_prototype>>;
+
   // abstract
   class ir_component
+    : public visitable<ir_component, traverser_types>
   {
   public:
     ir_component            (void)                    = delete;
@@ -55,7 +76,7 @@ namespace gch
     virtual ~ir_component (void) noexcept             = 0;
 
     explicit
-    ir_component (nonnull_ptr<ir_structure> parent)
+    ir_component (ir_structure& parent)
       : m_parent (parent)
     { }
 
@@ -64,28 +85,27 @@ namespace gch
       : m_parent (nullopt)
     { }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     has_parent (void) const noexcept
     {
       return m_parent.has_value ();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     optional_ref<ir_structure>
     maybe_get_parent (void) noexcept
     {
       return m_parent;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     optional_cref<ir_structure>
     maybe_get_parent (void) const noexcept
     {
       return m_parent;
     }
 
-    constexpr
     void
     set_parent (ir_structure& s) noexcept
     {
@@ -102,8 +122,7 @@ namespace gch
     // returns whether the caller should stop executing
     virtual
     bool
-    reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
-                           ir_def_timeline& new_dt,
+    reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
                            std::vector<nonnull_ptr<ir_block>>& until) = 0;
 
     virtual

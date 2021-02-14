@@ -93,7 +93,6 @@ namespace gch
     }
 
     [[nodiscard]]
-    constexpr
     ptr
     make_mutable (const cptr comp)
     {
@@ -343,8 +342,7 @@ namespace gch
     //
 
     bool
-    reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
-                           ir_def_timeline& new_dt,
+    reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
                            std::vector<nonnull_ptr<ir_block>>& until) override;
 
     void
@@ -363,11 +361,11 @@ namespace gch
     get_entry_ptr (void) override;
 
     [[nodiscard]]
-    ir_link_set
+    ir_link_set<ir_block>
     get_predecessors (ir_component_cptr comp) override;
 
     [[nodiscard]]
-    ir_link_set
+    ir_link_set<ir_block>
     get_successors (ir_component_cptr comp) override;
 
     [[nodiscard]]
@@ -382,10 +380,6 @@ namespace gch
 
     void
     recursive_flatten (void) override;
-
-    void
-    reassociate_timelines_after (ir_component_ptr pos, ir_def_timeline& dt,
-                                 std::vector<nonnull_ptr<ir_block>>& until) override;
 
   protected:
     cptr

@@ -1197,15 +1197,24 @@ namespace gch
                          }).base ();
   }
 
+  optional_ref<ir_def_timeline>
+  ir_block::
+  find_def_timeline (const ir_variable& var)
+  {
+    if (auto cit = m_timeline_map.find (&var); cit != m_timeline_map.end ())
+      return optional_ref { std::get<ir_def_timeline> (*cit) };
+    return nullopt;
+  }
+
   bool
   ir_block::
-  reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
-                         ir_def_timeline& new_dt, std::vector<nonnull_ptr<ir_block>>& until)
+  reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
+                         std::vector<nonnull_ptr<ir_block>>& until)
   {
-    auto found = std::find (until.begin (), until.end (), this);
-    if (found != until.end ())
+    if (auto stop_found = std::find (until.begin (), until.end (), this) ;
+        stop_found != until.end ())
     {
-      until.erase (found);
+      until.erase (stop_found);
       return true;
     }
 
@@ -1213,7 +1222,6 @@ namespace gch
     if (optional_ref local_dt { find_def_timeline (var) })
     {
       assert (local_dt->has_timelines () && "def timeline should not be empty");
-      if (local_dt->has_incoming ())
       return true;
     }
     return false;

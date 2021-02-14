@@ -523,6 +523,7 @@ namespace gch
     nonnull_ptr<T> m_ptr;
   };
 
+  template <typename T>
   struct init_counter
   {
     init_counter (void) noexcept
@@ -570,6 +571,72 @@ namespace gch
     static inline std::size_t num_move_assigns;
 
   };
+
+  template <typename ...Types>
+  struct abstract_visitor
+    : abstract_visitor<Types>...
+  {
+    using abstract_visitor<Types>::visit...;
+  };
+
+  template <typename T>
+  struct abstract_visitor<T>
+  {
+    virtual
+    void
+    visit (T&) = 0;
+  };
+
+  template <typename ...Visitors>
+  struct visitor_types
+  { };
+
+  template <typename VisitorTypes>
+  struct abstract_visitable;
+
+  template <typename ...Visitors>
+  struct abstract_visitable<visitor_types<Visitors...>>
+    : virtual abstract_visitable<visitor_types<Visitors>>...
+  {
+    using abstract_visitable<visitor_types<Visitors>>::accept...;
+  };
+
+  template <typename Visitor>
+  struct abstract_visitable<visitor_types<Visitor>>
+  {
+    virtual
+    void
+    accept (Visitor&) = 0;
+  };
+
+  template <typename Derived, typename VisitorTypes>
+  struct visitable;
+
+  template <typename Derived, typename ...Visitors>
+  struct visitable<Derived, visitor_types<Visitors...>>
+    : visitable<Derived, visitor_types<Visitors>>...
+  {
+    using visitable<Derived, visitor_types<Visitors>>::accept...;
+  };
+
+  template <typename Derived, typename Visitor>
+  struct visitable<Derived, visitor_types<Visitor>>
+    : virtual abstract_visitable<visitor_types<Visitor>>
+  {
+    void
+    accept (Visitor& v) override
+    {
+      v.visit (static_cast<Derived&> (*this));
+    }
+  };
+
+  template <typename Visitor, typename T>
+  inline
+  void
+  apply (Visitor& v, T& t)
+  {
+    t.accept (v);
+  }
 
 }
 

@@ -89,28 +89,28 @@ namespace gch
     explicit
     ir_component_fork (ir_structure& parent);
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     ir_component_ptr
     get_condition (void) noexcept
     {
       return ir_component_ptr { &m_condition };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     ir_component_cptr
     get_condition (void) const noexcept
     {
       return ir_component_cptr { &m_condition };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     is_condition (ir_component_cptr comp) const noexcept
     {
       return comp == get_condition ();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool
     is_condition (const ir_component& c) const noexcept
     {
@@ -242,8 +242,7 @@ namespace gch
     //
 
     bool
-    reassociate_timelines (const std::vector<nonnull_ptr<ir_def_timeline>>& old_dts,
-                           ir_def_timeline& new_dt,
+    reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
                            std::vector<nonnull_ptr<ir_block>>& until) override;
 
     void
@@ -262,11 +261,11 @@ namespace gch
     get_entry_ptr (void) override;
 
     [[nodiscard]]
-    ir_link_set
+    ir_link_set<ir_block>
     get_predecessors (ir_component_cptr comp) override;
 
     [[nodiscard]]
-    ir_link_set
+    ir_link_set<ir_block>
     get_successors (ir_component_cptr comp) override;
 
     [[nodiscard]]

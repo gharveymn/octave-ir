@@ -8,13 +8,11 @@
 #include "ir-block.hpp"
 #include "ir-def-resolution.hpp"
 #include "ir-optional-util.hpp"
+#include "ir-stack-builder.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <numeric>
-
-#include <list>
-
 
 namespace gch
 {
@@ -43,37 +41,43 @@ namespace gch
             "and all such timelines should point to the same def");
   }
 
+  //
+  // ir_def_resolution_frame
+  //
+
+  ir_def_resolution_frame::
+  ir_def_resolution_frame (ir_block& join_block)
+    : m_join_block (join_block)
+  { }
+
   bool
   ir_def_resolution_frame::
   is_joinable (void) const noexcept
   {
     // ie. all the substacks are resolved
-    return std::all_of (begin (), end (), [](const substack_ptr& u) { u->is_resolved (); });
+    return std::all_of (begin (), end (), &stack::is_resolved);
   }
 
   ir_link_set<ir_def_timeline>
   ir_def_resolution_frame::
-  join (void)
+  join (void) const
   {
     assert (is_joinable () && "frame should be joinable");
 
     // find the first non-empty association
-    auto found_nonempty = std::find_if (begin (), end (),
-                                        [](const substack_ptr& u)
-                                        {
-                                          return u->is_resolved_nonempty ();
-                                        });
+    auto found_nonempty = std::find_if (begin (), end (), &stack::is_resolved_nonempty);
+
     if (found_nonempty == end ())
       return { };
 
     // check if all the incoming timelines have the same parent def
     // if they do we can skip creation of an incoming-timeline in the current block
-    const ir_def& cmp = (*found_nonempty)->get_resolved_def ();
+    const ir_def& cmp = found_nonempty->get_resolved_def ();
     auto found_hetero = std::find_if (std::next (found_nonempty), end (),
-                                      [&cmp](const substack_ptr& u)
+                                      [&cmp](const stack& s)
                                       {
-                                        return ! u->is_resolved ()
-                                             ||  &cmp == &u->get_resolved_def ();
+                                        return ! s.is_resolved ()
+                                             ||  &cmp == &s.get_resolved_def ();
                                       });
 
     if (found_hetero == end ())
@@ -81,11 +85,11 @@ namespace gch
       // if homogeneous and we can skip creation of the incoming-timeline
       // and forward the timelines
       return std::accumulate (std::next (found_nonempty), end (),
-                              (*found_nonempty)->get_resolution (),
-                              [](auto&& ret, const substack_ptr& u) -> decltype (auto)
+                              found_nonempty->get_resolution (),
+                              [](auto&& ret, const stack& s) -> decltype (auto)
                               {
-                                ret.insert (u->get_resolution ().begin (),
-                                            u->get_resolution ().end ());
+                                ret.insert (s.get_resolution ().begin (),
+                                            s.get_resolution ().end ());
                                 return std::move (ret);
                               });
     }
@@ -98,11 +102,11 @@ namespace gch
     assert (! dt.has_incoming_timeline () && "the block already has an incoming timeline");
 
     std::for_each (begin (), found_nonempty,
-                   [&dt](const substack_ptr& u)
+                   [&dt](const stack& s)
                    {
-                     dt.append_incoming (u->get_leaf_block (),
-                                         u->get_resolution ().begin (),
-                                         u->get_resolution ().end ());
+                     dt.append_incoming (s.get_leaf_block (),
+                                         s.get_resolution ().begin (),
+                                         s.get_resolution ().end ());
                    });
 
     // Q: Do we need to re-point references to the found predecessor timelines
@@ -124,83 +128,28 @@ namespace gch
 
   ir_link_set<ir_def_timeline>
   ir_def_resolution_frame::
-  join_with (ir_link_set<ir_def_timeline>&& c)
+  join_with (ir_link_set<ir_def_timeline>&& c) const
   {
     assert_all_same_nonnull_outgoing (c);
-
-    // find the first non-empty association
-    auto found_nonempty = std::find_if (begin (), end (),
-                                        [](const substack_ptr& u)
-                                        {
-                                          return u->is_resolved_nonempty ();
-                                        });
-    if (found_nonempty == end ())
-      return c;
-
-    // check if all the incoming timelines have the same parent def
-    // if they do we can skip creation of an incoming-timeline in the current block
-
-    // if we found a non-empty association, then it can only be heterogeneous if
-    // the c is non-empty.
-
-    if (! c.empty ())
-    {
-      const ir_def& cmp = c.front ()->get_outgoing_def ();
-      auto found_hetero = std::find_if_not (std::next (found_nonempty), end (),
-                                            [&cmp](const substack_ptr& u)
-                                            {
-                                              return ! u->is_resolved ()
-                                                   ||  &cmp == &u->get_resolved_def ();
-                                            });
-
-      if (found_hetero == end ())
-      {
-        // if homogeneous and we can skip creation of the incoming-timeline
-        // and forward the timelines
-        return std::accumulate (std::next (found_nonempty), end (), std::move (c),
-                                [](auto&& ret, const substack_ptr& u) -> decltype (auto)
-                                {
-                                  if (const auto& r = u->maybe_get_resolution ())
-                                    ret.insert (r->begin (), r->end ());
-                                  return std::move (ret);
-                                });
-      }
-    }
-
-    const ir_def& cmp = (*found_nonempty)->get_resolved_def ();
-
-    // otherwise we need to create an incoming-timeline
-    const ir_variable& var = cmp.get_variable ();
-    ir_def_timeline&   dt  = m_join_block->get_def_timeline (var);
-
-    assert (! dt.has_incoming ()          && "the block already has incoming blocks");
-    assert (! dt.has_incoming_timeline () && "the block already has an incoming timeline");
-
-    std::for_each (begin (), found_nonempty,
-                   [&](const substack_ptr& u)
-                   {
-                     if (const auto& r = u->maybe_get_resolution ())
-                       dt.append_incoming (u->get_leaf_block (), r->begin (), r->end ());
-                     else
-                       dt.append_incoming (u->get_leaf_block (), c.begin (), c.end ());
-                   });
-
-    // Q: Do we need to re-point references to the found predecessor timelines
-    //    in subsequent blocks?
-    //
-    // Theorem.
-    //   If a def is created here, then there are no references to the
-    //   found predecessor def-timelines in succeeding incoming-nodes.
-    // Proof.
-    //   Suppose the opposite of the consequent. A def is created here if and
-    //   only if the set of def-timelines found here is heterogeneous. But,
-    //   incoming-nodes only track a homogeneous set of def-timelines which
-    //   implies that a def is not created here. ////
-    //
-    // A: We don't.
-
-    return { nonnull_ptr { dt } };
+    std::for_each (begin (), end (), [&c](stack& s) { s.resolve_with (c); });
+    return join ();
   }
+
+  ir_def_resolution_stack&
+  ir_def_resolution_frame::
+  add_substack (ir_block& leaf_block)
+  {
+    m_incoming.emplace_back (leaf_block);
+  }
+
+  //
+  // ir_def_resolution_stack
+  //
+
+  ir_def_resolution_stack::
+  ir_def_resolution_stack (ir_block& leaf_block)
+    : m_leaf_block (leaf_block)
+  { }
 
   bool
   ir_def_resolution_stack::
@@ -215,22 +164,10 @@ namespace gch
   resolve (void)
   {
     assert (is_resolvable () && "stack should be resolvable");
+
     ir_link_set<ir_def_timeline> curr_result = m_stack.top ().join ();
     m_stack.pop ();
-    while (! m_stack.empty ())
-    {
-      // replace the unresolved timelines in the next frame
-      ir_def_resolution_frame& curr_frame = m_stack.top ();
-      std::for_each (curr_frame.begin (), curr_frame.end (),
-                     [&curr_result](ir_associated_incoming& inc)
-                     {
-                       if (! inc.is_resolved ())
-                         inc.set_timelines (curr_result);
-                     });
-      curr_result = curr_frame.join ();
-      m_stack.pop ();
-    }
-    return m_resolution.emplace (curr_result);
+    return resolve_with (std::move (curr_result));
   }
 
   const ir_link_set<ir_def_timeline>&
@@ -239,7 +176,7 @@ namespace gch
   {
     while (! m_stack.empty ())
     {
-      c = m_stack.top ().join_with (c);
+      c = m_stack.top ().join_with (std::move (c));
       m_stack.pop ();
     }
     return m_resolution.emplace (c);
@@ -271,13 +208,6 @@ namespace gch
   get_resolution (void) const noexcept
   {
     return *m_resolution;
-  }
-
-  ir_block&
-  ir_def_resolution_stack::
-  get_leaf_block (void) const noexcept
-  {
-    return *m_leaf_block;
   }
 
   bool
@@ -317,6 +247,34 @@ namespace gch
       return optional_ref { get_resolution ().front ()->get_outgoing_def () };
     }
     return nullopt;
+  }
+
+  ir_block&
+  ir_def_resolution_stack::
+  get_leaf_block (void) const noexcept
+  {
+    return *m_leaf_block;
+  }
+
+  ir_def_resolution_frame&
+  ir_def_resolution_stack::
+  push (ir_block& join_block)
+  {
+    return m_stack.emplace (join_block);
+  }
+
+  ir_def_resolution_frame&
+  ir_def_resolution_stack::
+  top (void)
+  {
+    return m_stack.top ();
+  }
+
+  const ir_def_resolution_frame&
+  ir_def_resolution_stack::
+  top (void) const
+  {
+    return m_stack.top ();
   }
 
 }
