@@ -42,12 +42,34 @@ namespace gch
   }
 
   //
+  // ir_def_resolution
+  //
+
+  ir_def&
+  ir_def_resolution::
+  get_common_def (void) const
+  {
+    assert_all_same_nonnull_outgoing (get_timelines ());
+    return get_timelines ().front ()->get_outgoing_def ();
+  }
+
+  optional_ref<ir_def>
+  ir_def_resolution::
+  maybe_get_common_def (void) const
+  {
+    if (is_nonempty ())
+      return optional_ref { get_common_def () };
+    return nullopt;
+  }
+
+  //
   // ir_def_resolution_frame
   //
 
   ir_def_resolution_frame::
-  ir_def_resolution_frame (ir_block& join_block)
-    : m_join_block (join_block)
+  ir_def_resolution_frame (ir_block& join_block, ir_component_ptr comp)
+    : m_join_block (join_block),
+      m_node       (comp)
   { }
 
   bool
@@ -55,58 +77,64 @@ namespace gch
   is_joinable (void) const noexcept
   {
     // ie. all the substacks are resolved
-    return std::all_of (begin (), end (), &stack::is_resolved);
+    return m_node.is_resolvable ();
   }
 
   ir_link_set<ir_def_timeline>
   ir_def_resolution_frame::
-  join (void) const
+  join (void)
   {
     assert (is_joinable () && "frame should be joinable");
+    return join_with (m_node.resolve ());
+  }
 
-    // find the first non-empty association
-    auto found_nonempty = std::find_if (begin (), end (), &stack::is_resolved_nonempty);
-
-    if (found_nonempty == end ())
+  ir_link_set<ir_def_timeline>
+  ir_def_resolution_frame::
+  join_with (small_vector<ir_def_resolution>&& c)
+  {
+    if (c.empty ())
       return { };
+
+    optional_ref<ir_def> first_def = c.front ().maybe_get_common_def ();
+    auto found_hetero = std::find_if_not (std::next (c.begin ()), c.end (),
+                                          [first_def](const ir_def_resolution& r)
+                                          {
+                                            return first_def == r.maybe_get_common_def ();
+                                          });
 
     // check if all the incoming timelines have the same parent def
     // if they do we can skip creation of an incoming-timeline in the current block
-    const ir_def& cmp = found_nonempty->get_resolved_def ();
-    auto found_hetero = std::find_if (std::next (found_nonempty), end (),
-                                      [&cmp](const stack& s)
-                                      {
-                                        return ! s.is_resolved ()
-                                             ||  &cmp == &s.get_resolved_def ();
-                                      });
-
-    if (found_hetero == end ())
+    if (found_hetero == c.end ())
     {
       // if homogeneous and we can skip creation of the incoming-timeline
       // and forward the timelines
-      return std::accumulate (std::next (found_nonempty), end (),
-                              found_nonempty->get_resolution (),
-                              [](auto&& ret, const stack& s) -> decltype (auto)
+      return std::accumulate (std::next (c.begin ()), c.end (),
+                              c.front ().get_timelines (),
+                              [](auto&& ret, const ir_def_resolution& r) -> decltype (auto)
                               {
-                                ret.insert (s.get_resolution ().begin (),
-                                            s.get_resolution ().end ());
+                                ret.merge (r);
                                 return std::move (ret);
                               });
     }
 
+    optional_ref<ir_def> def = first_def;
+    if (! first_def)
+      def.emplace (found_hetero->get_common_def ());
+    assert (def);
+
     // otherwise we need to create an incoming-timeline
-    const ir_variable& var = cmp.get_variable ();
+    const ir_variable& var = def->get_variable ();
     ir_def_timeline&   dt  = m_join_block->get_def_timeline (var);
 
     assert (! dt.has_incoming ()          && "the block already has incoming blocks");
     assert (! dt.has_incoming_timeline () && "the block already has an incoming timeline");
 
-    std::for_each (begin (), found_nonempty,
-                   [&dt](const stack& s)
+    std::for_each (c.begin (), c.end (),
+                   [&dt](const ir_def_resolution& r)
                    {
-                     dt.append_incoming (s.get_leaf_block (),
-                                         s.get_resolution ().begin (),
-                                         s.get_resolution ().end ());
+                     dt.append_incoming (r.get_leaf_block (),
+                                         r.get_timelines ().begin (),
+                                         r.get_timelines ().end ());
                    });
 
     // Q: Do we need to re-point references to the found predecessor timelines
@@ -126,15 +154,6 @@ namespace gch
     return { nonnull_ptr { dt } };
   }
 
-  ir_link_set<ir_def_timeline>
-  ir_def_resolution_frame::
-  join_with (ir_link_set<ir_def_timeline>&& c) const
-  {
-    assert_all_same_nonnull_outgoing (c);
-    std::for_each (begin (), end (), [&c](stack& s) { s.resolve_with (c); });
-    return join ();
-  }
-
   ir_def_resolution_stack&
   ir_def_resolution_frame::
   add_substack (ir_block& leaf_block)
@@ -147,8 +166,8 @@ namespace gch
   //
 
   ir_def_resolution_stack::
-  ir_def_resolution_stack (ir_block& leaf_block)
-    : m_leaf_block (leaf_block)
+  ir_def_resolution_stack (ir_component_ptr comp)
+    : m_component (comp)
   { }
 
   bool
@@ -159,7 +178,7 @@ namespace gch
     return m_stack.top ().is_joinable ();
   }
 
-  const ir_link_set<ir_def_timeline>&
+  small_vector<ir_def_resolution>
   ir_def_resolution_stack::
   resolve (void)
   {
@@ -170,15 +189,28 @@ namespace gch
     return resolve_with (std::move (curr_result));
   }
 
-  const ir_link_set<ir_def_timeline>&
+  small_vector<ir_def_resolution>
   ir_def_resolution_stack::
-  resolve_with (ir_link_set<ir_def_timeline> c)
+  resolve_with (ir_link_set<ir_def_timeline>&& s)
   {
+    assert (is_a<ir_structure> (*get_component ()));
+    ir_structure& this_structure = get_as<ir_structure> (get_component ());
+
     while (! m_stack.empty ())
     {
-      c = m_stack.top ().join_with (std::move (c));
+      ir_link_set<ir_block> curr_preds = this_structure.get_predecessors (top ().get_component ());
+      small_vector<ir_def_resolution> r;
+      std::transform (curr_preds.begin (), curr_preds.end (), std::back_inserter (r),
+                      [&s](nonnull_ptr<ir_block> b) -> ir_def_resolution { return { *b, s }; });
+      s = std::move (top ().join_with (std::move (r)));
       m_stack.pop ();
     }
+
+    if (m_leaves.empty ())
+    {
+      ir_link_set<ir_block> leaves = this_structure.get_leaves ();
+    }
+
     return m_resolution.emplace (c);
   }
 

@@ -267,7 +267,7 @@ namespace gch
       std::sort (sorted.begin (), sorted.end ());
       sorted.erase (std::unique (sorted.begin (), sorted.end ()), sorted.end ());
 
-      presorted_merge (std::move (sorted));
+      presorted_union (std::move (sorted));
     }
 
     void
@@ -327,7 +327,7 @@ namespace gch
     ir_link_set&
     merge (const ir_link_set& other)
     {
-      presorted_merge (other.m_data);
+      presorted_union (other.m_data);
       return *this;
     }
 
@@ -408,34 +408,31 @@ namespace gch
 
   private:
     void
-    presorted_merge (const container_type& sorted_input)
+    presorted_union (const container_type& sorted_input)
     {
       if (m_data.empty ())
         m_data = sorted_input;
       else if (! sorted_input.empty ())
-        nontrivial_merge (sorted_input);
+        nontrivial_union (sorted_input);
     }
 
     void
-    presorted_merge (container_type&& sorted_input)
+    presorted_union (container_type&& sorted_input)
     {
       if (m_data.empty ())
         m_data = std::move (sorted_input);
       else if (! sorted_input.empty ())
-        nontrivial_merge (sorted_input);
+        nontrivial_union (sorted_input);
     }
 
     void
-    nontrivial_merge (const container_type& sorted_input)
+    nontrivial_union (const container_type& sorted_input)
     {
       container_type result;
       result.reserve (m_data.size () + sorted_input.size ());
-
-      std::merge (m_data.begin (), m_data.end (),
-                  sorted_input.begin (), sorted_input.end (),
-                  std::back_inserter (result));
-
-      result.erase (std::unique (result.begin (), result.end ()), result.end ());
+      std::set_union (m_data.begin (), m_data.end (),
+                      sorted_input.begin (), sorted_input.end (),
+                      std::back_inserter (result));
       m_data = std::move (result);
     }
 

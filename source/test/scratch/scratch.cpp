@@ -707,11 +707,13 @@ namespace gch
       using clock = high_resolution_clock;
       using time = clock::time_point;
 
-      // constexpr std::size_t num_values  = 10000000;
-      // constexpr std::size_t num_samples = 1000000;
-
+#ifdef NDEBUG
+      constexpr std::size_t num_values  = 100000000;
+      constexpr std::size_t num_samples = 10000000;
+#else
       constexpr std::size_t num_values  = 100000;
       constexpr std::size_t num_samples = 10000;
+#endif
 
       std::vector<ir_block> s (num_values);
       std::vector<nonnull_ptr<ir_block>> ptrs;
@@ -733,13 +735,18 @@ namespace gch
 
       const ir_link_set<ir_block> r (v.begin (), v.end ());
       {
-        ir_link_set p (l);
-        ir_link_set q (r);
+        constexpr auto num_merges = 5;
+        std::array<ir_link_set<ir_block>, num_merges> p;
+        p.fill (l);
+        std::array<ir_link_set<ir_block>, num_merges> q;
+        q.fill (r);
 
         time t1 = clock::now ();
-        p.merge (q);
+        auto it = q.begin ();
+        std::for_each (p.begin (), p.end (), [&it](auto&& s) { s.merge (*it++); });
         time t2 = clock::now ();
-        std::cout << "merge done in  "
+        std::cout << num_merges
+                  << " merges done in  "
                   << duration_cast<duration<double>> (t2 - t1).count ()
                   << " ms."
                   << std::endl;
@@ -982,9 +989,11 @@ namespace gch
   g (void)
   {
     some_class x { };
+    (void)x;
     // x.m_self.begin ();
 
     some_other_class y { };
+    (void)y;
     // y.m_stack.emplace ();
   }
 
@@ -1069,7 +1078,7 @@ main (void)
   std::cout << "num copies:       " << test_accum::num_copies << std::endl;
   std::cout << "num moves:        " << test_accum::num_moves << std::endl;
   std::cout << "num copy assigns: " << test_accum::num_copy_assigns << std::endl;
-  std::cout << "num move assigns: " << test_accum::num_move_assigns << std::endl;
+  std::cout << "num move assigns: " << test_accum::num_move_assigns << std::endl << std::endl;
 
   test_accum::reset_nums ();
   test_a ();
