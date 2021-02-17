@@ -7,10 +7,11 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "ir-component-handle.hpp"
-#include "ir-common-util.hpp"
-#include "ir-optional-util.hpp"
-#include "ir-link-set.hpp"
+#include "components/ir-component-handle.hpp"
+#include "utilities/ir-common-util.hpp"
+#include "utilities/ir-optional-util.hpp"
+#include "utilities/ir-link-set.hpp"
+#include "visitors/ir-visitor.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 #include <gch/optional_ref.hpp>
@@ -30,7 +31,7 @@
 namespace gch
 {
 
-  class ir_component { };
+  class ir_subcomponent { };
 
   class ir_def_timeline;
   class ir_block { int x; };
@@ -43,7 +44,7 @@ namespace gch
 
   struct incoming_component
   {
-    gch::nonnull_ptr<ir_component> comp;
+    gch::nonnull_ptr<ir_subcomponent> comp;
     std::vector<incoming_block> leaves;
   };
 
@@ -761,12 +762,19 @@ namespace gch
   class Circle;
   class Triangle;
 
+  class Shape;
+
 //*****************************************************************
 // The shape visitor base class.
 // Pure virtual 'Visit' functions will be defined for the Square,
 // Circle, and Triangle types.
 //*****************************************************************
-  class ShapeVisitor : public abstract_visitor<Square, Circle, Triangle>
+  class ShapeVisitor
+    : public abstract_mutator<Square, Circle, Triangle>
+  { };
+
+  class ConstShapeVisitor
+    : public abstract_inspector<Square, Circle, Triangle>
   { };
 
   class Square;
@@ -775,20 +783,22 @@ namespace gch
 
   class StaticVisitor;
 
-  using shape_visitors = visitor_types<ShapeVisitor, StaticVisitor>;
+  using shape_mutators   = mutator_types<ShapeVisitor, StaticVisitor>;
+  using shape_inspectors = visitor_types<inspector_types<ConstShapeVisitor>>;
+  using shape_visitors   = visitor_types<shape_mutators, shape_inspectors>;
 
   //*****************************************************************
 // The shape base class.
 //*****************************************************************
   class Shape
-    : public virtual abstract_visitable<shape_visitors>
+    : public abstract_visitable<shape_visitors>
   {
   public:
     virtual
     ~Shape (void) = default;
   };
 
-  //*****************************************************************
+//*****************************************************************
 // The square class
 //*****************************************************************
   class Square
@@ -842,23 +852,23 @@ namespace gch
 // The 'serialise' visitor.
 //*****************************************************************
   class SerialiseVisitor
-    : public ShapeVisitor
+    : public ConstShapeVisitor
   {
   public:
     void
-    visit (Square&) override
+    visit (const Square&) override
     {
       std::cout << "Serialise the square\n";
     }
 
     void
-    visit (Circle&) override
+    visit (const Circle&) override
     {
       std::cout << "Serialise the circle\n";
     }
 
     void
-    visit (Triangle&) override
+    visit (const Triangle&) override
     {
       std::cout << "Serialise the triangle\n";
     }
@@ -867,6 +877,16 @@ namespace gch
   class StaticVisitor
   {
   public:
+    template <typename, typename>
+    friend struct acceptor;
+
+    void
+    operator() (Shape& s)
+    {
+      s.accept (*this);
+    }
+
+  private:
     void
     visit (Square&)
     {
@@ -902,18 +922,25 @@ namespace gch
     //*****************************************************************
     std::vector<Shape *> shape_list;
 
-    auto ApplyShape
+    auto ApplyMutator
       = [&](ShapeVisitor &visitor)
         {
           std::for_each (shape_list.begin (), shape_list.end (),
-                         [&](Shape *u) { apply (visitor, *u); });
+                         [&](Shape *u) { dispatch (*u, visitor); });
+        };
+
+    auto ApplyInspector
+      = [&](ConstShapeVisitor &visitor)
+        {
+          std::for_each (shape_list.begin (), shape_list.end (),
+                         [&](Shape *u) { dispatch (*u, visitor); });
         };
 
     auto ApplyStatic
       = [&](StaticVisitor &visitor)
         {
           std::for_each (shape_list.begin (), shape_list.end (),
-                         [&](Shape *u) { u->accept (visitor); });
+                         [&](Shape *u) { visitor (*u); });
         };
 
     // Create some shapes.
@@ -927,8 +954,8 @@ namespace gch
     shape_list.push_back(&triangle);
 
     // Apply the visitors.
-    ApplyShape (draw_visitor);
-    ApplyShape (serialise_visitor);
+    ApplyMutator (draw_visitor);
+    ApplyInspector (serialise_visitor);
     ApplyStatic (static_visitor_v);
   }
 
@@ -985,6 +1012,11 @@ namespace gch
     small_vector<blahk, 0> sv;
   };
 
+  struct blahk
+  {
+
+  };
+
   void
   g (void)
   {
@@ -995,6 +1027,89 @@ namespace gch
     some_other_class y { };
     (void)y;
     // y.m_stack.emplace ();
+
+    incom z { };
+    // z.sv.push_back ({ });
+  }
+
+  struct abstract_base
+  {
+    virtual ~abstract_base (void) = 0;
+  };
+
+  abstract_base::
+  ~abstract_base (void) = default;
+
+  struct other_base
+  {
+    virtual ~other_base (void) = default;
+  };
+
+  struct concrete1
+    : abstract_base
+  { };
+
+  struct concrete2
+    : abstract_base,
+      other_base
+  { };
+
+  struct concrete3
+    : abstract_base,
+      other_base
+  { };
+
+  void
+  test_dy (void)
+  {
+    concrete1 x;
+    concrete2 y;
+    concrete3 z;
+    abstract_base *p = &x;
+    assert (  is_a<concrete1> (p));
+    assert (! is_a<concrete2> (p));
+    assert (! is_a<other_base> (p));
+
+    p = &y;
+    assert (! is_a<concrete1> (p));
+    assert (  is_a<concrete2> (p));
+    assert (  is_a<other_base> (p));
+
+    other_base *o = &y;
+    assert (! is_a<concrete1> (o));
+    assert (  is_a<concrete2> (o));
+    assert (! is_a<concrete3> (o));
+    assert (  is_a<abstract_base> (o));
+
+    o = &z;
+    assert (! is_a<concrete1> (o));
+    assert (! is_a<concrete2> (o));
+    assert (  is_a<concrete3> (o));
+    assert (  is_a<abstract_base> (o));
+  }
+
+  struct test_move_struct
+  {
+    test_move_struct            (void)                        = default;
+    test_move_struct            (const test_move_struct&)     { };
+    test_move_struct            (test_move_struct&&) noexcept { };
+    test_move_struct& operator= (const test_move_struct&)     { return *this; };
+    test_move_struct& operator= (test_move_struct&&) noexcept { return *this; };
+    ~test_move_struct           (void)                        = default;
+  };
+
+  test_move_struct
+  ggg (void)
+  {
+    return { };
+  }
+
+  void
+  test_move (void)
+  {
+    test_move_struct x { };
+    x = ggg ();
+    x = ggg ();
   }
 
 }
@@ -1006,6 +1121,10 @@ main (void)
 {
   using namespace gch;
 
+  std::vector<ir_component_mover> ret { };
+
+  test_move ();
+  test_dy ();
   f ();
   g ();
 
@@ -1014,30 +1133,32 @@ main (void)
   test_links ();
 
   management_stack s;
-  ir_component_storage xs = std::make_unique<ir_component> ();
-  ir_component_storage ys = std::make_unique<ir_component> ();
+  ir_component_storage xs = std::make_unique<ir_subcomponent> ();
+  ir_component_storage ys = std::make_unique<ir_subcomponent> ();
+
+  ret.emplace_back (xs);
 
   ir_component_ptr x { &xs };
   ir_component_ptr y { &ys };
 
   assert (x != y);
 
-  optional_ref<ir_component> o { *x };
+  optional_ref o { *x };
   static_cast<void> (o);
   assert (o == x);
   assert (o != y);
 
-  nonnull_ptr<ir_component> n { *x };
+  nonnull_ptr n { *x };
   static_cast<void> (n);
   assert (n == x);
   assert (n != y);
 
-  ir_component *p = x.get_component_pointer ();
+  ir_subcomponent *p = x.get_component_pointer ();
   static_cast<void> (p);
   assert (p == x);
   assert (p != y);
 
-  const ir_component& r = *x;
+  const ir_subcomponent& r = *x;
   static_cast<void> (r);
   assert (&r == x);
   assert (&r != y);

@@ -2,7 +2,7 @@ SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 SET(TEST_NAME scratch)
 SET(SOURCE_FILES scratch.cpp
-                 ${PROJECT_SOURCE_DIR}/source/lib/ir-link-set.cpp)
+    ../../lib/utilities/ir-link-set.cpp)
 
 SET(TARGET_VERSIONS 17 20)
 
