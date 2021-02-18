@@ -12,12 +12,12 @@ SET (HEADERS
      components/ir-block.hpp
      components/ir-component.hpp
      components/ir-component-fork.hpp
+     components/ir-component-fwd.hpp
      components/ir-component-handle.hpp
      components/ir-component-loop.hpp
      components/ir-component-sequence.hpp
      components/ir-function.hpp
      components/ir-structure.hpp
-     components/ir-structure-fwd.hpp
 
      processors/ir-def-resolution.hpp
 
@@ -36,13 +36,16 @@ SET (HEADERS
      values/ir-instruction-fwd.hpp
      values/ir-variable.hpp
 
-     visitors/inspectors/ir-component-inspector.hpp
+     visitors/inspectors/ir-leaf-collector.hpp
+     visitors/inspectors/ir-leaf-inspector.hpp
      visitors/inspectors/ir-parent-inspector.hpp
+     visitors/inspectors/ir-predecessor-collector.hpp
      visitors/inspectors/ir-structure-inspector.hpp
+     visitors/inspectors/ir-successor-collector.hpp
 
+     visitors/mutators/ir-def-resolution-builder.hpp
      visitors/mutators/ir-structure-flattener.hpp
 
-     visitors/ir-stack-builder.hpp
      visitors/ir-traverser.hpp
      visitors/ir-visitor.hpp
      visitors/ir-visitor-fwd.hpp)
@@ -70,13 +73,16 @@ SET (SOURCES
      values/ir-instruction.cpp
      values/ir-variable.cpp
 
-     visitors/inspectors/ir-component-inspector.cpp
+     visitors/inspectors/ir-leaf-collector.cpp
+     visitors/inspectors/ir-leaf-inspector.cpp
      visitors/inspectors/ir-parent-inspector.cpp
+     visitors/inspectors/ir-predecessor-collector.cpp
      visitors/inspectors/ir-structure-inspector.cpp
+     visitors/inspectors/ir-successor-collector.cpp
 
+     visitors/mutators/ir-def-resolution-builder.cpp
      visitors/mutators/ir-structure-flattener.cpp
 
-     visitors/ir-stack-builder.cpp
      visitors/ir-traverser.cpp)
 
 CREATE_PACKAGE (AUTHOR             gharveymn

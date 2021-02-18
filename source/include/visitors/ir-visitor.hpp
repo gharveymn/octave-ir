@@ -170,9 +170,6 @@ namespace gch
     t.accept (v);
   }
 
-  template <typename T>
-  using inspector_acceptor = abstract_acceptor<inspector_types<T>>;
-
 }
 
 #endif // OCTAVE_IR_IR_VISITOR_HPP

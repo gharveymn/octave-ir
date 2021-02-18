@@ -5,26 +5,14 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_COMPONENT_INSPECTOR_HPP
-#define OCTAVE_IR_IR_COMPONENT_INSPECTOR_HPP
+#ifndef OCTAVE_IR_IR_LEAF_COLLECTOR_HPP
+#define OCTAVE_IR_IR_LEAF_COLLECTOR_HPP
 
+#include "components/ir-component-fwd.hpp"
 #include "utilities/ir-link-set.hpp"
 
 namespace gch
 {
-
-  class ir_component;
-
-  class ir_subcomponent;
-  class ir_block;
-
-  class ir_structure;
-  class ir_function;
-
-  class ir_substructure;
-  class ir_component_fork;
-  class ir_component_loop;
-  class ir_component_sequence;
 
   class ir_leaf_collector
   {
@@ -69,4 +57,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_COMPONENT_INSPECTOR_HPP
+#endif // OCTAVE_IR_IR_LEAF_COLLECTOR_HPP

@@ -181,7 +181,7 @@ namespace gch
   }
 
   ir_link_set<ir_block>
-  get_predecessors (const ir_subcomponent& c);
+  get_predecessors (const ir_subcomponent& sub);
 
   ir_link_set<ir_block>
   get_successors (const ir_subcomponent& sub);

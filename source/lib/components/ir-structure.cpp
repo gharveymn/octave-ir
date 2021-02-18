@@ -30,7 +30,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "components/ir-block.hpp"
 
 #include "visitors/inspectors/ir-parent-inspector.hpp"
-#include "visitors/inspectors/ir-component-inspector.hpp"
+#include "visitors/inspectors/ir-leaf-collector.hpp"
 
 #include <numeric>
 

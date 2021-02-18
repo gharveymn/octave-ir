@@ -415,6 +415,10 @@ namespace gch
     maybe_get_incoming_instruction (void) const noexcept;
 
     [[nodiscard]]
+    bool
+    has_outgoing_timeline (void) const noexcept;
+
+    [[nodiscard]]
     ir_use_timeline&
     get_outgoing_timeline (void) noexcept;
 
@@ -445,13 +449,6 @@ namespace gch
     [[nodiscard]]
     optional_cref<ir_def>
     maybe_get_outgoing_def (void) const noexcept;
-
-    [[nodiscard]]
-    bool
-    has_outgoing_timeline (void) const noexcept
-    {
-      return ! timelines_empty<range::all> ();
-    }
 
     template <range R>
     void
@@ -613,10 +610,31 @@ namespace gch
     using size_t = instruction_container::size_type;
     using diff_t = instruction_container::difference_type;
 
-  private:
-    using def_timeline_map = std::unordered_map<const ir_variable *, ir_def_timeline>;
+    using dt_map_type            = std::unordered_map<const ir_variable *, ir_def_timeline>;
+    using dt_map_value_type      = typename dt_map_type::value_type;
+    using dt_map_allocator_type  = typename dt_map_type::allocator_type;
+    using dt_map_size_type       = typename dt_map_type::size_type;
+    using dt_map_difference_type = typename dt_map_type::difference_type;
+    using dt_map_reference       = typename dt_map_type::reference;
+    using dt_map_const_reference = typename dt_map_type::const_reference;
+    using dt_map_pointer         = typename dt_map_type::pointer;
+    using dt_map_const_pointer   = typename dt_map_type::const_pointer;
 
-  public:
+    using dt_map_iterator        = typename dt_map_type::iterator;
+    using dt_map_const_iterator  = typename dt_map_type::const_iterator;
+
+    using dt_map_val_t   = dt_map_value_type;
+    using dt_map_alloc_t = dt_map_allocator_type;
+    using dt_map_size_ty = dt_map_size_type;
+    using dt_map_diff_ty = dt_map_difference_type;
+    using dt_map_ref     = dt_map_reference;
+    using dt_map_cref    = dt_map_const_reference;
+    using dt_map_ptr     = dt_map_pointer;
+    using dt_map_cptr    = dt_map_const_pointer;
+
+    using dt_map_iter    = dt_map_iterator;
+    using dt_map_citer   = dt_map_const_iterator;
+
     ir_block            (void)                   = delete;
     ir_block            (const ir_block&)        = delete;
     ir_block            (ir_block&&) noexcept    = delete;
@@ -948,27 +966,70 @@ namespace gch
      * @param pos an iterator immediately the position of the def.
      * @return the created def.
      */
-    auto create_def_before (ir_variable& var, citer pos);
+    auto
+    create_def_before (ir_variable& var, citer pos);
 
-    ir_use_timeline split_uses (ir_use_timeline& src, citer pivot, citer last);
+    ir_use_timeline
+    split_uses (ir_use_timeline& src, citer pivot, citer last);
 
-    ir_use_timeline::iter find_first_use_after (ir_use_timeline& tl, citer pos,
-                                                citer last);
+    ir_use_timeline::iter
+    find_first_use_after (ir_use_timeline& tl, citer pos, citer last);
 
-    optional_ref<ir_def_timeline>
+    [[nodiscard]]
+    dt_map_iterator
+    dt_map_begin (void) noexcept;
+
+    [[nodiscard]]
+    dt_map_const_iterator
+    dt_map_begin (void) const noexcept;
+
+    [[nodiscard]]
+    dt_map_const_iterator
+    dt_map_cbegin (void) const noexcept;
+
+    [[nodiscard]]
+    dt_map_iterator
+    dt_map_end (void) noexcept;
+
+    [[nodiscard]]
+    dt_map_const_iterator
+    dt_map_end (void) const noexcept;
+
+    [[nodiscard]]
+    dt_map_const_iterator
+    dt_map_cend (void) const noexcept;
+
+    [[nodiscard]]
+    dt_map_size_type
+    dt_map_size (void) const noexcept;
+
+    [[nodiscard]]
+    bool
+    dt_map_empty (void) const noexcept;
+
+    dt_map_iterator
     find_def_timeline (const ir_variable& var);
 
-    optional_ref<const ir_def_timeline>
-    find_def_timeline (const ir_variable& var) const
-    {
-      return as_mutable (*this).find_def_timeline (var);
-    }
+    dt_map_const_iterator
+    find_def_timeline (const ir_variable& var) const;
 
     ir_def_timeline&
-    get_def_timeline (ir_variable& var)
-    {
-      return std::get<ir_def_timeline> (*m_timeline_map.try_emplace (&var, *this, var).first);
-    }
+    get_def_timeline (ir_variable& var);
+
+    optional_ref<ir_def_timeline>
+    maybe_get_def_timeline (const ir_variable& var);
+
+    optional_ref<const ir_def_timeline>
+    maybe_get_def_timeline (const ir_variable& var) const;
+
+    dt_map_iterator
+    remove_def_timeline (dt_map_iterator it);
+
+    dt_map_iterator
+    remove_def_timeline (dt_map_const_iterator it);
+
+    bool
+    remove_def_timeline (const ir_variable& var);
 
     //
     // virtual from ir_component
@@ -983,8 +1044,10 @@ namespace gch
 
   private:
     list_partition<ir_instruction, 2> m_instr_partition;
-    def_timeline_map                  m_timeline_map;
+    dt_map_type                       m_def_timelines_map;
   };
+
+
 
   class ir_condition_block
     : public ir_block

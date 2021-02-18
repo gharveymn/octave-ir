@@ -28,6 +28,9 @@ along with Octave; see the file COPYING.  If not, see
 #include "components/ir-function.hpp"
 #include "components/ir-structure.hpp"
 #include "components/ir-block.hpp"
+#include "visitors/inspectors/ir-predecessor-collector.hpp"
+#include "visitors/inspectors/ir-successor-collector.hpp"
+#include "visitors/inspectors/ir-leaf-inspector.hpp"
 
 namespace gch
 {
@@ -60,6 +63,24 @@ namespace gch
 
     assert (is_a<ir_block> (*curr));
     return static_cast<ir_block&> (*curr);
+  }
+
+  ir_link_set<ir_block>
+  get_predecessors (const ir_subcomponent& sub)
+  {
+    return ir_predecessor_collector { } (sub);
+  }
+
+  ir_link_set<ir_block>
+  get_successors (const ir_subcomponent& sub)
+  {
+    return ir_successor_collector { } (sub);
+  }
+
+  bool
+  is_leaf (const ir_subcomponent& sub)
+  {
+    return ir_leaf_inspector { } (sub);
   }
 
   ir_link_set<ir_block>

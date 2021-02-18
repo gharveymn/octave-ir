@@ -86,14 +86,14 @@ namespace gch
     ~ir_def_resolution_stack           (void)                               = default;
 
     explicit
-    ir_def_resolution_stack (ir_component& c);
+    ir_def_resolution_stack (ir_component& c, ir_variable& v);
 
     [[nodiscard]]
     bool
     is_resolvable (void) const noexcept;
 
     ir_def_resolution_frame&
-    push (ir_block& join_block, ir_component& c);
+    push_frame (ir_block& join_block, ir_component& c);
 
     [[nodiscard]]
     ir_def_resolution_frame&
@@ -103,20 +103,26 @@ namespace gch
     const ir_def_resolution_frame&
     top (void) const;
 
-    template <typename ...Args>
     ir_def_resolution_stack&
-    add_leaf (Args&&... args)
-    {
-      m_leaves.emplace_back (std::forward<Args> (args)...);
-    }
+    add_leaf (ir_def_resolution_stack&& leaf_stack);
+
+    ir_def_resolution_stack&
+    add_leaf (ir_component& c, ir_variable& v);
 
     [[nodiscard]]
-    ir_component&
-    get_component (void) const noexcept;
+    ir_variable&
+    get_variable (void) const noexcept;
 
     [[nodiscard]]
-    bool
-    holds_singleton_block (void) const noexcept;
+    optional_ref<ir_block>
+    maybe_cast_block (void) const noexcept;
+
+    ir_def_timeline&
+    set_block_resolution (ir_def_timeline& dt) noexcept;
+
+    [[nodiscard]]
+    optional_ref<ir_def_timeline>
+    maybe_get_block_resolution (void) const noexcept;
 
     small_vector<ir_def_resolution>
     resolve (void);
@@ -125,7 +131,8 @@ namespace gch
     resolve_with (ir_link_set<ir_def_timeline> s);
 
   private:
-    nonnull_ptr<ir_component>                               m_component;
+    nonnull_ptr<ir_variable>                                m_variable;
+    optional_ref<ir_def_timeline>                           m_block_resolution;
     std::stack<ir_def_resolution_frame, stack_backing_type> m_stack;
     std::vector<ir_def_resolution_stack>                    m_leaves;
   };
@@ -133,7 +140,7 @@ namespace gch
   class ir_def_resolution_frame
   {
   public:
-    ir_def_resolution_frame (ir_block& join_block, ir_component& c);
+    ir_def_resolution_frame (ir_block& join_block, ir_component& c, ir_variable& v);
 
     [[nodiscard]]
     bool
@@ -147,68 +154,21 @@ namespace gch
     ir_link_set<ir_def_timeline>
     join_with (ir_link_set<ir_def_timeline>&& s);
 
+    [[nodiscard]]
     ir_component&
     get_subcomponent (void) const noexcept;
 
+    [[nodiscard]]
     ir_block&
     get_block (void) const noexcept;
+
+    [[nodiscard]]
+    ir_variable&
+    get_variable (void) const noexcept;
 
   private:
     nonnull_ptr<ir_block>   m_join_block;
     ir_def_resolution_stack m_substack;
-  };
-
-  // if returns nullopt then no resolution in descent
-  // else if not resolvable we need to continue
-  // else resolvable we collapse
-  std::optional<ir_def_resolution_stack>
-  build_resolution (ir_component& c);
-
-  class ir_def_resolution_build_descender
-  {
-
-  };
-
-  class ir_def_resolution_build_ascender
-  {
-  public:
-    bool
-    dispatch_child (ir_component& join_component, ir_component& c)
-    {
-      if (std::optional<ir_def_resolution_stack> child { build_resolution (c) })
-      {
-        if (child->is_resolvable ())
-
-      }
-      return false;
-    }
-
-    void
-    ascend (void);
-
-  private:
-    ir_def_resolution_stack m_stack;
-  };
-
-  class ir_def_resolution_builder
-  {
-  public:
-    bool
-    dispatch_child (ir_component& join_component, ir_component& c)
-    {
-      if (std::optional<ir_def_resolution_stack> child { build_resolution (c) })
-      {
-        if (child->is_resolvable ())
-
-      }
-      return false;
-    }
-
-    void
-    ascend (void);
-
-  private:
-    ir_def_resolution_stack m_stack;
   };
 
 }

@@ -32,24 +32,9 @@ along with Octave; see the file COPYING.  If not, see
 #include "visitors/ir-visitor.hpp"
 #include "visitors/ir-visitor-fwd.hpp"
 
-#include <stack>
-#include <vector>
-
 namespace gch
 {
-
-  class ir_block;
-  class ir_condition_block;
-  class ir_loop_condition_block;
-  class ir_function;
   class ir_use_timeline;
-  // class ir_structure_descender;
-  // class ir_structure_ascender;
-
-  class ir_component_fork;
-  class ir_component_loop;
-  class ir_component_sequence;
-  class ir_function;
 
   class ir_structure
     : public abstract_visitable<ir_structure_visitors>

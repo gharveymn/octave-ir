@@ -20,10 +20,14 @@ namespace gch
   // component visitors
   //
 
-  // ir-component-inspector.hpp
+  class ir_def_resolution_build_descender;
+  class ir_def_resolution_builder;
   class ir_leaf_collector;
 
   using component_inspector_types = inspector_types<ir_leaf_collector>;
+
+  using component_mutator_types = mutator_types<ir_def_resolution_build_descender,
+                                                ir_def_resolution_builder>
 
   // aggregate
   using ir_component_visitors = visitor_types<component_inspector_types>;
@@ -32,7 +36,6 @@ namespace gch
   // structure visitors
   //
 
-  // ir-parent-inspector.hpp
   class ir_predecessor_collector;
   class ir_successor_collector;
   class ir_leaf_inspector;
@@ -41,12 +44,10 @@ namespace gch
                                                  ir_successor_collector,
                                                  ir_leaf_inspector>;
 
-  // ir-structure-inspector.hpp
   class ir_entry_collector;
 
   using structure_inspector_types = inspector_types<ir_entry_collector>;
 
-  // ir-structure-flattener.hpp
   class ir_structure_flattener;
 
   using structure_mutator_types = mutator_types<ir_structure_flattener>;

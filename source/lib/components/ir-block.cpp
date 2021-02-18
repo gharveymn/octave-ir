@@ -448,6 +448,13 @@ namespace gch
     return as_mutable (*this).maybe_get_incoming_instruction ();
   }
 
+  bool
+  ir_def_timeline::
+  has_outgoing_timeline (void) const noexcept
+  {
+    return ! timelines_empty<range::all> ();
+  }
+
   ir_use_timeline&
   ir_def_timeline::
   get_outgoing_timeline (void) noexcept
@@ -541,10 +548,10 @@ namespace gch
   ir_block (ir_structure& parent, ir_block&& other) noexcept
     : ir_subcomponent   (parent),
       m_instr_partition (std::move (other.m_instr_partition)),
-      m_timeline_map    (std::move (other.m_timeline_map))
+      m_def_timelines_map (std::move (other.m_def_timelines_map))
   {
-    std::for_each (selecting<ir_def_timeline> (m_timeline_map.begin ()),
-                   selecting<ir_def_timeline> (m_timeline_map.end ()),
+    std::for_each (selecting<ir_def_timeline> (m_def_timelines_map.begin ()),
+                   selecting<ir_def_timeline> (m_def_timelines_map.end ()),
                    [this](ir_def_timeline& dt) { dt.set_block (*this); });
   }
 
@@ -553,9 +560,9 @@ namespace gch
   operator= (ir_block&& other) noexcept
   {
     m_instr_partition = std::move (other.m_instr_partition);
-    m_timeline_map    = std::move (other.m_timeline_map);
-    std::for_each (selecting<ir_def_timeline> (m_timeline_map.begin ()),
-                   selecting<ir_def_timeline> (m_timeline_map.end ()),
+    m_def_timelines_map    = std::move (other.m_def_timelines_map);
+    std::for_each (selecting<ir_def_timeline> (m_def_timelines_map.begin ()),
+                   selecting<ir_def_timeline> (m_def_timelines_map.end ()),
                    [this](ir_def_timeline& dt) { dt.set_block (*this); });
   }
 
@@ -566,8 +573,8 @@ namespace gch
       return dest;
 
     // move needed timelines into dest
-    std::transform (m_timeline_map.begin (), m_timeline_map.end (),
-                    std::back_inserter (dest.m_timeline_map),
+    std::transform (m_def_timelines_map.begin (), m_def_timelines_map.end (),
+                    std::back_inserter (dest.m_def_timelines_map),
                     [this, &pivot, &dest](std::pair<ir_variable * const, ir_def_timeline>& pair)
                     {
                       return std::pair { std::get<ir_variable * const> (pair),
@@ -868,7 +875,7 @@ namespace gch
   ir_block::
   forward_outgoing_timelines (ir_variable& var)
   {
-    if (optional_ref<ir_def_timeline> dt = find_def_timeline (var))
+    if (optional_ref<ir_def_timeline> dt = maybe_get_def_timeline (var))
     {
       if (dt->defs_empty ())
         throw ir_exception ("def timeline should not be empty");
@@ -886,7 +893,7 @@ namespace gch
   std::vector<std::pair<nonnull_ptr<ir_block>, optional_ref<ir_def_timeline>>>
   ir_block::collect_outgoing (ir_variable& var)
   {
-    if (optional_ref<ir_def_timeline> dt = find_def_timeline (var) ; dt->has_timelines ())
+    if (optional_ref<ir_def_timeline> dt = maybe_get_def_timeline (var) ; dt->has_timelines ())
       return { { *this, dt } };
     return { { *this, nullopt } };
   }
@@ -952,7 +959,7 @@ namespace gch
   ir_def_timeline&
   ir_block::resolve_undefined_incoming (ir_variable& undef_var, ir_def_timeline& var_dt)
   {
-    if (auto undef_dt = find_def_timeline (undef_var))
+    if (auto undef_dt = maybe_get_def_timeline (undef_var))
     {
       if (undef_dt->has_any_incoming ())
         return *undef_dt;
@@ -1004,7 +1011,7 @@ namespace gch
   ir_def_timeline&
   ir_block::resolve_undefined_outgoing (ir_variable& undef_var, ir_def_timeline& var_dt)
   {
-    if (auto undef_dt = find_def_timeline (undef_var))
+    if (auto undef_dt = maybe_get_def_timeline (undef_var))
     {
       if (undef_dt->has_defs ())
         return *undef_dt;
@@ -1028,7 +1035,7 @@ namespace gch
     {
       ir_constant& arg = *get_if<ir_constant> (found->front ());
       arg.emplace<bool> (state);
-      return *find_def_timeline (undef_var);
+      return *maybe_get_def_timeline (undef_var);
     }
     else
     {
@@ -1047,7 +1054,7 @@ namespace gch
   ir_block::propagate_def_timeline (ir_variable& var, ir_block& incoming_block,
                                           ir_def_timeline& remote)
   {
-    optional_ref<ir_def_timeline> opt_dt = find_def_timeline (var);
+    optional_ref<ir_def_timeline> opt_dt = maybe_get_def_timeline (var);
     if (opt_dt)
     {
       if (auto node = opt_dt->get_single_incoming ())
@@ -1134,7 +1141,7 @@ namespace gch
                      if (std::none_of (unlinked_vars.begin (), unlinked_vars.end (), &d
                        .get_variable ()))
                      {
-                       ir_def_timeline& dt = *find_def_timeline (d.get_variable ());
+                       ir_def_timeline& dt = *maybe_get_def_timeline (d.get_variable ());
                        if (! dt.has_timelines ())
                        {
                          // need to terminate
@@ -1213,13 +1220,129 @@ namespace gch
                          }).base ();
   }
 
-  optional_ref<ir_def_timeline>
+  auto
+  ir_block::
+  dt_map_begin (void) noexcept
+    -> dt_map_iter
+  {
+    return m_def_timelines_map.begin ();
+  }
+
+  auto
+  ir_block::
+  dt_map_begin (void) const noexcept
+    -> dt_map_citer
+  {
+    return as_mutable (*this).dt_map_begin ();
+  }
+
+  auto
+  ir_block::
+  dt_map_cbegin (void) const noexcept
+    -> dt_map_citer
+  {
+    return dt_map_begin ();
+  }
+
+  auto
+  ir_block::
+  dt_map_end (void) noexcept
+    -> dt_map_iter
+  {
+    return m_def_timelines_map.end ();
+  }
+
+  auto
+  ir_block::
+  dt_map_end (void) const noexcept
+    -> dt_map_citer
+  {
+    return as_mutable (*this).dt_map_end ();
+  }
+
+  auto
+  ir_block::
+  dt_map_cend (void) const noexcept
+    -> dt_map_citer
+  {
+    return dt_map_end ();
+  }
+
+  auto
+  ir_block::
+  dt_map_size (void) const noexcept
+    -> dt_map_size_ty
+  {
+   return m_def_timelines_map.size ();
+  }
+
+  bool
+  ir_block::
+  dt_map_empty (void) const noexcept
+  {
+    return m_def_timelines_map.empty ();
+  }
+
+  auto
   ir_block::
   find_def_timeline (const ir_variable& var)
+    -> dt_map_iter
   {
-    if (auto cit = m_timeline_map.find (&var); cit != m_timeline_map.end ())
+    return m_def_timelines_map.find (&var);
+  }
+
+  auto
+  ir_block::
+  find_def_timeline (const ir_variable& var) const
+  -> dt_map_citer
+  {
+    return as_mutable (*this).find_def_timeline (var);
+  }
+
+  ir_def_timeline&
+  ir_block::
+  get_def_timeline (ir_variable& var)
+  {
+    return std::get<ir_def_timeline> (*m_def_timelines_map.try_emplace (&var, *this, var).first);
+  }
+
+  optional_ref<ir_def_timeline>
+  ir_block::
+  maybe_get_def_timeline (const ir_variable& var)
+  {
+    if (auto cit = find_def_timeline (var); cit != m_def_timelines_map.end ())
       return optional_ref { std::get<ir_def_timeline> (*cit) };
     return nullopt;
+  }
+
+  optional_ref<const ir_def_timeline>
+  ir_block::
+  maybe_get_def_timeline (const ir_variable& var) const
+  {
+    return as_mutable (*this).maybe_get_def_timeline (var);
+  }
+
+  auto
+  ir_block::
+  remove_def_timeline (dt_map_iter it)
+    -> dt_map_iter
+  {
+    return m_def_timelines_map.erase (it);
+  }
+
+  auto
+  ir_block::
+  remove_def_timeline (dt_map_citer cit)
+    -> dt_map_iter
+  {
+    return m_def_timelines_map.erase (cit);
+  }
+
+  bool
+  ir_block::
+  remove_def_timeline (const ir_variable& var)
+  {
+    return m_def_timelines_map.erase (&var) != 0;
   }
 
   bool
@@ -1235,7 +1358,7 @@ namespace gch
     }
 
     ir_variable& var = new_dt.get_variable ();
-    if (optional_ref local_dt { find_def_timeline (var) })
+    if (optional_ref local_dt { maybe_get_def_timeline (var) })
     {
       assert (local_dt->has_timelines () && "def timeline should not be empty");
       return true;
@@ -1249,7 +1372,7 @@ namespace gch
     erase (begin<range::body> (), end<range::body> ());
 
     // TODO remove when verified
-    for (const auto& p : m_timeline_map)
+    for (const auto& p : m_def_timelines_map)
     {
 
     }

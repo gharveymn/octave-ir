@@ -8,12 +8,12 @@
 #include "components/ir-block.hpp"
 #include "processors/ir-def-resolution.hpp"
 #include "utilities/ir-optional-util.hpp"
-#include "ir-component.hpp"
-#include "ir-structure.hpp"
-#include "ir-function.hpp"
-#include "ir-component-fork.hpp"
-#include "ir-component-loop.hpp"
-#include "ir-component-sequence.hpp"
+#include "components/ir-component.hpp"
+#include "components/ir-structure.hpp"
+#include "components/ir-function.hpp"
+#include "components/ir-component-fork.hpp"
+#include "components/ir-component-loop.hpp"
+#include "components/ir-component-sequence.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -51,7 +51,7 @@ namespace gch
   bool
   check_matching_incoming_blocks (ir_block& join_block, const small_vector<ir_def_resolution>& c)
   {
-    ir_link_set<ir_block> lhs = join_block.get_parent ().get_predecessors (join_block);
+    ir_link_set<ir_block> lhs = get_predecessors (join_block);
     ir_link_set<ir_block> rhs;
     std::for_each (c.begin (), c.end (), [&rhs](const ir_def_resolution& r)
                                          { rhs.emplace (r.get_leaf_block ()); });
@@ -87,15 +87,15 @@ namespace gch
 
   [[nodiscard]]
   ir_link_set<ir_def_timeline>
-  join_at (ir_block& join_block, small_vector<ir_def_resolution>&& c)
+  join_at (ir_block& join_block, ir_variable& var, small_vector<ir_def_resolution>&& incoming)
   {
-    assert_matching_incoming_blocks (join_block, c);
+    assert_matching_incoming_blocks (join_block, incoming);
 
-    if (c.empty ())
+    if (incoming.empty ())
       return { };
 
-    optional_ref<ir_def> first_def = c.front ().maybe_get_common_def ();
-    auto found_hetero = std::find_if_not (std::next (c.begin ()), c.end (),
+    optional_ref<ir_def> first_def = incoming.front ().maybe_get_common_def ();
+    auto found_hetero = std::find_if_not (std::next (incoming.begin ()), incoming.end (),
                                           [first_def](const ir_def_resolution& r)
                                           {
                                             return first_def == r.maybe_get_common_def ();
@@ -103,12 +103,12 @@ namespace gch
 
     // check if all the incoming timelines have the same parent def
     // if they do we can skip creation of an incoming-timeline in the current block
-    if (found_hetero == c.end ())
+    if (found_hetero == incoming.end ())
     {
       // if homogeneous and we can skip creation of the incoming-timeline
       // and forward the timelines
-      return std::accumulate (std::next (c.begin ()), c.end (),
-                              c.front ().get_timelines (),
+      return std::accumulate (std::next (incoming.begin ()), incoming.end (),
+                              incoming.front ().get_timelines (),
                               [](auto&& ret, const ir_def_resolution& r) -> decltype (auto)
                               {
                                 return std::move (ret |= r.get_timelines ());
@@ -121,13 +121,12 @@ namespace gch
     assert (def);
 
     // otherwise we need to create an incoming-timeline
-    ir_variable& var = def->get_variable ();
-    ir_def_timeline&   dt  = join_block.get_def_timeline (var);
+    ir_def_timeline& dt = join_block.get_def_timeline (var);
 
     assert (! dt.has_incoming ()          && "the block already has incoming blocks");
     assert (! dt.has_incoming_timeline () && "the block already has an incoming timeline");
 
-    std::for_each (c.begin (), c.end (),
+    std::for_each (incoming.begin (), incoming.end (),
                    [&dt](const ir_def_resolution& r)
                    {
                      dt.append_incoming (r.get_leaf_block (),
@@ -178,22 +177,24 @@ namespace gch
   //
 
   ir_def_resolution_stack::
-  ir_def_resolution_stack (ir_component& c)
-    : m_component (c)
+  ir_def_resolution_stack (ir_component& c, ir_variable& v)
+    : m_component (c),
+      m_variable  (v)
   { }
 
   bool
   ir_def_resolution_stack::
   is_resolvable (void) const noexcept
   {
-    return m_stack.top ().is_joinable ()
-       ||  std::all_of (m_leaves.begin (), m_leaves.end (), [](const ir_def_resolution_stack& l)
-                                                            { return l.is_resolvable (); });
+    return m_block_resolution.has_value ()
+       ||  (! m_stack.empty () && m_stack.top ().is_joinable ())
+       ||  std::all_of (m_leaves.begin (), m_leaves.end (),
+                        std::mem_fn (&ir_def_resolution_stack::is_resolvable));
   }
 
   ir_def_resolution_frame&
   ir_def_resolution_stack::
-  push (ir_block& join_block, ir_component& c)
+  push_frame (ir_block& join_block, ir_component& c)
   {
     return m_stack.emplace (join_block, c);
   }
@@ -212,6 +213,20 @@ namespace gch
     return m_stack.top ();
   }
 
+  ir_def_resolution_stack&
+  ir_def_resolution_stack::
+  add_leaf (ir_def_resolution_stack&& leaf_stack)
+  {
+    return m_leaves.emplace_back (std::move (leaf_stack));
+  }
+
+  ir_def_resolution_stack&
+  ir_def_resolution_stack::
+  add_leaf (ir_component& c, ir_variable& v)
+  {
+    return m_leaves.emplace_back (c, v);
+  }
+
   ir_component&
   ir_def_resolution_stack::
   get_component (void) const noexcept
@@ -219,17 +234,40 @@ namespace gch
     return *m_component;
   }
 
-  bool
+  ir_variable&
   ir_def_resolution_stack::
-  holds_singleton_block (void) const noexcept
+  get_variable (void) const noexcept
   {
-    if (m_stack.empty () && m_leaves.empty ())
-    {
-      assert (is_a<ir_block> (get_component ())
-          &&  "Invalid state. If the stack is empty with no leaves then it should hold a block.");
-      return true;
-    }
-    return false;
+    return *m_variable;
+  }
+
+  optional_ref<ir_block>
+  ir_def_resolution_stack::
+  maybe_cast_block (void) const noexcept
+  {
+    // FIXME: The condition that both the stack and leaves are empty
+    //        is equivalent to a non-null dynamic cast, but less safe
+    //        from a static analysis perspective. Switch to that
+    //        condition when verified.
+    optional_ref ret { maybe_cast<ir_block> (get_component ()) };
+    assert ((! ret || (m_stack.empty () && m_leaves.empty ()))
+        &&  "Invalid state. If the component is a block then the "
+            "stack and leaves should be empty.");
+    return ret;
+  }
+
+  ir_def_timeline&
+  ir_def_resolution_stack::
+  set_block_resolution (ir_def_timeline& dt) noexcept
+  {
+    return m_block_resolution.emplace (dt);
+  }
+
+  optional_ref<ir_def_timeline>
+  ir_def_resolution_stack::
+  maybe_get_block_resolution (void) const noexcept
+  {
+    return m_block_resolution;
   }
 
   small_vector<ir_def_resolution>
@@ -238,20 +276,30 @@ namespace gch
   {
     assert (is_resolvable () && "stack should be resolvable");
 
-    ir_link_set<ir_def_timeline> curr_result = m_stack.top ().join ();
-    m_stack.pop ();
-    return resolve_with (std::move (curr_result));
+    if (optional_ref dt { maybe_get_block_resolution () }) // collapse the stack with the seed
+      return resolve_with ({ nonnull_ptr { *dt } });
+    else if (! m_stack.empty ()) // collapse the stack
+    {
+      ir_link_set<ir_def_timeline> curr_result = m_stack.top ().join ();
+      m_stack.pop ();
+      return resolve_with (std::move (curr_result));
+    }
+    else // the resolution is the aggregate of the leaf components
+    {
+      small_vector<ir_def_resolution> ret;
+      std::for_each (m_leaves.begin (), m_leaves.end (),
+                     [&](ir_def_resolution_stack& leaf_stack)
+                     { ret.append (leaf_stack.resolve ()); });
+      return ret;
+    }
   }
 
   small_vector<ir_def_resolution>
   ir_def_resolution_stack::
   resolve_with (ir_link_set<ir_def_timeline> s)
   {
-    if (holds_singleton_block ())
-    {
-      // this should only run in the context of being a leaf stack
-      return { { static_cast<ir_block&> (get_component ()), std::move (s) } };
-    }
+    if (optional_ref block { maybe_cast_block () })
+      return { { *block, std::move (s) } };
 
     while (! m_stack.empty ())
     {
@@ -276,13 +324,10 @@ namespace gch
   //
 
   ir_def_resolution_frame::
-  ir_def_resolution_frame (ir_block& join_block, ir_component& c)
+  ir_def_resolution_frame (ir_block& join_block, ir_component& c, ir_variable& v)
     : m_join_block (join_block),
-      m_substack (c)
-  {
-    // frames only exist in the context of forking components
-    assert (! holds_type<ir_block> (comp));
-  }
+      m_substack (c, v)
+  { }
 
   bool
   ir_def_resolution_frame::
@@ -296,7 +341,7 @@ namespace gch
   join (void)
   {
     assert (is_joinable () && "frame should be joinable");
-    auto ret = join_at (get_block (), m_substack.resolve ());
+    auto ret = join_at (get_block (), get_variable (), m_substack.resolve ());
     assert_homogeneous (ret);
     return ret;
   }
@@ -305,7 +350,7 @@ namespace gch
   ir_def_resolution_frame::
   join_with (ir_link_set<ir_def_timeline>&& s)
   {
-    auto ret = join_at (get_block (), m_substack.resolve_with (std::move (s)));
+    auto ret = join_at (get_block (), get_variable (), m_substack.resolve_with (std::move (s)));
     assert_homogeneous (ret);
     return ret;
   }
@@ -324,20 +369,11 @@ namespace gch
     return *m_join_block;
   }
 
-  //
-  // ir_def_resolution_builder
-  //
-
-  void
-  ir_def_resolution_builder::
-  ascend (void)
+  ir_variable&
+  ir_def_resolution_frame::
+  get_variable (void) const noexcept
   {
-    optional_ref sub { maybe_cast<ir_subcomponent> (m_stack.get_component ()) };
-    assert (sub && "Invalid state.");
-
-    ir_def_resolution_stack parent_stack { sub->get_parent () };
-    parent_stack.add_leaf (std::move (m_stack));
-    m_stack = std::move (parent_stack);
+    return m_substack.get_variable ();
   }
 
 }
