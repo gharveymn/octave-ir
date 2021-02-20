@@ -20,12 +20,6 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-#if defined (HAVE_CONFIG_H)
-#  include "config.h"
-#endif
-
-#include "utilities/ir-common.hpp"
-
 #include "utilities/ir-common-util.hpp"
 #include "values/types/ir-type.hpp"
 
@@ -37,6 +31,10 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace gch
 {
+
+  ir_exception::
+  ~ir_exception (void) = default;
+
   template <typename T>
   std::ostream&
   ir_printer<T>::short_print (std::ostream&, const ir_class&)

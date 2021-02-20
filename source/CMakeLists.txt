@@ -7,6 +7,8 @@ IF (NOT CREATE_PACKAGE_VERSION VERSION_GREATER_EQUAL 0.0.4)
   INCLUDE ("${PROJECT_SOURCE_DIR}/external/create-package/cmake/create-package.cmake")
 ENDIF ()
 
+OPTION (CLANG_WITH_LIBCXX "Set to ON to use libc++ when compiling with Clang" ON)
+
 # Sources
 SET (HEADERS
      components/ir-block.hpp
@@ -36,13 +38,14 @@ SET (HEADERS
      values/ir-instruction-fwd.hpp
      values/ir-variable.hpp
 
+     visitors/inspectors/ir-entry-collector.hpp
      visitors/inspectors/ir-leaf-collector.hpp
      visitors/inspectors/ir-leaf-inspector.hpp
      visitors/inspectors/ir-parent-inspector.hpp
      visitors/inspectors/ir-predecessor-collector.hpp
-     visitors/inspectors/ir-structure-inspector.hpp
      visitors/inspectors/ir-successor-collector.hpp
 
+     visitors/mutators/ir-parent-mutator.hpp
      visitors/mutators/ir-def-resolution-builder.hpp
      visitors/mutators/ir-structure-flattener.hpp
 
@@ -73,14 +76,15 @@ SET (SOURCES
      values/ir-instruction.cpp
      values/ir-variable.cpp
 
+     visitors/inspectors/ir-entry-collector.cpp
      visitors/inspectors/ir-leaf-collector.cpp
      visitors/inspectors/ir-leaf-inspector.cpp
      visitors/inspectors/ir-parent-inspector.cpp
      visitors/inspectors/ir-predecessor-collector.cpp
-     visitors/inspectors/ir-structure-inspector.cpp
      visitors/inspectors/ir-successor-collector.cpp
 
      visitors/mutators/ir-def-resolution-builder.cpp
+     visitors/mutators/ir-parent-mutator.cpp
      visitors/mutators/ir-structure-flattener.cpp
 
      visitors/ir-traverser.cpp)

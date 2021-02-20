@@ -10,37 +10,49 @@
 
 #include "visitors/inspectors/ir-parent-inspector.hpp"
 
+#include "components/ir-component-fwd.hpp"
 #include "utilities/ir-link-set.hpp"
 
 namespace gch
 {
 
   class ir_predecessor_collector
-    : public ir_parent_inspector<ir_predecessor_collector, ir_link_set<ir_block>>
+    : public ir_parent_inspector
   {
   public:
     template <typename, typename>
     friend struct acceptor;
 
-    ir_predecessor_collector            (void)                                = default;
+    using result_type = ir_link_set<ir_block>;
+
+    ir_predecessor_collector            (void)                                = delete;
     ir_predecessor_collector            (const ir_predecessor_collector&)     = delete;
     ir_predecessor_collector            (ir_predecessor_collector&&) noexcept = delete;
     ir_predecessor_collector& operator= (const ir_predecessor_collector&)     = delete;
     ir_predecessor_collector& operator= (ir_predecessor_collector&&) noexcept = delete;
     ~ir_predecessor_collector           (void)                                = default;
 
+    [[nodiscard]]
+    result_type
+    operator() (void) const;
+
   private:
-    void
-    visit (const ir_component_fork& fork);
+    [[nodiscard]]
+    result_type
+    visit (const ir_component_fork& fork) const;
 
-    void
-    visit (const ir_component_loop& loop);
+    [[nodiscard]]
+    result_type
+    visit (const ir_component_loop& loop) const;
 
-    void
-    visit (const ir_component_sequence& seq);
+    [[nodiscard]]
+    result_type
+    visit (const ir_component_sequence& seq) const;
 
-    void
-    visit (const ir_function& func);
+    [[nodiscard]]
+    static
+    result_type
+    visit (const ir_function&) { return { }; };
   };
 
 }

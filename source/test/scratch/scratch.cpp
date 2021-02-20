@@ -34,7 +34,7 @@ namespace gch
   class ir_subcomponent { };
 
   class ir_def_timeline;
-  class ir_block { int x; };
+  class ir_block { };
 
   struct incoming_block
   {
@@ -58,12 +58,14 @@ namespace gch
     std::stack<phi_manager> stack;
   };
 
+  static
   const std::vector<int>&
   test_ext_helper (const std::vector<int>& v = { 1, 2, 3, 4 })
   {
     return v;
   }
 
+  static
   std::vector<int>
   test_ext (void)
   {
@@ -91,18 +93,21 @@ namespace gch
     }
   };
 
+  static
   std::optional<test_struct>
   get_opt (void)
   {
     return { { } };
   }
 
+  static
   std::optional<const test_struct>
   get_copt (void)
   {
     return { { } };
   }
 
+  static
   void
   test_bind (void)
   {
@@ -115,6 +120,7 @@ namespace gch
     std::invoke (&test_struct::f, x);
   }
 
+  static
   std::optional<int>
   add (std::optional<int> mx, std::optional<int> my)
   {
@@ -193,12 +199,14 @@ namespace gch
     std::string m_s;
   };
 
+  static
   test_accum
   test_a_impl (void)
   {
     return { };
   }
 
+  static
   test_accum
   test_a (void)
   {
@@ -210,7 +218,7 @@ namespace gch
   [[nodiscard]]
   static
   ir_link_set<ir_block>
-  copy_leaves (int comp)
+  copy_leaves (unsigned comp)
   {
     std::vector<ir_block> blks (10 + comp);
     return {
@@ -248,9 +256,9 @@ namespace gch
           std::string s = std::accumulate (std::next (l.begin ()),
                                            l.end (),
                                            convert (*l.begin ()),
-                                           [&](std::string s, nonnull_ptr<ir_block> p)
+                                           [&](std::string str, nonnull_ptr<ir_block> p)
                                            {
-                                             return std::move (s) + ", " + convert (p);
+                                             return std::move (str) + ", " + convert (p);
                                            });
           std::cout << "[ " << s << " ]" << std::endl;
         };
@@ -744,7 +752,7 @@ namespace gch
 
         time t1 = clock::now ();
         auto it = q.begin ();
-        std::for_each (p.begin (), p.end (), [&it](auto&& s) { s.merge (*it++); });
+        std::for_each (p.begin (), p.end (), [&it](auto&& x) { x.merge (*it++); });
         time t2 = clock::now ();
         std::cout << num_merges
                   << " merges done in  "
@@ -771,11 +779,33 @@ namespace gch
 //*****************************************************************
   class ShapeVisitor
     : public abstract_mutator<Square, Circle, Triangle>
-  { };
+  {
+  public:
+    ShapeVisitor            (void)                    = default;
+    ShapeVisitor            (const ShapeVisitor&)     = default;
+    ShapeVisitor            (ShapeVisitor&&) noexcept = default;
+    ShapeVisitor& operator= (const ShapeVisitor&)     = default;
+    ShapeVisitor& operator= (ShapeVisitor&&) noexcept = default;
+    ~ShapeVisitor           (void) override;
+  };
+
+  ShapeVisitor::
+  ~ShapeVisitor (void) = default;
 
   class ConstShapeVisitor
     : public abstract_inspector<Square, Circle, Triangle>
-  { };
+  {
+  public:
+    ConstShapeVisitor            (void)                         = default;
+    ConstShapeVisitor            (const ConstShapeVisitor&)     = default;
+    ConstShapeVisitor            (ConstShapeVisitor&&) noexcept = default;
+    ConstShapeVisitor& operator= (const ConstShapeVisitor&)     = default;
+    ConstShapeVisitor& operator= (ConstShapeVisitor&&) noexcept = default;
+    ~ConstShapeVisitor           (void) override;
+  };
+
+  ConstShapeVisitor::
+  ~ConstShapeVisitor (void) = default;
 
   class Square;
   class Circle;
@@ -783,8 +813,8 @@ namespace gch
 
   class StaticVisitor;
 
-  using shape_mutators   = mutator_types<ShapeVisitor, StaticVisitor>;
-  using shape_inspectors = visitor_types<inspector_types<ConstShapeVisitor>>;
+  using shape_mutators   = visitor_types<mutator<ShapeVisitor>, mutator<StaticVisitor>>;
+  using shape_inspectors = visitor_types<inspector<ConstShapeVisitor>>;
   using shape_visitors   = visitor_types<shape_mutators, shape_inspectors>;
 
   //*****************************************************************
@@ -794,9 +824,16 @@ namespace gch
     : public abstract_visitable<shape_visitors>
   {
   public:
-    virtual
-    ~Shape (void) = default;
+    Shape            (void)             = default;
+    Shape            (const Shape&)     = default;
+    Shape            (Shape&&) noexcept = default;
+    Shape& operator= (const Shape&)     = default;
+    Shape& operator= (Shape&&) noexcept = default;
+    ~Shape           (void) override;
   };
+
+  Shape::
+  ~Shape (void) = default;
 
 //*****************************************************************
 // The square class
@@ -804,7 +841,18 @@ namespace gch
   class Square
     : public Shape,
       public visitable<Square, shape_visitors>
-  { };
+  {
+  public:
+    Square            (void)              = default;
+    Square            (const Square&)     = default;
+    Square            (Square&&) noexcept = default;
+    Square& operator= (const Square&)     = default;
+    Square& operator= (Square&&) noexcept = default;
+    ~Square           (void) override;
+  };
+
+  Square::
+  ~Square (void) = default;
 
 //*****************************************************************
 // The circle class
@@ -812,7 +860,18 @@ namespace gch
   class Circle
     : public Shape,
       public visitable<Circle, shape_visitors>
-  { };
+  {
+  public:
+    Circle            (void)              = default;
+    Circle            (const Circle&)     = default;
+    Circle            (Circle&&) noexcept = default;
+    Circle& operator= (const Circle&)     = default;
+    Circle& operator= (Circle&&) noexcept = default;
+    ~Circle           (void) override;
+  };
+
+  Circle::
+  ~Circle (void) = default;
 
 //*****************************************************************
 // The triangle class
@@ -820,7 +879,18 @@ namespace gch
   class Triangle
     : public Shape,
       public visitable<Triangle, shape_visitors>
-  { };
+  {
+  public:
+    Triangle            (void)                = default;
+    Triangle            (const Triangle&)     = default;
+    Triangle            (Triangle&&) noexcept = default;
+    Triangle& operator= (const Triangle&)     = default;
+    Triangle& operator= (Triangle&&) noexcept = default;
+    ~Triangle           (void) override;
+  };
+
+  Triangle::
+  ~Triangle (void) = default;
 
   //*****************************************************************
 // The 'draw' visitor.
@@ -829,6 +899,13 @@ namespace gch
     : public ShapeVisitor
   {
   public:
+    DrawVisitor            (void)                   = default;
+    DrawVisitor            (const DrawVisitor&)     = default;
+    DrawVisitor            (DrawVisitor&&) noexcept = default;
+    DrawVisitor& operator= (const DrawVisitor&)     = default;
+    DrawVisitor& operator= (DrawVisitor&&) noexcept = default;
+    ~DrawVisitor           (void) override;
+
     void
     visit (Square&) override
     {
@@ -848,6 +925,9 @@ namespace gch
     }
   };
 
+  DrawVisitor::
+  ~DrawVisitor (void) = default;
+
 //*****************************************************************
 // The 'serialise' visitor.
 //*****************************************************************
@@ -855,6 +935,13 @@ namespace gch
     : public ConstShapeVisitor
   {
   public:
+    SerialiseVisitor            (void)                        = default;
+    SerialiseVisitor            (const SerialiseVisitor&)     = default;
+    SerialiseVisitor            (SerialiseVisitor&&) noexcept = default;
+    SerialiseVisitor& operator= (const SerialiseVisitor&)     = default;
+    SerialiseVisitor& operator= (SerialiseVisitor&&) noexcept = default;
+    ~SerialiseVisitor           (void) override;
+
     void
     visit (const Square&) override
     {
@@ -874,6 +961,9 @@ namespace gch
     }
   };
 
+  SerialiseVisitor::
+  ~SerialiseVisitor (void) = default;
+
   class StaticVisitor
   {
   public:
@@ -887,18 +977,21 @@ namespace gch
     }
 
   private:
+    static
     void
     visit (Square&)
     {
       std::cout << "static square\n";
     }
 
+    static
     void
     visit (Circle&)
     {
       std::cout << "static circle\n";
     }
 
+    static
     void
     visit (Triangle&)
     {
@@ -926,14 +1019,14 @@ namespace gch
       = [&](ShapeVisitor &visitor)
         {
           std::for_each (shape_list.begin (), shape_list.end (),
-                         [&](Shape *u) { dispatch (*u, visitor); });
+                         [&](Shape *u) { u->accept (visitor); });
         };
 
     auto ApplyInspector
       = [&](ConstShapeVisitor &visitor)
         {
           std::for_each (shape_list.begin (), shape_list.end (),
-                         [&](Shape *u) { dispatch (*u, visitor); });
+                         [&](Shape *u) { u->accept (visitor); });
         };
 
     auto ApplyStatic
@@ -975,6 +1068,7 @@ namespace gch
     }
   };
 
+  static
   void
   f (void)
   {
@@ -1000,36 +1094,143 @@ namespace gch
 
   struct some_class
   {
+    some_class            (void)                  = default;
+    some_class            (const some_class&)     = default;
+    some_class            (some_class&&) noexcept = default;
+    some_class& operator= (const some_class&)     = default;
+    some_class& operator= (some_class&&) noexcept = default;
+    ~some_class           (void)                  = default;
+
     std::vector<some_class> v;
     small_vector<some_class, 0> m_self;
   };
 
   struct blahk;
 
+  // template class std::vector<blahk>;
+  // template class gch::small_vector<int>;
+  // template class gch::small_vector<blahk, 0>;
+
   struct incom
   {
+    incom            (void)             = default;
+    incom            (const incom&)     = default;
+    incom            (incom&&) noexcept = default;
+    incom& operator= (const incom&)     = default;
+    incom& operator= (incom&&) noexcept = default;
+    ~incom           (void)             = default;
+
     std::vector<blahk> v;
     small_vector<blahk, 0> sv;
   };
 
   struct blahk
-  {
+  { };
 
+  struct blahc
+  {
+    blahc            (void)             = default;
+    blahc            (const blahc&)     = delete;
+    blahc            (blahc&&) noexcept = delete;
+    blahc& operator= (const blahc&)     = delete;
+    blahc& operator= (blahc&&) noexcept = delete;
+    ~blahc           (void)             = delete;
   };
 
+  static_assert (! concepts::MoveInsertable<blahc, small_vector<blahc>, std::allocator<blahc>>);
+  static_assert (! concepts::Erasable<blahc, small_vector<blahc>, std::allocator<blahc>>);
+
+
+  template <typename T>
+  void
+  t1 (T *p)
+  {
+    // static_assert (! std::is_array_v<T>);
+  }
+
+  void
+  fff (void)
+  {
+    using arr = int[3];
+    arr a { };
+    arr *p = &a;
+    t1 (p);
+
+    int *b;
+    blahk k;
+    blahk *kp = &k;
+
+    static_assert (std::is_same_v<decltype (kp->~blahk ()), void>);
+    // t1 (b);
+  }
+
+  template <typename T, typename Enable = void>
+  struct dest1
+    : std::false_type
+  { };
+
+  template <typename T>
+  struct dest1<T, std::void_t<decltype (std::declval<T *> ()->~T ())>>
+    : std::true_type
+  { };
+
+  template <typename T, typename Enable = void>
+  struct dest
+    : std::false_type
+  { };
+
+  template <typename T, typename Enable = void>
+  struct deref
+    : std::false_type
+  { };
+
+  template <typename T>
+  struct deref<T, std::void_t<decltype (*std::declval<T> ())>>
+    : dest<std::remove_reference_t<decltype (*std::declval<T> ())>>
+  { };
+
+  template <typename T>
+  struct dest<T, std::enable_if_t<std::is_destructible_v<std::remove_all_extents_t<T>>>>
+    : std::true_type
+  { };
+
+  static_assert (! dest<blahc>::value);
+  static_assert (! dest<blahc[3]>::value);
+  static_assert (dest<blahk>::value);
+  static_assert (dest<blahk[3]>::value);
+
+  struct tt { };
+
+  static_assert (! concepts::Erasable<blahc, small_vector<blahc>, std::allocator<blahc>>);
+  static_assert (! concepts::Erasable<blahc, small_vector<blahc>, std::allocator<blahc>>);
+  static_assert (concepts::Erasable<tt, small_vector<tt>, std::allocator<tt>>);
+  static_assert (concepts::Erasable<tt[3], small_vector<tt[3]>, std::allocator<tt[3]>>);
+  static_assert (! dest<blahc[3]>::value);
+  static_assert (dest<blahk>::value);
+  static_assert (dest<blahk[3]>::value);
+
+  static
   void
   g (void)
   {
     some_class x { };
     (void)x;
     // x.m_self.begin ();
+    x.v.emplace_back ();
+    x.m_self.emplace_back ();
+
+    some_class xx { };
+    xx = std::move (x);
 
     some_other_class y { };
     (void)y;
     // y.m_stack.emplace ();
 
     incom z { };
-    // z.sv.push_back ({ });
+    z.sv.push_back ({ });
+
+    // void* sv = new small_vector<blahc> ();
+    // sv.push_back ({ });
   }
 
   struct abstract_base
@@ -1042,23 +1243,57 @@ namespace gch
 
   struct other_base
   {
-    virtual ~other_base (void) = default;
+    virtual ~other_base (void);
   };
+
+  other_base::
+  ~other_base (void) = default;
 
   struct concrete1
     : abstract_base
-  { };
+  {
+    concrete1            (void)                 = default;
+    concrete1            (const concrete1&)     = default;
+    concrete1            (concrete1&&) noexcept = default;
+    concrete1& operator= (const concrete1&)     = default;
+    concrete1& operator= (concrete1&&) noexcept = default;
+    ~concrete1           (void) override;
+  };
+
+  concrete1::
+  ~concrete1 (void) = default;
 
   struct concrete2
     : abstract_base,
       other_base
-  { };
+  {
+    concrete2            (void)                 = default;
+    concrete2            (const concrete2&)     = default;
+    concrete2            (concrete2&&) noexcept = default;
+    concrete2& operator= (const concrete2&)     = default;
+    concrete2& operator= (concrete2&&) noexcept = default;
+    ~concrete2           (void) override;
+  };
+
+  concrete2::
+  ~concrete2 (void) = default;
 
   struct concrete3
     : abstract_base,
       other_base
-  { };
+  {
+    concrete3            (void)                 = default;
+    concrete3            (const concrete3&)     = default;
+    concrete3            (concrete3&&) noexcept = default;
+    concrete3& operator= (const concrete3&)     = default;
+    concrete3& operator= (concrete3&&) noexcept = default;
+    ~concrete3           (void) override;
+  };
 
+  concrete3::
+  ~concrete3 (void) = default;
+
+  static
   void
   test_dy (void)
   {
@@ -1091,19 +1326,21 @@ namespace gch
   struct test_move_struct
   {
     test_move_struct            (void)                        = default;
-    test_move_struct            (const test_move_struct&)     { };
-    test_move_struct            (test_move_struct&&) noexcept { };
-    test_move_struct& operator= (const test_move_struct&)     { return *this; };
-    test_move_struct& operator= (test_move_struct&&) noexcept { return *this; };
+    test_move_struct            (const test_move_struct&)     { }
+    test_move_struct            (test_move_struct&&) noexcept { }
+    test_move_struct& operator= (const test_move_struct&)     { return *this; }
+    test_move_struct& operator= (test_move_struct&&) noexcept { return *this; }
     ~test_move_struct           (void)                        = default;
   };
 
+  static
   test_move_struct
   ggg (void)
   {
     return { };
   }
 
+  static
   void
   test_move (void)
   {
@@ -1113,8 +1350,6 @@ namespace gch
   }
 
 }
-
-
 
 int
 main (void)
@@ -1190,10 +1425,10 @@ main (void)
   std::vector<std::string> va (15, "hi");
 
   auto ta = std::accumulate (va.begin (), va.end (), test_accum { },
-                             [](auto&& ta, const std::string& s) -> decltype (auto)
+                             [](auto&& taa, const std::string& str) -> decltype (auto)
                              {
-                               ta.append (s);
-                               return std::move (ta);
+                               taa.append (str);
+                               return std::move (taa);
                              });
 
   std::cout << "num copies:       " << test_accum::num_copies << std::endl;

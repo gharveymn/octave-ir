@@ -10,37 +10,49 @@
 
 #include "visitors/inspectors/ir-parent-inspector.hpp"
 
+#include "components/ir-component-fwd.hpp"
 #include "utilities/ir-link-set.hpp"
 
 namespace gch
 {
 
   class ir_leaf_inspector
-    : public ir_parent_inspector<ir_leaf_inspector, bool>
+    : public ir_parent_inspector
   {
   public:
     template <typename, typename>
     friend struct acceptor;
 
-    ir_leaf_inspector            (void)                         = default;
+    using result_type = bool;
+
+    ir_leaf_inspector            (void)                         = delete;
     ir_leaf_inspector            (const ir_leaf_inspector&)     = delete;
     ir_leaf_inspector            (ir_leaf_inspector&&) noexcept = delete;
     ir_leaf_inspector& operator= (const ir_leaf_inspector&)     = delete;
     ir_leaf_inspector& operator= (ir_leaf_inspector&&) noexcept = delete;
     ~ir_leaf_inspector           (void)                         = default;
 
+    [[nodiscard]]
+    result_type
+    operator() (void) const noexcept;
+
   private:
-    void
-    visit (const ir_component_fork& fork);
+    [[nodiscard]]
+    result_type
+    visit (const ir_component_fork& fork) const noexcept;
 
-    void
-    visit (const ir_component_loop& loop);
+    [[nodiscard]]
+    result_type
+    visit (const ir_component_loop& loop) const noexcept;
 
-    void
-    visit (const ir_component_sequence& seq);
+    [[nodiscard]]
+    result_type
+    visit (const ir_component_sequence& seq) const noexcept;
 
-    void
-    visit (const ir_function& func);
+    [[nodiscard]]
+    static GCH_CPP20_CONSTEVAL
+    result_type
+    visit (const ir_function& func) noexcept { return true; };
   };
 
 }

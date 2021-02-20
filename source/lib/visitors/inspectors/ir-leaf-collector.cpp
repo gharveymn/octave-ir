@@ -7,6 +7,7 @@
 
 #include "visitors/inspectors/ir-leaf-collector.hpp"
 
+#include "components/ir-block.hpp"
 #include "components/ir-component.hpp"
 #include "components/ir-structure.hpp"
 #include "components/ir-component-fork.hpp"
@@ -17,56 +18,63 @@
 namespace gch
 {
 
-  ir_link_set<ir_block>
+  auto
   ir_leaf_collector::
-  operator() (const ir_structure& s)
+  operator() (const ir_structure& s) const
+    -> result_type
   {
-    m_result.clear ();
-    s.accept (*this);
-    return std::move (m_result);
+    return s.accept (*this);
   }
 
-  void
+  auto
   ir_leaf_collector::
   visit (const ir_block& block)
+    -> result_type
   {
-    m_result.emplace (as_mutable (block));
+    return { nonnull_ptr (as_mutable (block)) };
   }
 
-  void
+  auto
   ir_leaf_collector::
-  visit (const ir_component_fork& fork)
+  visit (const ir_component_fork& fork) const
+    -> result_type
   {
+    result_type ret;
     std::for_each (fork.cases_begin (), fork.cases_end (),
-                   [this](const ir_subcomponent& sub) { append (sub); });
+                   [&](const ir_subcomponent& sub) { ret |= subcomponent_result (sub); });
+    return ret;
   }
 
-  void
+  auto
   ir_leaf_collector::
-  visit (const ir_component_loop& loop)
+  visit (const ir_component_loop& loop) const
+    -> result_type
   {
-    append (loop.get_condition ());
+    return subcomponent_result (loop.get_condition ());
   }
 
-  void
+  auto
   ir_leaf_collector::
-  visit (const ir_component_sequence& seq)
+  visit (const ir_component_sequence& seq) const
+    -> result_type
   {
-    append (*seq.last ());
+    return subcomponent_result (*seq.last ());
   }
 
-  void
+  auto
   ir_leaf_collector::
-  visit (const ir_function& func)
+  visit (const ir_function& func) const
+    -> result_type
   {
-    append (func.get_body ());
+    return subcomponent_result (func.get_body ());
   }
 
-  void
+  auto
   ir_leaf_collector::
-  append (const ir_subcomponent& sub)
+  subcomponent_result (const ir_subcomponent& sub)
+    -> result_type
   {
-    sub.accept (*this);
+    return sub.accept (*this);
   }
 
   ir_link_set<ir_block>

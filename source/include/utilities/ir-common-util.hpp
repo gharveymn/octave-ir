@@ -39,18 +39,29 @@ namespace gch
 {
   class ir_type;
 
-  class ir_exception : public std::exception
+  class ir_exception
+    : public std::exception
   {
   public:
-    explicit ir_exception (const char *str)
+    ir_exception            (void)                    = default;
+    ir_exception            (const ir_exception&)     = default;
+    ir_exception            (ir_exception&&) noexcept = default;
+    ir_exception& operator= (const ir_exception&)     = default;
+    ir_exception& operator= (ir_exception&&) noexcept = default;
+    ~ir_exception           (void) override;
+
+    explicit
+    ir_exception (const char *str)
       : m_str (str)
     { }
 
-    explicit ir_exception (std::string str)
+    explicit
+    ir_exception (std::string str)
       : m_str (std::move (str))
     { }
 
-    const char* what (void) const noexcept override
+    const char *
+    what (void) const noexcept override
     {
       return m_str.c_str ();
     }
@@ -651,7 +662,7 @@ namespace gch
 
     constexpr explicit
     set_emplacer (Container& c)
-      : m_container { std::addressof (m_container) }
+      : m_container { std::addressof (c) }
     { }
 
     template <typename Tuple,

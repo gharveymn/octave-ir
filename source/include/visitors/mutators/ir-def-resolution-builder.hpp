@@ -10,11 +10,65 @@
 
 #include "components/ir-component-fwd.hpp"
 #include "processors/ir-def-resolution.hpp"
+#include "visitors/mutators/ir-parent-mutator.hpp"
 
 namespace gch
 {
 
   class ir_variable;
+
+  class ir_def_resolution_build_result
+  {
+  public:
+    ir_def_resolution_build_result            (void)                                      = delete;
+    ir_def_resolution_build_result            (const ir_def_resolution_build_result&)     = delete;
+    ir_def_resolution_build_result            (ir_def_resolution_build_result&&) noexcept = default;
+    ir_def_resolution_build_result& operator= (const ir_def_resolution_build_result&)     = delete;
+    ir_def_resolution_build_result& operator= (ir_def_resolution_build_result&&) noexcept = default;
+    ~ir_def_resolution_build_result           (void)                                      = default;
+
+    enum class join : bool
+    {
+      yes = true,
+      no  = false,
+    };
+
+    enum class resolvable : bool
+    {
+      yes = true,
+      no  = false,
+    };
+
+    ir_def_resolution_build_result (ir_variable& var, join j, resolvable r);
+
+    ir_def_resolution_build_result (ir_def_resolution_stack&& s, join j, resolvable r);
+
+    [[nodiscard]]
+    join
+    join_state (void) const noexcept;
+
+    [[nodiscard]]
+    resolvable
+    resolvable_state (void) const noexcept;
+
+    // returning rvalue reference just for semantic reasons
+    [[nodiscard]]
+    ir_def_resolution_stack&&
+    release_stack (void) noexcept;
+
+    [[nodiscard]]
+    bool
+    needs_join (void) const noexcept;
+
+    [[nodiscard]]
+    bool
+    is_resolvable (void) const noexcept;
+
+  private:
+    ir_def_resolution_stack m_stack;
+    join                    m_join;
+    resolvable              m_resolvable;
+  };
 
   class ir_def_resolution_build_descender
   {
@@ -22,151 +76,113 @@ namespace gch
     template <typename, typename>
     friend struct acceptor;
 
-    struct result_type
-    {
-      ir_def_resolution_stack stack;
-      bool                    is_resolvable;
-    };
+    using result_type = ir_def_resolution_build_result;
 
-    ir_def_resolution_build_descender (ir_component& c, ir_variable& v);
+    explicit
+    ir_def_resolution_build_descender (ir_variable& var);
 
+    [[nodiscard]]
     result_type
-    operator() (void) &&;
+    operator() (ir_component& c) const &&;
+
+    [[nodiscard]]
+    result_type
+    operator() (ir_block& block) const &&;
 
   private:
-    void
-    visit (ir_block& block);
+    [[nodiscard]]
+    result_type
+    visit (ir_block& block) const;
 
-    void
-    visit (ir_component_fork& fork);
+    [[nodiscard]]
+    result_type
+    visit (ir_component_fork& fork) const;
 
-    void
-    visit (ir_component_loop& loop);
+    [[nodiscard]]
+    result_type
+    visit (ir_component_loop& loop) const;
 
-    void
-    visit (ir_component_sequence& seq);
+    [[nodiscard]]
+    result_type
+    visit (ir_component_sequence& seq) const;
 
-    void
-    visit (ir_function& func);
+    [[nodiscard]]
+    result_type
+    visit (ir_function& func) const;
+
+    [[nodiscard]]
+    result_type
+    dispatch_descender (ir_subcomponent& sub) const;
+
+    [[nodiscard]]
+    result_type
+    dispatch_descender (ir_block& block) const;
 
     [[nodiscard]]
     ir_variable&
     get_variable (void) const noexcept;
 
-    static
-    result_type
-    dispatch_descender (ir_subcomponent& sub);
-
-    bool
-    check_block (ir_block& block);
-
-    ir_component&           m_component;
-    ir_def_resolution_stack m_stack;
-    bool                    m_is_resolvable;
+    ir_variable& m_variable;
   };
 
-  class ir_def_resolution_builder
+  class ir_def_resolution_build_ascender
+    : protected ir_parent_mutator
   {
   public:
     template <typename, typename>
     friend struct acceptor;
 
-    ir_def_resolution_builder (ir_component& c);
+    using result_type = ir_def_resolution_build_result;
 
-    ir_def_resolution_stack
-    operator() (void) &&;
+    explicit
+    ir_def_resolution_build_ascender (ir_subcomponent& sub, ir_variable& var);
+
+    result_type
+    operator() (void) const;
 
   private:
-    void
-    visit (const ir_block& block);
+    [[nodiscard]]
+    result_type
+    visit (ir_component_fork& fork) const;
 
-    void
-    visit (const ir_component_fork& fork);
+    [[nodiscard]]
+    result_type
+    visit (ir_component_loop& loop) const;
 
-    void
-    visit (const ir_component_loop& loop);
+    [[nodiscard]]
+    result_type
+    visit (ir_component_sequence& seq) const;
 
-    void
-    visit (const ir_component_sequence& seq);
+    [[nodiscard]]
+    result_type
+    visit (ir_function& func) const;
 
-    void
-    visit (const ir_function& func);
+    [[nodiscard]]
+    result_type
+    maybe_ascend (ir_substructure& s, result_type&& sub_result) const;
 
-    void
-    ascend (void);
+    [[nodiscard]]
+    result_type
+    ascend (ir_substructure& s) const;
 
-    static
-    ir_def_resolution_build_descender::result_type
-    dispatch_descender (ir_component& c);
+    [[nodiscard]]
+    result_type
+    dispatch_descender (ir_subcomponent& sub) const;
 
-    ir_def_resolution_stack m_stack;
+    [[nodiscard]]
+    result_type
+    dispatch_descender (ir_block& block) const;
+
+    [[nodiscard]]
+    ir_variable&
+    get_variable (void) const noexcept;
+
+    ir_variable& m_variable;
   };
 
-  // if returns nullopt then no resolution in descent
-  // else if not resolvable we need to continue
-  // else resolvable we collapse
-  std::optional<ir_def_resolution_stack>
-  build_resolution (ir_component& c);
-
-
-  // class ir_def_resolution_stack_builder
-  // {
-  // public:
-  //   explicit
-  //   ir_def_resolution_stack_builder (ir_block& leaf_block)
-  //     : m_current_join_block (leaf_block),
-  //       m_stack (leaf_block)
-  //   { }
-  //
-  //   ir_def_resolution_stack_builder&
-  //   operator() (ir_component& c)
-  //   {
-  //     if (! ir_backward_descender { *this } (c))
-  //       dispatch_parent (c);
-  //     return *this;
-  //   }
-  //
-  //   bool
-  //   visit (ir_block&)
-  //   {
-  //     return false;
-  //   }
-  //
-  //   // let B = block
-  //   // 1. pass B (is set as stack leaf)
-  //   // 2. visit B
-  //   // 3. if continue then push to stack with the B as the join-block
-  //   // 4. ascend to parent
-  //   // 5. visit preds (if we have a fork then we recurse,
-  //   //                 creating a new builder and storing
-  //   //                 the result in the current frame.
-  //   // 6. if continue go to 4
-  //
-  //   bool
-  //   dispatch_child (ir_component& c)
-  //   {
-  //     if (optional_ref b { maybe_cast<ir_block> (c) })
-  //     {
-  //       ir_resolution_stack_builder sub_scope { *b };
-  //       bool result = ir_backward_descender { sub_scope } (c);
-  //     }
-  //     else
-  //       return ir_backward_descender { *this } (c);
-  //   }
-  //
-  //   small_vector<ir_def_resolution_stack_builder, 1>
-  //   dispatch_fork (ir_component& c);
-  //
-  //   void
-  //   dispatch_parent (ir_component& c)
-  //   {
-  //     m_stack.push_frame (get_entry_block (c));
-  //     ir_backward_ascender { *this, c } (*c.maybe_get_parent ());
-  //   }
-  //
-  // private:
-  //   ir_def_resolution_stack m_stack;
-  // };
+  [[nodiscard]]
+  ir_def_resolution_build_result
+  build_def_resolution_stack (ir_block& block, ir_variable& var);
 
 }
 

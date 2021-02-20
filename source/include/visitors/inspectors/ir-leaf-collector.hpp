@@ -20,6 +20,8 @@ namespace gch
     template <typename, typename>
     friend struct acceptor;
 
+    using result_type = ir_link_set<ir_block>;
+
     ir_leaf_collector            (void)                         = default;
     ir_leaf_collector            (const ir_leaf_collector&)     = delete;
     ir_leaf_collector            (ir_leaf_collector&&) noexcept = delete;
@@ -27,29 +29,35 @@ namespace gch
     ir_leaf_collector& operator= (ir_leaf_collector&&) noexcept = delete;
     ~ir_leaf_collector           (void)                         = default;
 
-    ir_link_set<ir_block>
-    operator() (const ir_structure& s);
+    [[nodiscard]]
+    result_type
+    operator() (const ir_structure& s) const;
 
   private:
-    void
+    [[nodiscard]]
+    static
+    result_type
     visit (const ir_block& block);
 
-    void
-    visit (const ir_component_fork& fork);
+    [[nodiscard]]
+    result_type
+    visit (const ir_component_fork& fork) const;
 
-    void
-    visit (const ir_component_loop& loop);
+    [[nodiscard]]
+    result_type
+    visit (const ir_component_loop& loop) const;
 
-    void
-    visit (const ir_component_sequence& seq);
+    [[nodiscard]]
+    result_type
+    visit (const ir_component_sequence& seq) const;
 
-    void
-    visit (const ir_function& func);
+    [[nodiscard]]
+    result_type
+    visit (const ir_function& func) const;
 
-    void
-    append (const ir_subcomponent& sub);
-
-    ir_link_set<ir_block> m_result;
+    [[nodiscard]]
+    result_type
+    subcomponent_result (const ir_subcomponent& sub);
   };
 
   ir_link_set<ir_block>

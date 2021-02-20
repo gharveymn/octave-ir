@@ -6,36 +6,100 @@ SET(SOURCE_FILES scratch.cpp
 
 SET(TARGET_VERSIONS 17 20)
 
+SET(COMPILE_OPTS )
+SET(LINK_OPTS )
 SET(LINK_LIBS optional_ref
               plf_list
               tracker
               nonnull_ptr
               small_vector)
-
 SET(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/source/include)
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  LIST(APPEND COMPILE_OPTS -stdlib=libc++ -ftime-trace --coverage -Wall -Wextra)
-  LIST(APPEND LINK_OPTS -Wl,--allow-multiple-definition --coverage)
-  LIST(APPEND LINK_LIBS c++ c++abi)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  LIST(APPEND COMPILE_OPTS -Wall -Wextra)
-  LIST(APPEND LINK_OPTS )
-  LIST(APPEND LINK_LIBS )
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  LIST(APPEND COMPILE_OPTS /W4)
-  LIST(APPEND LINK_OPTS )
-  LIST(APPEND LINK_LIBS )
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-  LIST(APPEND COMPILE_OPTS )
-  LIST(APPEND LINK_OPTS )
-  LIST(APPEND LINK_LIBS )
-endif()
+IF (CMAKE_CXX_COMPILER_ID
+    STREQUAL
+    Clang)
 
-if (UNIX)
-  LIST(APPEND COMPILE_OPTS -fsanitize=address)
-  LIST(APPEND LINK_OPTS -fsanitize=address)
-endif()
+  LIST (APPEND
+          COMPILE_OPTS -ftime-trace
+                       --coverage
+                       -Weverything
+                       -Wno-padded
+                       -Wno-c++98-compat
+                       -Wno-zero-as-null-pointer-constant)
+
+    LIST (APPEND
+          LINK_OPTS -Wl,--allow-multiple-definition
+                    --coverage)
+
+  # Clang options
+  IF (CLANG_WITH_LIBCXX)
+
+    LIST (APPEND
+          COMPILE_OPTS -stdlib=libc++)
+
+    LIST (APPEND
+          LINK_LIBS c++
+                    c++abi)
+
+    MESSAGE (STATUS "Linking with libc++")
+
+  ENDIF ()
+
+ELSEIF (CMAKE_CXX_COMPILER_ID
+        STREQUAL
+        GNU)
+
+  # GCC options
+
+  LIST (APPEND
+        COMPILE_OPTS -pedantic
+                     -Wall
+                     -Wextra
+                     -Wcast-align
+                     -Wcast-qual
+                     -Wctor-dtor-privacy
+                     -Wdisabled-optimization
+                     -Wformat=2
+                     -Winit-self
+                     -Wlogical-op
+                     -Wmissing-declarations
+                     -Wmissing-include-dirs
+                     -Wnoexcept
+                     -Wold-style-cast
+                     -Woverloaded-virtual
+                     -Wredundant-decls
+                     -Wshadow
+                     -Wsign-conversion
+                     -Wsign-promo
+                     -Wstrict-null-sentinel
+                     -Wstrict-overflow=5
+                     -Wswitch-default
+                     -Wundef
+                     -Wno-unused)
+
+ELSEIF (CMAKE_CXX_COMPILER_ID
+        STREQUAL
+        MSVC)
+
+  # MSVC options
+
+  LIST (APPEND
+        COMPILE_OPTS /W4)
+
+ENDIF ()
+
+IF (UNIX
+    AND CMAKE_BUILD_TYPE
+        STREQUAL
+        Debug)
+
+  LIST (APPEND
+        COMPILE_OPTS -fsanitize=address)
+
+  LIST (APPEND
+        LINK_OPTS    -fsanitize=address)
+
+ENDIF ()
 
 FOREACH(version ${TARGET_VERSIONS})
   SET(target_name ${TEST_NAME}.test.c++${version})

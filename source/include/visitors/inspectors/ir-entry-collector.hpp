@@ -1,35 +1,26 @@
-/** ir-structure-inspector.hpp
+/** ir-entry-collector.hpp
  * Copyright © 2021 Gene Harvey
  *
  * This software may be modified and distributed under the terms
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_STRUCTURE_INSPECTOR_HPP
-#define OCTAVE_IR_IR_STRUCTURE_INSPECTOR_HPP
+#ifndef OCTAVE_IR_IR_ENTRY_COLLECTOR_HPP
+#define OCTAVE_IR_IR_ENTRY_COLLECTOR_HPP
 
+#include "components/ir-component-fwd.hpp"
 #include "visitors/ir-visitor.hpp"
 
 namespace gch
 {
-  class ir_component;
-
-  class ir_subcomponent;
-  class ir_block;
-
-  class ir_structure;
-  class ir_function;
-
-  class ir_substructure;
-  class ir_component_fork;
-  class ir_component_loop;
-  class ir_component_sequence;
 
   class ir_entry_collector
   {
   public:
     template <typename, typename>
     friend struct acceptor;
+
+    using result_type = const ir_subcomponent&;
 
     ir_entry_collector            (void)                          = default;
     ir_entry_collector            (const ir_entry_collector&)     = delete;
@@ -38,24 +29,30 @@ namespace gch
     ir_entry_collector& operator= (ir_entry_collector&&) noexcept = delete;
     ~ir_entry_collector           (void)                          = default;
 
-    const ir_subcomponent&
-    operator() (const ir_structure& s);
-
-  protected:
-    void
-    visit (const ir_component_fork& fork);
-
-    void
-    visit (const ir_component_loop& loop);
-
-    void
-    visit (const ir_component_sequence& seq);
-
-    void
-    visit (const ir_function& func);
+    [[nodiscard]]
+    result_type
+    operator() (const ir_structure& s) const;
 
   private:
-    const ir_subcomponent *m_result;
+    [[nodiscard]]
+    static
+    result_type
+    visit (const ir_component_fork& fork);
+
+    [[nodiscard]]
+    static
+    result_type
+    visit (const ir_component_loop& loop);
+
+    [[nodiscard]]
+    static
+    result_type
+    visit (const ir_component_sequence& seq);
+
+    [[nodiscard]]
+    static
+    result_type
+    visit (const ir_function& func);
   };
 
   ir_subcomponent&
@@ -72,4 +69,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_STRUCTURE_INSPECTOR_HPP
+#endif // OCTAVE_IR_IR_ENTRY_COLLECTOR_HPP

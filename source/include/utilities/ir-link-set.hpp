@@ -535,6 +535,11 @@ namespace gch
     return ir_link_set (lhs) | rhs;
   }
 
+  template <typename InputIt>
+  ir_link_set (InputIt, InputIt)
+    -> ir_link_set<typename std::pointer_traits<
+                     typename std::iterator_traits<InputIt>::value_type>::element_type>;
+
 }
 
 #endif // OCTAVE_IR_IR_LINK_SET_HPP

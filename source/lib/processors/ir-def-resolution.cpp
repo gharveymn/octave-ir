@@ -123,8 +123,7 @@ namespace gch
     // otherwise we need to create an incoming-timeline
     ir_def_timeline& dt = join_block.get_def_timeline (var);
 
-    assert (! dt.has_incoming ()          && "the block already has incoming blocks");
-    assert (! dt.has_incoming_timeline () && "the block already has an incoming timeline");
+    // note: in the case of loops we can be appending to an already existing def-timeline
 
     std::for_each (incoming.begin (), incoming.end (),
                    [&dt](const ir_def_resolution& r)
@@ -177,16 +176,27 @@ namespace gch
   //
 
   ir_def_resolution_stack::
-  ir_def_resolution_stack (ir_component& c, ir_variable& v)
-    : m_component (c),
-      m_variable  (v)
+  ir_def_resolution_stack (ir_variable& var)
+    : m_variable (var)
+  { }
+
+  ir_def_resolution_stack::
+  ir_def_resolution_stack (ir_variable& var, ir_block& block)
+    : m_variable         (var),
+      m_block_resolution (std::in_place, block)
+  { }
+
+  ir_def_resolution_stack::
+  ir_def_resolution_stack (ir_variable& var, ir_block& block, ir_link_set<ir_def_timeline>&& s)
+    : m_variable         (var),
+      m_block_resolution (std::in_place, block, std::move (s))
   { }
 
   bool
   ir_def_resolution_stack::
   is_resolvable (void) const noexcept
   {
-    return m_block_resolution.has_value ()
+    return (holds_block () && m_block_resolution->has_resolution ())
        ||  (! m_stack.empty () && m_stack.top ().is_joinable ())
        ||  std::all_of (m_leaves.begin (), m_leaves.end (),
                         std::mem_fn (&ir_def_resolution_stack::is_resolvable));
@@ -194,9 +204,16 @@ namespace gch
 
   ir_def_resolution_frame&
   ir_def_resolution_stack::
-  push_frame (ir_block& join_block, ir_component& c)
+  push_frame (ir_block& join_block, ir_variable& var)
   {
-    return m_stack.emplace (join_block, c);
+    return m_stack.emplace (join_block, var);
+  }
+
+  ir_def_resolution_frame&
+  ir_def_resolution_stack::
+  push_frame (ir_block& join_block, ir_def_resolution_stack&& substack)
+  {
+    return m_stack.emplace (join_block, std::move (substack));
   }
 
   ir_def_resolution_frame&
@@ -222,16 +239,9 @@ namespace gch
 
   ir_def_resolution_stack&
   ir_def_resolution_stack::
-  add_leaf (ir_component& c, ir_variable& v)
+  add_leaf (void)
   {
-    return m_leaves.emplace_back (c, v);
-  }
-
-  ir_component&
-  ir_def_resolution_stack::
-  get_component (void) const noexcept
-  {
-    return *m_component;
+    return m_leaves.emplace_back (get_variable ());
   }
 
   ir_variable&
@@ -256,16 +266,39 @@ namespace gch
     return ret;
   }
 
-  ir_def_timeline&
+  void
   ir_def_resolution_stack::
-  set_block_resolution (ir_def_timeline& dt) noexcept
+  set_block_resolution (ir_block& block, std::nullopt_t)
   {
-    return m_block_resolution.emplace (dt);
+    m_block_resolution.emplace (block);
   }
 
-  optional_ref<ir_def_timeline>
+  void
+  ir_def_resolution_stack::
+  set_block_resolution (ir_block& block, ir_link_set<ir_def_timeline>&& s)
+  {
+    m_block_resolution.emplace (block, std::move (s));
+  }
+
+  bool
+  ir_def_resolution_stack::
+  holds_block (void) const noexcept
+  {
+    return m_block_resolution.has_value ();
+  }
+
+  auto
+  ir_def_resolution_stack::
+  get_block_resolution (void) const noexcept
+    -> leading_block_resolution
+  {
+    return *m_block_resolution;
+  }
+
+  auto
   ir_def_resolution_stack::
   maybe_get_block_resolution (void) const noexcept
+    -> std::optional<leading_block_resolution>
   {
     return m_block_resolution;
   }
@@ -276,8 +309,8 @@ namespace gch
   {
     assert (is_resolvable () && "stack should be resolvable");
 
-    if (optional_ref dt { maybe_get_block_resolution () }) // collapse the stack with the seed
-      return resolve_with ({ nonnull_ptr { *dt } });
+    if (auto res { maybe_get_block_resolution () }) // collapse the stack with the seed
+      return resolve_with (res->get_resolution ());
     else if (! m_stack.empty ()) // collapse the stack
     {
       ir_link_set<ir_def_timeline> curr_result = m_stack.top ().join ();
@@ -324,9 +357,15 @@ namespace gch
   //
 
   ir_def_resolution_frame::
-  ir_def_resolution_frame (ir_block& join_block, ir_component& c, ir_variable& v)
+  ir_def_resolution_frame (ir_block& join_block, ir_def_resolution_stack&& substack)
     : m_join_block (join_block),
-      m_substack (c, v)
+      m_substack   (std::move (substack))
+  { }
+
+  ir_def_resolution_frame::
+  ir_def_resolution_frame (ir_block& join_block, ir_variable& var)
+    : m_join_block (join_block),
+      m_substack   (var)
   { }
 
   bool
@@ -341,7 +380,7 @@ namespace gch
   join (void)
   {
     assert (is_joinable () && "frame should be joinable");
-    auto ret = join_at (get_block (), get_variable (), m_substack.resolve ());
+    auto ret = join_at (get_join_block (), get_variable (), m_substack.resolve ());
     assert_homogeneous (ret);
     return ret;
   }
@@ -350,21 +389,14 @@ namespace gch
   ir_def_resolution_frame::
   join_with (ir_link_set<ir_def_timeline>&& s)
   {
-    auto ret = join_at (get_block (), get_variable (), m_substack.resolve_with (std::move (s)));
+    auto ret = join_at (get_join_block (), get_variable (), m_substack.resolve_with (std::move (s)));
     assert_homogeneous (ret);
     return ret;
   }
 
-  ir_component&
-  ir_def_resolution_frame::
-  get_subcomponent (void) const noexcept
-  {
-    return m_substack.get_component ();
-  }
-
   ir_block&
   ir_def_resolution_frame::
-  get_block (void) const noexcept
+  get_join_block (void) const noexcept
   {
     return *m_join_block;
   }

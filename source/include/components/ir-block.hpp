@@ -1047,8 +1047,6 @@ namespace gch
     dt_map_type                       m_def_timelines_map;
   };
 
-
-
   class ir_condition_block
     : public ir_block
   {

@@ -34,7 +34,7 @@ char (*__gch__fail) (void)[sizeof(TYPE)] = 1;
 #define GCH_STRCAT(x, y) GCH_STRCAT_(x, y)
 #define GCH_PRINT_VALUE(x) \
 template <int> struct GCH_STRCAT(GCH_STRCAT(value_of_, x), _is); \
-static_assert(GCH_STRCAT(GCH_STRCAT(value_of_, x), _is)<x>::x, " ");
+static_assert (GCH_STRCAT (GCH_STRCAT (value_of_, x), _is)<x>::x, " ");
 
 #ifndef GCH_ACCUMULATE_REF
 #  if __cplusplus > 201703L
@@ -44,9 +44,19 @@ static_assert(GCH_STRCAT(GCH_STRCAT(value_of_, x), _is)<x>::x, " ");
 #  endif
 #endif
 
+#ifndef GCH_CPP20_CONSTEVAL
+#  if defined (__cpp_consteval) && __cpp_consteval >= 201811L
+#    define GCH_CPP20_CONSTEVAL consteval
+#  else
+#    define GCH_CPP20_CONSTEVAL constexpr
+#  endif
+#endif
+
 class octave_base_value;
+
 namespace gch
 {
+
   inline constexpr
   bool
   OCTAVE_IR_DEBUG

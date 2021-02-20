@@ -1,11 +1,11 @@
-/** ir-structure-inspector.cpp
+/** ir-entry-collector.cpp
  * Copyright © 2021 Gene Harvey
  *
  * This software may be modified and distributed under the terms
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "visitors/inspectors/ir-structure-inspector.hpp"
+#include "visitors/inspectors/ir-entry-collector.hpp"
 
 #include "components/ir-component.hpp"
 #include "components/ir-structure.hpp"
@@ -23,39 +23,41 @@ namespace gch
 
   const ir_subcomponent&
   ir_entry_collector::
-  operator() (const ir_structure& s)
+  operator() (const ir_structure& s) const
   {
-    s.accept (*this);
-    assert (m_result != nullptr && "Result should not be nullptr.");
-    return *m_result;
+    return s.accept (*this);
   }
 
-  void
+  auto
   ir_entry_collector::
   visit (const ir_component_fork& fork)
+    -> result_type
   {
-    m_result = &fork.get_condition ();
+    return fork.get_condition ();
   }
 
-  void
+  auto
   ir_entry_collector::
   visit (const ir_component_loop& loop)
+    -> result_type
   {
-    m_result = &loop.get_start ();
+    return loop.get_start ();
   }
 
-  void
+  auto
   ir_entry_collector::
   visit (const ir_component_sequence& seq)
+    -> result_type
   {
-    m_result = &seq.front ();
+    return seq.front ();
   }
 
-  void
+  auto
   ir_entry_collector::
   visit (const ir_function& func)
+    -> result_type
   {
-    m_result = &func.get_body ();
+    return func.get_body ();
   }
 
   ir_subcomponent&

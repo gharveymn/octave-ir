@@ -15,34 +15,38 @@
 namespace gch
 {
 
-  void
+  auto
   ir_leaf_inspector::
-  visit (const ir_component_fork& fork)
+  operator() (void) const noexcept
+    -> result_type
   {
-    set_result (&get_subcomponent () != &fork.get_condition ());
+    return get_parent ().accept (*this);
   }
 
-  void
+  auto
   ir_leaf_inspector::
-  visit (const ir_component_loop& loop)
+  visit (const ir_component_fork& fork) const noexcept
+    -> result_type
   {
-    set_result (loop.is_condition (get_subcomponent ()));
+    return &get_subcomponent () != &fork.get_condition ();
   }
 
-  void
+  auto
   ir_leaf_inspector::
-  visit (const ir_component_sequence& seq)
+  visit (const ir_component_loop& loop) const noexcept
+    -> result_type
+  {
+    return loop.is_condition (get_subcomponent ());
+  }
+
+  auto
+  ir_leaf_inspector::
+  visit (const ir_component_sequence& seq) const noexcept
+    -> result_type
   {
     auto found = seq.find (get_subcomponent ());
     assert (found != seq.end ());
-    set_result (found == seq.last ());
-  }
-
-  void
-  ir_leaf_inspector::
-  visit (const ir_function& func)
-  {
-    set_result (true);
+    return found == seq.last ();
   }
 
 }
