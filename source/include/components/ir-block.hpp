@@ -159,8 +159,13 @@ namespace gch
       return *m_incoming_block;
     }
 
-    [[nodiscard]] constexpr       ir_block& get_parent_block (void)       noexcept;
-    [[nodiscard]] constexpr const ir_block& get_parent_block (void) const noexcept;
+    [[nodiscard]]
+    ir_block&
+    get_parent_block (void) noexcept;
+
+    [[nodiscard]]
+    const ir_block&
+    get_parent_block (void) const noexcept;
 
     template <typename ...Args>
     iter
@@ -172,6 +177,9 @@ namespace gch
     // return true if the removal caused a erasure
     iter
     remove_predecessor (const ir_def_timeline& dt);
+
+    void
+    clear (void) noexcept;
 
     void swap (ir_incoming_node& other) noexcept
     {
@@ -577,22 +585,6 @@ namespace gch
     incoming_container       m_incoming;
     use_timeline_list        m_use_timelines;
   };
-
-  constexpr
-  ir_block&
-  ir_incoming_node::
-  get_parent_block (void) noexcept
-  {
-    return get_parent ().get_block ();
-  }
-
-  constexpr
-  const ir_block&
-  ir_incoming_node::
-  get_parent_block (void) const noexcept
-  {
-    return get_parent ().get_block ();
-  }
 
   class ir_block
     : public ir_subcomponent,

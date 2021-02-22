@@ -33,6 +33,8 @@ namespace gch
   class ir_ascending_def_resolution_builder;
   class ir_descending_forward_mutator;
   class ir_ascending_forward_mutator;
+  class ir_descending_def_propagator;
+  class ir_ascending_def_propagator;
 
   using component_mutator_types = visitor_types<mutator<const ir_descending_def_resolution_builder,
                                                         ir_def_resolution_build_result>,
@@ -40,7 +42,10 @@ namespace gch
                                                         ir_def_resolution_build_result>,
                                                 mutator<const ir_descending_forward_mutator,
                                                         bool>,
-                                                mutator<const ir_ascending_forward_mutator>>;
+                                                mutator<const ir_ascending_forward_mutator>,
+                                                mutator<const ir_descending_def_propagator,
+                                                        ir_link_set<ir_block>>,
+                                                mutator<const ir_ascending_def_propagator>>;
 
   // aggregate
   using ir_component_visitors = visitor_types<component_inspector_types,

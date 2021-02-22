@@ -436,7 +436,7 @@ namespace gch
 
   auto
   ir_ascending_def_resolution_builder::
-  maybe_ascend (ir_substructure& sub, result_type&& sub_result) const
+  maybe_ascend (ir_substructure& sub, descender_type::result_type&& sub_result) const
     -> result_type
   {
     if (sub_result.is_resolvable ())

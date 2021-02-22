@@ -47,6 +47,7 @@ SET (HEADERS
      visitors/inspectors/ir-predecessor-collector.hpp
      visitors/inspectors/ir-successor-collector.hpp
 
+     visitors/mutators/ir-def-propagator.hpp
      visitors/mutators/ir-def-resolution-builder.hpp
      visitors/mutators/ir-forward-mutator.hpp
      visitors/mutators/ir-structure-flattener.hpp
@@ -88,6 +89,7 @@ SET (SOURCES
      visitors/inspectors/ir-predecessor-collector.cpp
      visitors/inspectors/ir-successor-collector.cpp
 
+     visitors/mutators/ir-def-propagator.cpp
      visitors/mutators/ir-def-resolution-builder.cpp
      visitors/mutators/ir-forward-mutator.cpp
      visitors/mutators/ir-structure-flattener.cpp

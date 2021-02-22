@@ -8,8 +8,14 @@
 #ifndef OCTAVE_IR_IR_DEF_PROPAGATOR_HPP
 #define OCTAVE_IR_IR_DEF_PROPAGATOR_HPP
 
+#include "components/ir-component-fwd.hpp"
+#include "utilities/ir-link-set.hpp"
+#include "visitors/mutators/ir-subcomponent-mutator.hpp"
+
 namespace gch
 {
+
+  class ir_def_timeline;
 
   class ir_descending_def_propagator
   {
@@ -17,21 +23,17 @@ namespace gch
     template <typename, typename>
     friend struct acceptor;
 
-    using result_type  = bool;
-    using functor_type = std::function<result_type (ir_block&)>;
+    using result_type  = ir_link_set<ir_block>;
 
-    ir_descending_def_propagator            (void)                                    = default;
-    ir_descending_def_propagator            (const ir_descending_def_propagator&)     = default;
-    ir_descending_def_propagator            (ir_descending_def_propagator&&) noexcept = default;
-    ir_descending_def_propagator& operator= (const ir_descending_def_propagator&)     = default;
-    ir_descending_def_propagator& operator= (ir_descending_def_propagator&&) noexcept = default;
+    ir_descending_def_propagator            (void)                                    = delete;
+    ir_descending_def_propagator            (const ir_descending_def_propagator&)     = delete;
+    ir_descending_def_propagator            (ir_descending_def_propagator&&) noexcept = delete;
+    ir_descending_def_propagator& operator= (const ir_descending_def_propagator&)     = delete;
+    ir_descending_def_propagator& operator= (ir_descending_def_propagator&&) noexcept = delete;
     ~ir_descending_def_propagator           (void)                                    = default;
 
     explicit
-    ir_descending_def_propagator (const functor_type& functor);
-
-    explicit
-    ir_descending_def_propagator (functor_type&& functor);
+    ir_descending_def_propagator (ir_def_timeline& dominator);
 
     [[nodiscard]]
     result_type
@@ -70,7 +72,7 @@ namespace gch
     result_type
     dispatch_descender (ir_block& block) const;
 
-    functor_type m_functor;
+    ir_def_timeline& m_dominator;
   };
 
   class ir_ascending_def_propagator
@@ -82,7 +84,6 @@ namespace gch
 
     using result_type    = void;
     using descender_type = ir_descending_def_propagator;
-    using functor_type   = descender_type::functor_type;
 
     ir_ascending_def_propagator            (void)                                   = delete;
     ir_ascending_def_propagator            (const ir_ascending_def_propagator&)     = delete;
@@ -92,10 +93,8 @@ namespace gch
     ~ir_ascending_def_propagator           (void)                                   = default;
 
     explicit
-    ir_ascending_def_propagator (ir_subcomponent& sub, const functor_type& functor);
-
-    explicit
-    ir_ascending_def_propagator (ir_subcomponent& sub, functor_type&& functor);
+    ir_ascending_def_propagator (ir_subcomponent& sub, ir_def_timeline& dominator,
+                                 ir_link_set<ir_block>&& incoming_blocks);
 
     result_type
     operator() (void) const;
@@ -115,17 +114,20 @@ namespace gch
     visit (ir_function& func) noexcept { }
 
     result_type
-    ascend (ir_substructure& sub) const;
+    ascend (ir_substructure& sub, descender_type::result_type&& sub_result) const;
 
-    [[nodiscard]]
     descender_type::result_type
     dispatch_descender (ir_subcomponent& sub) const;
 
-    [[nodiscard]]
     descender_type::result_type
     dispatch_descender (ir_block& block) const;
 
-    functor_type m_functor;
+    static
+    bool
+    needs_stop (const descender_type::result_type& res) noexcept;
+
+    ir_def_timeline&              m_dominator;
+    mutable ir_link_set<ir_block> m_incoming_blocks;
   };
 
 }

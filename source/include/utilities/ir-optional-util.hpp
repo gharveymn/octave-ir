@@ -42,7 +42,9 @@ namespace gch
   { };
 
   template <typename Optional>
-  inline constexpr bool is_optional_v = is_optional<Optional>::value;
+  inline constexpr
+  bool
+  is_optional_v = is_optional<Optional>::value;
 
   namespace detail
   {
@@ -88,24 +90,61 @@ namespace gch
       : m_functor (std::move (functor))
     { }
 
-    template <typename ...Args,
-              std::enable_if_t<std::is_lvalue_reference_v<
-                std::invoke_result_t<Functor, Args...>>> * = nullptr>
+    template <typename Object, typename ...Args,
+              std::enable_if_t<
+                    std::is_lvalue_reference_v<std::invoke_result_t<Functor, Object, Args...>>
+                &&  std::is_member_function_pointer_v<Functor>> * = nullptr>
     constexpr
     decltype (auto)
-    operator() (Args&&... args)
+    operator() (Object&& obj, Args&&... args)
     {
-      return make_optional_ref (std::invoke (m_functor, std::forward<Args> (args)...));
+      return make_optional_ref (
+        (std::forward<Object> (obj).*m_functor) (std::forward<Args> (args)...));
+    }
+
+    template <typename Object,
+              std::enable_if_t<
+                    std::is_lvalue_reference_v<std::invoke_result_t<Functor, Object>>
+                &&  std::is_member_object_pointer_v<Functor>> * = nullptr>
+    constexpr
+    decltype (auto)
+    operator() (Object&& obj)
+    {
+      return make_optional_ref (std::forward<Object> (obj).*m_functor);
     }
 
     template <typename ...Args,
-              std::enable_if_t<! std::is_lvalue_reference_v<
-                std::invoke_result_t<Functor, Args...>>> * = nullptr>
+              std::enable_if_t<
+                    std::is_lvalue_reference_v<std::invoke_result_t<Functor, Args...>>
+                &&! std::is_member_pointer_v<Functor>> * = nullptr>
+    constexpr
+    decltype (auto)
+    operator() ( Args&&... args)
+    {
+      return make_optional_ref (m_functor (std::forward<Args> (args)...));
+    }
+
+    template <typename Object, typename ...Args,
+              std::enable_if_t<
+                  ! std::is_lvalue_reference_v<std::invoke_result_t<Functor, Object, Args...>>
+                &&  std::is_member_function_pointer_v<Functor>> * = nullptr>
+    constexpr
+    decltype (auto)
+    operator() (Object&& obj, Args&&... args)
+    {
+      return std::make_optional (
+        (std::forward<Object> (obj).*m_functor) (std::forward<Args> (args)...));
+    }
+
+    template <typename ...Args,
+              std::enable_if_t<
+                  ! std::is_lvalue_reference_v<std::invoke_result_t<Functor, Args...>>
+                &&! std::is_member_pointer_v<Functor>> * = nullptr>
     constexpr
     decltype (auto)
     operator() (Args&&... args)
     {
-      return std::make_optional (std::invoke (m_functor, std::forward<Args> (args)...));
+      return std::make_optional (m_functor (std::forward<Args> (args)...));
     }
 
   private:
@@ -117,6 +156,72 @@ namespace gch
 
   namespace detail
   {
+
+    template <typename Optional, typename Type, typename Base, typename ...Args>
+    constexpr
+    auto
+    maybe_invoke_impl (Optional&& opt, Type Base::* f, Args&&... args)
+      -> std::enable_if_t<
+               std::is_member_function_pointer_v<decltype (f)>
+           &&  std::is_object_v<
+                 std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>
+           &&  std::is_default_constructible_v<
+                 std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>,
+               std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>
+    {
+      using ret_type = std::invoke_result_t<decltype (f), just_t<Optional>, Args...>;
+      return opt ? ((*std::forward<Optional> (opt)).*f) (std::forward<Args> (args)...)
+                 : ret_type ();
+    }
+
+    template <typename Optional, typename Type, typename Base, typename ...Args>
+    constexpr
+    auto
+    maybe_invoke_impl (Optional&& opt, Type Base::* f, Args&&... args)
+      -> std::enable_if_t<
+               std::is_member_function_pointer_v<decltype (f)>
+           &&! std::is_object_v<
+                 std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>
+           &&  std::is_lvalue_reference_v<
+                 std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>,
+           optional_ref<std::remove_reference_t<
+             std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>>>
+    {
+      using ref = std::invoke_result_t<decltype (f), just_t<Optional>, Args...>;
+      using ret_type = optional_ref<typename std::remove_reference<ref>::type>;
+      return opt ? ret_type (((*std::forward<Optional> (opt)).*f) (std::forward<Args> (args)...))
+                 : ret_type ();
+    }
+
+    template <typename Optional, typename Type, typename Base, typename ...Args>
+    constexpr
+    auto
+    maybe_invoke_impl (Optional&& opt, Type Base::* f, Args&&... args)
+      -> std::enable_if_t<
+               std::is_member_function_pointer_v<decltype (f)>
+           &&! std::is_object_v<
+                 std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>
+           &&! std::is_lvalue_reference_v<
+                 std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>,
+               void>
+    {
+      if (opt)
+        ((*std::forward<Optional> (opt)).*f) (std::forward<Args> (args)...);
+    }
+
+    template <typename Optional, typename Type, typename Base>
+    constexpr
+    auto
+    maybe_invoke_impl (Optional&& opt, Type Base::* m)
+      noexcept (noexcept ((*std::forward<Optional> (opt)).*m))
+      -> typename std::enable_if<std::is_member_object_pointer<decltype (m)>::value,
+                                 optional_ref<typename std::remove_reference<decltype (
+                                   (*std::forward<Optional> (opt)).*m)>::type>>::type
+    {
+      using ref = decltype ((*std::forward<Optional> (opt)).*m);
+      using ret_type = optional_ref<typename std::remove_reference<ref>::type>;
+      return opt ? ret_type ((*std::forward<Optional> (opt)).*m) : ret_type ();
+    }
 
     template <typename Optional, typename Functor, typename ...Args>
     constexpr
@@ -130,8 +235,8 @@ namespace gch
                std::invoke_result_t<Functor, just_t<Optional>, Args...>>
     {
       using ret_type = std::invoke_result_t<Functor, just_t<Optional>, Args...>;
-      return opt ? std::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
-                                std::forward<Args> (args)...)
+      return opt ? std::forward<Functor> (f) (*std::forward<Optional> (opt),
+                                              std::forward<Args> (args)...)
                  : ret_type ();
     }
 
@@ -149,8 +254,8 @@ namespace gch
     {
       using ret_type = optional_ref<std::remove_reference_t<
         std::invoke_result_t<Functor, just_t<Optional>, Args...>>>;
-      return opt ? ret_type (std::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
-                                          std::forward<Args> (args)...))
+      return opt ? ret_type (std::forward<Functor> (f) (*std::forward<Optional> (opt),
+                                                        std::forward<Args> (args)...))
                  : ret_type ();
     }
 
@@ -166,8 +271,7 @@ namespace gch
                void>
     {
       if (opt)
-        std::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
-                     std::forward<Args> (args)...);
+        std::forward<Functor> (f) (*std::forward<Optional> (opt), std::forward<Args> (args)...);
     }
 
     template <typename Void, typename Optional, typename Functor, typename ...Args>
@@ -522,7 +626,8 @@ namespace gch
   decltype (auto)
   operator+= (OptionalLHS& lhs, OptionalRHS&& rhs)
   {
-    return maybe_invoke_with ([](auto& l, auto&& r) -> auto& { return l += r; },
+    return maybe_invoke_with ([](auto& l, auto&& r) -> auto&
+                              { return l += std::forward<decltype (r)> (r); },
                               lhs, std::forward<OptionalRHS> (rhs));
   }
 
@@ -535,7 +640,8 @@ namespace gch
   decltype (auto)
   operator-= (OptionalLHS& lhs, OptionalRHS&& rhs)
   {
-    return maybe_invoke_with ([](auto& l, auto&& r) -> auto& { return l -= r; },
+    return maybe_invoke_with ([](auto& l, auto&& r) -> auto&
+                              { return l -= std::forward<decltype (r)> (r); },
                               lhs, std::forward<OptionalRHS> (rhs));
   }
 
@@ -548,7 +654,8 @@ namespace gch
   decltype (auto)
   operator*= (OptionalLHS& lhs, OptionalRHS&& rhs)
   {
-    return maybe_invoke_with ([](auto& l, auto&& r) -> auto& { return l *= r; },
+    return maybe_invoke_with ([](auto& l, auto&& r) -> auto&
+                              { return l *= std::forward<decltype (r)> (r); },
                               lhs, std::forward<OptionalRHS> (rhs));
   }
 
@@ -561,7 +668,8 @@ namespace gch
   decltype (auto)
   operator/= (OptionalLHS& lhs, OptionalRHS&& rhs)
   {
-    return maybe_invoke_with ([](auto& l, auto&& r) -> auto& { return l /= r; },
+    return maybe_invoke_with ([](auto& l, auto&& r) -> auto&
+                              { return l /= std::forward<decltype (r)> (r); },
                               lhs, std::forward<OptionalRHS> (rhs));
   }
 
@@ -574,7 +682,8 @@ namespace gch
   decltype (auto)
   operator%= (OptionalLHS& lhs, OptionalRHS&& rhs)
   {
-    return maybe_invoke_with ([](auto& l, auto&& r) -> auto& { return l %= r; },
+    return maybe_invoke_with ([](auto& l, auto&& r) -> auto&
+                              { return l %= std::forward<decltype (r)> (r); },
                               lhs, std::forward<OptionalRHS> (rhs));
   }
 
@@ -587,7 +696,8 @@ namespace gch
   decltype (auto)
   operator&= (OptionalLHS& lhs, OptionalRHS&& rhs)
   {
-    return maybe_invoke_with ([](auto& l, auto&& r) -> auto& { return l &= r; },
+    return maybe_invoke_with ([](auto& l, auto&& r) -> auto&
+                              { return l &= std::forward<decltype (r)> (r); },
                               lhs, std::forward<OptionalRHS> (rhs));
   }
 
@@ -600,7 +710,8 @@ namespace gch
   decltype (auto)
   operator|= (OptionalLHS& lhs, OptionalRHS&& rhs)
   {
-    return maybe_invoke_with ([](auto& l, auto&& r) -> auto& { return l |= r; },
+    return maybe_invoke_with ([](auto& l, auto&& r) -> auto&
+                              { return l |= std::forward<decltype (r)> (r); },
                               lhs, std::forward<OptionalRHS> (rhs));
   }
 
@@ -613,7 +724,8 @@ namespace gch
   decltype (auto)
   operator^= (OptionalLHS& lhs, OptionalRHS&& rhs)
   {
-    return maybe_invoke_with ([](auto& l, auto&& r) -> auto& { return l ^= r; },
+    return maybe_invoke_with ([](auto& l, auto&& r) -> auto&
+                              { return l ^= std::forward<decltype (r)> (r); },
                               lhs, std::forward<OptionalRHS> (rhs));
   }
 
@@ -626,7 +738,8 @@ namespace gch
   decltype (auto)
   operator<<= (OptionalLHS& lhs, OptionalRHS&& rhs)
   {
-    return maybe_invoke_with ([](auto& l, auto&& r) -> auto& { return l <<= r; },
+    return maybe_invoke_with ([](auto& l, auto&& r) -> auto&
+                              { return l <<= std::forward<decltype (r)> (r); },
                               lhs, std::forward<OptionalRHS> (rhs));
   }
 
@@ -639,7 +752,8 @@ namespace gch
   decltype (auto)
   operator>>= (OptionalLHS& lhs, OptionalRHS&& rhs)
   {
-    return maybe_invoke_with ([](auto& l, auto&& r) -> auto& { return l >>= r; },
+    return maybe_invoke_with ([](auto& l, auto&& r) -> auto&
+                              { return l >>= std::forward<decltype (r)> (r); },
                               lhs, std::forward<OptionalRHS> (rhs));
   }
 
@@ -694,7 +808,8 @@ namespace gch
   decltype (auto)
   operator+ (Optional&& optional)
   {
-    return std::forward<Optional> (optional) >>= [](auto&& x) { return std::optional { +x }; };
+    return std::forward<Optional> (optional)
+             >>= [](auto&& x) { return std::optional { +std::forward<decltype (x)> (x) }; };
   }
 
   template <typename Optional,
@@ -838,7 +953,9 @@ namespace gch
   decltype (auto)
   operator<< (OptionalLHS&& lhs, OptionalRHS&& rhs)
   {
-    return maybe_invoke_with (maybe { [](auto&& l, auto&& r) { return l << r; } },
+    return maybe_invoke_with (maybe { [](auto&& l, auto&& r)
+                                      { return std::forward<decltype (l)> (l)
+                                            << std::forward<decltype (r)> (r); } },
                               std::forward<OptionalLHS> (lhs),
                               std::forward<OptionalRHS> (rhs));
   }
@@ -852,7 +969,9 @@ namespace gch
   decltype (auto)
   operator>> (OptionalLHS&& lhs, OptionalRHS&& rhs)
   {
-    return maybe_invoke_with (maybe { [](auto&& l, auto&& r) { return l >> r; } },
+    return maybe_invoke_with (maybe { [](auto&& l, auto&& r)
+                                      { return std::forward<decltype (l)> (l)
+                                            >> std::forward<decltype (r)> (r); } },
                               std::forward<OptionalLHS> (lhs),
                               std::forward<OptionalRHS> (rhs));
   }

@@ -68,6 +68,20 @@ namespace gch
     return *this;
   }
 
+  ir_block&
+  ir_incoming_node::
+  get_parent_block (void) noexcept
+  {
+    return get_parent ().get_block ();
+  }
+
+  const ir_block&
+  ir_incoming_node::
+  get_parent_block (void) const noexcept
+  {
+    return get_parent ().get_block ();
+  }
+
   auto
   ir_incoming_node::
   remove_predecessor (const ir_def_timeline& dt)

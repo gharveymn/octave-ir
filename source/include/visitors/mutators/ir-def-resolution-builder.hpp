@@ -160,7 +160,7 @@ namespace gch
 
     [[nodiscard]]
     result_type
-    maybe_ascend (ir_substructure& sub, result_type&& sub_result) const;
+    maybe_ascend (ir_substructure& sub, descender_type::result_type&& sub_result) const;
 
     [[nodiscard]]
     result_type
