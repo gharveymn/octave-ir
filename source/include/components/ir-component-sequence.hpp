@@ -300,13 +300,13 @@ namespace gch
 
     [[nodiscard]]
     iter
-    find (ir_component& c) const;
+    find (ir_subcomponent& sub) const;
 
     [[nodiscard]]
     citer
-    find (const ir_component& c) const
+    find (const ir_subcomponent& sub) const
     {
-      return find (as_mutable (c));
+      return find (as_mutable (sub));
     }
 
     template <typename Component, typename ...Args,
@@ -366,12 +366,7 @@ namespace gch
 
   protected:
     citer
-    must_find (const ir_component& c)
-    {
-      if (citer cit = find (c); cit != end ())
-        return cit;
-      throw ir_exception ("Component not found in the structure.");
-    }
+    must_find (const ir_component& c);
 
   private:
     std::vector<ir_component_mover>&

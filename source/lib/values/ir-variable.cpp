@@ -157,7 +157,7 @@ namespace gch
   { }
 
   ir_use::ir_use (ir_instruction& instr, const ir_use_info& info)
-    : ir_use (instr, info.get_timeline (), info.get_position ())
+    : ir_use (instr, info.get_timeline (), info.get_insertion_position ())
   { }
 
   ir_use_timeline&

@@ -23,10 +23,10 @@ namespace gch
     using result_type = ir_link_set<ir_block>;
 
     ir_leaf_collector            (void)                         = default;
-    ir_leaf_collector            (const ir_leaf_collector&)     = delete;
-    ir_leaf_collector            (ir_leaf_collector&&) noexcept = delete;
-    ir_leaf_collector& operator= (const ir_leaf_collector&)     = delete;
-    ir_leaf_collector& operator= (ir_leaf_collector&&) noexcept = delete;
+    ir_leaf_collector            (const ir_leaf_collector&)     = default;
+    ir_leaf_collector            (ir_leaf_collector&&) noexcept = default;
+    ir_leaf_collector& operator= (const ir_leaf_collector&)     = default;
+    ir_leaf_collector& operator= (ir_leaf_collector&&) noexcept = default;
     ~ir_leaf_collector           (void)                         = default;
 
     [[nodiscard]]
@@ -57,7 +57,7 @@ namespace gch
 
     [[nodiscard]]
     result_type
-    subcomponent_result (const ir_subcomponent& sub);
+    subcomponent_result (const ir_subcomponent& sub) const;
   };
 
   ir_link_set<ir_block>

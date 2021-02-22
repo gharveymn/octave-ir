@@ -25,9 +25,11 @@ SET (HEADERS
 
      utilities/ir-allocator-util.hpp
      utilities/ir-common.hpp
+     utilities/ir-error.hpp
      utilities/ir-optional-util.hpp
      utilities/ir-link-set.hpp
 
+     values/types/ir-instruction-metadata.hpp
      values/types/ir-type.hpp
      values/types/ir-type-base.hpp
      values/types/ir-type-ir.hpp
@@ -45,9 +47,10 @@ SET (HEADERS
      visitors/inspectors/ir-predecessor-collector.hpp
      visitors/inspectors/ir-successor-collector.hpp
 
-     visitors/mutators/ir-parent-mutator.hpp
      visitors/mutators/ir-def-resolution-builder.hpp
+     visitors/mutators/ir-forward-mutator.hpp
      visitors/mutators/ir-structure-flattener.hpp
+     visitors/mutators/ir-subcomponent-mutator.hpp
 
      visitors/ir-traverser.hpp
      visitors/ir-visitor.hpp
@@ -65,8 +68,10 @@ SET (SOURCES
      processors/ir-def-resolution.cpp
 
      utilities/ir-common-util.cpp
+     utilities/ir-error.cpp
      utilities/ir-link-set.cpp
 
+     values/types/ir-instruction-metadata.cpp
      values/types/ir-type.cpp
      values/types/ir-type-base.cpp
      values/types/ir-type-ir.cpp
@@ -84,8 +89,9 @@ SET (SOURCES
      visitors/inspectors/ir-successor-collector.cpp
 
      visitors/mutators/ir-def-resolution-builder.cpp
-     visitors/mutators/ir-parent-mutator.cpp
+     visitors/mutators/ir-forward-mutator.cpp
      visitors/mutators/ir-structure-flattener.cpp
+     visitors/mutators/ir-subcomponent-mutator.cpp
 
      visitors/ir-traverser.cpp)
 

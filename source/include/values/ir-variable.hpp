@@ -413,7 +413,7 @@ namespace gch
 
     ir_use_info (ir_use_timeline& ut, ir_use_timeline::citer pos)
       : m_timeline (ut),
-        m_position (pos)
+        m_insertion_position (pos)
     { }
 
     [[nodiscard]]
@@ -425,14 +425,14 @@ namespace gch
 
     [[nodiscard]]
     ir_use_timeline::citer
-    get_position (void) const noexcept
+    get_insertion_position (void) const noexcept
     {
-      return m_position;
+      return m_insertion_position;
     }
 
   private:
     nonnull_ptr<ir_use_timeline> m_timeline;
-    ir_use_timeline::citer       m_position;
+    ir_use_timeline::citer       m_insertion_position;
   };
 
   class ir_operand_in

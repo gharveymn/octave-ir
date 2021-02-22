@@ -6,8 +6,8 @@ SET(SOURCE_FILES scratch.cpp
 
 SET(TARGET_VERSIONS 17 20)
 
-SET(COMPILE_OPTS )
-SET(LINK_OPTS )
+SET(COMPILE_OPTS)
+SET(LINK_OPTS)
 SET(LINK_LIBS optional_ref
               plf_list
               tracker

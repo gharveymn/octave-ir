@@ -71,7 +71,7 @@ namespace gch
 
   auto
   ir_leaf_collector::
-  subcomponent_result (const ir_subcomponent& sub)
+  subcomponent_result (const ir_subcomponent& sub) const
     -> result_type
   {
     return sub.accept (*this);

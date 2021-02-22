@@ -39,37 +39,6 @@ namespace gch
 {
   class ir_type;
 
-  class ir_exception
-    : public std::exception
-  {
-  public:
-    ir_exception            (void)                    = default;
-    ir_exception            (const ir_exception&)     = default;
-    ir_exception            (ir_exception&&) noexcept = default;
-    ir_exception& operator= (const ir_exception&)     = default;
-    ir_exception& operator= (ir_exception&&) noexcept = default;
-    ~ir_exception           (void) override;
-
-    explicit
-    ir_exception (const char *str)
-      : m_str (str)
-    { }
-
-    explicit
-    ir_exception (std::string str)
-      : m_str (std::move (str))
-    { }
-
-    const char *
-    what (void) const noexcept override
-    {
-      return m_str.c_str ();
-    }
-
-  private:
-    std::string m_str;
-  };
-
   template <typename T>
   constexpr
   std::remove_const_t<T>&
@@ -700,6 +669,129 @@ namespace gch
   private:
     nonnull_ptr<Container> m_container;
   };
+
+  namespace detail
+  {
+
+    template <typename T, typename MemFn>
+    class bound_mem_fn_object;
+
+    template <typename T, typename MemFn>
+    class bound_mem_fn_object<T&, MemFn>
+    {
+    public:
+      template <typename F>
+      bound_mem_fn_object (T& object, F&& f)
+        : m_object_ptr (&object),
+          m_mem_fn (std::forward<F> (f))
+      { }
+
+      template <typename ...Args>
+      std::enable_if_t<std::is_invocable_v<MemFn, T&, Args...>,
+                       std::invoke_result_t<MemFn, T&, Args...>>
+      operator() (Args&&... args) const
+        noexcept (std::is_nothrow_invocable_v<MemFn, T&, Args...>)
+      {
+        return std::invoke (m_mem_fn, *m_object_ptr, std::forward<Args> (args)...);
+      }
+
+    private:
+      T *   m_object_ptr;
+      MemFn m_mem_fn;
+    };
+
+    template <typename T, typename MemFn>
+    class bound_mem_fn_object<T&&, MemFn>
+    {
+    public:
+      template <typename F>
+      bound_mem_fn_object (T&& object, F&& f)
+        : m_object_ptr (&object),
+          m_mem_fn (std::forward<F> (f))
+      { }
+
+      template <typename ...Args>
+      std::enable_if_t<std::is_invocable_v<MemFn, T&&, Args...>,
+                       std::invoke_result_t<MemFn, T&&, Args...>>
+      operator() (Args&&... args) const
+        noexcept (std::is_nothrow_invocable_v<MemFn, T&&, Args...>)
+      {
+        return std::invoke (m_mem_fn, std::move (*m_object_ptr), std::forward<Args> (args)...);
+      }
+
+    private:
+      T *   m_object_ptr;
+      MemFn m_mem_fn;
+    };
+
+    template <typename T, typename MemFn>
+    bound_mem_fn_object (T&, MemFn) -> bound_mem_fn_object<T&, MemFn>;
+
+    template <typename T, typename MemFn>
+    bound_mem_fn_object (T&&, MemFn) -> bound_mem_fn_object<T&&, MemFn>;
+
+  }
+
+  template <typename ...Args, typename T, typename Base, typename Return,
+            std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>> * = nullptr>
+  decltype (auto)
+  bound_mem_fn (T& object, Return (Base::* f) (Args...))
+  {
+    return detail::bound_mem_fn_object { object, f };
+  }
+
+  template <typename ...Args, typename T, typename Base, typename Return,
+            std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>> * = nullptr>
+  decltype (auto)
+  bound_mem_fn (T& object, Return (Base::* f) (Args...) &)
+  {
+    return detail::bound_mem_fn_object { object, f };
+  }
+
+  template <typename ...Args, typename T, typename Base, typename Return,
+            std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>> * = nullptr>
+  decltype (auto)
+  bound_mem_fn (const T& object, Return (Base::* f) (Args...) const)
+  {
+    return detail::bound_mem_fn_object { object, f };
+  }
+
+  template <typename ...Args, typename T, typename Base, typename Return,
+            std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>> * = nullptr>
+  decltype (auto)
+  bound_mem_fn (const T& object, Return (Base::* f) (Args...) const &)
+  {
+    return detail::bound_mem_fn_object { object, f };
+  }
+
+  template <typename ...Args, typename T, typename Base, typename Return,
+            std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>> * = nullptr>
+  decltype (auto)
+  bound_mem_fn (T&& object, Return (Base::* f) (Args...))
+  {
+    return detail::bound_mem_fn_object { std::move (object), f };
+  }
+
+  template <typename ...Args, typename T, typename Base, typename Return,
+            std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>> * = nullptr>
+  decltype (auto)
+  bound_mem_fn (T&& object, Return (Base::* f) (Args...) &&)
+  {
+    return detail::bound_mem_fn_object { std::move (object), f };
+  }
+
+  template <typename T, typename U>
+  void
+  bound_mem_fn (const T&&, U&&) = delete;
+
+  template <typename T, typename Base, typename M,
+            std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>
+                         &&  std::is_member_object_pointer_v<M Base::*>> * = nullptr>
+  decltype (auto)
+  bound_mem_fn (T& object, M Base::* m)
+  {
+    return detail::bound_mem_fn_object { object, m };
+  }
 
 }
 

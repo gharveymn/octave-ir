@@ -8,7 +8,7 @@
 #ifndef OCTAVE_IR_IR_LINK_SET_HPP
 #define OCTAVE_IR_IR_LINK_SET_HPP
 
-// #include "ir-common-util.hpp"
+#include "utilities/ir-common.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 #include <gch/small_vector.hpp>
@@ -175,6 +175,14 @@ namespace gch
       insert (init.begin (), init.end ());
     }
 
+    template <typename ...Args,
+              std::void_t<std::enable_if_t<
+                  ! std::disjunction_v<std::is_same<ir_link_set, std::decay_t<Args>>...>
+                &&  has_common_reference_v<remote_reference, Args&...>>> * = nullptr>
+    ir_link_set (Args&... args)
+      : ir_link_set { nonnull_ptr<T> (args)... }
+    { }
+
     [[nodiscard]]
     const_iterator
     begin (void) const noexcept
@@ -331,6 +339,12 @@ namespace gch
       return *this;
     }
 
+    void
+    reserve (size_type new_capacity)
+    {
+      m_data.reserve (new_capacity);
+    }
+
     const_iterator
     find (nonnull_cptr<T> remote_cptr) const
     {
@@ -392,6 +406,27 @@ namespace gch
       return upper_bound (nonnull_ptr { remote });
     }
 
+    ir_link_set&
+    operator-= (const ir_link_set& rhs)
+    {
+      container_type res;
+      res.reserve (m_data.size ());
+      std::set_difference (m_data.begin (), m_data.end (),
+                              rhs.begin (),    rhs.end (), std::back_inserter (res));
+      m_data = std::move (res);
+      return *this;
+    }
+
+    ir_link_set
+    operator- (const ir_link_set& rhs) const
+    {
+      ir_link_set ret;
+      ret.m_data.reserve (m_data.size ());
+      std::set_difference (m_data.begin (), m_data.end (),
+                              rhs.begin (),    rhs.end (), std::back_inserter (ret.m_data));
+      return ret;
+    }
+
     friend inline
     bool
     operator== (const ir_link_set& lhs, const ir_link_set& rhs) noexcept
@@ -428,12 +463,11 @@ namespace gch
     void
     nontrivial_union (const container_type& sorted_input)
     {
-      container_type result;
-      result.reserve (m_data.size () + sorted_input.size ());
-      std::set_union (m_data.begin (), m_data.end (),
-                      sorted_input.begin (), sorted_input.end (),
-                      std::back_inserter (result));
-      m_data = std::move (result);
+      container_type res;
+      res.reserve (m_data.size () + sorted_input.size ());
+      std::set_union (      m_data.begin (),       m_data.end (),
+                      sorted_input.begin (), sorted_input.end (), std::back_inserter (res));
+      m_data = std::move (res);
     }
 
     container_type m_data;
@@ -514,17 +548,17 @@ namespace gch
   template <typename T>
   [[nodiscard]] inline
   ir_link_set<T>&&
-  operator| (const ir_link_set<T>& lhs, ir_link_set<T>&& rhs)
+  operator| (ir_link_set<T>&& lhs, ir_link_set<T>&& rhs)
   {
-    return std::move (rhs) | lhs;
+    return std::move (lhs) | rhs;
   }
 
   template <typename T>
   [[nodiscard]] inline
   ir_link_set<T>&&
-  operator| (ir_link_set<T>&& lhs, ir_link_set<T>&& rhs)
+  operator| (const ir_link_set<T>& lhs, ir_link_set<T>&& rhs)
   {
-    return std::move (lhs) | rhs;
+    return std::move (rhs) | lhs;
   }
 
   template <typename T>
@@ -535,10 +569,35 @@ namespace gch
     return ir_link_set (lhs) | rhs;
   }
 
-  template <typename InputIt>
+  template <typename T>
+  [[nodiscard]] inline
+  ir_link_set<T>&&
+  operator- (ir_link_set<T>&& lhs, const ir_link_set<T>& rhs)
+  {
+    return std::move (lhs -= rhs);
+  }
+
+  template <typename T>
+  [[nodiscard]] inline
+  ir_link_set<T>&&
+  operator- (ir_link_set<T>&& lhs, ir_link_set<T>&& rhs)
+  {
+    return std::move (lhs) - rhs;
+  }
+
+  template <typename InputIt,
+            typename = std::void_t<
+              typename std::pointer_traits<
+                typename std::iterator_traits<InputIt>::value_type>::element_type>>
   ir_link_set (InputIt, InputIt)
     -> ir_link_set<typename std::pointer_traits<
                      typename std::iterator_traits<InputIt>::value_type>::element_type>;
+
+  template <typename T, typename ...Args,
+            typename Enable = std::enable_if_t<! is_iterator_v<T>
+                                             &&  has_common_reference_v<T&, Args&...>>>
+  ir_link_set (T&, Args&...)
+    -> ir_link_set<std::remove_reference_t<common_reference_t<T&, Args&...>>>;
 
 }
 

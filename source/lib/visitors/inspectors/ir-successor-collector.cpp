@@ -11,6 +11,7 @@
 #include "components/ir-component-loop.hpp"
 #include "components/ir-component-sequence.hpp"
 #include "components/ir-function.hpp"
+#include "utilities/ir-error.hpp"
 
 namespace gch
 {
@@ -61,7 +62,7 @@ namespace gch
       case id::update:
         return { nonnull_ptr { as_mutable (loop.get_condition ()) } };
     }
-    throw ir_exception ("Impossible state.");
+    ir_abort_impossible ();
   }
 
   auto

@@ -124,7 +124,7 @@ namespace gch
   std::optional<int>
   add (std::optional<int> mx, std::optional<int> my)
   {
-    return mx >>= [my](int x) { return my >>= [x](int y) { return std::optional { x + y }; } ; };
+    return mx >>= [my](int x) { return my >>= [x](int y) { return std::optional { x + y }; }; };
   }
 
   struct my_class
@@ -233,7 +233,7 @@ namespace gch
   [[nodiscard]]
   static
   ir_link_set<ir_block>
-  copy_leaves (int comp, Args&&... args)
+  copy_leaves (unsigned comp, Args&&... args)
   {
     return (copy_leaves (comp) | ... | copy_leaves (std::forward<Args> (args)));
   }
@@ -282,10 +282,10 @@ namespace gch
       // ilist constructor
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       assert (std::is_sorted (l.begin (), l.end ()));
@@ -295,10 +295,10 @@ namespace gch
       // ilist constructor (repeats)
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[6] }
+        blks[6],
+        blks[6],
+        blks[6],
+        blks[6]
       };
 
       assert (std::is_sorted (l.begin (), l.end ()));
@@ -308,10 +308,10 @@ namespace gch
       // ilist constructor (repeats)
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[3] },
-        nonnull_ptr { blks[3] }
+        blks[6],
+        blks[6],
+        blks[3],
+        blks[3]
       };
 
       assert (std::is_sorted (l.begin (), l.end ()));
@@ -321,10 +321,10 @@ namespace gch
       // copy constructor
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       ir_link_set r (l);
@@ -335,10 +335,10 @@ namespace gch
       // move constructor
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       ir_link_set l_copy (l);
@@ -350,10 +350,10 @@ namespace gch
       // copy assignment operator
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       ir_link_set<ir_block> r;
@@ -365,10 +365,10 @@ namespace gch
       // move assignment operator
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       ir_link_set l_copy (l);
@@ -381,10 +381,10 @@ namespace gch
       // element insert
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
       print (l);
 
@@ -407,10 +407,10 @@ namespace gch
       // element insert (repeats)
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       l.insert (nonnull_ptr { blks[6] });
@@ -425,10 +425,10 @@ namespace gch
       // range insert
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       std::array<nonnull_ptr<ir_block>, 4> a {
@@ -446,10 +446,10 @@ namespace gch
       // ilist insert
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       l.insert ({
@@ -466,10 +466,10 @@ namespace gch
       // ilist insert (repeats)
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       l.insert ({
@@ -486,10 +486,10 @@ namespace gch
       // ilist insert (repeats)
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       l.insert ({
@@ -506,10 +506,10 @@ namespace gch
       // emplace
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       auto p = l.emplace (blks[3]);
@@ -529,23 +529,23 @@ namespace gch
       // erase
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] },
-        nonnull_ptr { blks[3] },
-        nonnull_ptr { blks[1] },
-        nonnull_ptr { blks[5] },
-        nonnull_ptr { blks[7] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9],
+        blks[3],
+        blks[1],
+        blks[5],
+        blks[7]
       };
 
       const ir_link_set r {
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[3] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[5] },
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[9] },
+        blks[2],
+        blks[3],
+        blks[4],
+        blks[5],
+        blks[6],
+        blks[9],
       };
 
       l.erase (l.begin ());
@@ -557,23 +557,23 @@ namespace gch
       // erase key
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] },
-        nonnull_ptr { blks[3] },
-        nonnull_ptr { blks[1] },
-        nonnull_ptr { blks[5] },
-        nonnull_ptr { blks[7] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9],
+        blks[3],
+        blks[1],
+        blks[5],
+        blks[7]
       };
 
       const ir_link_set r {
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[3] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[5] },
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[9] },
+        blks[2],
+        blks[3],
+        blks[4],
+        blks[5],
+        blks[6],
+        blks[9],
       };
 
       assert (l.erase (blks[1]));
@@ -586,17 +586,17 @@ namespace gch
       // swap
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       ir_link_set r {
-        nonnull_ptr { blks[3] },
-        nonnull_ptr { blks[1] },
-        nonnull_ptr { blks[5] },
-        nonnull_ptr { blks[7] }
+        blks[3],
+        blks[1],
+        blks[5],
+        blks[7]
       };
 
       const ir_link_set l_copy (l);
@@ -615,10 +615,10 @@ namespace gch
       // find
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       assert (l.find (blks[6]) == std::next (l.begin (), 2));
@@ -627,10 +627,10 @@ namespace gch
     {
       // contains
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[4] },
-        nonnull_ptr { blks[9] }
+        blks[6],
+        blks[2],
+        blks[4],
+        blks[9]
       };
 
       assert (l.contains (blks[2]));
@@ -640,10 +640,10 @@ namespace gch
       // equal_range
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[7] },
-        nonnull_ptr { blks[5] }
+        blks[6],
+        blks[2],
+        blks[7],
+        blks[5]
       };
 
       auto v = l.equal_range (blks[6]);
@@ -658,10 +658,10 @@ namespace gch
       // lower_bound
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[7] },
-        nonnull_ptr { blks[5] }
+        blks[6],
+        blks[2],
+        blks[7],
+        blks[5]
       };
 
       assert (l.lower_bound (blks[6]) == std::next (l.begin (), 2));
@@ -672,10 +672,10 @@ namespace gch
       // upper_bound
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[7] },
-        nonnull_ptr { blks[5] }
+        blks[6],
+        blks[2],
+        blks[7],
+        blks[5]
       };
 
       assert (l.upper_bound (blks[6]) == std::next (l.begin (), 3));
@@ -686,26 +686,113 @@ namespace gch
       // erase_if
 
       ir_link_set l {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[2] },
-        nonnull_ptr { blks[7] },
-        nonnull_ptr { blks[5] }
+        blks[6],
+        blks[2],
+        blks[7],
+        blks[5]
       };
 
       const ir_link_set r {
-        nonnull_ptr { blks[6] },
-        nonnull_ptr { blks[7] },
+        blks[6],
+        blks[7],
       };
 
       assert (2 == erase_if (l, [&](nonnull_ptr<ir_block> b)
                                 {
-                                  return b < nonnull_ptr { blks[6] };
+                                  return b < &blks[6];
                                 }));
       assert (l == r);
     }
     {
+      // operator-=
+
+      ir_link_set l {
+        blks[6],
+        blks[2],
+        blks[7],
+        blks[5]
+      };
+
+      const ir_link_set r {
+        blks[6],
+        blks[7],
+      };
+
+      const ir_link_set res {
+        blks[2],
+        blks[5],
+      };
+
+      l -= r;
+
+      assert (res == l);
+    }
+    {
+      // operator- (&&, const &)
+
+      const ir_link_set r {
+        blks[7],
+        blks[6],
+      };
+
+      const ir_link_set res {
+        blks[2],
+        blks[5],
+      };
+
+      assert (res == (ir_link_set { blks[6], blks[2], blks[7], blks[5] } - r));
+    }
+    {
+      // operator- (const &, &&)
+
+      const ir_link_set r {
+        blks[7],
+        blks[6],
+      };
+
+      const ir_link_set res {
+        blks[2],
+        blks[5],
+      };
+
+      assert (res == (ir_link_set { blks[6], blks[2], blks[7], blks[5] } - r));
+    }
+    {
+      // operator- (&&, &&)
+
+      const ir_link_set res {
+        blks[2],
+        blks[5],
+      };
+
+      assert (res == (  ir_link_set { blks[6], blks[2], blks[7], blks[5] }
+                      - ir_link_set { blks[7], blks[6] }));
+    }
+    {
+      // operator- (const &, const &)
+
+      ir_link_set l {
+        blks[6],
+        blks[2],
+        blks[7],
+        blks[5]
+      };
+
+      const ir_link_set r {
+        blks[6],
+        blks[7],
+      };
+
+      const ir_link_set res {
+        blks[2],
+        blks[5],
+      };
+
+      assert (res == l - r);
+    }
+    {
       // ir_link_set<ir_block>::reset_nums ();
-      ir_link_set l (copy_leaves (1, 2, 3, 4, 5));
+      ir_link_set l (copy_leaves (1u, 2u, 3u, 4u, 5u));
       // std::cout << "num copies:       " << ir_link_set<ir_block>::num_copies << std::endl;
       // std::cout << "num moves:        " << ir_link_set<ir_block>::num_moves << std::endl;
       // std::cout << "num copy assigns: " << ir_link_set<ir_block>::num_copy_assigns << std::endl;
@@ -1137,17 +1224,20 @@ namespace gch
     ~blahc           (void)             = delete;
   };
 
+#ifdef GCH_LIB_CONCEPTS
+
   static_assert (! concepts::MoveInsertable<blahc, small_vector<blahc>, std::allocator<blahc>>);
   static_assert (! concepts::Erasable<blahc, small_vector<blahc>, std::allocator<blahc>>);
 
 
   template <typename T>
   void
-  t1 (T *p)
+  t1 (T *)
   {
     // static_assert (! std::is_array_v<T>);
   }
 
+  static
   void
   fff (void)
   {
@@ -1208,6 +1298,8 @@ namespace gch
   static_assert (! dest<blahc[3]>::value);
   static_assert (dest<blahk>::value);
   static_assert (dest<blahk[3]>::value);
+
+#endif
 
   static
   void
@@ -1348,6 +1440,90 @@ namespace gch
     x = ggg ();
     x = ggg ();
   }
+
+  class nontrivial
+  {
+  public:
+    nontrivial (void)
+      : x (3),
+        y (4)
+    { }
+
+  private:
+    int x;
+    long y;
+  };
+
+  struct test_bound_mem_fn_struct
+  {
+    int
+    f (nontrivial&, nontrivial&&) const
+    {
+      return 2;
+    }
+
+    int
+    f (nontrivial&, int)
+    {
+      return 2;
+    }
+
+    int
+    g (void) &&
+    {
+      return 2;
+    }
+
+    int
+    h (void)
+    {
+      return 3;
+    }
+
+    int data;
+  };
+
+  static
+  void
+  test_bound_mem_fn (void)
+  {
+    test_bound_mem_fn_struct x;
+    auto l = bound_mem_fn (x, &test_bound_mem_fn_struct::f);
+    nontrivial s;
+    x.f (s, std::move (s));
+
+    auto func = &test_bound_mem_fn_struct::h;
+
+    l (s, 1);
+
+    auto gg = bound_mem_fn (std::move (x), &test_bound_mem_fn_struct::g);
+    int r = gg ();
+
+    auto ll = bound_mem_fn (x, &test_bound_mem_fn_struct::data);
+
+    // static_assert (std::is_invocable_v<decltype (&test_bound_mem_fn_struct::f), test_bound_mem_fn_struct, nontrivial&, nontrivial&&>);
+    // static_assert (std::is_invocable_v<decltype (l), nontrivial&, nontrivial&&>);
+  }
+
+  // template <typename T, typename Functor>
+  // static constexpr
+  // auto
+  // invoke_blah (T&& x, Functor&& f)
+  //   noexcept (noexcept (std::forward<Functor> (f) (std::forward<T> (x))))
+  //   -> std::enable_if_t<
+  //        std::is_same_v<void, decltype (std::forward<Functor> (f) (std::forward<T> (x)))>, void>
+  // {
+  //   std::forward<Functor> (f) (std::forward<T> (x));
+  // }
+  //
+  // static
+  // void
+  // do_invoke_blah (void)
+  // {
+  //   std::string s;
+  //   auto f = [](void) -> void { };
+  //   invoke_blah (s, f);
+  // }
 
 }
 

@@ -79,7 +79,7 @@ namespace gch
   // 'incoming blocks' and 'incoming defs'.
   //
   // Locally created defs are trivial to organize, but the incoming defs are
-  // troublesome. This is for a a few reasons, namely,
+  // troublesome because
   // 1. There may be multiple incoming blocks associated with a single incoming def
   // 2. The incoming block may not be the origin of the incoming def
   // 3. If we want to reassociate certain uses with a new def, we should be able to find
@@ -789,28 +789,25 @@ namespace gch
     ir_use_info
     prepare_operand (citer pos, ir_variable& var);
 
-    static constexpr
+    static
     const ir_constant&
-    prepare_operand (const citer&, const ir_constant& c) noexcept
-    {
-      return c;
-    }
+    prepare_operand (const citer&, const ir_constant& c) noexcept;
 
-    static constexpr
+    static
     ir_constant&&
-    prepare_operand (const citer&, ir_constant&& t) noexcept
-    {
-      return std::move (t);
-    }
+    prepare_operand (const citer&, ir_constant&& t) noexcept;
 
     ir_use_timeline&
-    track_def_at (ir_variable& var, iter pos)
-    {
-      ir_def_timeline& dt = get_def_timeline (var);
-      return *dt.emplace_before<range::body> (find_latest_timeline_before (dt, pos).base (), pos);
-    }
+    track_def_at (ir_variable& var, iter pos);
 
   public:
+    iter
+    create_phi (ir_variable& var);
+
+    // unsafe
+    iter
+    erase_phi (ir_variable& var);
+
     ir_block&
     split_into (citer pivot, ir_block& dest);
 
@@ -841,133 +838,11 @@ namespace gch
     ir_use_timeline&
     get_latest_timeline_before (ir_variable& var, citer pos);
 
-    template <typename ...Args>
-    iter
-    append_phi (ir_variable& var, Args&&... args)
-    {
-      emplace_back<range::phi, ir_opcode::phi> (var, std::forward<Args> (args)...);
-      return std::prev (end<range::phi> ());
-    }
-
-    // unsafe
-    iter
-    erase_phi (ir_variable& var)
-    {
-      auto pos = std::find_if (begin<range::phi> (), end<range::phi> (),
-                               [&var] (const ir_instruction& instr)
-                               {
-                                 return &instr.get_return ().get_variable () == &var;
-                               });
-      // error checking
-      if (pos == get<range::phi> ().end ())
-        throw ir_exception ("tried to erase a nonexistent phi instruction");
-      return get<range::phi> ().erase (pos);
-    }
-
-    // with return
-    template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<ir_instruction_traits<Op>::will_return> * = nullptr>
-    ir_instruction&
-    append_instruction (ir_variable& v, Args&&... args)
-    {
-      iter it = emplace<range::body, Op> (end<range::body> (), v,
-        prepare_operand (end<range::body> (), std::forward<Args> (args))...);
-
-      try
-      {
-        track_def_at (v, it);
-      }
-      catch (...)
-      {
-        pop_back<range::body> ();
-        throw;
-      }
-      return *it;
-    }
-
-    // no return
-    template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<! ir_instruction_traits<Op>::will_return> * = nullptr>
-    ir_instruction&
-    append_instruction (Args&&... args)
-    {
-      return emplace_back<range::body, Op> (
-        prepare_operand (end<range::body> (), std::forward<Args> (args))...);
-    }
-
-    // with return (places instruction at the front of the body)
-    template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<ir_instruction_traits<Op>::will_return> * = nullptr>
-    ir_instruction&
-    prepend_instruction (ir_variable& v, Args&&... args)
-    {
-      iter it = emplace_front<range::body, Op> (v,
-        prepare_operand (begin<range::body> (), std::forward<Args> (args))...);
-      try
-      {
-        track_def_at (v, it);
-      }
-      catch (...)
-      {
-        pop_front<range::body> ();
-        throw;
-      }
-      return *it;
-    }
-
-    // no return (places instruction at the front of the body)
-    template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<! ir_instruction_traits<Op>::will_return> * = nullptr>
-    ir_instruction&
-    prepend_instruction (Args&&... args)
-    {
-      return emplace_front<range::body, Op> (
-        prepare_operand (begin<range::body> (), std::forward<Args> (args))...);
-    }
-
-    // with return (places instruction immediately before `pos`)
-    template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<ir_instruction_traits<Op>::will_return> * = nullptr>
-    ir_instruction&
-    emplace_instruction (const citer pos, ir_variable& v, Args&&... args)
-    {
-      iter it = emplace<range::body, Op> (v, prepare_operand (pos, std::forward<Args> (args))...);
-      try
-      {
-        track_def_at (v, it);
-      }
-      catch (...)
-      {
-        erase<range::body> (it);
-        throw;
-      }
-      return *it;
-    }
-
-    // no return (places instruction immediately before `pos`)
-    template <ir_opcode Op, typename ...Args,
-      std::enable_if_t<! ir_instruction_traits<Op>::will_return> * = nullptr>
-    ir_instruction&
-    emplace_instruction (const citer pos, Args&&... args)
-    {
-      return *emplace<range::body, Op> (pos, prepare_operand (pos, std::forward<Args> (args))...);
-    }
-
     iter
     remove_instruction (citer pos);
 
     iter
     remove_range (citer first, citer last) noexcept;
-
-    /**
-     * Create a def before the specified position.
-     *
-     * @param var the variable the def will be associated with.
-     * @param pos an iterator immediately the position of the def.
-     * @return the created def.
-     */
-    auto
-    create_def_before (ir_variable& var, citer pos);
 
     ir_use_timeline
     split_uses (ir_use_timeline& src, citer pivot, citer last);
@@ -1042,6 +917,52 @@ namespace gch
     void
     reset (void) noexcept override;
 
+    //
+    // templated functions
+    //
+
+    // with return (places instruction immediately before `pos`)
+    template <ir_opcode Op, typename ...Args,
+              std::enable_if_t<ir_instruction_traits<Op>::will_return> * = nullptr>
+    ir_instruction&
+    emplace_instruction (const citer pos, ir_variable& v, Args&&... args)
+    {
+      iter it = emplace<range::body, Op> (v, prepare_operand (pos, std::forward<Args> (args))...);
+      try
+      {
+        track_def_at (v, it);
+      }
+      catch (...)
+      {
+        erase<range::body> (it);
+        throw;
+      }
+      return *it;
+    }
+
+    // no return (places instruction immediately before `pos`)
+    template <ir_opcode Op, typename ...Args,
+      std::enable_if_t<! ir_instruction_traits<Op>::will_return> * = nullptr>
+    ir_instruction&
+    emplace_instruction (const citer pos, Args&&... args)
+    {
+      return *emplace<range::body, Op> (pos, prepare_operand (pos, std::forward<Args> (args))...);
+    }
+
+    template <ir_opcode Op, typename ...Args>
+    ir_instruction&
+    append_instruction (ir_variable& v, Args&&... args)
+    {
+      return emplace_instruction<Op> (end<range::body> (), std::forward<Args> (args)...);
+    }
+
+    template <ir_opcode Op, typename ...Args>
+    ir_instruction&
+    prepend_instruction (ir_variable& v, Args&&... args)
+    {
+      return emplace_instruction<Op> (begin<range::body> (), std::forward<Args> (args)...);
+    }
+
   private:
     list_partition<ir_instruction, 2> m_instr_partition;
     dt_map_type                       m_def_timelines_map;
@@ -1058,12 +979,7 @@ namespace gch
     : public ir_block
   {
   public:
-
     using ir_block::ir_block;
-
-//    ir_def * join_pred_defs (ir_variable& var) override;
-
-  private:
   };
 
 }

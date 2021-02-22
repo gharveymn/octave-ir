@@ -11,6 +11,7 @@
 #include "components/ir-component-loop.hpp"
 #include "components/ir-component-sequence.hpp"
 #include "components/ir-function.hpp"
+#include "utilities/ir-error.hpp"
 
 namespace gch
 {
@@ -47,7 +48,7 @@ namespace gch
       case id::body      : return copy_leaves (loop.get_condition ());
       case id::update    : return copy_leaves (loop.get_body ());
     }
-    throw ir_exception ("Impossible state.");
+    ir_abort_impossible ();
   }
 
   auto

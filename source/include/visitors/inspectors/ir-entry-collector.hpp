@@ -23,10 +23,10 @@ namespace gch
     using result_type = const ir_subcomponent&;
 
     ir_entry_collector            (void)                          = default;
-    ir_entry_collector            (const ir_entry_collector&)     = delete;
-    ir_entry_collector            (ir_entry_collector&&) noexcept = delete;
-    ir_entry_collector& operator= (const ir_entry_collector&)     = delete;
-    ir_entry_collector& operator= (ir_entry_collector&&) noexcept = delete;
+    ir_entry_collector            (const ir_entry_collector&)     = default;
+    ir_entry_collector            (ir_entry_collector&&) noexcept = default;
+    ir_entry_collector& operator= (const ir_entry_collector&)     = default;
+    ir_entry_collector& operator= (ir_entry_collector&&) noexcept = default;
     ~ir_entry_collector           (void)                          = default;
 
     [[nodiscard]]

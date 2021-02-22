@@ -9,6 +9,7 @@
 #include "components/ir-component-sequence.hpp"
 #include "components/ir-block.hpp"
 #include "utilities/ir-optional-util.hpp"
+#include "utilities/ir-error.hpp"
 
 #include <cassert>
 #include <numeric>
@@ -19,15 +20,15 @@ namespace gch
 
   auto
   ir_component_sequence::
-  find (ir_component& c) const
+  find (ir_subcomponent& sub) const
     -> iter
   {
-    if (m_find_cache.contains (c))
+    if (m_find_cache.contains (sub))
       return m_find_cache.get ();
 
     iter found = std::find_if (as_mutable (*this).begin (),
                               as_mutable (*this).end (),
-                              [&](const ir_component& cmp) { return &cmp == &c; });
+                              [&](const ir_component& cmp) { return &cmp == &sub; });
 
     if (found != end ())
       m_find_cache.emplace (make_handle (found));
@@ -168,6 +169,16 @@ namespace gch
     front ().reset ();
     m_find_cache.emplace (make_handle (begin ()));
     invalidate_leaf_cache ();
+  }
+
+  auto
+  ir_component_sequence::
+  must_find (const ir_component& c)
+    -> citer
+  {
+    if (citer cit = find (c); cit != end ())
+      return cit;
+    abort::ir_logic_error ("Component not found in the structure.");
   }
 
   //

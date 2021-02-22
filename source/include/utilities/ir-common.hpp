@@ -134,9 +134,10 @@ namespace gch
     { };
 
     template <typename It>
-    struct is_iterator<It, std::void_t<std::iterator_traits<It>>>
+    struct is_iterator<It, std::void_t<typename std::iterator_traits<It>::value_type>>
       : std::true_type
     { };
+
   }
 
   template <typename ...Ts>
@@ -258,6 +259,184 @@ namespace gch
   static_assert (std::is_same_v<match_cvref_t<const          int&&, long>, const          long&&>);
   static_assert (std::is_same_v<match_cvref_t<      volatile int&&, long>,       volatile long&&>);
   static_assert (std::is_same_v<match_cvref_t<const volatile int&&, long>, const volatile long&&>);
+
+  template <typename T>
+  struct remove_cvref
+  {
+    using type = std::remove_cv_t<std::remove_reference_t<T>>;
+  };
+
+  template <typename T>
+  using remove_cvref_t = typename remove_cvref<T>::type;
+
+  template <typename T, typename U,
+            template<typename> typename TQual, template<typename> typename UQual>
+  struct basic_common_reference
+  { };
+
+  template <typename ...Ts>
+  struct common_reference;
+
+  template <typename ...Ts>
+  using common_reference_t = typename common_reference<Ts...>::type;
+
+  namespace detail
+  {
+
+    template <typename From>
+    struct cvref_matcher
+    {
+      template <typename To>
+      using type = match_cvref_t<From, To>;
+    };
+
+    template <typename T, typename U>
+    using common_reference_ternary_result_t = decltype (false ? std::declval<T (&) (void)> () ()
+                                                              : std::declval<U (&) (void)> () ());
+
+    template <typename T, typename U>
+    using resolved_basic_common_reference_t
+      = typename basic_common_reference<remove_cvref_t<T>,
+                                        remove_cvref_t<U>,
+                                        cvref_matcher<T>::template type,
+                                        cvref_matcher<U>::template type>::type;
+
+    template <typename T, typename U, typename Enable = void>
+    struct simple_common_reference
+    { };
+
+    template <typename T, typename U>
+    using simple_common_reference_t = typename simple_common_reference<T, U>::type;
+
+    template <typename X, typename Y>
+    struct simple_common_reference<X&, Y&, std::void_t<common_reference_ternary_result_t<
+                                                         match_cv_t<X, Y>&,
+                                                         match_cv_t<Y, X>&>>>
+    {
+      using type = common_reference_ternary_result_t<match_cv_t<X, Y>&, match_cv_t<Y, X>&>;
+    };
+
+    template <typename X, typename Y>
+    struct simple_common_reference<X&&, Y&&,
+      std::enable_if_t<std::is_convertible_v<X&&, simple_common_reference_t<X&, Y&>&&>
+                   &&  std::is_convertible_v<Y&&, simple_common_reference_t<X&, Y&>&&>>>
+    {
+      using type = simple_common_reference_t<X&, Y&>&&;
+    };
+
+    template <typename A, typename B>
+    struct simple_common_reference<A&, B&&,
+      std::enable_if_t<std::is_convertible_v<B&&, simple_common_reference_t<A&, const B&>>>>
+    {
+      using type = simple_common_reference_t<A&, const B&>;
+    };
+
+    template <typename B, typename A>
+    struct simple_common_reference<B&&, A&>
+      : simple_common_reference<A&, B&&>
+    { };
+
+    template <std::size_t Case, typename T, typename U, typename Enable = void>
+    struct common_reference_pair_impl
+      : common_reference_pair_impl<Case + 1, T, U>
+    { };
+
+    // 1
+    template <typename T, typename U>
+    struct common_reference_pair_impl<1,
+                                      T, U,
+                                      std::void_t<std::enable_if_t<std::is_reference_v<T>
+                                                               &&  std::is_reference_v<T>>,
+                                                  simple_common_reference_t<T, U>>>
+    {
+      using type = simple_common_reference_t<T, U>;
+    };
+
+    // 2
+    template <typename T, typename U>
+    struct common_reference_pair_impl<2,
+                                     T, U,
+                                     std::void_t<resolved_basic_common_reference_t<T, U>>>
+    {
+      using type = resolved_basic_common_reference_t<T, U>;
+    };
+
+    // 3
+    template <typename T, typename U>
+    struct common_reference_pair_impl<3,
+                                      T, U,
+                                      std::void_t<common_reference_ternary_result_t<T, U>>>
+    {
+      using type = common_reference_ternary_result_t<T, U>;
+    };
+
+    // 4
+    template <typename T, typename U>
+    struct common_reference_pair_impl<4,
+                                      T, U,
+                                      std::void_t<std::common_type_t<T, U>>>
+    {
+      using type = std::void_t<std::common_type_t<T, U>>;
+    };
+
+    // 5
+    template <typename T, typename U>
+    struct common_reference_pair_impl<5, T, U, void>
+    { };
+
+    template <typename T, typename U>
+    struct common_reference_pair
+      : common_reference_pair_impl<1, T, U>
+    { };
+
+    template <typename Void, typename ...Ts>
+    struct common_reference_impl
+    { };
+
+    template <>
+    struct common_reference_impl<void>
+    { };
+
+    template <typename T>
+    struct common_reference_impl<void, T>
+    {
+      using type = T;
+    };
+
+    template <typename T, typename U>
+    struct common_reference_impl<void, T, U>
+      : common_reference_pair<T, U>
+    { };
+
+    template <typename T, typename U, typename ...Rest>
+    struct common_reference_impl<std::void_t<common_reference_t<T, U>>, T, U, Rest...>
+      : common_reference_impl<void, common_reference_t<T, U>, Rest...>
+    { };
+
+    template <typename Void, typename ...Ts>
+    struct has_common_reference_impl
+      : std::false_type
+    { };
+
+    template <typename ...Ts>
+    struct has_common_reference_impl<std::void_t<common_reference_t<Ts...>>, Ts...>
+      : std::true_type
+    { };
+
+  }
+
+  template <typename ...Ts>
+  struct common_reference
+    : detail::common_reference_impl<void, Ts...>
+  { };
+
+  template <typename ...Ts>
+  struct has_common_reference
+    : detail::has_common_reference_impl<void, Ts...>
+  { };
+
+  template <typename ...Ts>
+  inline constexpr bool has_common_reference_v = has_common_reference<Ts...>::value;
 
 }
 

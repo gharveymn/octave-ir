@@ -8,14 +8,10 @@
 #include "visitors/mutators/ir-def-resolution-builder.hpp"
 
 #include "components/ir-block.hpp"
-#include "components/ir-component.hpp"
 #include "components/ir-component-fork.hpp"
 #include "components/ir-component-loop.hpp"
 #include "components/ir-component-sequence.hpp"
 #include "components/ir-function.hpp"
-
-#include <numeric>
-#include <vector>
 
 namespace gch
 {
@@ -36,7 +32,7 @@ namespace gch
 
   auto
   ir_def_resolution_build_result::
-  join_state (void) const noexcept
+  get_join_state (void) const noexcept
   -> join
   {
     return m_join;
@@ -44,7 +40,7 @@ namespace gch
 
   auto
   ir_def_resolution_build_result::
-  resolvable_state (void) const noexcept
+  get_resolvable_state (void) const noexcept
   -> resolvable
   {
     return m_resolvable;
@@ -61,27 +57,27 @@ namespace gch
   ir_def_resolution_build_result::
   needs_join (void) const noexcept
   {
-    return join_state () == join::yes;
+    return get_join_state () == join::yes;
   }
 
   bool
   ir_def_resolution_build_result::
   is_resolvable (void) const noexcept
   {
-    return resolvable_state () == resolvable::yes;
+    return get_resolvable_state () == resolvable::yes;
   }
 
   //
   // ir_def_resolution_build_descender
   //
 
-  ir_def_resolution_build_descender::
-  ir_def_resolution_build_descender (ir_variable& var)
+  ir_descending_def_resolution_builder::
+  ir_descending_def_resolution_builder (ir_variable& var)
     : m_variable (var)
   { }
 
   auto
-  ir_def_resolution_build_descender::
+  ir_descending_def_resolution_builder::
   operator() (ir_component& c) const &&
     -> result_type
   {
@@ -89,7 +85,7 @@ namespace gch
   }
 
   auto
-  ir_def_resolution_build_descender::
+  ir_descending_def_resolution_builder::
   operator() (ir_block& block) const &&
     -> result_type
   {
@@ -97,7 +93,7 @@ namespace gch
   }
 
   auto
-  ir_def_resolution_build_descender::
+  ir_descending_def_resolution_builder::
   visit (ir_block& block) const
     -> result_type
   {
@@ -119,7 +115,7 @@ namespace gch
   }
 
   auto
-  ir_def_resolution_build_descender::
+  ir_descending_def_resolution_builder::
   visit (ir_component_fork& fork) const
     -> result_type
   {
@@ -158,7 +154,7 @@ namespace gch
   }
 
   auto
-  ir_def_resolution_build_descender::
+  ir_descending_def_resolution_builder::
   visit (ir_component_loop& loop) const
     -> result_type
   {
@@ -204,7 +200,7 @@ namespace gch
   }
 
   auto
-  ir_def_resolution_build_descender::
+  ir_descending_def_resolution_builder::
   visit (ir_component_sequence& seq) const
     -> result_type
   {
@@ -235,7 +231,7 @@ namespace gch
   }
 
   auto
-  ir_def_resolution_build_descender::
+  ir_descending_def_resolution_builder::
   visit (ir_function& func) const
     -> result_type
   {
@@ -243,7 +239,7 @@ namespace gch
   }
 
   auto
-  ir_def_resolution_build_descender::
+  ir_descending_def_resolution_builder::
   dispatch_descender (ir_subcomponent& sub) const
     -> result_type
   {
@@ -251,7 +247,7 @@ namespace gch
   }
 
   auto
-  ir_def_resolution_build_descender::
+  ir_descending_def_resolution_builder::
   dispatch_descender (ir_block& block) const
     -> result_type
   {
@@ -259,7 +255,7 @@ namespace gch
   }
 
   ir_variable&
-  ir_def_resolution_build_descender::
+  ir_descending_def_resolution_builder::
   get_variable () const noexcept
   {
     return m_variable;
@@ -269,14 +265,14 @@ namespace gch
   // ir_def_resolution_build_ascender
   //
 
-  ir_def_resolution_build_ascender::
-  ir_def_resolution_build_ascender (ir_subcomponent& sub, ir_variable& var)
-    : ir_parent_mutator (sub),
+  ir_ascending_def_resolution_builder::
+  ir_ascending_def_resolution_builder (ir_subcomponent& sub, ir_variable& var)
+    : ir_subcomponent_mutator (sub),
       m_variable        (var)
   { }
 
   auto
-  ir_def_resolution_build_ascender::
+  ir_ascending_def_resolution_builder::
   operator() (void) const
     -> result_type
   {
@@ -284,7 +280,7 @@ namespace gch
   }
 
   auto
-  ir_def_resolution_build_ascender::
+  ir_ascending_def_resolution_builder::
   visit (ir_component_fork& fork) const
     -> result_type
   {
@@ -298,7 +294,7 @@ namespace gch
   }
 
   auto
-  ir_def_resolution_build_ascender::
+  ir_ascending_def_resolution_builder::
   visit (ir_component_loop& loop) const
     -> result_type
   {
@@ -402,7 +398,7 @@ namespace gch
   }
 
   auto
-  ir_def_resolution_build_ascender::
+  ir_ascending_def_resolution_builder::
   visit (ir_component_sequence& seq) const
     -> result_type
   {
@@ -429,17 +425,17 @@ namespace gch
   }
 
   auto
-  ir_def_resolution_build_ascender::
+  ir_ascending_def_resolution_builder::
   visit (ir_function& func) const
     -> result_type
   {
     return { { get_variable () },
-             result_type::join::no,
+             result_type::join::      no,
              result_type::resolvable::no };
   }
 
   auto
-  ir_def_resolution_build_ascender::
+  ir_ascending_def_resolution_builder::
   maybe_ascend (ir_substructure& sub, result_type&& sub_result) const
     -> result_type
   {
@@ -457,35 +453,35 @@ namespace gch
 
     return { std::move (stack),
              result_type::join::yes,
-             ascent_res.resolvable_state () };
+             ascent_res.get_resolvable_state () };
   }
 
   auto
-  ir_def_resolution_build_ascender::
+  ir_ascending_def_resolution_builder::
   ascend (ir_substructure& sub) const
     -> result_type
   {
-    return ir_def_resolution_build_ascender { sub, get_variable () } ();
+    return ir_ascending_def_resolution_builder { sub, get_variable () } ();
   }
 
   auto
-  ir_def_resolution_build_ascender::
+  ir_ascending_def_resolution_builder::
   dispatch_descender (ir_subcomponent& c) const
-    -> result_type
+    -> descender_type::result_type
   {
-    return ir_def_resolution_build_descender { get_variable () } (c);
+    return ir_descending_def_resolution_builder { get_variable () } (c);
   }
 
   auto
-  ir_def_resolution_build_ascender::
+  ir_ascending_def_resolution_builder::
   dispatch_descender (ir_block& block) const
-    -> result_type
+    -> descender_type::result_type
   {
-    return ir_def_resolution_build_descender { get_variable () } (block);
+    return ir_descending_def_resolution_builder { get_variable () } (block);
   }
 
   ir_variable&
-  ir_def_resolution_build_ascender::
+  ir_ascending_def_resolution_builder::
   get_variable (void) const noexcept
   {
     return m_variable;
@@ -496,13 +492,15 @@ namespace gch
   {
     using result_type = ir_def_resolution_build_result;
 
-    result_type             ret   { ir_def_resolution_build_ascender { block, var } () };
-    ir_def_resolution_stack stack { ret.release_stack () };
+    result_type             res   { ir_ascending_def_resolution_builder { block, var } () };
+    ir_def_resolution_stack stack { res.release_stack () };
 
     assert (! stack.has_leaves ());
     stack.add_leaf (block);
 
-    return { std::move (stack), ret.join_state (), ret.resolvable_state () };
+    return { std::move (stack),
+             res.get_join_state (),
+             res.get_resolvable_state () };
   }
 
 }

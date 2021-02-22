@@ -29,13 +29,18 @@ namespace gch
                                                             ir_link_set<ir_block>>>;
 
   class ir_def_resolution_build_result;
-  class ir_def_resolution_build_descender;
-  class ir_def_resolution_build_ascender;
+  class ir_descending_def_resolution_builder;
+  class ir_ascending_def_resolution_builder;
+  class ir_descending_forward_mutator;
+  class ir_ascending_forward_mutator;
 
-  using component_mutator_types = visitor_types<mutator<const ir_def_resolution_build_descender,
+  using component_mutator_types = visitor_types<mutator<const ir_descending_def_resolution_builder,
                                                         ir_def_resolution_build_result>,
-                                                mutator<const ir_def_resolution_build_ascender,
-                                                        ir_def_resolution_build_result>>;
+                                                mutator<const ir_ascending_def_resolution_builder,
+                                                        ir_def_resolution_build_result>,
+                                                mutator<const ir_descending_forward_mutator,
+                                                        bool>,
+                                                mutator<const ir_ascending_forward_mutator>>;
 
   // aggregate
   using ir_component_visitors = visitor_types<component_inspector_types,

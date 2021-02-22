@@ -799,7 +799,8 @@ namespace gch
   };
 
   ir_use_timeline&
-  ir_block::join_incoming (ir_def_timeline& dt)
+  ir_block::
+  join_incoming (ir_def_timeline& dt)
   {
     // collect associated blocks and timelines
     std::vector<ir_associated_incoming> incoming_assoc;
@@ -813,7 +814,8 @@ namespace gch
   }
 
   std::vector<nonnull_ptr<ir_def_timeline>>
-  ir_block::forward_incoming_timelines (ir_variable& var)
+  ir_block::
+  forward_incoming_timelines (ir_variable& var)
   {
 
     // collect associated blocks and timelines
@@ -891,7 +893,8 @@ namespace gch
   }
 
   std::vector<std::pair<nonnull_ptr<ir_block>, optional_ref<ir_def_timeline>>>
-  ir_block::collect_outgoing (ir_variable& var)
+  ir_block::
+  collect_outgoing (ir_variable& var)
   {
     if (optional_ref<ir_def_timeline> dt = maybe_get_def_timeline (var) ; dt->has_timelines ())
       return { { *this, dt } };
@@ -899,7 +902,8 @@ namespace gch
   }
 
   ir_def_timeline&
-  ir_block::append_incoming (ir_variable& var, ir_def_timeline& dt,
+  ir_block::
+  append_incoming (ir_variable& var, ir_def_timeline& dt,
                                    ir_block& incoming_block, ir_def_timeline& pred)
   {
     if (! pred.has_timelines ())
@@ -923,7 +927,8 @@ namespace gch
   }
 
   ir_def_timeline&
-  ir_block::append_incoming (ir_variable& var, ir_def_timeline& dt,
+  ir_block::
+  append_incoming (ir_variable& var, ir_def_timeline& dt,
                                    ir_block& incoming_block,
                                    const std::vector<nonnull_ptr<ir_def_timeline>>& preds)
   {
@@ -957,7 +962,8 @@ namespace gch
   }
 
   ir_def_timeline&
-  ir_block::resolve_undefined_incoming (ir_variable& undef_var, ir_def_timeline& var_dt)
+  ir_block::
+  resolve_undefined_incoming (ir_variable& undef_var, ir_def_timeline& var_dt)
   {
     if (auto undef_dt = maybe_get_def_timeline (undef_var))
     {
@@ -1009,7 +1015,8 @@ namespace gch
   }
 
   ir_def_timeline&
-  ir_block::resolve_undefined_outgoing (ir_variable& undef_var, ir_def_timeline& var_dt)
+  ir_block::
+  resolve_undefined_outgoing (ir_variable& undef_var, ir_def_timeline& var_dt)
   {
     if (auto undef_dt = maybe_get_def_timeline (undef_var))
     {
@@ -1023,7 +1030,8 @@ namespace gch
   }
 
   ir_def_timeline&
-  ir_block::set_undefined_state (ir_variable& undef_var, bool state)
+  ir_block::
+  set_undefined_state (ir_variable& undef_var, bool state)
   {
     auto found = std::find_if (get<range::undef> ().rbegin (), get<range::undef> ().rend (),
                                [&undef_var](ir_instruction& instr)
@@ -1051,7 +1059,8 @@ namespace gch
   }
 
   void
-  ir_block::propagate_def_timeline (ir_variable& var, ir_block& incoming_block,
+  ir_block::
+  propagate_def_timeline (ir_variable& var, ir_block& incoming_block,
                                           ir_def_timeline& remote)
   {
     optional_ref<ir_def_timeline> opt_dt = maybe_get_def_timeline (var);
@@ -1084,10 +1093,10 @@ namespace gch
   }
 
   ir_use_info
-  ir_block::prepare_operand (citer pos, ir_variable& var)
+  ir_block::
+  prepare_operand (citer pos, ir_variable& var)
   {
     ir_def_timeline& dt = get_def_timeline (var);
-    auto found =
     auto found = get_latest_timeline_before (pos, var);
     return { *found, }
     if (auto found_pair = get_pair_latest_timeline_before (pos, var))
@@ -1097,8 +1106,31 @@ namespace gch
     }
   }
 
+  const ir_constant&
+  ir_block::
+  prepare_operand (const citer&, const ir_constant& c) noexcept
+  {
+    return c;
+  }
+
+  ir_constant&&
+  ir_block::
+  prepare_operand (const citer&, ir_constant&& t) noexcept
+  {
+    return std::move (t);
+  }
+
+  ir_use_timeline&
+  ir_block::
+  track_def_at (ir_variable& var, iter pos)
+  {
+    ir_def_timeline& dt = get_def_timeline (var);
+    return *dt.emplace_before<range::body> (find_latest_timeline_before (dt, pos).base (), pos);
+  }
+
   ir_block::iter
-  ir_block::remove_instruction (const citer pos)
+  ir_block::
+  remove_instruction (const citer pos)
   {
     if (will_return (*pos))
     {
@@ -1128,7 +1160,8 @@ namespace gch
   }
 
   ir_block::iter
-  ir_block::remove_range (const citer first, const citer last) noexcept
+  ir_block::
+  remove_range (const citer first, const citer last) noexcept
   {
     std::vector<nonnull_ptr<const ir_variable>> unlinked_vars;
     std::for_each (criter { last }, criter { first },
@@ -1172,23 +1205,35 @@ namespace gch
     return erase<range::body> (first, last);
   }
 
-  // ir_def& create_def (const instr_citer pos, ir_variable& var)
-  // {
-  //
-  // }
-
   auto
-  ir_block::create_def_before (ir_variable& var, citer pos)
+  ir_block::
+  create_phi (ir_variable& var)
+    -> iter
   {
-    // if pos has any succeeding instructions in this block or
-    // the block has any successors, then we need to repoint
-    // any dominated uses to the created def.
-    // if (has_succs (pos))
+    emplace_back<range::phi, ir_opcode::phi> (var);
+    return std::prev (end<range::phi> ());
+  }
 
+  // unsafe
+  auto
+  ir_block::
+  erase_phi (ir_variable& var)
+    -> iter
+  {
+    auto pos = std::find_if (begin<range::phi> (), end<range::phi> (),
+                             [&var] (const ir_instruction& instr)
+                             {
+                               return &instr.get_return ().get_variable () == &var;
+                             });
+    // error checking
+    if (pos == get<range::phi> ().end ())
+      throw ir_exception ("tried to erase a nonexistent phi instruction");
+    return get<range::phi> ().erase (pos);
   }
 
   ir_use_timeline
-  ir_block::split_uses (ir_use_timeline& src, const citer pivot, const citer last)
+  ir_block::
+  split_uses (ir_use_timeline& src, const citer pivot, const citer last)
   {
     ir_use_timeline ret { src.get_instruction () };
     ret.transfer_back (src, find_first_use_after (src, pivot, last), src.end ());
@@ -1196,7 +1241,8 @@ namespace gch
   }
 
   ir_use_timeline::iter
-  ir_block::find_first_use_after (ir_use_timeline& tl, const citer pos,
+  ir_block::
+  find_first_use_after (ir_use_timeline& tl, const citer pos,
                                         const citer last)
   {
     if (last == begin<range::body> () || pos == begin<range::body> ())

@@ -10,7 +10,7 @@
 
 #include "components/ir-component-fwd.hpp"
 #include "processors/ir-def-resolution.hpp"
-#include "visitors/mutators/ir-parent-mutator.hpp"
+#include "visitors/mutators/ir-subcomponent-mutator.hpp"
 
 namespace gch
 {
@@ -45,11 +45,11 @@ namespace gch
 
     [[nodiscard]]
     join
-    join_state (void) const noexcept;
+    get_join_state (void) const noexcept;
 
     [[nodiscard]]
     resolvable
-    resolvable_state (void) const noexcept;
+    get_resolvable_state (void) const noexcept;
 
     // returning rvalue reference just for semantic reasons
     [[nodiscard]]
@@ -70,7 +70,7 @@ namespace gch
     resolvable              m_resolvable;
   };
 
-  class ir_def_resolution_build_descender
+  class ir_descending_def_resolution_builder
   {
   public:
     template <typename, typename>
@@ -79,7 +79,7 @@ namespace gch
     using result_type = ir_def_resolution_build_result;
 
     explicit
-    ir_def_resolution_build_descender (ir_variable& var);
+    ir_descending_def_resolution_builder (ir_variable& var);
 
     [[nodiscard]]
     result_type
@@ -125,17 +125,18 @@ namespace gch
     ir_variable& m_variable;
   };
 
-  class ir_def_resolution_build_ascender
-    : protected ir_parent_mutator
+  class ir_ascending_def_resolution_builder
+    : protected ir_subcomponent_mutator
   {
   public:
     template <typename, typename>
     friend struct acceptor;
 
-    using result_type = ir_def_resolution_build_result;
+    using result_type    = ir_def_resolution_build_result;
+    using descender_type = ir_descending_def_resolution_builder;
 
     explicit
-    ir_def_resolution_build_ascender (ir_subcomponent& sub, ir_variable& var);
+    ir_ascending_def_resolution_builder (ir_subcomponent& sub, ir_variable& var);
 
     result_type
     operator() (void) const;
@@ -159,18 +160,18 @@ namespace gch
 
     [[nodiscard]]
     result_type
-    maybe_ascend (ir_substructure& s, result_type&& sub_result) const;
+    maybe_ascend (ir_substructure& sub, result_type&& sub_result) const;
 
     [[nodiscard]]
     result_type
-    ascend (ir_substructure& s) const;
+    ascend (ir_substructure& sub) const;
 
     [[nodiscard]]
-    result_type
+    descender_type::result_type
     dispatch_descender (ir_subcomponent& sub) const;
 
     [[nodiscard]]
-    result_type
+    descender_type::result_type
     dispatch_descender (ir_block& block) const;
 
     [[nodiscard]]

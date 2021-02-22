@@ -96,14 +96,14 @@ namespace gch
 
     [[nodiscard]]
     leaves_value_type
-    front (void) const noexcept
+    leaves_front (void) const noexcept
     {
       return *leaves_begin ();
     }
 
     [[nodiscard]]
     leaves_value_type
-    back (void) const noexcept
+    leaves_back (void) const noexcept
     {
       return *leaves_rbegin ();
     }
