@@ -8,6 +8,8 @@
 #ifndef OCTAVE_IR_IR_VISITOR_HPP
 #define OCTAVE_IR_IR_VISITOR_HPP
 
+#include <type_traits>
+
 namespace gch
 {
 
@@ -18,11 +20,86 @@ namespace gch
   template <typename ...Visitors>
   struct visitor_types;
 
-  template <typename Inspector, typename Result = void>
-  struct inspector;
+  struct const_visitor_tag                                      { };
 
-  template <typename Mutator, typename Result = void>
-  struct mutator;
+  struct inspector_tag                                          { };
+  struct const_inspector_tag : inspector_tag, const_visitor_tag { };
+
+  struct mutator_tag                                            { };
+  struct const_mutator_tag : mutator_tag, const_visitor_tag     { };
+
+  template <typename Visitor>
+  struct visitor_traits
+  { };
+
+  namespace detail
+  {
+
+    template <typename T, typename Traits = visitor_traits<T>, typename Enable = void>
+    struct valid_visitor_traits
+      : std::false_type
+    { };
+
+    template <typename T, typename Traits>
+    struct valid_visitor_traits<T, Traits, std::void_t<typename Traits::result_type,
+                                                       typename Traits::visitor_category>>
+      : std::true_type
+    { };
+
+  } // namespace detail
+
+  template <typename Visitor>
+  struct visitor_result
+  {
+    static_assert (detail::valid_visitor_traits<Visitor>::value, "Invalid visitor traits.");
+    using type = typename visitor_traits<Visitor>::result_type;
+  };
+
+  template <typename Visitor>
+  using visitor_result_t = typename visitor_result<Visitor>::type;
+
+  template <typename Visitor>
+  struct visitor_category
+  {
+    static_assert (detail::valid_visitor_traits<Visitor>::value, "Invalid visitor traits.");
+    using type = typename visitor_traits<Visitor>::visitor_category;
+  };
+
+  template <typename Visitor>
+  using visitor_category_t = typename visitor_category<Visitor>::type;
+
+  template <typename Visitor>
+  struct is_inspector
+    : std::bool_constant<std::is_base_of_v<inspector_tag, visitor_category_t<Visitor>>>
+  { };
+
+  template <typename Visitor>
+  inline constexpr bool is_inspector_v = is_inspector<Visitor>::value;
+
+  template <typename Visitor>
+  struct is_mutator
+    : std::bool_constant<std::is_base_of_v<mutator_tag, visitor_category_t<Visitor>>>
+  { };
+
+  template <typename Visitor>
+  inline constexpr bool is_mutator_v = is_mutator<Visitor>::value;
+
+  template <typename Visitor>
+  struct is_const_visitor
+    : std::bool_constant<std::is_base_of_v<const_visitor_tag, visitor_category_t<Visitor>>>
+  { };
+
+  template <typename Visitor>
+  inline constexpr bool is_const_visitor_v = is_const_visitor<Visitor>::value;
+
+  template <typename Visitor>
+  struct visitor_reference
+  {
+    using type = std::conditional_t<is_const_visitor_v<Visitor>, const Visitor&, Visitor&>;
+  };
+
+  template <typename Visitor>
+  using visitor_reference_t = typename visitor_reference<Visitor>::type;
 
   //
   // abstract_inspector
@@ -80,54 +157,60 @@ namespace gch
   // abstract_visitable
   //
 
+  template <typename Visitor, typename Enable = void>
+  struct abstract_acceptor
+  {
+    static_assert (   is_inspector_v<Visitor> || is_mutator_v<Visitor>,
+                   "Visitor must be either an inspector or a mutator.");
+    static_assert (! (is_inspector_v<Visitor> || is_mutator_v<Visitor>),
+                   "SFINAE not working properly.");
+  };
+
+  template <typename Inspector>
+  struct abstract_acceptor<Inspector, std::enable_if_t<is_inspector_v<Inspector>>>
+  {
+  protected:
+    abstract_acceptor            (void)                         = default;
+    abstract_acceptor            (const abstract_acceptor&)     = default;
+    abstract_acceptor            (abstract_acceptor&&) noexcept = default;
+    abstract_acceptor& operator= (const abstract_acceptor&)     = default;
+    abstract_acceptor& operator= (abstract_acceptor&&) noexcept = default;
+    ~abstract_acceptor           (void)                         = default;
+
+  public:
+    using visitor_reference = visitor_reference_t<Inspector>;
+    using result_type       = visitor_result_t<Inspector>;
+
+    virtual
+    result_type
+    accept (visitor_reference) const = 0;
+  };
+
+  template <typename Mutator>
+  struct abstract_acceptor<Mutator, std::enable_if_t<is_mutator_v<Mutator>>>
+  {
+  protected:
+    abstract_acceptor            (void)                         = default;
+    abstract_acceptor            (const abstract_acceptor&)     = default;
+    abstract_acceptor            (abstract_acceptor&&) noexcept = default;
+    abstract_acceptor& operator= (const abstract_acceptor&)     = default;
+    abstract_acceptor& operator= (abstract_acceptor&&) noexcept = default;
+    ~abstract_acceptor           (void)                         = default;
+
+  public:
+    using visitor_reference = visitor_reference_t<Mutator>;
+    using result_type       = visitor_result_t<Mutator>;
+
+    virtual
+    result_type
+    accept (visitor_reference) = 0;
+  };
+
   template <typename Visitor>
-  struct abstract_acceptor;
-
-  template <typename Inspector, typename Result>
-  struct abstract_acceptor<inspector<Inspector, Result>>
+  struct abstract_visitable
+    : virtual abstract_acceptor<Visitor>
   {
-    abstract_acceptor            (void)                         = default;
-    abstract_acceptor            (const abstract_acceptor&)     = default;
-    abstract_acceptor            (abstract_acceptor&&) noexcept = default;
-    abstract_acceptor& operator= (const abstract_acceptor&)     = default;
-    abstract_acceptor& operator= (abstract_acceptor&&) noexcept = default;
-    virtual ~abstract_acceptor   (void)                         = default;
-
-    virtual
-    Result
-    accept (Inspector&) const = 0;
-  };
-
-  template <typename Mutator, typename Result>
-  struct abstract_acceptor<mutator<Mutator, Result>>
-  {
-    abstract_acceptor            (void)                         = default;
-    abstract_acceptor            (const abstract_acceptor&)     = default;
-    abstract_acceptor            (abstract_acceptor&&) noexcept = default;
-    abstract_acceptor& operator= (const abstract_acceptor&)     = default;
-    abstract_acceptor& operator= (abstract_acceptor&&) noexcept = default;
-    virtual ~abstract_acceptor   (void)                         = default;
-
-    virtual
-    Result
-    accept (Mutator&) = 0;
-  };
-
-  template <typename VisitorTypes>
-  struct abstract_visitable;
-
-  template <typename Inspector, typename Result>
-  struct abstract_visitable<inspector<Inspector, Result>>
-    : virtual abstract_acceptor<inspector<Inspector, Result>>
-  {
-    using abstract_acceptor<inspector<Inspector, Result>>::accept;
-  };
-
-  template <typename Mutator, typename Result>
-  struct abstract_visitable<mutator<Mutator, Result>>
-    : virtual abstract_acceptor<mutator<Mutator, Result>>
-  {
-    using abstract_acceptor<mutator<Mutator, Result>>::accept;
+    using abstract_acceptor<Visitor>::accept;
   };
 
   template <typename ...VisitorSubTypes>
@@ -141,46 +224,44 @@ namespace gch
   // visitable
   //
 
+  template <typename Derived, typename Visitor, typename Enable = void>
+  struct acceptor
+  {
+    static_assert (   is_inspector_v<Visitor> || is_mutator_v<Visitor>,
+                   "Visitor must be either an inspector or a mutator.");
+    static_assert (! (is_inspector_v<Visitor> || is_mutator_v<Visitor>),
+                   "SFINAE not working properly.");
+  };
+
+  template <typename Derived, typename Inspector>
+  struct acceptor<Derived, Inspector, std::enable_if_t<is_inspector_v<Inspector>>>
+    : virtual abstract_acceptor<Inspector>
+  {
+    using concrete_reference = const Derived&;
+    using visitor_reference  = typename abstract_acceptor<Inspector>::visitor_reference;
+    using result_type        = typename abstract_acceptor<Inspector>::result_type;
+
+    result_type
+    accept (visitor_reference) const override;
+  };
+
+  template <typename Derived, typename Mutator>
+  struct acceptor<Derived, Mutator, std::enable_if_t<is_mutator_v<Mutator>>>
+    : virtual abstract_acceptor<Mutator>
+  {
+    using concrete_reference = Derived&;
+    using visitor_reference  = typename abstract_acceptor<Mutator>::visitor_reference;
+    using result_type        = typename abstract_acceptor<Mutator>::result_type;
+
+    result_type
+    accept (visitor_reference) override;
+  };
+
   template <typename Derived, typename Visitor>
-  struct acceptor;
-
-  template <typename Derived, typename Inspector, typename Result>
-  struct acceptor<Derived, inspector<Inspector, Result>>
-    : virtual abstract_acceptor<inspector<Inspector, Result>>
+  struct visitable
+    : acceptor<Derived, Visitor>
   {
-    Result
-    accept (Inspector& v) const override
-    {
-      return v.visit (static_cast<const Derived&> (*this));
-    }
-  };
-
-  template <typename Derived, typename Mutator, typename Result>
-  struct acceptor<Derived, mutator<Mutator, Result>>
-    : virtual abstract_acceptor<mutator<Mutator, Result>>
-  {
-    Result
-    accept (Mutator& v) override
-    {
-      return v.visit (static_cast<Derived&> (*this));
-    }
-  };
-
-  template <typename Derived, typename VisitorTypes>
-  struct visitable;
-
-  template <typename Derived, typename Inspector, typename Result>
-  struct visitable<Derived, inspector<Inspector, Result>>
-    : acceptor<Derived, inspector<Inspector, Result>>
-  {
-    using acceptor<Derived, inspector<Inspector, Result>>::accept;
-  };
-
-  template <typename Derived, typename Mutator, typename Result>
-  struct visitable<Derived, mutator<Mutator, Result>>
-    : acceptor<Derived, mutator<Mutator, Result>>
-  {
-    using acceptor<Derived, mutator<Mutator, Result>>::accept;
+    using acceptor<Derived, Visitor>::accept;
   };
 
   template <typename Derived, typename ...VisitorSubTypes>

@@ -18,6 +18,51 @@
 namespace gch
 {
 
+  template <>
+  auto
+  acceptor<ir_block, ir_leaf_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_fork, ir_leaf_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_loop, ir_leaf_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_sequence, ir_leaf_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_function, ir_leaf_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
   auto
   ir_leaf_collector::
   operator() (const ir_structure& s) const

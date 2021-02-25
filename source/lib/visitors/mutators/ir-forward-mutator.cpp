@@ -16,6 +16,55 @@
 namespace gch
 {
 
+  //
+  // ir_descending_forward_mutator
+  //
+
+  template <>
+  auto
+  acceptor<ir_block, ir_descending_forward_mutator>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_fork, ir_descending_forward_mutator>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_loop, ir_descending_forward_mutator>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_sequence, ir_descending_forward_mutator>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_function, ir_descending_forward_mutator>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
   ir_descending_forward_mutator::
   ir_descending_forward_mutator (const functor_type& functor)
     : m_functor (functor)
@@ -102,6 +151,46 @@ namespace gch
     -> result_type
   {
     return visit (block);
+  }
+
+  //
+  // ir_ascending_forward_mutator
+  //
+
+  template <>
+  auto
+  acceptor<ir_component_fork, ir_ascending_forward_mutator>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_loop, ir_ascending_forward_mutator>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_sequence, ir_ascending_forward_mutator>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_function, ir_ascending_forward_mutator>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
   }
 
   ir_ascending_forward_mutator::

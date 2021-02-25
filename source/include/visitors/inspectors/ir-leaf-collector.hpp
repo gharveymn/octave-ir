@@ -10,17 +10,20 @@
 
 #include "components/ir-component-fwd.hpp"
 #include "utilities/ir-link-set.hpp"
+#include "visitors/ir-visitor-fwd.hpp"
 
 namespace gch
 {
 
   class ir_leaf_collector
+    : public visitor_traits<ir_leaf_collector>
   {
   public:
-    template <typename, typename>
-    friend struct acceptor;
-
-    using result_type = ir_link_set<ir_block>;
+    friend acceptor_type<ir_block>;
+    friend acceptor_type<ir_component_fork>;
+    friend acceptor_type<ir_component_loop>;
+    friend acceptor_type<ir_component_sequence>;
+    friend acceptor_type<ir_function>;
 
     ir_leaf_collector            (void)                         = default;
     ir_leaf_collector            (const ir_leaf_collector&)     = default;

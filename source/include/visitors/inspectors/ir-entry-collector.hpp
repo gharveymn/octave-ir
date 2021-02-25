@@ -10,17 +10,19 @@
 
 #include "components/ir-component-fwd.hpp"
 #include "visitors/ir-visitor.hpp"
+#include "visitors/ir-visitor-fwd.hpp"
 
 namespace gch
 {
 
   class ir_entry_collector
+    : public visitor_traits<ir_entry_collector>
   {
   public:
-    template <typename, typename>
-    friend struct acceptor;
-
-    using result_type = const ir_subcomponent&;
+    friend acceptor_type<ir_component_fork>;
+    friend acceptor_type<ir_component_loop>;
+    friend acceptor_type<ir_component_sequence>;
+    friend acceptor_type<ir_function>;
 
     ir_entry_collector            (void)                          = default;
     ir_entry_collector            (const ir_entry_collector&)     = default;

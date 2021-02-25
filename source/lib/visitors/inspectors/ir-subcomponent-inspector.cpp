@@ -5,27 +5,27 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "visitors/inspectors/ir-parent-inspector.hpp"
+#include "visitors/inspectors/ir-subcomponent-inspector.hpp"
 
 #include "components/ir-component.hpp"
 
 namespace gch
 {
 
-  ir_parent_inspector::
-  ir_parent_inspector (ir_subcomponent& sub)
+  ir_subcomponent_inspector::
+  ir_subcomponent_inspector (const ir_subcomponent& sub)
     : m_subcomponent (sub)
   { }
 
-  ir_structure&
-  ir_parent_inspector::
+  const ir_structure&
+  ir_subcomponent_inspector::
   get_parent (void) const noexcept
   {
     return get_subcomponent ().get_parent ();
   }
 
-  ir_subcomponent&
-  ir_parent_inspector::
+  const ir_subcomponent&
+  ir_subcomponent_inspector::
   get_subcomponent (void) const noexcept
   {
     return m_subcomponent;

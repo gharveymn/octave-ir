@@ -8,20 +8,23 @@
 #ifndef OCTAVE_IR_IR_PREDECESSOR_COLLECTOR_HPP
 #define OCTAVE_IR_IR_PREDECESSOR_COLLECTOR_HPP
 
-#include "visitors/inspectors/ir-parent-inspector.hpp"
+#include "visitors/inspectors/ir-subcomponent-inspector.hpp"
 
 #include "components/ir-component-fwd.hpp"
-#include "utilities/ir-link-set.hpp"
+#include "visitors/ir-visitor-fwd.hpp"
 
 namespace gch
 {
 
   class ir_predecessor_collector
-    : public ir_parent_inspector
+    : public    visitor_traits<ir_predecessor_collector>,
+      protected ir_subcomponent_inspector
   {
   public:
-    template <typename, typename>
-    friend struct acceptor;
+    friend acceptor_type<ir_component_fork>;
+    friend acceptor_type<ir_component_loop>;
+    friend acceptor_type<ir_component_sequence>;
+    friend acceptor_type<ir_function>;
 
     using result_type = ir_link_set<ir_block>;
 
@@ -31,6 +34,8 @@ namespace gch
     ir_predecessor_collector& operator= (const ir_predecessor_collector&)     = delete;
     ir_predecessor_collector& operator= (ir_predecessor_collector&&) noexcept = delete;
     ~ir_predecessor_collector           (void)                                = default;
+
+    using ir_subcomponent_inspector::ir_subcomponent_inspector;
 
     [[nodiscard]]
     result_type
@@ -52,7 +57,7 @@ namespace gch
     [[nodiscard]]
     static
     result_type
-    visit (const ir_function&) { return { }; };
+    visit (const ir_function&);
   };
 
 }

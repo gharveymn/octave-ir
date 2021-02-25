@@ -366,7 +366,7 @@ namespace gch
 
   protected:
     citer
-    must_find (const ir_component& c);
+    must_find (const ir_subcomponent& c);
 
   private:
     std::vector<ir_component_mover>&
@@ -375,8 +375,8 @@ namespace gch
     std::vector<ir_component_mover>
     recursive_collect_components (void);
 
-    container_type m_body;
-    mutable find_cache  m_find_cache;
+    container_type     m_body;
+    mutable find_cache m_find_cache;
   };
 
 }

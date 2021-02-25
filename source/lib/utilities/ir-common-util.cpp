@@ -21,6 +21,7 @@ along with Octave; see the file COPYING.  If not, see
 */
 
 #include "utilities/ir-common-util.hpp"
+#include "utilities/ir-error.hpp"
 #include "values/types/ir-type.hpp"
 
 #include <cstddef>
@@ -31,9 +32,6 @@ along with Octave; see the file COPYING.  If not, see
 
 namespace gch
 {
-
-  ir_exception::
-  ~ir_exception (void) = default;
 
   template <typename T>
   std::ostream&

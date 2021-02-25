@@ -16,6 +16,10 @@
 namespace gch
 {
 
+  //
+  // ir_def_resolution_build_result
+  //
+
   ir_def_resolution_build_result::
   ir_def_resolution_build_result (ir_variable& var, join j, resolvable r)
     : m_stack      (var),
@@ -70,6 +74,51 @@ namespace gch
   //
   // ir_def_resolution_build_descender
   //
+
+  template <>
+  auto
+  acceptor<ir_block, ir_descending_def_resolution_builder>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_fork, ir_descending_def_resolution_builder>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_loop, ir_descending_def_resolution_builder>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_sequence, ir_descending_def_resolution_builder>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_function, ir_descending_def_resolution_builder>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
 
   ir_descending_def_resolution_builder::
   ir_descending_def_resolution_builder (ir_variable& var)
@@ -264,6 +313,42 @@ namespace gch
   //
   // ir_def_resolution_build_ascender
   //
+
+  template <>
+  auto
+  acceptor<ir_component_fork, ir_ascending_def_resolution_builder>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_loop, ir_ascending_def_resolution_builder>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_sequence, ir_ascending_def_resolution_builder>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_function, ir_ascending_def_resolution_builder>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
 
   ir_ascending_def_resolution_builder::
   ir_ascending_def_resolution_builder (ir_subcomponent& sub, ir_variable& var)

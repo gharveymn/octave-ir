@@ -11,6 +11,7 @@
 #include "components/ir-component-fwd.hpp"
 #include "processors/ir-def-resolution.hpp"
 #include "visitors/mutators/ir-subcomponent-mutator.hpp"
+#include "visitors/ir-visitor-fwd.hpp"
 
 namespace gch
 {
@@ -71,10 +72,14 @@ namespace gch
   };
 
   class ir_descending_def_resolution_builder
+    : public visitor_traits<ir_descending_def_resolution_builder>
   {
   public:
-    template <typename, typename>
-    friend struct acceptor;
+    friend acceptor_type<ir_block>;
+    friend acceptor_type<ir_component_fork>;
+    friend acceptor_type<ir_component_loop>;
+    friend acceptor_type<ir_component_sequence>;
+    friend acceptor_type<ir_function>;
 
     using result_type = ir_def_resolution_build_result;
 
@@ -126,11 +131,14 @@ namespace gch
   };
 
   class ir_ascending_def_resolution_builder
-    : protected ir_subcomponent_mutator
+    : public    visitor_traits<ir_ascending_def_resolution_builder>,
+      protected ir_subcomponent_mutator
   {
   public:
-    template <typename, typename>
-    friend struct acceptor;
+    friend acceptor_type<ir_component_fork>;
+    friend acceptor_type<ir_component_loop>;
+    friend acceptor_type<ir_component_sequence>;
+    friend acceptor_type<ir_function>;
 
     using result_type    = ir_def_resolution_build_result;
     using descender_type = ir_descending_def_resolution_builder;

@@ -7,11 +7,15 @@ IF (NOT CREATE_PACKAGE_VERSION VERSION_GREATER_EQUAL 0.0.4)
   INCLUDE ("${PROJECT_SOURCE_DIR}/external/create-package/cmake/create-package.cmake")
 ENDIF ()
 
-OPTION (CLANG_WITH_LIBCXX "Set to ON to use libc++ when compiling with Clang" ON)
+OPTION (GCH_USE_LIBCXX_WITH_CLANG "Set to ON to use libc++ when compiling with Clang" OFF)
 
 # Sources
 SET (HEADERS
+     components/linkage/ir-incoming-node.hpp
+     components/linkage/ir-def-timeline.hpp
+
      components/ir-block.hpp
+     components/ir-block-common.hpp
      components/ir-component.hpp
      components/ir-component-fork.hpp
      components/ir-component-fwd.hpp
@@ -43,8 +47,8 @@ SET (HEADERS
      visitors/inspectors/ir-entry-collector.hpp
      visitors/inspectors/ir-leaf-collector.hpp
      visitors/inspectors/ir-leaf-inspector.hpp
-     visitors/inspectors/ir-parent-inspector.hpp
      visitors/inspectors/ir-predecessor-collector.hpp
+     visitors/inspectors/ir-subcomponent-inspector.hpp
      visitors/inspectors/ir-successor-collector.hpp
 
      visitors/mutators/ir-def-propagator.hpp
@@ -58,6 +62,9 @@ SET (HEADERS
      visitors/ir-visitor-fwd.hpp)
 
 SET (SOURCES
+     components/linkage/ir-incoming-node.cpp
+     components/linkage/ir-def-timeline.cpp
+
      components/ir-block.cpp
      components/ir-component.cpp
      components/ir-component-fork.cpp
@@ -85,8 +92,8 @@ SET (SOURCES
      visitors/inspectors/ir-entry-collector.cpp
      visitors/inspectors/ir-leaf-collector.cpp
      visitors/inspectors/ir-leaf-inspector.cpp
-     visitors/inspectors/ir-parent-inspector.cpp
      visitors/inspectors/ir-predecessor-collector.cpp
+     visitors/inspectors/ir-subcomponent-inspector.cpp
      visitors/inspectors/ir-successor-collector.cpp
 
      visitors/mutators/ir-def-propagator.cpp

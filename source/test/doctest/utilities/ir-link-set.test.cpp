@@ -12,6 +12,7 @@
 #include <gch/nonnull_ptr.hpp>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <random>
 #include <iostream>

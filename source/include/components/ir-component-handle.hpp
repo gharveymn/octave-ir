@@ -506,14 +506,14 @@ namespace gch
   bool
   operator== (const ir_component_cptr& lhs, const ir_component_cptr::observer& rhs)
   {
-    return lhs.maybe_get_component () == rhs;
+    return lhs.maybe_get_component ().contains (rhs);
   }
 
   constexpr
   bool
   operator== (const ir_component_cptr::observer& lhs, const ir_component_cptr& rhs)
   {
-    return lhs == rhs.maybe_get_component ();
+    return lhs.contains (rhs.maybe_get_component ());
   }
 
   constexpr
@@ -534,14 +534,14 @@ namespace gch
   bool
   operator< (const ir_component_cptr& lhs, const ir_component_cptr::observer& rhs)
   {
-    return std::less<ir_component_cptr::observer> { } (lhs.maybe_get_component (), rhs);
+    return std::less { } (lhs.get_component_pointer (), rhs.get_pointer ());
   }
 
   constexpr
   bool
   operator< (const ir_component_cptr::observer& lhs, const ir_component_cptr& rhs)
   {
-    return std::less<ir_component_cptr::observer> { } (lhs, rhs.maybe_get_component ());
+    return std::less { } (lhs.get_pointer (), rhs.get_component_pointer ());
   }
 
   constexpr

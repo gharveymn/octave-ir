@@ -5,6 +5,7 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+
 #include "visitors/inspectors/ir-predecessor-collector.hpp"
 
 #include "components/ir-component-fork.hpp"
@@ -15,6 +16,42 @@
 
 namespace gch
 {
+
+  template <>
+  auto
+  acceptor<ir_component_fork, ir_predecessor_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_loop, ir_predecessor_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_sequence, ir_predecessor_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_function, ir_predecessor_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
 
   auto
   ir_predecessor_collector::
@@ -48,7 +85,7 @@ namespace gch
       case id::body      : return copy_leaves (loop.get_condition ());
       case id::update    : return copy_leaves (loop.get_body ());
     }
-    ir_abort_impossible ();
+    abort::ir_impossible ();
   }
 
   auto
@@ -62,6 +99,14 @@ namespace gch
       return get_predecessors (seq);
     else
       return copy_leaves (*std::prev (found));
+  }
+
+  auto
+  ir_predecessor_collector::
+  visit (const ir_function& func)
+    -> result_type
+  {
+    return { };
   }
 
 }

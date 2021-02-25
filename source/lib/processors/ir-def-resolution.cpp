@@ -389,7 +389,8 @@ namespace gch
   ir_def_resolution_frame::
   join_with (ir_link_set<ir_def_timeline>&& s)
   {
-    auto ret = join_at (get_join_block (), get_variable (), m_substack.resolve_with (std::move (s)));
+    auto ret = join_at (get_join_block (), get_variable (),
+                        m_substack.resolve_with (std::move (s)));
     assert_homogeneous (ret);
     return ret;
   }

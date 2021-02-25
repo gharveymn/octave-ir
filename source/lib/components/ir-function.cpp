@@ -29,6 +29,8 @@ along with Octave; see the file COPYING.  If not, see
 #include "components/ir-component.hpp"
 #include "components/ir-block.hpp"
 
+#include "utilities/ir-error.hpp"
+
 #include <gch/nonnull_ptr.hpp>
 
 namespace gch

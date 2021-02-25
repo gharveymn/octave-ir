@@ -8,11 +8,16 @@
 #ifndef OCTAVE_IR_IR_INSTRUCTION_METADATA_HPP
 #define OCTAVE_IR_IR_INSTRUCTION_METADATA_HPP
 
+#include <array>
+#include <type_traits>
+
 namespace gch
 {
 
   enum class ir_opcode : unsigned
   {
+    _size_     =  35,
+
     phi        =  0,
     assign     =  1,
     call       =  2,
@@ -231,6 +236,31 @@ namespace gch
       return instance<Op>::data;
     }
 
+    static constexpr
+    std::size_t
+    num_opcodes = static_cast<std::underlying_type_t<ir_opcode>> (ir_opcode::_size_);
+
+  private:
+    struct identity_projection
+    {
+      constexpr
+      ir_instruction_metadata
+      operator() (ir_instruction_metadata m) const noexcept
+      {
+        return m;
+      }
+    };
+
+    template <typename IndexSequence = std::make_index_sequence<num_opcodes>>
+    struct array_generator;
+
+  public:
+    template <typename Projection = identity_projection>
+    [[nodiscard]]
+    static constexpr
+    std::array<std::invoke_result_t<Projection, ir_instruction_metadata>, num_opcodes>
+    generate_array (Projection proj = { }) noexcept;
+
   private:
     [[nodiscard]]
     static constexpr
@@ -272,6 +302,46 @@ namespace gch
 
     const impl *m_ptr;
   };
+
+  template <std::size_t ...Indices>
+  struct ir_instruction_metadata::array_generator<std::index_sequence<Indices...>>
+  {
+
+    static_assert (sizeof...(Indices) == num_opcodes);
+
+    template <typename Result>
+    constexpr
+    std::array<Result, num_opcodes>
+    operator() (Result (ir_instruction_metadata::* proj) (void) const noexcept) const noexcept
+    {
+      return { (get<static_cast<ir_opcode> (Indices)> ().*proj) ()... };
+    }
+
+    template <typename Projection>
+    constexpr
+    std::array<std::invoke_result_t<Projection, ir_instruction_metadata>, num_opcodes>
+    operator() (Projection proj) const noexcept
+    {
+      return { proj (get<static_cast<ir_opcode> (Indices)> ())... };
+    }
+
+    constexpr
+    std::array<ir_instruction_metadata, num_opcodes>
+    operator() (void) const noexcept
+    {
+      return { get<static_cast<ir_opcode> (Indices)> ()... };
+    }
+  };
+
+  template <typename Projection>
+  constexpr
+  auto
+  ir_instruction_metadata::
+  generate_array (Projection proj) noexcept
+    -> std::array<std::invoke_result_t<Projection, ir_instruction_metadata>, num_opcodes>
+  {
+    return array_generator<std::make_index_sequence<num_opcodes>> { } (proj);
+  }
 
   [[nodiscard]] constexpr
   bool
@@ -663,7 +733,18 @@ namespace gch
 
   template <ir_opcode Op>
   inline constexpr
-  ir_instruction_metadata ir_instruction_metadata_v { ir_instruction_metadata::get<Op> () };
+  ir_instruction_metadata
+  ir_instruction_metadata_v = ir_instruction_metadata::get<Op> ();
+
+  constexpr
+  ir_instruction_metadata
+  get_metadata (ir_opcode op)
+  {
+    constexpr auto values = ir_instruction_metadata::generate_array ();
+    return values[static_cast<std::size_t> (op)];
+  }
+
+  static_assert (ir_instruction_metadata_v<ir_opcode::ge> == get_metadata (ir_opcode::ge));
 
 }
 

@@ -25,12 +25,10 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "utilities/ir-common.hpp"
 #include "values/types/ir-type-base.hpp"
-#include <plf_list.h>
 #include <list>
 
 namespace gch
 {
-  // fwds
 
   class ir_block;
   class ir_instruction;
@@ -38,10 +36,10 @@ namespace gch
   class ir_use;
 
   using ir_instruction_container = std::list<ir_instruction>;
-  using ir_instruction_iter      = ir_instruction_container::iterator;
-  using ir_instruction_citer     = ir_instruction_container::const_iterator;
-  using ir_instruction_riter     = ir_instruction_container::reverse_iterator;
-  using ir_instruction_criter    = ir_instruction_container::const_reverse_iterator;
+  using ir_instruction_iter     = ir_instruction_container::iterator;
+  using ir_instruction_citer    = ir_instruction_container::const_iterator;
+  using ir_instruction_riter    = ir_instruction_container::reverse_iterator;
+  using ir_instruction_criter   = ir_instruction_container::const_reverse_iterator;
 
 }
 

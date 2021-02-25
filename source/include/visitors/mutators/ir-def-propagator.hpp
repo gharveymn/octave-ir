@@ -11,6 +11,7 @@
 #include "components/ir-component-fwd.hpp"
 #include "utilities/ir-link-set.hpp"
 #include "visitors/mutators/ir-subcomponent-mutator.hpp"
+#include "visitors/ir-visitor-fwd.hpp"
 
 namespace gch
 {
@@ -18,10 +19,14 @@ namespace gch
   class ir_def_timeline;
 
   class ir_descending_def_propagator
+    : visitor_traits<ir_descending_def_propagator>
   {
   public:
-    template <typename, typename>
-    friend struct acceptor;
+    friend acceptor_type<ir_block>;
+    friend acceptor_type<ir_component_fork>;
+    friend acceptor_type<ir_component_loop>;
+    friend acceptor_type<ir_component_sequence>;
+    friend acceptor_type<ir_function>;
 
     using result_type  = ir_link_set<ir_block>;
 
@@ -33,7 +38,7 @@ namespace gch
     ~ir_descending_def_propagator           (void)                                    = default;
 
     explicit
-    ir_descending_def_propagator (ir_def_timeline& dominator);
+    ir_descending_def_propagator (ir_def_timeline& dominator, ir_link_set<ir_block>&& incoming);
 
     [[nodiscard]]
     result_type
@@ -72,15 +77,19 @@ namespace gch
     result_type
     dispatch_descender (ir_block& block) const;
 
-    ir_def_timeline& m_dominator;
+    ir_def_timeline&              m_dominator;
+    mutable ir_link_set<ir_block> m_incoming_blocks;
   };
 
   class ir_ascending_def_propagator
-    : protected ir_subcomponent_mutator
+    : public    visitor_traits<ir_ascending_def_propagator>,
+      protected ir_subcomponent_mutator
   {
   public:
-    template <typename, typename>
-    friend struct acceptor;
+    friend acceptor_type<ir_component_fork>;
+    friend acceptor_type<ir_component_loop>;
+    friend acceptor_type<ir_component_sequence>;
+    friend acceptor_type<ir_function>;
 
     using result_type    = void;
     using descender_type = ir_descending_def_propagator;
@@ -94,7 +103,7 @@ namespace gch
 
     explicit
     ir_ascending_def_propagator (ir_subcomponent& sub, ir_def_timeline& dominator,
-                                 ir_link_set<ir_block>&& incoming_blocks);
+                                 ir_link_set<ir_block>&& incoming);
 
     result_type
     operator() (void) const;
@@ -129,6 +138,9 @@ namespace gch
     ir_def_timeline&              m_dominator;
     mutable ir_link_set<ir_block> m_incoming_blocks;
   };
+
+  void
+  propagate_def (ir_def_timeline& dt);
 
 }
 

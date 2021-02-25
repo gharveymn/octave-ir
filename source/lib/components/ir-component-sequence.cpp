@@ -173,7 +173,7 @@ namespace gch
 
   auto
   ir_component_sequence::
-  must_find (const ir_component& c)
+  must_find (const ir_subcomponent& c)
     -> citer
   {
     if (citer cit = find (c); cit != end ())

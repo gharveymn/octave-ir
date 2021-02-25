@@ -273,6 +273,31 @@ namespace gch
 
   class Shape;
 
+  class ShapeVisitor;
+  class StaticVisitor;
+  class ConstShapeVisitor;
+
+  template <>
+  struct visitor_traits<ShapeVisitor>
+  {
+    using result_type      = void;
+    using visitor_category = mutator_tag;
+  };
+
+  template <>
+  struct visitor_traits<StaticVisitor>
+  {
+    using result_type      = void;
+    using visitor_category = mutator_tag;
+  };
+
+  template <>
+  struct visitor_traits<ConstShapeVisitor>
+  {
+    using result_type      = void;
+    using visitor_category = inspector_tag;
+  };
+
 //*****************************************************************
 // The shape visitor base class.
 // Pure virtual 'Visit' functions will be defined for the Square,
@@ -314,8 +339,8 @@ namespace gch
 
   class StaticVisitor;
 
-  using shape_mutators   = visitor_types<mutator<ShapeVisitor>, mutator<StaticVisitor>>;
-  using shape_inspectors = visitor_types<inspector<ConstShapeVisitor>>;
+  using shape_mutators   = visitor_types<ShapeVisitor, StaticVisitor>;
+  using shape_inspectors = visitor_types<ConstShapeVisitor>;
   using shape_visitors   = visitor_types<shape_mutators, shape_inspectors>;
 
   //*****************************************************************
@@ -330,7 +355,7 @@ namespace gch
     Shape            (Shape&&) noexcept = default;
     Shape& operator= (const Shape&)     = default;
     Shape& operator= (Shape&&) noexcept = default;
-    ~Shape           (void) override;
+    virtual ~Shape   (void)             = 0;
   };
 
   Shape::
@@ -392,6 +417,60 @@ namespace gch
 
   Triangle::
   ~Triangle (void) = default;
+
+  template <>
+  auto
+  acceptor<Square, ShapeVisitor>::
+  accept (visitor_reference v)
+  -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<Circle, ShapeVisitor>::
+  accept (visitor_reference v)
+  -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<Triangle, ShapeVisitor>::
+  accept (visitor_reference v)
+  -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<Square, ConstShapeVisitor>::
+  accept (visitor_reference v) const
+  -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<Circle, ConstShapeVisitor>::
+  accept (visitor_reference v) const
+  -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<Triangle, ConstShapeVisitor>::
+  accept (visitor_reference v) const
+  -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
 
   //*****************************************************************
 // The 'draw' visitor.
@@ -468,7 +547,7 @@ namespace gch
   class StaticVisitor
   {
   public:
-    template <typename, typename>
+    template <typename, typename, typename>
     friend struct acceptor;
 
     void
@@ -499,6 +578,33 @@ namespace gch
       std::cout << "static triangle\n";
     }
   };
+
+  template <>
+  auto
+  acceptor<Square, StaticVisitor>::
+  accept (visitor_reference v)
+  -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<Circle, StaticVisitor>::
+  accept (visitor_reference v)
+  -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<Triangle, StaticVisitor>::
+  accept (visitor_reference v)
+  -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
 
   static
   void
@@ -970,8 +1076,8 @@ main (void)
 
   optional_ref o { *x };
   static_cast<void> (o);
-  assert (o == x);
-  assert (o != y);
+  assert (o.get_pointer () == x);
+  assert (o.get_pointer () != y);
 
   nonnull_ptr n { *x };
   static_cast<void> (n);

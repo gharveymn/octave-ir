@@ -68,19 +68,19 @@ namespace gch
   ir_link_set<ir_block>
   get_predecessors (const ir_subcomponent& sub)
   {
-    return ir_predecessor_collector { } (sub);
+    return ir_predecessor_collector { sub } ();
   }
 
   ir_link_set<ir_block>
   get_successors (const ir_subcomponent& sub)
   {
-    return ir_successor_collector { } (sub);
+    return ir_successor_collector { sub } ();
   }
 
   bool
   is_leaf (const ir_subcomponent& sub)
   {
-    return ir_leaf_inspector { } (sub);
+    return ir_leaf_inspector { sub } ();
   }
 
   ir_link_set<ir_block>

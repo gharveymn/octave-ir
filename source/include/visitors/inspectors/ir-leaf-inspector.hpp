@@ -8,22 +8,25 @@
 #ifndef OCTAVE_IR_IR_LEAF_INSPECTOR_HPP
 #define OCTAVE_IR_IR_LEAF_INSPECTOR_HPP
 
-#include "visitors/inspectors/ir-parent-inspector.hpp"
-
 #include "components/ir-component-fwd.hpp"
-#include "utilities/ir-link-set.hpp"
+#include "utilities/ir-common.hpp"
+#include "visitors/inspectors/ir-subcomponent-inspector.hpp"
+#include "visitors/ir-visitor-fwd.hpp"
 
 namespace gch
 {
 
   class ir_leaf_inspector
-    : public ir_parent_inspector
+    : public    visitor_traits<ir_leaf_inspector>,
+      protected ir_subcomponent_inspector
   {
   public:
-    template <typename, typename>
-    friend struct acceptor;
+    friend acceptor_type<ir_component_fork>;
+    friend acceptor_type<ir_component_loop>;
+    friend acceptor_type<ir_component_sequence>;
+    friend acceptor_type<ir_function>;
 
-    using result_type = bool;
+    using result_type  = bool;
 
     ir_leaf_inspector            (void)                         = delete;
     ir_leaf_inspector            (const ir_leaf_inspector&)     = delete;
@@ -31,6 +34,8 @@ namespace gch
     ir_leaf_inspector& operator= (const ir_leaf_inspector&)     = delete;
     ir_leaf_inspector& operator= (ir_leaf_inspector&&) noexcept = delete;
     ~ir_leaf_inspector           (void)                         = default;
+
+    using ir_subcomponent_inspector::ir_subcomponent_inspector;
 
     [[nodiscard]]
     result_type

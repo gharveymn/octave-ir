@@ -389,6 +389,9 @@ namespace gch
       : common_reference_pair_impl<1, T, U>
     { };
 
+    template <typename T, typename U>
+    using common_reference_pair_t = typename common_reference_pair<T, U>::type;
+
     template <typename Void, typename ...Ts>
     struct common_reference_impl
     { };
@@ -409,8 +412,8 @@ namespace gch
     { };
 
     template <typename T, typename U, typename ...Rest>
-    struct common_reference_impl<std::void_t<common_reference_t<T, U>>, T, U, Rest...>
-      : common_reference_impl<void, common_reference_t<T, U>, Rest...>
+    struct common_reference_impl<std::void_t<common_reference_pair_t<T, U>>, T, U, Rest...>
+      : common_reference_impl<void, common_reference_pair_t<T, U>, Rest...>
     { };
 
     template <typename Void, typename ...Ts>
@@ -436,7 +439,26 @@ namespace gch
   { };
 
   template <typename ...Ts>
-  inline constexpr bool has_common_reference_v = has_common_reference<Ts...>::value;
+  inline constexpr
+  bool
+  has_common_reference_v = has_common_reference<Ts...>::value;
+
+  template <typename ...>
+  inline constexpr
+  bool
+  dependent_false = false;
+
+  template <typename T>
+  constexpr
+  std::remove_const_t<T>&
+  as_mutable (T& ref)
+  {
+    return const_cast<std::remove_const_t<T>&> (ref);
+  }
+
+  template <typename T>
+  void
+  as_mutable (const T&&) = delete;
 
 }
 

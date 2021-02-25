@@ -46,6 +46,55 @@ namespace gch
   bool
   is_optional_v = is_optional<Optional>::value;
 
+  template <typename Optional>
+  struct flattened_optional
+  {
+    using type = Optional;
+  };
+
+  template <typename Optional>
+  using flattened_optional_t = typename flattened_optional<Optional>::type;
+
+  template <template <typename> typename OptionalT, typename T>
+  struct flattened_optional<OptionalT<optional_ref<T>>>
+    : flattened_optional<optional_ref<T>>
+  { };
+
+  template <template <typename> typename OptionalT, typename T>
+  struct flattened_optional<const OptionalT<optional_ref<T>>>
+    : flattened_optional<const optional_ref<T>>
+  { };
+
+  template <template <typename> typename OptionalT, typename T>
+  struct flattened_optional<OptionalT<const optional_ref<T>>>
+    : flattened_optional<const optional_ref<T>>
+  { };
+
+  template <template <typename> typename OptionalT, typename T>
+  struct flattened_optional<const OptionalT<const optional_ref<T>>>
+    : flattened_optional<const optional_ref<T>>
+  { };
+
+  template <template <typename> typename OptionalT, typename T>
+  struct flattened_optional<OptionalT<std::optional<T>>>
+    : flattened_optional<std::optional<T>>
+  { };
+
+  template <template <typename> typename OptionalT, typename T>
+  struct flattened_optional<const OptionalT<std::optional<T>>>
+    : flattened_optional<const std::optional<T>>
+  { };
+
+  template <template <typename> typename OptionalT, typename T>
+  struct flattened_optional<OptionalT<const std::optional<T>>>
+    : flattened_optional<const std::optional<T>>
+  { };
+
+  template <template <typename> typename OptionalT, typename T>
+  struct flattened_optional<const OptionalT<const std::optional<T>>>
+    : flattened_optional<const std::optional<T>>
+  { };
+
   namespace detail
   {
 
@@ -151,8 +200,7 @@ namespace gch
     Functor m_functor;
   };
 
-  template <typename Functor>
-  maybe (Functor&&) -> maybe<std::decay_t<Functor>>;
+  template <typename Functor> maybe (Functor) -> maybe<Functor>;
 
   namespace detail
   {
@@ -976,6 +1024,32 @@ namespace gch
                               std::forward<OptionalRHS> (rhs));
   }
 
+  template <typename Optional,
+            typename OptionalVT = std::remove_reference_t<Optional>,
+            typename std::enable_if<is_optional_v<OptionalVT>
+                                &&  std::is_same<flattened_optional_t<OptionalVT>,
+                                                 OptionalVT>::value>::type * = nullptr>
+  constexpr
+  OptionalVT
+  flatten (Optional&& opt)
+  {
+    return std::forward<Optional> (opt);
+  }
+
+  template <typename Optional,
+            typename OptionalVT = std::remove_reference_t<Optional>,
+            typename std::enable_if<is_optional_v<OptionalVT>
+                                &&! std::is_same<flattened_optional_t<OptionalVT>,
+                                                 OptionalVT>::value>::type * = nullptr>
+  constexpr
+  flattened_optional_t<OptionalVT>
+  flatten (Optional&& opt)
+  {
+    return std::forward<Optional> (opt) >>= [](auto&& o) { return flatten (o); };
+  }
+
+  static constexpr int zint = 6;
+
   constexpr inline
   void
   ffff (void)
@@ -991,6 +1065,14 @@ namespace gch
 
     static_assert (*(-x) == -4);
     static_assert (*(+(-x)) == -4);
+
+    constexpr const std::optional<const optional_ref<const int>> z { std::in_place, zint };
+
+    static_assert (std::is_same_v<const optional_ref<const int>, flattened_optional_t<decltype (z)>>);
+    static_assert (std::is_same_v<const optional_ref<const int>, decltype (flatten (z))>);
+    static_assert (flatten (z).has_value ());
+    static_assert (flatten (z) == zint);
+
   }
 
 }

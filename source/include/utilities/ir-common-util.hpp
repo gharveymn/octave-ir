@@ -40,18 +40,6 @@ namespace gch
   class ir_type;
 
   template <typename T>
-  constexpr
-  std::remove_const_t<T>&
-  as_mutable (T& ref)
-  {
-    return const_cast<std::remove_const_t<T>&> (ref);
-  }
-
-  template <typename T>
-  void
-  as_mutable (const T&&) = delete;
-
-  template <typename T>
   struct ir_printer
   {
     using ir_class = T;
@@ -126,40 +114,20 @@ namespace gch
     return std::invoke (std::forward<FalseFunction> (ff));
   }
 
-  template <typename T, typename Function>
-  struct selected
-  {
-    template <typename ...Args>
-    decltype (auto)
-    operator() (Args&&... args)
-    {
-      return std::invoke (m_func, std::get<T> (std::forward<Args> (args))...);
-    }
-    Function m_func;
-  };
-
-  template <typename T, typename Function>
-  selected<T, std::decay_t<Function>> make_selected (Function&& f)
-  {
-    return selected<T, std::decay_t<Function>> { std::forward<Function> (f) };
-  }
-
   template <typename Function>
   struct applied
   {
     template <typename Tuple>
-    decltype (auto) operator() (Tuple&& tup)
+    decltype (auto)
+    operator() (Tuple&& t)
     {
-      return std::apply (m_func, std::forward<Tuple> (tup));
+      return std::apply (m_func, std::forward<Tuple> (t));
     }
 
     Function m_func;
   };
 
   template <typename Function> applied (Function&&) -> applied<Function>;
-
-  template <typename ...Ts>
-  using ref_tuple = std::tuple<nonnull_ptr<Ts>...>;
 
   template <typename Value>
   class contiguous_read_iterator

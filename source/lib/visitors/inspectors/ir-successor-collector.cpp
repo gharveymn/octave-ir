@@ -16,6 +16,42 @@
 namespace gch
 {
 
+  template <>
+  auto
+  acceptor<ir_component_fork, ir_successor_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_loop, ir_successor_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_sequence, ir_successor_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_function, ir_successor_collector>::
+  accept (visitor_reference v) const
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
   auto
   ir_successor_collector::
   operator() (void) const
@@ -62,7 +98,7 @@ namespace gch
       case id::update:
         return { nonnull_ptr { as_mutable (loop.get_condition ()) } };
     }
-    ir_abort_impossible ();
+    abort::ir_impossible ();
   }
 
   auto

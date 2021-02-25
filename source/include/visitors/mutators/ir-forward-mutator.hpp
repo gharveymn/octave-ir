@@ -10,6 +10,7 @@
 
 #include "components/ir-component-fwd.hpp"
 #include "visitors/mutators/ir-subcomponent-mutator.hpp"
+#include "visitors/ir-visitor-fwd.hpp"
 
 #include <functional>
 
@@ -17,10 +18,14 @@ namespace gch
 {
 
   class ir_descending_forward_mutator
+    : visitor_traits<ir_descending_forward_mutator>
   {
   public:
-    template <typename, typename>
-    friend struct acceptor;
+    friend acceptor_type<ir_block>;
+    friend acceptor_type<ir_component_fork>;
+    friend acceptor_type<ir_component_loop>;
+    friend acceptor_type<ir_component_sequence>;
+    friend acceptor_type<ir_function>;
 
     using result_type  = bool;
     using functor_type = std::function<result_type (ir_block&)>;
@@ -79,11 +84,14 @@ namespace gch
   };
 
   class ir_ascending_forward_mutator
-    : protected ir_subcomponent_mutator
+    : public    visitor_traits<ir_ascending_forward_mutator>,
+      protected ir_subcomponent_mutator
   {
   public:
-    template <typename, typename>
-    friend struct acceptor;
+    friend acceptor_type<ir_component_fork>;
+    friend acceptor_type<ir_component_loop>;
+    friend acceptor_type<ir_component_sequence>;
+    friend acceptor_type<ir_function>;
 
     using result_type    = void;
     using descender_type = ir_descending_forward_mutator;

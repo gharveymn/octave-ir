@@ -8,27 +8,20 @@
 #ifndef OCTAVE_IR_IR_STRUCTURE_FLATTENER_HPP
 #define OCTAVE_IR_IR_STRUCTURE_FLATTENER_HPP
 
+#include "components/ir-component-fwd.hpp"
+#include "visitors/ir-visitor-fwd.hpp"
+
 namespace gch
 {
 
-  class ir_component;
-
-  class ir_subcomponent;
-  class ir_block;
-
-  class ir_structure;
-  class ir_function;
-
-  class ir_substructure;
-  class ir_component_fork;
-  class ir_component_loop;
-  class ir_component_sequence;
-
   class ir_structure_flattener
+    : public visitor_traits<ir_structure_flattener>
   {
     public:
-    template <typename, typename>
-    friend struct acceptor;
+    friend acceptor_type<ir_component_fork>;
+    friend acceptor_type<ir_component_loop>;
+    friend acceptor_type<ir_component_sequence>;
+    friend acceptor_type<ir_function>;
 
     ir_structure_flattener            (void)                              = default;
     ir_structure_flattener            (const ir_structure_flattener&)     = delete;
@@ -38,23 +31,23 @@ namespace gch
     ~ir_structure_flattener           (void)                              = default;
 
     void
-    operator() (ir_structure& s);
+    operator() (ir_structure& s) const;
 
   private:
     void
-    visit (ir_component_fork& fork);
+    visit (ir_component_fork& fork) const;
 
     void
-    visit (ir_component_loop& loop);
+    visit (ir_component_loop& loop) const;
 
     void
-    visit (ir_component_sequence& seq);
+    visit (ir_component_sequence& seq) const;
 
     void
-    visit (ir_function& func);
+    visit (ir_function& func) const;
 
     void
-    maybe_recurse (ir_subcomponent& sub);
+    maybe_recurse (ir_subcomponent& sub) const;
   };
 
   void

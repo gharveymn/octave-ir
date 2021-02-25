@@ -28,14 +28,16 @@ IF (CMAKE_CXX_COMPILER_ID
                        -Wno-zero-as-null-pointer-constant)
 
     LIST (APPEND
-          LINK_OPTS -Wl,--allow-multiple-definition
-                    --coverage)
+          LINK_OPTS --coverage)
 
   # Clang options
-  IF (CLANG_WITH_LIBCXX)
+  IF (GCH_USE_LIBCXX_WITH_CLANG)
 
     LIST (APPEND
           COMPILE_OPTS -stdlib=libc++)
+
+    LIST (APPEND
+          LINK_OPTS -Wl,--allow-multiple-definition)
 
     LIST (APPEND
           LINK_LIBS c++

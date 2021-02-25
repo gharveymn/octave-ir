@@ -17,16 +17,52 @@
 namespace gch
 {
 
+  template <>
+  auto
+  acceptor<ir_component_fork, ir_structure_flattener>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_loop, ir_structure_flattener>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_component_sequence, ir_structure_flattener>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
+  template <>
+  auto
+  acceptor<ir_function, ir_structure_flattener>::
+  accept (visitor_reference v)
+    -> result_type
+  {
+    return v.visit (static_cast<concrete_reference> (*this));
+  }
+
   void
   ir_structure_flattener::
-  operator() (ir_structure& s)
+  operator() (ir_structure& s) const
   {
     s.accept (*this);
   }
 
   void
   ir_structure_flattener::
-  visit (ir_component_fork& fork)
+  visit (ir_component_fork& fork) const
   {
     maybe_recurse (fork.get_condition ());
     std::for_each (fork.cases_begin (), fork.cases_end (),
@@ -35,7 +71,7 @@ namespace gch
 
   void
   ir_structure_flattener::
-  visit (ir_component_loop& loop)
+  visit (ir_component_loop& loop) const
   {
     maybe_recurse (loop.get_start ());
     maybe_recurse (loop.get_condition ());
@@ -45,21 +81,21 @@ namespace gch
 
   void
   ir_structure_flattener::
-  visit (ir_component_sequence& seq)
+  visit (ir_component_sequence& seq) const
   {
     seq.recursive_flatten ();
   }
 
   void
   ir_structure_flattener::
-  visit (ir_function& func)
+  visit (ir_function& func) const
   {
     maybe_recurse (func.get_body ());
   }
 
   void
   ir_structure_flattener::
-  maybe_recurse (ir_subcomponent& sub)
+  maybe_recurse (ir_subcomponent& sub) const
   {
     maybe_cast<ir_structure> (sub) >>= [this](ir_structure& s) { (*this) (s); };
   }

@@ -142,7 +142,9 @@ namespace gch
   struct ir_subcomponent_type_t;
 
   template <typename Component>
-  inline constexpr ir_subcomponent_type_t<Component> ir_subcomponent_type { };
+  inline constexpr
+  ir_subcomponent_type_t<Component>
+  ir_subcomponent_type { };
 
   [[nodiscard]]
   ir_function&
