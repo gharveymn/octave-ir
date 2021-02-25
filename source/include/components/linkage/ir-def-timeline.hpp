@@ -9,7 +9,6 @@
 #define OCTAVE_IR_IR_DEF_TIMELINE_HPP
 
 #include "components/linkage/ir-incoming-node.hpp"
-#include "components/ir-block-common.hpp"
 #include "values/ir-instruction-fwd.hpp"
 
 #include <gch/optional_ref.hpp>
@@ -54,9 +53,14 @@ namespace gch
   {
     using base = intrusive_tracker<ir_def_timeline, remote::intrusive_tracker<ir_incoming_node>>;
 
-  public:
-    using range = ir_instruction_range;
+    enum class range : std::size_t
+    {
+      all      = partition_base_index,
+      incoming = 0,
+      local    = 1
+    };
 
+  public:
     /* use-timelines */
 
     using use_timelines_list                    = list_partition<ir_use_timeline, 2>;
@@ -620,30 +624,24 @@ namespace gch
     optional_cref<ir_def>
     maybe_get_outgoing_def (void) const noexcept;
 
-    template <range R>
     void
-    splice (use_timelines_const_iterator pos, ir_def_timeline& other);
+    splice_local (use_timelines_const_iterator pos, ir_def_timeline& other);
 
-    template <range R>
     void
-    splice (use_timelines_const_iterator pos, ir_def_timeline& other,
-            use_timelines_const_iterator first, use_timelines_const_iterator last);
+    splice_local (use_timelines_const_iterator pos, ir_def_timeline& other,
+                  use_timelines_const_iterator first, use_timelines_const_iterator last);
 
-    template <range R>
     use_timelines_iterator
-    emplace_before (use_timelines_const_iterator pos, ir_instruction_iter instr_pos);
+    emplace_local (use_timelines_const_iterator pos, ir_instruction_iter instr_pos);
 
-    template <range R>
     ir_use_timeline&
-    emplace_back (ir_instruction_iter instr_pos);
+    emplace_back_local (ir_instruction_iter instr_pos);
 
-    template <range R>
     use_timelines_iterator
-    erase (use_timelines_const_iterator pos);
+    erase_local (use_timelines_const_iterator pos);
 
-    template <range R>
     use_timelines_iterator
-    erase (use_timelines_const_iterator first, use_timelines_const_iterator last);
+    erase_local (use_timelines_const_iterator first, use_timelines_const_iterator last);
 
     [[nodiscard]]
     intrusive_tracker<ir_use_timeline, remote::intrusive_reporter<ir_use>>::iterator

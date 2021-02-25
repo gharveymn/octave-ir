@@ -59,11 +59,14 @@ namespace gch
   ir_block::
   operator= (ir_block&& other) noexcept
   {
-    m_instr_partition = std::move (other.m_instr_partition);
-    m_def_timelines_map    = std::move (other.m_def_timelines_map);
+    m_instr_partition   = std::move (other.m_instr_partition);
+    m_def_timelines_map = std::move (other.m_def_timelines_map);
+
     std::for_each (selected<ir_def_timeline> (m_def_timelines_map.begin ()),
                    selected<ir_def_timeline> (m_def_timelines_map.end ()),
                    [this](ir_def_timeline& dt) { dt.set_block (*this); });
+
+    return *this;
   }
 
   ir_block&
@@ -714,7 +717,14 @@ namespace gch
     return std::prev (end<range::phi> ());
   }
 
-  // unsafe
+  auto
+  ir_block::
+  erase_phi (citer pos)
+    -> iter
+  {
+    return get<range::phi> ().erase (pos);
+  }
+
   auto
   ir_block::
   erase_phi (ir_variable& var)
@@ -725,10 +735,9 @@ namespace gch
                              {
                                return &instr.get_return ().get_variable () == &var;
                              });
-    // error checking
-    if (pos == get<range::phi> ().end ())
-      throw ir_exception ("tried to erase a nonexistent phi instruction");
-    return get<range::phi> ().erase (pos);
+
+    assert (pos != end<range::phi> ());
+    return erase_phi (pos);
   }
 
   ir_use_timeline

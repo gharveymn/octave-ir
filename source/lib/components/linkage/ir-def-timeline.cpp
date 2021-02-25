@@ -8,8 +8,6 @@
 #include "components/linkage/ir-def-timeline.hpp"
 
 #include "components/ir-block.hpp"
-#include "utilities/ir-error.hpp"
-#include "values/ir-instruction.hpp"
 
 namespace gch
 {
@@ -62,88 +60,51 @@ namespace gch
     return *this;
   }
 
-  template <>
   void
   ir_def_timeline::
-  splice<ir_instruction_range::phi> (uts_citer, ir_def_timeline&) = delete;
-
-  template <>
-  void
-  ir_def_timeline::
-  splice<ir_instruction_range::body> (uts_citer pos, ir_def_timeline& other)
+  splice_local (uts_citer pos, ir_def_timeline& other)
   {
-    get_use_timelines<range::body> ().splice (pos, other.get_use_timelines<range::body> ());
+    get_use_timelines<range::local> ().splice (pos, other.get_use_timelines<range::local> ());
   }
 
-  template <>
   void
   ir_def_timeline::
-  splice<ir_instruction_range::phi> (uts_citer, ir_def_timeline&, uts_citer, uts_citer) = delete;
-
-  template <>
-  void
-  ir_def_timeline::
-  splice<ir_instruction_range::body> (uts_citer pos, ir_def_timeline& other,
+  splice_local (uts_citer pos, ir_def_timeline& other,
                                       uts_citer first, uts_citer last)
   {
-    get_use_timelines<range::body> ().splice (pos, other.get_use_timelines<range::body> (),
-                                              first, last);
+    get_use_timelines<range::local> ().splice (pos, other.get_use_timelines<range::local> (),
+                                               first, last);
   }
 
-  template <>
   auto
   ir_def_timeline::
-  emplace_before<ir_instruction_range::phi> (uts_citer, ir_instruction_iter) -> uts_iter = delete;
-
-  template <>
-  auto
-  ir_def_timeline::
-  emplace_before<ir_instruction_range::body> (const uts_citer pos,
-                                              const ir_instruction_iter instr_pos)
+  emplace_local (const uts_citer pos, const ir_instruction_iter instr_pos)
     -> uts_iter
   {
-    return get_use_timelines<range::body> ().emplace (pos, instr_pos);
+    return get_use_timelines<range::local> ().emplace (pos, instr_pos);
   }
 
-  template <>
   ir_use_timeline&
   ir_def_timeline::
-  emplace_back<ir_instruction_range::phi> (ir_instruction_iter) = delete;
-
-  template <>
-  ir_use_timeline&
-  ir_def_timeline::
-  emplace_back<ir_instruction_range::body> (const ir_instruction_iter instructions_pos)
+  emplace_back_local (const ir_instruction_iter instructions_pos)
   {
-    return get_use_timelines<range::body> ().emplace_back (instructions_pos);
+    return get_use_timelines<range::local> ().emplace_back (instructions_pos);
   }
 
-  template <>
   auto
   ir_def_timeline::
-  erase<ir_instruction_range::phi> (uts_citer) -> uts_iter = delete;
-
-  template <>
-  auto
-  ir_def_timeline::
-  erase<ir_instruction_range::body> (uts_citer pos)
+  erase_local (uts_citer pos)
     -> uts_iter
   {
-    return get_use_timelines<range::body> ().erase (pos);
+    return get_use_timelines<range::local> ().erase (pos);
   }
 
-  template <>
   auto
   ir_def_timeline::
-  erase<ir_instruction_range::phi> (uts_citer, uts_citer) -> uts_iter = delete;
-
-  template <>
-  auto
-  ir_def_timeline::
-  erase<ir_instruction_range::body> (const uts_citer first, const uts_citer last)
+  erase_local (const uts_citer first, const uts_citer last)
     -> uts_iter
   {
-    return get_use_timelines<range::body> ().erase (first, last);
+    return get_use_timelines<range::local> ().erase (first, last);
   }
 
   void
@@ -224,9 +185,9 @@ namespace gch
   ir_def_timeline::
   instructions_end (uts_iter pos) const noexcept
   {
-    if (pos != use_timelines_cend<range::body> ())
+    if (pos != local_end ())
       return std::next (pos)->get_def_pos ();
-    return m_block->end<range::body> ();
+    return m_block->end<ir_block::range::body> ();
   }
 
   [[nodiscard]]
@@ -234,9 +195,9 @@ namespace gch
   ir_def_timeline::
   instructions_end (uts_citer pos) const noexcept
   {
-    if (pos != use_timelines_cend<range::body> ())
+    if (pos != local_end ())
       return std::next (pos)->get_def_pos ();
-    return m_block->cend<range::body> ();
+    return m_block->cend<ir_block::range::body> ();
   }
 
   [[nodiscard]]
@@ -375,28 +336,28 @@ namespace gch
   ir_def_timeline::
   has_timelines (void) const noexcept
   {
-    return ! use_timelines_empty<range::all> ();
+    return ! use_timelines_empty ();
   }
 
   bool
   ir_def_timeline::
   has_incoming_timeline (void) const noexcept
   {
-    return ! use_timelines_empty<range::phi> ();
+    return ! get_use_timelines<range::incoming> ().empty ();
   }
 
   bool
   ir_def_timeline::
   has_local_timelines (void) const noexcept
   {
-    return ! use_timelines_empty<range::body> ();
+    return ! local_empty ();
   }
 
   ir_use_timeline&
   ir_def_timeline::
   get_incoming_timeline (void) noexcept
   {
-    return use_timelines_front<range::phi> ();
+    return get_use_timelines<range::incoming> ().front ();
   }
 
   const ir_use_timeline&
@@ -441,14 +402,14 @@ namespace gch
   ir_def_timeline::
   has_outgoing_timeline (void) const noexcept
   {
-    return ! use_timelines_empty<range::all> ();
+    return has_timelines ();
   }
 
   ir_use_timeline&
   ir_def_timeline::
   get_outgoing_timeline (void) noexcept
   {
-    return use_timelines_back<range::all> ();
+    return use_timelines_back ();
   }
 
   const ir_use_timeline&
@@ -542,10 +503,11 @@ namespace gch
   ir_def_timeline::
   create_incoming_timeline (void)
   {
+    assert (! has_incoming_timeline ());
     ir_instruction_iter phi_it = m_block->create_phi (*m_var);
     try
     {
-      return get_use_timelines<range::phi> ().emplace_front (phi_it);
+      return get_use_timelines<range::incoming> ().emplace_front (phi_it);
     }
     catch (...)
     {
@@ -558,10 +520,12 @@ namespace gch
   ir_def_timeline::
   destroy_incoming_timeline (void)
   {
-    if (use_timelines_empty<range::phi> ())
-      throw ir_exception ("could not find phi in def timeline");
-    get_use_timelines<range::phi> ().clear ();
-    m_block->erase_phi (*m_var);
+    assert (has_incoming_timeline ());
+
+    ir_instruction_iter phi_it = get_incoming_timeline ().get_def_pos ();
+
+    get_use_timelines<range::incoming> ().clear ();
+    m_block->erase_phi (phi_it);
   }
 
 }

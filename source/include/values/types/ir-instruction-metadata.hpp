@@ -8,8 +8,10 @@
 #ifndef OCTAVE_IR_IR_INSTRUCTION_METADATA_HPP
 #define OCTAVE_IR_IR_INSTRUCTION_METADATA_HPP
 
+#include "utilities/ir-common.hpp"
+#include "utilities/ir-functional.hpp"
+
 #include <array>
-#include <type_traits>
 
 namespace gch
 {
@@ -95,14 +97,14 @@ namespace gch
       const abstract  m_abstract;
     };
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     returning
     returning_state (void) const noexcept
     {
       return m_ptr->m_returning;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     abstract
     abstract_state (void) const noexcept
     {
@@ -125,102 +127,102 @@ namespace gch
     ir_instruction_metadata& operator= (ir_instruction_metadata&&) noexcept = default;
     ~ir_instruction_metadata           (void)                               = default;
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     const char *
     get_name (void) const noexcept
     {
       return m_ptr->m_name;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     ir_instruction_metadata
     get_base (void) const noexcept
     {
       return *m_ptr->m_base;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     ir_opcode
     get_opcode (void) const noexcept
     {
       return m_ptr->m_opcode;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     arity
     get_arity (void) const noexcept
     {
       return m_ptr->m_arity;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     will_return (void) const noexcept
     {
       return returning_state () == returning::yes;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_abstract (void) const noexcept
     {
       return abstract_state () == abstract::yes;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     has_base (void) const noexcept
     {
       return m_ptr->m_base != nullptr;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_n_ary (void) const noexcept
     {
       return get_arity () == arity::n_ary;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_nullary (void) const noexcept
     {
       return get_arity () == arity::nullary;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_unary (void) const noexcept
     {
       return get_arity () == arity::unary;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_binary (void) const noexcept
     {
       return get_arity () == arity::binary;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_ternary (void) const noexcept
     {
       return get_arity () == arity::ternary;
     }
 
-    friend constexpr
+    friend GCH_CPP20_CONSTEVAL
     bool
     operator== (const ir_instruction_metadata& lhs, const ir_instruction_metadata& rhs) noexcept;
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_a (ir_instruction_metadata cmp) const noexcept
     {
       return (cmp == *this) || (has_base () && get_base ().is_a (cmp));
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_base_of (ir_instruction_metadata cmp) const noexcept
     {
@@ -229,7 +231,7 @@ namespace gch
 
     template <ir_opcode Op>
     [[nodiscard]]
-    static constexpr
+    static GCH_CPP20_CONSTEVAL
     ir_instruction_metadata
     get (void) noexcept
     {
@@ -243,7 +245,7 @@ namespace gch
   private:
     struct identity_projection
     {
-      constexpr
+      GCH_CPP20_CONSTEVAL
       ir_instruction_metadata
       operator() (ir_instruction_metadata m) const noexcept
       {
@@ -257,20 +259,20 @@ namespace gch
   public:
     template <typename Projection = identity_projection>
     [[nodiscard]]
-    static constexpr
+    static GCH_CPP20_CONSTEVAL
     std::array<std::invoke_result_t<Projection, ir_instruction_metadata>, num_opcodes>
     generate_array (Projection proj = { }) noexcept;
 
   private:
     [[nodiscard]]
-    static constexpr
+    static GCH_CPP20_CONSTEVAL
     impl
     create_type (const char* name, ir_opcode Op, returning ret, arity n, abstract abs) noexcept
     {
       return { name, nullptr, Op, n, ret, abs };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     impl
     derive (const char* name, ir_opcode Op, returning ret,
             abstract abs = abstract::no) const noexcept
@@ -278,7 +280,7 @@ namespace gch
       return { name, m_ptr, Op, get_arity (), ret, abs };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     impl
     derive (const char* name, ir_opcode Op, returning ret, arity n,
             abstract abs = abstract::no) const noexcept
@@ -286,14 +288,14 @@ namespace gch
       return { name, m_ptr, Op, n, ret, abs };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     impl
     derive (const char* name, ir_opcode Op, arity n, abstract abs = abstract::no) const noexcept
     {
       return { name, m_ptr, Op, n, returning_state (), abs };
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     impl
     derive (const char* name, ir_opcode Op, abstract abs = abstract::no) const noexcept
     {
@@ -306,35 +308,19 @@ namespace gch
   template <std::size_t ...Indices>
   struct ir_instruction_metadata::array_generator<std::index_sequence<Indices...>>
   {
-
     static_assert (sizeof...(Indices) == num_opcodes);
 
-    template <typename Result>
-    constexpr
-    std::array<Result, num_opcodes>
-    operator() (Result (ir_instruction_metadata::* proj) (void) const noexcept) const noexcept
-    {
-      return { (get<static_cast<ir_opcode> (Indices)> ().*proj) ()... };
-    }
-
     template <typename Projection>
-    constexpr
+    GCH_CPP20_CONSTEVAL
     std::array<std::invoke_result_t<Projection, ir_instruction_metadata>, num_opcodes>
     operator() (Projection proj) const noexcept
     {
-      return { proj (get<static_cast<ir_opcode> (Indices)> ())... };
-    }
-
-    constexpr
-    std::array<ir_instruction_metadata, num_opcodes>
-    operator() (void) const noexcept
-    {
-      return { get<static_cast<ir_opcode> (Indices)> ()... };
+      return { invoke (proj, get<static_cast<ir_opcode> (Indices)> ())... };
     }
   };
 
   template <typename Projection>
-  constexpr
+  GCH_CPP20_CONSTEVAL
   auto
   ir_instruction_metadata::
   generate_array (Projection proj) noexcept
@@ -343,14 +329,14 @@ namespace gch
     return array_generator<std::make_index_sequence<num_opcodes>> { } (proj);
   }
 
-  [[nodiscard]] constexpr
+  [[nodiscard]] GCH_CPP20_CONSTEVAL
   bool
   operator== (const ir_instruction_metadata& lhs, const ir_instruction_metadata& rhs) noexcept
   {
     return lhs.m_ptr == rhs.m_ptr;
   }
 
-  [[nodiscard]] constexpr
+  [[nodiscard]] GCH_CPP20_CONSTEVAL
   bool
   operator!= (const ir_instruction_metadata& lhs, const ir_instruction_metadata& rhs) noexcept
   {
@@ -736,7 +722,7 @@ namespace gch
   ir_instruction_metadata
   ir_instruction_metadata_v = ir_instruction_metadata::get<Op> ();
 
-  constexpr
+  GCH_CPP20_CONSTEVAL
   ir_instruction_metadata
   get_metadata (ir_opcode op)
   {

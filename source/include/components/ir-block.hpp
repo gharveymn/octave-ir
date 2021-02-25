@@ -27,10 +27,13 @@ along with Octave; see the file COPYING.  If not, see
 #include "components/linkage/ir-def-timeline.hpp"
 #include "components/ir-block-common.hpp"
 #include "components/ir-component.hpp"
+
 #include "utilities/ir-allocator-util.hpp"
 #include "utilities/ir-common-util.hpp"
+
 #include "values/types/ir-type.hpp"
 #include "values/ir-instruction.hpp"
+#include "values/ir-instruction-fwd.hpp"
 #include "values/ir-constant.hpp"
 
 #include <gch/tracker.hpp>
@@ -63,16 +66,36 @@ namespace gch
       public visitable<ir_block, ir_component_visitors>
   {
   public:
-    using instruction_container = std::list<ir_instruction>;
+    using container_type          = ir_instruction_container;
+    using value_type              = container_type::value_type;
+    using allocator_type          = container_type::allocator_type;
+    using size_type               = container_type::size_type;
+    using difference_type         = container_type::difference_type;
+    using reference               = container_type::reference;
+    using const_reference         = container_type::const_reference;
+    using pointer                 = container_type::pointer;
+    using const_pointer           = container_type::const_pointer;
 
-    using iter   = instruction_container::iterator;
-    using citer  = instruction_container::const_iterator;
-    using riter  = instruction_container::reverse_iterator;
-    using criter = instruction_container::const_reverse_iterator;
-    using ref    = instruction_container::reference;
-    using cref   = instruction_container::const_reference;
-    using size_t = instruction_container::size_type;
-    using diff_t = instruction_container::difference_type;
+    using iterator                = container_type::iterator;
+    using const_iterator          = container_type::const_iterator;
+    using reverse_iterator        = container_type::reverse_iterator;
+    using const_reverse_iterator  = container_type::const_reverse_iterator;
+
+    using val_t   = value_type;
+    using alloc_t = allocator_type;
+    using size_ty = size_type;
+    using diff_ty = difference_type;
+    using ref     = reference;
+    using cref    = const_reference;
+    using ptr     = pointer;
+    using cptr    = const_pointer;
+
+    using iter    = iterator;
+    using citer   = const_iterator;
+    using riter   = reverse_iterator;
+    using criter  = const_reverse_iterator;
+
+    using instruction_container = as_list_partition_t<container_type, 2>;
 
     using dt_map_type            = std::unordered_map<const ir_variable *, ir_def_timeline>;
     using dt_map_value_type      = typename dt_map_type::value_type;
@@ -270,6 +293,9 @@ namespace gch
 
     // unsafe
     iter
+    erase_phi (ir_instruction_citer pos);
+
+    iter
     erase_phi (ir_variable& var);
 
     ir_block&
@@ -428,8 +454,8 @@ namespace gch
     }
 
   private:
-    list_partition<ir_instruction, 2> m_instr_partition;
-    dt_map_type                       m_def_timelines_map;
+    instruction_container m_instr_partition;
+    dt_map_type           m_def_timelines_map;
   };
 
   class ir_condition_block

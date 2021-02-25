@@ -8,7 +8,7 @@
 #ifndef OCTAVE_IR_IR_LINK_SET_HPP
 #define OCTAVE_IR_IR_LINK_SET_HPP
 
-#include "utilities/ir-common.hpp"
+#include "utilities/ir-type-traits.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 #include <gch/small_vector.hpp>

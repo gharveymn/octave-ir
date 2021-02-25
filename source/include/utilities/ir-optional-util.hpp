@@ -8,6 +8,8 @@
 #ifndef OCTAVE_IR_IR_OPTIONAL_UTIL_HPP
 #define OCTAVE_IR_IR_OPTIONAL_UTIL_HPP
 
+#include "utilities/ir-functional.hpp"
+
 #include <gch/optional_ref.hpp>
 
 #include <optional>
@@ -205,72 +207,6 @@ namespace gch
   namespace detail
   {
 
-    template <typename Optional, typename Type, typename Base, typename ...Args>
-    constexpr
-    auto
-    maybe_invoke_impl (Optional&& opt, Type Base::* f, Args&&... args)
-      -> std::enable_if_t<
-               std::is_member_function_pointer_v<decltype (f)>
-           &&  std::is_object_v<
-                 std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>
-           &&  std::is_default_constructible_v<
-                 std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>,
-               std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>
-    {
-      using ret_type = std::invoke_result_t<decltype (f), just_t<Optional>, Args...>;
-      return opt ? ((*std::forward<Optional> (opt)).*f) (std::forward<Args> (args)...)
-                 : ret_type ();
-    }
-
-    template <typename Optional, typename Type, typename Base, typename ...Args>
-    constexpr
-    auto
-    maybe_invoke_impl (Optional&& opt, Type Base::* f, Args&&... args)
-      -> std::enable_if_t<
-               std::is_member_function_pointer_v<decltype (f)>
-           &&! std::is_object_v<
-                 std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>
-           &&  std::is_lvalue_reference_v<
-                 std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>,
-           optional_ref<std::remove_reference_t<
-             std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>>>
-    {
-      using ref = std::invoke_result_t<decltype (f), just_t<Optional>, Args...>;
-      using ret_type = optional_ref<typename std::remove_reference<ref>::type>;
-      return opt ? ret_type (((*std::forward<Optional> (opt)).*f) (std::forward<Args> (args)...))
-                 : ret_type ();
-    }
-
-    template <typename Optional, typename Type, typename Base, typename ...Args>
-    constexpr
-    auto
-    maybe_invoke_impl (Optional&& opt, Type Base::* f, Args&&... args)
-      -> std::enable_if_t<
-               std::is_member_function_pointer_v<decltype (f)>
-           &&! std::is_object_v<
-                 std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>
-           &&! std::is_lvalue_reference_v<
-                 std::invoke_result_t<decltype (f), just_t<Optional>, Args...>>,
-               void>
-    {
-      if (opt)
-        ((*std::forward<Optional> (opt)).*f) (std::forward<Args> (args)...);
-    }
-
-    template <typename Optional, typename Type, typename Base>
-    constexpr
-    auto
-    maybe_invoke_impl (Optional&& opt, Type Base::* m)
-      noexcept (noexcept ((*std::forward<Optional> (opt)).*m))
-      -> typename std::enable_if<std::is_member_object_pointer<decltype (m)>::value,
-                                 optional_ref<typename std::remove_reference<decltype (
-                                   (*std::forward<Optional> (opt)).*m)>::type>>::type
-    {
-      using ref = decltype ((*std::forward<Optional> (opt)).*m);
-      using ret_type = optional_ref<typename std::remove_reference<ref>::type>;
-      return opt ? ret_type ((*std::forward<Optional> (opt)).*m) : ret_type ();
-    }
-
     template <typename Optional, typename Functor, typename ...Args>
     constexpr
     auto
@@ -283,8 +219,8 @@ namespace gch
                std::invoke_result_t<Functor, just_t<Optional>, Args...>>
     {
       using ret_type = std::invoke_result_t<Functor, just_t<Optional>, Args...>;
-      return opt ? std::forward<Functor> (f) (*std::forward<Optional> (opt),
-                                              std::forward<Args> (args)...)
+      return opt ? gch::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
+                                std::forward<Args> (args)...)
                  : ret_type ();
     }
 
@@ -302,8 +238,8 @@ namespace gch
     {
       using ret_type = optional_ref<std::remove_reference_t<
         std::invoke_result_t<Functor, just_t<Optional>, Args...>>>;
-      return opt ? ret_type (std::forward<Functor> (f) (*std::forward<Optional> (opt),
-                                                        std::forward<Args> (args)...))
+      return opt ? ret_type (gch::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
+                                          std::forward<Args> (args)...))
                  : ret_type ();
     }
 
@@ -319,7 +255,8 @@ namespace gch
                void>
     {
       if (opt)
-        std::forward<Functor> (f) (*std::forward<Optional> (opt), std::forward<Args> (args)...);
+        gch::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
+                     std::forward<Args> (args)...);
     }
 
     template <typename Void, typename Optional, typename Functor, typename ...Args>

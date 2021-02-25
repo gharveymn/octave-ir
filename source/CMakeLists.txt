@@ -119,8 +119,8 @@ CREATE_PACKAGE (AUTHOR             gharveymn
 
 SET_TARGET_PROPERTIES (octave-ir.c++17
                        PROPERTIES CXX_STANDARD          17
-                                  CXX_STANDARD_REQUIRED YES
-                                  CXX_EXTENSIONS         NO)
+                                  CXX_STANDARD_REQUIRED NO
+                                  CXX_EXTENSIONS        NO)
 
 CREATE_PACKAGE (AUTHOR             gharveymn
                 NAME               octave-ir.c++20
@@ -137,8 +137,8 @@ CREATE_PACKAGE (AUTHOR             gharveymn
 
 SET_TARGET_PROPERTIES (octave-ir.c++20
                        PROPERTIES CXX_STANDARD          20
-                                  CXX_STANDARD_REQUIRED YES
-                                  CXX_EXTENSIONS         NO)
+                                  CXX_STANDARD_REQUIRED NO
+                                  CXX_EXTENSIONS        NO)
 
 # Only include tests if we are at the top level
 IF (OCTAVE_IR_BUILD_TESTS)

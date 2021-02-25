@@ -8,8 +8,6 @@
 #include "visitors/inspectors/ir-leaf-collector.hpp"
 
 #include "components/ir-block.hpp"
-#include "components/ir-component.hpp"
-#include "components/ir-structure.hpp"
 #include "components/ir-component-fork.hpp"
 #include "components/ir-component-loop.hpp"
 #include "components/ir-component-sequence.hpp"

@@ -30,7 +30,7 @@ namespace gch
 
   enum class ir_instruction_range : std::size_t
   {
-    all  = base_subrange_index,
+    all  = partition_base_index,
     phi  = 0,
     body = 1
   };
