@@ -243,12 +243,14 @@ namespace gch
     using abstract_acceptor<Visitor>::accept;
   };
 
+  template <>
+  struct abstract_visitable<visitor_types<>>
+  { };
+
   template <typename ...VisitorSubTypes>
   struct abstract_visitable<visitor_types<VisitorSubTypes...>>
     : abstract_visitable<VisitorSubTypes>...
-  {
-    using abstract_visitable<VisitorSubTypes>::accept...;
-  };
+  { };
 
   //
   // visitable
@@ -294,12 +296,14 @@ namespace gch
     using acceptor<Derived, Visitor>::accept;
   };
 
+  template <typename Derived>
+  struct visitable<Derived, visitor_types<>>
+  { };
+
   template <typename Derived, typename ...VisitorSubTypes>
   struct visitable<Derived, visitor_types<VisitorSubTypes...>>
     : visitable<Derived, VisitorSubTypes>...
-  {
-    using visitable<Derived, VisitorSubTypes>::accept...;
-  };
+  { };
 
 }
 

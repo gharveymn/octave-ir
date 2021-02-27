@@ -39,6 +39,41 @@ namespace gch
     using acceptor_type = acceptor<Concrete, Visitor, void>;
   };
 
+  template <typename Component>
+  struct abstract_visitors
+  {
+    using type = visitor_types<>;
+  };
+
+  template <typename Component>
+  using abstract_visitors_t = typename abstract_visitors<Component>::type;
+
+  template <typename ...Components>
+  struct implemented_visitors;
+
+  template <typename ...Components>
+  using implemented_visitors_t = typename implemented_visitors<Components...>::type;
+
+  template <typename ...Components>
+  struct implemented_visitors
+  {
+    using type = pack_unique_t<pack_flatten_t<pack_concatenate_t<
+      typename implemented_visitors<Components>::type...>>>;
+  };
+
+  template <typename Component>
+  struct implemented_visitors<Component>
+    : abstract_visitors<Component>
+  { };
+
+  template <typename Component, typename ...BaseComponents>
+  struct merged_base_visitors
+  {
+    using type = pack_unique_t<pack_flatten_t<pack_concatenate_t<
+      abstract_visitors_t<Component>,
+      implemented_visitors_t<BaseComponents>...>>>;
+  };
+
   //
   // component visitors
   //
@@ -103,8 +138,54 @@ namespace gch
 
   /* ir_component_visitors */
 
-  using ir_component_visitors = visitor_types<component_inspector_types,
-                                              component_mutator_types>;
+  template <>
+  struct abstract_visitors<ir_component>
+  {
+    using type = visitor_types<component_inspector_types,
+                               component_mutator_types>;
+  };
+
+  using ir_component_visitors_exclusive = visitor_types<component_inspector_types,
+                                                        component_mutator_types>;
+
+  //
+  // subcomponent visitors
+  //
+
+  /* ir_block_counter */
+
+  class ir_block_counter;
+  template <>
+  struct visitor_traits<ir_block_counter>
+    : acceptor_trait<ir_block_counter>
+  {
+    using result_type      = std::size_t;
+    using visitor_category = const_inspector_tag;
+  };
+
+  /* subcomponent_inspector_types */
+
+  using subcomponent_inspector_types = visitor_types<ir_block_counter>;
+
+  /* subcomponent_mutator_types */
+
+  using subcomponent_mutator_types = visitor_types<>;
+
+  template <>
+  struct abstract_visitors<ir_subcomponent>
+  {
+    using type = visitor_types<subcomponent_inspector_types,
+                               subcomponent_mutator_types>;
+  };
+
+  template <>
+  struct implemented_visitors<ir_subcomponent>
+    : merged_base_visitors<ir_subcomponent, ir_component>
+  { };
+
+  // aggregate
+  using ir_subcomponent_visitors_exclusive = visitor_types<subcomponent_inspector_types,
+                                                           subcomponent_mutator_types>;
 
   //
   // structure visitors
@@ -119,8 +200,6 @@ namespace gch
     using visitor_category = const_inspector_tag;
   };
 
-  using structure_inspector_types = visitor_types<ir_entry_collector>;
-
   /* ir_predecessor_collector */
 
   class ir_predecessor_collector;
@@ -131,7 +210,6 @@ namespace gch
     using result_type      = ir_link_set<ir_block>;
     using visitor_category = const_inspector_tag;
   };
-
 
   /* ir_successor_collector */
 
@@ -155,12 +233,12 @@ namespace gch
     using visitor_category = const_inspector_tag;
   };
 
+  /* structure_inspector_types */
 
-  /* subcomponent_inspector_types */
-
-  using subcomponent_inspector_types = visitor_types<ir_predecessor_collector,
-                                                     ir_successor_collector,
-                                                     ir_leaf_inspector>;
+  using structure_inspector_types = visitor_types<ir_entry_collector,
+                                                  ir_predecessor_collector,
+                                                  ir_successor_collector,
+                                                  ir_leaf_inspector>;
 
   /* ir_structure_flattener */
 
@@ -172,10 +250,6 @@ namespace gch
     using result_type      = void;
     using visitor_category = const_mutator_tag;
   };
-
-  /* structure_mutator_types */
-
-  using structure_mutator_types = visitor_types<ir_structure_flattener>;
 
   /* ir_ascending_def_resolution_builder */
 
@@ -210,18 +284,38 @@ namespace gch
     using visitor_category = const_mutator_tag;
   };
 
-  /* subcomponent_mutator_types */
+  /* structure_mutator_types */
 
-  using subcomponent_mutator_types = visitor_types<ir_ascending_def_resolution_builder,
-                                                   ir_ascending_forward_mutator,
-                                                   ir_ascending_def_propagator>;
+  using structure_mutator_types = visitor_types<ir_structure_flattener,
+                                                ir_ascending_def_resolution_builder,
+                                                ir_ascending_forward_mutator,
+                                                ir_ascending_def_propagator>;
+
+  template <>
+  struct abstract_visitors<ir_structure>
+  {
+    using type = visitor_types<structure_inspector_types,
+                               structure_mutator_types>;
+  };
 
   // aggregate
-  using ir_structure_visitors = visitor_types<ir_component_visitors,
-                                              structure_inspector_types,
-                                              subcomponent_inspector_types,
-                                              structure_mutator_types,
-                                              subcomponent_mutator_types>;
+  using ir_structure_visitors_exclusive = visitor_types<structure_inspector_types,
+                                                        structure_mutator_types>;
+
+  //
+  // substructure visitors
+  //
+
+  template <>
+  struct abstract_visitors<ir_substructure>
+  {
+    using type = visitor_types<>;
+  };
+
+  template <>
+  struct implemented_visitors<ir_substructure>
+    : merged_base_visitors<ir_substructure, ir_structure, ir_subcomponent>
+  { };
 
 }
 

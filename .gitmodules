@@ -34,3 +34,7 @@
 	path = external/small_vector
 	url = git@github.com:gharveymn/small_vector.git
 	branch = main
+[submodule "external/doctest"]
+	path = external/doctest
+	url = git@github.com:onqtam/doctest.git
+	branch = master

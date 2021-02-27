@@ -15,17 +15,9 @@
 namespace gch
 {
 
-  class ir_component_fork;
-
-  template <>
-  struct ir_subcomponent_type_t<ir_component_fork>
-  {
-    explicit ir_subcomponent_type_t (void) = default;
-  };
-
   class ir_component_fork
     : public ir_substructure,
-      public visitable<ir_component_fork, ir_structure_visitors>
+      public visitable<ir_component_fork, implemented_visitors_t<ir_substructure>>
   {
   public:
     using cases_container = std::vector<ir_component_storage>;

@@ -14,145 +14,335 @@
 namespace gch
 {
 
-  namespace detail
-  {
-
-    template <typename T, typename ...Ts>
-    struct all_same : std::conjunction<std::is_same<T, Ts>...>
-    { };
-
-    template <std::size_t I, typename T, typename ...Ts>
-    struct pack_select
-      : pack_select<I - 1, Ts...>
-    { };
-
-    template <typename T, typename ...Ts>
-    struct pack_select<0, T, Ts...>
-    {
-      using type = T;
-    };
-
-    template <std::size_t I, typename T, typename Head, typename ...Tail>
-    struct pack_index : detail::pack_index<I + 1, T, Tail...>
-    { };
-
-    template <std::size_t I, typename T, typename ...Rest>
-    struct pack_index<I, T, T, Rest...>
-      : std::integral_constant<std::size_t, I>
-    { };
-
-    template <std::size_t I, typename T>
-    struct pack_index<I, T, T>
-      : std::integral_constant<std::size_t, I>
-    { };
-
-    template <std::size_t I, typename T, typename U>
-    struct pack_index<I, T, U>
-    { };
-
-    template <typename T, typename = void, typename ...Ts>
-    struct pack_contains : std::false_type
-    { };
-
-    template <typename T, typename ...Ts>
-    struct pack_contains<T, std::void_t<typename pack_index<0, T, Ts...>::type>, Ts...>
-      : std::true_type
-    { };
-
-    template <typename ...Packs>
-    struct pack_concatenate;
-
-    template <typename Pack>
-    struct pack_concatenate<Pack>
-    {
-      using type = Pack;
-    };
-
-    template <template <typename ...> typename PackT,
-              typename ...LHS, typename ...RHS, typename ...Rest>
-    struct pack_concatenate<PackT<LHS...>, PackT<RHS...>, Rest...>
-      : pack_concatenate<PackT<LHS..., RHS...>, Rest...>
-    { };
-
-    template <typename It, typename = void>
-    struct is_iterator : std::false_type
-    { };
-
-    template <typename It>
-    struct is_iterator<It, std::void_t<typename std::iterator_traits<It>::value_type>>
-      : std::true_type
-    { };
-
-  }
+  template <typename ...Ts>
+  struct type_pack
+  { };
 
   template <typename ...Ts>
-  struct all_same
-    : detail::all_same<Ts...>
-  { };
-
-  template <std::size_t I, typename ...Ts>
-  struct pack_select_type
-    : detail::pack_select<I, Ts...>
-  { };
-
-  template <typename T, typename ...Ts>
-  struct pack_index
-    : detail::pack_index<0, T, Ts...>
-  { };
-
-
-  template <typename T, typename ...Ts>
-  struct pack_contains
-    : detail::pack_contains<T, void, Ts...>
-  { };
-
-  template <typename ...Packs>
-  struct pack_concatenate
-    : detail::pack_concatenate<Packs...>
-  { };
-
-  template <typename ...Packs>
-  using pack_concatenate_t = typename pack_concatenate<Packs...>::type;
-
-  static_assert (std::is_same_v<std::tuple<int, long>,
-                                pack_concatenate_t<std::tuple<int, long>>>);
-
-  static_assert (std::is_same_v<std::tuple<int, long, char, short>,
-                                pack_concatenate_t<std::tuple<int, long>,
-                                                          std::tuple<char, short>>>);
-
-  static_assert (std::is_same_v<std::tuple<int, long, char, short, bool, int>,
-                                pack_concatenate_t<std::tuple<int, long>,
-                                                          std::tuple<char, short>,
-                                                          std::tuple<bool, int>>>);
-
-  template <typename It>
-  struct is_iterator
-    : detail::is_iterator<It>
-  { };
-
-  template <std::size_t I, typename ...Ts>
-  using pack_select_t = typename pack_select_type<I, Ts...>::type;
+  struct all_same;
 
   template <typename ...Ts>
   inline constexpr
   bool
   all_same_v = all_same<Ts...>::value;
 
-  template <typename T, typename ...Ts>
-  inline constexpr
-  std::size_t
-  pack_index_v = pack_index<T, Ts...>::value;
-
-  template <typename T, typename ...Ts>
-  inline constexpr
-  std::size_t
-  pack_contains_v = pack_contains<T, Ts...>::value;
+  template <typename It>
+  struct is_iterator;
 
   template <typename It>
   inline constexpr
   bool
   is_iterator_v = is_iterator<It>::value;
+
+  template <typename Pack>
+  struct is_type_pack;
+
+  template <typename Pack>
+  inline constexpr
+  bool
+  is_type_pack_v = is_type_pack<Pack>::value;
+
+  template <typename Pack>
+  struct pack_size;
+
+  template <typename Pack>
+  inline constexpr bool pack_size_v = pack_size<Pack>::value;
+
+  template <typename Pack>
+  struct pack_empty;
+
+  template <typename Pack>
+  inline constexpr bool pack_empty_v = pack_empty<Pack>::value;
+
+  template <std::size_t I, typename ...Ts>
+  struct pack_select_type;
+
+  template <std::size_t I, typename ...Ts>
+  using pack_select_t = typename pack_select_type<I, Ts...>::type;
+
+  template <typename T, typename Pack>
+  struct pack_index;
+
+  template <typename T, typename Pack>
+  inline constexpr
+  std::size_t
+  pack_index_v = pack_index<T, Pack>::value;
+
+  template <typename T,  typename Pack>
+  struct pack_contains;
+
+  template <typename T, typename Pack>
+  inline constexpr
+  bool
+  pack_contains_v = pack_contains<T, Pack>::value;
+
+  template <typename ...Packs>
+  struct pack_concatenate;
+
+  template <typename ...Packs>
+  using pack_concatenate_t = typename pack_concatenate<Packs...>::type;
+
+  template <typename Pack>
+  struct pack_flatten;
+
+  template <typename Pack>
+  using pack_flatten_t = typename pack_flatten<Pack>::type;
+
+  template <typename Pack>
+  struct pack_unique;
+
+  template <typename Pack>
+  using pack_unique_t = typename pack_unique<Pack>::type;
+
+  template <typename ...Packs>
+  struct pack_equivalent;
+
+  template <typename ...Packs>
+  inline constexpr bool pack_equivalent_v = pack_equivalent<Packs...>::value;
+
+  template <typename Pack>
+  struct pack_homogenenous;
+
+  template <typename Pack>
+  inline constexpr bool pack_homogenenous_v = pack_homogenenous<Pack>::value;
+
+  namespace detail
+  {
+
+    template <typename T, typename ...Ts>
+    struct all_same_impl : std::conjunction<std::is_same<T, Ts>...>
+    { };
+
+    template <typename Pack>
+    struct is_type_pack_impl
+      : std::false_type
+    { };
+
+    template <template <typename ...> typename PackT, typename ...Ts>
+    struct is_type_pack_impl<PackT<Ts...>>
+      : std::true_type
+    { };
+
+    template <typename Pack>
+    struct pack_size_impl
+    { };
+
+    template <template <typename ...> typename PackT, typename ...Ts>
+    struct pack_size_impl<PackT<Ts...>>
+      : std::integral_constant<std::size_t, sizeof...(Ts)>
+    { };
+
+    template <std::size_t I, typename Pack>
+    struct pack_select_impl
+    { };
+
+    template <template <typename ...> typename PackT, typename Head, typename ...Tail>
+    struct pack_select_impl<0, PackT<Head, Tail...>>
+    {
+      using type = Head;
+    };
+
+    template <std::size_t I,
+              template <typename ...> typename PackT, typename Head, typename ...Tail>
+    struct pack_select_impl<I, PackT<Head, Tail...>>
+      : pack_select_impl<I - 1, PackT<Tail...>>
+    { };
+
+    template <typename T, typename Pack, std::size_t I = 0>
+    struct pack_index_impl
+    { };
+
+    template <typename T,
+              template <typename ...> typename PackT, typename ...Rest,
+              std::size_t I>
+    struct pack_index_impl<T, PackT<T, Rest...>, I>
+      : std::integral_constant<std::size_t, I>
+    { };
+
+    template <typename T,
+              template <typename ...> typename PackT, typename Head, typename ...Tail,
+              std::size_t I>
+    struct pack_index_impl<T, PackT<Head, Tail...>, I>
+      : pack_index_impl<T, PackT<Tail...>, I + 1>
+    { };
+
+    template <typename T, typename Pack, typename = void>
+    struct pack_contains_impl
+      : std::false_type
+    { };
+
+    template <typename T, typename Pack>
+    struct pack_contains_impl<T, Pack, std::void_t<typename pack_index<T, Pack>::type>>
+      : std::true_type
+    { };
+
+    template <typename ...Packs>
+    struct pack_concatenate_impl
+    { };
+
+    template <typename Pack>
+    struct pack_concatenate_impl<Pack>
+    {
+      using type = Pack;
+    };
+
+    template <template <typename ...> typename PackT,
+              typename ...LHS, typename ...RHS, typename ...Rest>
+    struct pack_concatenate_impl<PackT<LHS...>, PackT<RHS...>, Rest...>
+      : pack_concatenate_impl<PackT<LHS..., RHS...>, Rest...>
+    { };
+
+    template <typename Pack>
+    struct pack_flatten_impl
+    {
+      using type = Pack;
+    };
+
+    template <template <typename ...> typename PackT, typename Head, typename ...Tail>
+    struct pack_flatten_impl<PackT<Head, Tail...>>
+      : pack_concatenate<PackT<Head>, pack_flatten_t<PackT<Tail...>>>
+    { };
+
+    template <template <typename ...> typename PackT, typename... Ts, typename ...Tail>
+    struct pack_flatten_impl<PackT<PackT<Ts...>, Tail...>>
+      : pack_concatenate<pack_flatten_t<PackT<Ts>>..., pack_flatten_t<PackT<Tail...>>>
+    { };
+
+    template <typename PackIn, typename PackOut>
+    struct pack_unique_helper
+    { };
+
+    template <template <typename ...> typename PackT, typename ...OutTs>
+    struct pack_unique_helper<PackT<>, PackT<OutTs...>>
+    {
+      using type = PackT<OutTs...>;
+    };
+
+    template <template <typename ...> typename PackT,
+              typename InHead, typename ...InTail,
+              typename ...OutTs>
+    struct pack_unique_helper<PackT<InHead, InTail...>, PackT<OutTs...>>
+      : pack_unique_helper<PackT<InTail...>,
+                           std::conditional_t<pack_contains_v<InHead, PackT<OutTs...>>,
+                                              PackT<OutTs...>,
+                                              PackT<InHead, OutTs...>>>
+    { };
+
+    template <typename Pack>
+    struct pack_unique_impl
+    { };
+
+    template <template <typename ...> typename PackT, typename ...Ts>
+    struct pack_unique_impl<PackT<Ts...>>
+      : pack_unique_helper<PackT<Ts...>, PackT<>>
+    { };
+
+    template <typename ...Packs>
+    struct pack_equivalent_impl
+      : std::false_type
+    { };
+
+    template <template <typename ...> typename PackTLHS, typename PackRHS>
+    struct pack_equivalent_impl<PackTLHS<>, PackRHS>
+      : pack_empty<PackRHS>
+    { };
+
+    template <template <typename ...> typename PackTLHS, typename ...TsLHS, typename PackRHS>
+    struct pack_equivalent_impl<PackTLHS<TsLHS...>, PackRHS>
+      : std::conjunction<pack_contains<TsLHS, PackRHS>...>
+    { };
+
+    template <typename PackLHS, typename ...Packs>
+    struct pack_equivalent_impl<PackLHS, Packs...>
+      : std::conjunction<pack_equivalent_impl<PackLHS, Packs>...>
+    { };
+
+    template <typename Pack>
+    struct pack_homogeneous
+      : std::false_type
+    { };
+
+    template <template <typename ...> typename PackT, typename Head, typename ...Tail>
+    struct pack_homogeneous<PackT<Head, Tail...>>
+      : std::conjunction<std::is_same<Head, Tail>...>
+    { };
+
+  }
+
+  template <typename Pack>
+  struct pack_size
+    : detail::pack_size_impl<Pack>
+  { };
+
+  template <typename Pack>
+  struct pack_empty
+    : std::bool_constant<pack_size_v<Pack> == 0>
+  { };
+
+  template <typename ...Ts>
+  struct all_same
+    : detail::all_same_impl<Ts...>
+  { };
+
+  template <typename Pack>
+  struct is_type_pack
+    : detail::is_type_pack_impl<Pack>
+  { };
+
+  template <std::size_t I, typename ...Ts>
+  struct pack_select_type
+    : detail::pack_select_impl<I, Ts...>
+  { };
+
+  template <typename T, typename Pack>
+  struct pack_index
+    : detail::pack_index_impl<T, Pack, 0>
+  { };
+
+  template <typename T, typename Pack>
+  struct pack_contains
+    : detail::pack_contains_impl<T, Pack>
+  { };
+
+  template <typename ...Packs>
+  struct pack_concatenate
+    : detail::pack_concatenate_impl<Packs...>
+  { };
+
+  template <typename Pack>
+  struct pack_flatten
+    : detail::pack_flatten_impl<Pack>
+  { };
+
+  template <typename Pack>
+  struct pack_unique
+    : detail::pack_unique_impl<Pack>
+  { };
+
+  template <typename ...Packs>
+  struct pack_equivalent
+    : detail::pack_equivalent_impl<Packs...>
+  { };
+
+  namespace detail
+  {
+
+    template <typename It, typename = void>
+    struct is_iterator_impl
+      : std::false_type
+    { };
+
+    template <typename It>
+    struct is_iterator_impl<It, std::void_t<typename std::iterator_traits<It>::value_type>>
+      : std::true_type
+    { };
+
+  }
+
+  template <typename It>
+  struct is_iterator
+    : detail::is_iterator_impl<It>
+  { };
 
   template <typename From, typename To>
   struct match_cv
@@ -189,21 +379,6 @@ namespace gch
 
   template <typename From, typename To>
   using match_cvref_t = typename match_cvref<From, To>::type;
-
-  static_assert (std::is_same_v<match_cvref_t<               int, long>,                long>);
-  static_assert (std::is_same_v<match_cvref_t<const          int, long>, const          long>);
-  static_assert (std::is_same_v<match_cvref_t<      volatile int, long>,       volatile long>);
-  static_assert (std::is_same_v<match_cvref_t<const volatile int, long>, const volatile long>);
-
-  static_assert (std::is_same_v<match_cvref_t<               int&, long>,                long&>);
-  static_assert (std::is_same_v<match_cvref_t<const          int&, long>, const          long&>);
-  static_assert (std::is_same_v<match_cvref_t<      volatile int&, long>,       volatile long&>);
-  static_assert (std::is_same_v<match_cvref_t<const volatile int&, long>, const volatile long&>);
-
-  static_assert (std::is_same_v<match_cvref_t<               int&&, long>,                long&&>);
-  static_assert (std::is_same_v<match_cvref_t<const          int&&, long>, const          long&&>);
-  static_assert (std::is_same_v<match_cvref_t<      volatile int&&, long>,       volatile long&&>);
-  static_assert (std::is_same_v<match_cvref_t<const volatile int&&, long>, const volatile long&&>);
 
   template <typename T>
   struct remove_cvref
@@ -420,6 +595,74 @@ namespace gch
   inline constexpr
   bool
   is_reference_wrapper_v = is_reference_wrapper<T>::value;
+
+  //
+  // TESTS
+  //
+
+  static_assert (0 == pack_index_v<int, type_pack<int>>);
+  static_assert (0 == pack_index_v<int, type_pack<int, long>>);
+  static_assert (1 == pack_index_v<long, type_pack<int, long>>);
+
+  static_assert (! pack_contains_v<int, type_pack<>>);
+  static_assert (  pack_contains_v<int, type_pack<int>>);
+  static_assert (  pack_contains_v<int, type_pack<long, int>>);
+  static_assert (  pack_contains_v<int, type_pack<int, long>>);
+  static_assert (! pack_contains_v<int, type_pack<long>>);
+
+  static_assert (std::is_same_v<type_pack<int, long>,
+                                pack_concatenate_t<type_pack<int, long>>>);
+
+  static_assert (std::is_same_v<type_pack<int, long, char, short>,
+                                pack_concatenate_t<type_pack<int, long>,
+                                                          type_pack<char, short>>>);
+
+  static_assert (std::is_same_v<type_pack<int, long, char, short, bool, int>,
+                                pack_concatenate_t<type_pack<int, long>,
+                                                          type_pack<char, short>,
+                                                          type_pack<bool, int>>>);
+
+  static_assert (std::is_same_v<type_pack<int, long, void>,
+                                pack_flatten_t<type_pack<int, type_pack<long, void>>>>);
+
+  static_assert (std::is_same_v<type_pack<int, long, char, short>,
+                                pack_flatten_t<type_pack<type_pack<int, long>, char, short>>>);
+
+  static_assert (std::is_same_v<type_pack<int, long, char, short>,
+                                pack_flatten_t<
+                                  type_pack<type_pack<int, type_pack<long>, type_pack<>>,
+                                             type_pack<type_pack<type_pack<char>>>,
+                                             short>>>);
+
+  static_assert (std::is_same_v<type_pack<int>, pack_unique_t<type_pack<int>>>);
+  static_assert (std::is_same_v<type_pack<int>, pack_unique_t<type_pack<int, int>>>);
+  static_assert (pack_equivalent_v<type_pack<int, long>, pack_unique_t<type_pack<int, long, int>>>);
+
+  static_assert (  pack_equivalent_v<type_pack<>, type_pack<>>);
+  static_assert (! pack_equivalent_v<type_pack<>, type_pack<int>>);
+  static_assert (! pack_equivalent_v<type_pack<int>, type_pack<>>);
+  static_assert (  pack_equivalent_v<type_pack<int>, type_pack<int>>);
+  static_assert (! pack_equivalent_v<type_pack<int>, type_pack<long>>);
+  static_assert (  pack_equivalent_v<type_pack<int, long>, type_pack<int, long>>);
+  static_assert (  pack_equivalent_v<type_pack<long, int>, type_pack<int, long>>);
+  static_assert (! pack_equivalent_v<type_pack<int, char>, type_pack<int, long>>);
+  static_assert (! pack_equivalent_v<type_pack<char, int>, type_pack<int, long>>);
+  static_assert (! pack_equivalent_v<type_pack<int, long, char>, type_pack<int, long>>);
+
+  static_assert (std::is_same_v<match_cvref_t<               int, long>,                long>);
+  static_assert (std::is_same_v<match_cvref_t<const          int, long>, const          long>);
+  static_assert (std::is_same_v<match_cvref_t<      volatile int, long>,       volatile long>);
+  static_assert (std::is_same_v<match_cvref_t<const volatile int, long>, const volatile long>);
+
+  static_assert (std::is_same_v<match_cvref_t<               int&, long>,                long&>);
+  static_assert (std::is_same_v<match_cvref_t<const          int&, long>, const          long&>);
+  static_assert (std::is_same_v<match_cvref_t<      volatile int&, long>,       volatile long&>);
+  static_assert (std::is_same_v<match_cvref_t<const volatile int&, long>, const volatile long&>);
+
+  static_assert (std::is_same_v<match_cvref_t<               int&&, long>,                long&&>);
+  static_assert (std::is_same_v<match_cvref_t<const          int&&, long>, const          long&&>);
+  static_assert (std::is_same_v<match_cvref_t<      volatile int&&, long>,       volatile long&&>);
+  static_assert (std::is_same_v<match_cvref_t<const volatile int&&, long>, const volatile long&&>);
 
 }
 

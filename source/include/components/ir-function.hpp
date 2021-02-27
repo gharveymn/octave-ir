@@ -33,7 +33,7 @@ namespace gch
   class ir_function
     : public ir_component,
       public ir_structure,
-      public visitable<ir_function, ir_structure_visitors>
+      public visitable<ir_function, implemented_visitors_t<ir_component, ir_structure>>
   {
   public:
     using variable_identifier_char_type = char;

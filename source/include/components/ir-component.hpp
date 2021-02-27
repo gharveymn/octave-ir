@@ -63,7 +63,7 @@ namespace gch
 
   // abstract
   class ir_component
-    : public abstract_visitable<ir_component_visitors>
+    : public abstract_visitable<abstract_visitors_t<ir_component>>
   {
   public:
     ir_component            (void)                    = default;
@@ -81,7 +81,8 @@ namespace gch
 
   // a subcomponent is any component that isn't an function
   class ir_subcomponent
-    : public ir_component
+    : public ir_component,
+      public abstract_visitable<abstract_visitors_t<ir_subcomponent>>
   {
   public:
     ir_subcomponent            (void)                       = delete;
@@ -120,13 +121,7 @@ namespace gch
     nonnull_ptr<ir_structure> m_parent;
   };
 
-  template <typename Component>
-  struct ir_subcomponent_type_t;
 
-  template <typename Component>
-  inline constexpr
-  ir_subcomponent_type_t<Component>
-  ir_subcomponent_type { };
 
   [[nodiscard]]
   ir_function&

@@ -14,17 +14,9 @@
 namespace gch
 {
 
-  class ir_component_sequence;
-
-  template <>
-  struct ir_subcomponent_type_t<ir_component_sequence>
-  {
-    explicit ir_subcomponent_type_t (void) = default;
-  };
-
   class ir_component_sequence
     : public ir_substructure,
-      public visitable<ir_component_sequence, ir_structure_visitors>
+      public visitable<ir_component_sequence, implemented_visitors_t<ir_substructure>>
   {
   public:
     using container_type = std::vector<ir_component_storage>;
@@ -113,24 +105,17 @@ namespace gch
               std::enable_if_t<std::is_constructible_v<Entry, ir_structure&, Args...>> * = nullptr>
     ir_component_sequence (ir_structure& parent, ir_subcomponent_type_t<Entry>, Args&&... args)
       : ir_substructure { parent },
-        m_find_cache { make_handle (end ()) }
+        m_find_cache    { make_handle (end ()) }
     {
       m_body.push_back (allocate_subcomponent<Entry> (std::forward<Args> (args)...));
       m_find_cache.emplace (make_handle (begin ()));
     }
 
-    template <typename ...Args,
-              std::enable_if_t<std::conjunction_v<
-                std::is_same<ir_component_mover, std::decay_t<Args>>...>> * = nullptr>
-    ir_component_sequence (ir_structure& parent, ir_component_mover m, Args&&... args)
+    ir_component_sequence (ir_structure& parent, std::initializer_list<ir_component_mover> init)
       : ir_substructure { parent },
-        m_find_cache    { make_handle (end ()) }
-    {
-      m_body.reserve (1 + sizeof...(Args));
-      m_body.push_back (m);
-      (m_body.push_back (args), ...);
-      m_find_cache.emplace (make_handle (begin ()));
-    }
+        m_body          (init.begin (), init.end ()),
+        m_find_cache    { make_handle (begin ()) }
+    { }
 
     [[nodiscard]]
     iter

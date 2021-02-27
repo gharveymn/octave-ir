@@ -37,7 +37,7 @@ namespace gch
   class ir_use_timeline;
 
   class ir_structure
-    : public abstract_visitable<ir_structure_visitors>
+    : public abstract_visitable<abstract_visitors_t<ir_structure>>
   {
   public:
     using leaves_container_type          = ir_link_set<ir_block>;

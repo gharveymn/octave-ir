@@ -15,17 +15,15 @@ SET(LINK_LIBS optional_ref
               small_vector)
 SET(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/source/include)
 
-IF (CMAKE_CXX_COMPILER_ID
-    STREQUAL
-    Clang)
+IF (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
 
   LIST (APPEND
-          COMPILE_OPTS -ftime-trace
-                       --coverage
-                       -Weverything
-                       -Wno-padded
-                       -Wno-c++98-compat
-                       -Wno-zero-as-null-pointer-constant)
+        COMPILE_OPTS -ftime-trace
+                     --coverage
+                     -Weverything
+                     -Wno-padded
+                     -Wno-c++98-compat
+                     -Wno-zero-as-null-pointer-constant)
 
     LIST (APPEND
           LINK_OPTS --coverage)
@@ -47,9 +45,7 @@ IF (CMAKE_CXX_COMPILER_ID
 
   ENDIF ()
 
-ELSEIF (CMAKE_CXX_COMPILER_ID
-        STREQUAL
-        GNU)
+ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
 
   # GCC options
 
@@ -79,9 +75,7 @@ ELSEIF (CMAKE_CXX_COMPILER_ID
                      -Wundef
                      -Wno-unused)
 
-ELSEIF (CMAKE_CXX_COMPILER_ID
-        STREQUAL
-        MSVC)
+ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL MSVC)
 
   # MSVC options
 
@@ -91,9 +85,7 @@ ELSEIF (CMAKE_CXX_COMPILER_ID
 ENDIF ()
 
 IF (UNIX
-    AND CMAKE_BUILD_TYPE
-        STREQUAL
-        Debug)
+    AND CMAKE_BUILD_TYPE STREQUAL Debug)
 
   LIST (APPEND
         COMPILE_OPTS -fsanitize=address)
@@ -103,7 +95,7 @@ IF (UNIX
 
 ENDIF ()
 
-FOREACH(version ${TARGET_VERSIONS})
+FOREACH (version ${TARGET_VERSIONS})
   SET(target_name ${TEST_NAME}.test.c++${version})
   ADD_EXECUTABLE(${target_name} ${SOURCE_FILES})
 
@@ -113,8 +105,8 @@ FOREACH(version ${TARGET_VERSIONS})
   TARGET_LINK_OPTIONS   (${target_name} PRIVATE ${LINK_OPTS})
   TARGET_LINK_LIBRARIES (${target_name} PRIVATE ${LINK_LIBS})
 
-  SET_TARGET_PROPERTIES(${target_name} PROPERTIES
-                        CXX_STANDARD          ${version}
-                        CXX_STANDARD_REQUIRED NO
-                        CXX_EXTENSIONS        NO)
-ENDFOREACH()
+  SET_TARGET_PROPERTIES (${target_name}
+                         PROPERTIES CXX_STANDARD          ${version}
+                                    CXX_STANDARD_REQUIRED NO
+                                    CXX_EXTENSIONS        NO)
+ENDFOREACH ()

@@ -44,6 +44,7 @@ SET (HEADERS
      values/ir-instruction-fwd.hpp
      values/ir-variable.hpp
 
+     visitors/inspectors/ir-block-counter.hpp
      visitors/inspectors/ir-entry-collector.hpp
      visitors/inspectors/ir-leaf-collector.hpp
      visitors/inspectors/ir-leaf-inspector.hpp
@@ -89,6 +90,7 @@ SET (SOURCES
      values/ir-instruction.cpp
      values/ir-variable.cpp
 
+     visitors/inspectors/ir-block-counter.cpp
      visitors/inspectors/ir-entry-collector.cpp
      visitors/inspectors/ir-leaf-collector.cpp
      visitors/inspectors/ir-leaf-inspector.cpp
@@ -104,41 +106,115 @@ SET (SOURCES
 
      visitors/ir-traverser.cpp)
 
-CREATE_PACKAGE (AUTHOR             gharveymn
-                NAME               octave-ir.c++17
-                HEADERS            ${HEADERS}
-                SOURCES            ${SOURCES}
-                NO_HEADERS_PREFIX
-                DEPENDENCIES       optional_ref
-                                   plf_list
-                                   tracker
-                                   nonnull_ptr
-                                   select-iterator
-                                   partition
-                                   small_vector)
+SET(TARGET_VERSIONS 17 20)
 
-SET_TARGET_PROPERTIES (octave-ir.c++17
-                       PROPERTIES CXX_STANDARD          17
-                                  CXX_STANDARD_REQUIRED NO
-                                  CXX_EXTENSIONS        NO)
+SET(COMPILE_OPTS )
+SET(LINK_OPTS )
 
-CREATE_PACKAGE (AUTHOR             gharveymn
-                NAME               octave-ir.c++20
-                HEADERS            ${HEADERS}
-                SOURCES            ${SOURCES}
-                NO_HEADERS_PREFIX
-                DEPENDENCIES       optional_ref
-                                   plf_list
-                                   tracker
-                                   nonnull_ptr
-                                   select-iterator
-                                   partition
-                                   small_vector)
+IF (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
 
-SET_TARGET_PROPERTIES (octave-ir.c++20
-                       PROPERTIES CXX_STANDARD          20
-                                  CXX_STANDARD_REQUIRED NO
-                                  CXX_EXTENSIONS        NO)
+  LIST (APPEND
+        COMPILE_OPTS -ftime-trace
+                     --coverage
+                     -Weverything
+                     -Wno-padded
+                     -Wno-c++98-compat
+                     -Wno-zero-as-null-pointer-constant)
+
+    LIST (APPEND
+          LINK_OPTS --coverage)
+
+  # Clang options
+  IF (GCH_USE_LIBCXX_WITH_CLANG)
+
+    LIST (APPEND
+          COMPILE_OPTS -stdlib=libc++)
+
+    LIST (APPEND
+          LINK_OPTS -Wl,--allow-multiple-definition)
+
+    LIST (APPEND
+          LINK_LIBS c++
+                    c++abi)
+
+    MESSAGE (STATUS "Linking with libc++")
+
+  ENDIF ()
+
+ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+
+  # GCC options
+
+  LIST (APPEND
+        COMPILE_OPTS -pedantic
+                     -Wall
+                     -Wextra
+                     -Wcast-align
+                     -Wcast-qual
+                     -Wctor-dtor-privacy
+                     -Wdisabled-optimization
+                     -Wformat=2
+                     -Winit-self
+                     -Wlogical-op
+                     -Wmissing-declarations
+                     -Wmissing-include-dirs
+                     -Wnoexcept
+                     -Wold-style-cast
+                     -Woverloaded-virtual
+                     -Wredundant-decls
+                     -Wshadow
+                     -Wsign-conversion
+                     -Wsign-promo
+                     -Wstrict-null-sentinel
+                     -Wstrict-overflow=5
+                     -Wswitch-default
+                     -Wundef
+                     -Wno-unused)
+
+ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL MSVC)
+
+  # MSVC options
+
+  LIST (APPEND
+        COMPILE_OPTS /Wall /wd4250)
+
+ENDIF ()
+
+IF (UNIX
+    AND CMAKE_BUILD_TYPE STREQUAL Debug)
+
+  LIST (APPEND
+        COMPILE_OPTS -fsanitize=address)
+
+  LIST (APPEND
+        LINK_OPTS    -fsanitize=address)
+
+ENDIF ()
+
+FOREACH (version ${TARGET_VERSIONS})
+  SET(target_name octave-ir.c++${version})
+
+  CREATE_PACKAGE (AUTHOR             gharveymn
+                  NAME               ${target_name}
+                  HEADERS            ${HEADERS}
+                  SOURCES            ${SOURCES}
+                  NO_HEADERS_PREFIX
+                  DEPENDENCIES       optional_ref
+                                     plf_list
+                                     tracker
+                                     nonnull_ptr
+                                     select-iterator
+                                     partition
+                                     small_vector)
+
+  TARGET_COMPILE_OPTIONS(${target_name} PRIVATE ${COMPILE_OPTS})
+  TARGET_LINK_OPTIONS   (${target_name} PRIVATE ${LINK_OPTS})
+
+  SET_TARGET_PROPERTIES (${target_name}
+                         PROPERTIES CXX_STANDARD          ${version}
+                                    CXX_STANDARD_REQUIRED NO
+                                    CXX_EXTENSIONS        NO)
+ENDFOREACH ()
 
 # Only include tests if we are at the top level
 IF (OCTAVE_IR_BUILD_TESTS)

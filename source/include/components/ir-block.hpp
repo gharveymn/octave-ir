@@ -63,7 +63,7 @@ namespace gch
 
   class ir_block
     : public ir_subcomponent,
-      public visitable<ir_block, ir_component_visitors>
+      public visitable<ir_block, implemented_visitors_t<ir_subcomponent>>
   {
   public:
     using container_type          = ir_instruction_container;

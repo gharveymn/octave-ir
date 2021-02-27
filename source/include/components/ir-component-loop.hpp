@@ -14,17 +14,9 @@
 namespace gch
 {
 
-  class ir_component_loop;
-
-  template <>
-  struct ir_subcomponent_type_t<ir_component_loop>
-  {
-    explicit ir_subcomponent_type_t (void) = default;
-  };
-
   class ir_component_loop
     : public ir_substructure,
-      public visitable<ir_component_loop, ir_structure_visitors>
+      public visitable<ir_component_loop, implemented_visitors_t<ir_substructure>>
   {
   public:
     enum class subcomponent_id

@@ -19,15 +19,6 @@ namespace gch
   class ir_block;
   class ir_condition_block;
 
-  template <typename Component>
-  struct ir_subcomponent_type_t;
-
-  template <>
-  struct ir_subcomponent_type_t<ir_block>
-  {
-    explicit ir_subcomponent_type_t (void) = default;
-  };
-
   enum class ir_instruction_range : std::size_t
   {
     all  = partition_base_index,
