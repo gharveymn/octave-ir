@@ -97,7 +97,7 @@ namespace gch
 
     using instruction_container = as_list_partition_t<container_type, 2>;
 
-    using dt_map_type            = std::unordered_map<const ir_variable *, ir_def_timeline>;
+    using dt_map_type            = std::unordered_map<nonnull_cptr<ir_variable>, ir_def_timeline>;
     using dt_map_value_type      = typename dt_map_type::value_type;
     using dt_map_allocator_type  = typename dt_map_type::allocator_type;
     using dt_map_size_type       = typename dt_map_type::size_type;
@@ -121,6 +121,12 @@ namespace gch
 
     using dt_map_iter    = dt_map_iterator;
     using dt_map_citer   = dt_map_const_iterator;
+
+    struct dt_map_emplace_return_type
+    {
+      dt_map_iterator position;
+      bool            inserted;
+    };
 
     ir_block            (void)                   = delete;
     ir_block            (const ir_block&)        = delete;
@@ -160,32 +166,149 @@ namespace gch
       return get_subrange<R> (m_instr_partition);
     }
 
-    template <range R> auto  begin   (void)       noexcept { return get<R> ().begin ();   }
-    template <range R> auto  begin   (void) const noexcept { return get<R> ().begin ();   }
-    template <range R> auto  cbegin  (void) const noexcept { return get<R> ().cbegin ();  }
+    template <range R>
+    [[nodiscard]]
+    iterator
+    begin (void) noexcept
+    {
+      return get<R> ().begin ();
+    }
 
-    template <range R> auto  end     (void)       noexcept { return get<R> ().end ();     }
-    template <range R> auto  end     (void) const noexcept { return get<R> ().end ();     }
-    template <range R> auto  cend    (void) const noexcept { return get<R> ().cend ();    }
+    template <range R>
+    [[nodiscard]]
+    const_iterator
+    begin (void) const noexcept
+    {
+      return as_mutable (*this).begin<R> ();
+    }
 
-    template <range R> auto  rbegin  (void)       noexcept { return get<R> ().rbegin ();  }
-    template <range R> auto  rbegin  (void) const noexcept { return get<R> ().rbegin ();  }
-    template <range R> auto  crbegin (void) const noexcept { return get<R> ().crbegin (); }
+    template <range R>
+    [[nodiscard]]
+    const_iterator
+    cbegin (void) const noexcept
+    {
+      return begin<R> ();
+    }
 
-    template <range R> auto  rend    (void)       noexcept { return get<R> ().rend ();    }
-    template <range R> auto  rend    (void) const noexcept { return get<R> ().rend ();    }
-    template <range R> auto  crend   (void) const noexcept { return get<R> ().crend ();   }
+    template <range R>
+    [[nodiscard]]
+    iterator
+    end (void) noexcept
+    {
+      return get<R> ().end ();
+    }
 
-    template <range R> auto& front   (void)       noexcept { return get<R> ().front ();   }
-    template <range R> auto& front   (void) const noexcept { return get<R> ().front ();   }
+    template <range R>
+    [[nodiscard]]
+    const_iterator
+    end (void) const noexcept
+    {
+      return as_mutable (*this).end<R> ();
+    }
 
-    template <range R> auto& back    (void)       noexcept { return get<R> ().back ();    }
-    template <range R> auto& back    (void) const noexcept { return get<R> ().back ();    }
+    template <range R>
+    [[nodiscard]]
+    const_iterator
+    cend (void) const noexcept
+    {
+      return end<R> ();
+    }
 
-    template <range R> auto  size    (void) const noexcept { return get<R> ().size ();    }
-    template <range R> auto  empty   (void) const noexcept { return get<R> ().empty ();   }
+    template <range R>
+    [[nodiscard]]
+    reverse_iterator
+    rbegin (void) noexcept
+    {
+      return get<R> ().rbegin ();
+    }
 
-    /* clang-format on */
+    template <range R>
+    [[nodiscard]]
+    const_reverse_iterator
+    rbegin (void) const noexcept
+    {
+      return as_mutable (*this).rbegin<R> ();
+    }
+
+    template <range R>
+    [[nodiscard]]
+    const_reverse_iterator
+    crbegin (void) const noexcept
+    {
+      return rbegin<R> ();
+    }
+
+    template <range R>
+    [[nodiscard]]
+    reverse_iterator
+    rend (void) noexcept
+    {
+      return get<R> ().rend ();
+    }
+
+    template <range R>
+    [[nodiscard]]
+    const_reverse_iterator
+    rend (void) const noexcept
+    {
+      return as_mutable (*this).rend<R> ();
+    }
+
+    template <range R>
+    [[nodiscard]]
+    const_reverse_iterator
+    crend (void) const noexcept
+    {
+      return rend<R> ();
+    }
+
+    template <range R>
+    [[nodiscard]]
+    reference
+    front (void)
+    {
+      return get<R> ().front ();
+    }
+
+    template <range R>
+    [[nodiscard]]
+    const_reference
+    front (void) const
+    {
+      return as_mutable (*this).front<R> ();
+    }
+
+    template <range R>
+    [[nodiscard]]
+    reference
+    back (void)
+    {
+      return get<R> ().back ();
+    }
+
+    template <range R>
+    [[nodiscard]]
+    const_reference
+    back (void) const
+    {
+      return as_mutable (*this).back<R> ();
+    }
+
+    template <range R>
+    [[nodiscard]]
+    size_type
+    size (void) const noexcept
+    {
+     return get<R> ().size ();
+    }
+
+    template <range R>
+    [[nodiscard]]
+    bool
+    empty (void) const noexcept
+    {
+      return get<R> ().empty ();
+    }
 
   private:
     template <range R, ir_opcode Op, typename ...Args>
@@ -278,14 +401,14 @@ namespace gch
 
     static
     const ir_constant&
-    prepare_operand (const citer&, const ir_constant& c) noexcept;
+    prepare_operand (citer pos, const ir_constant& c) noexcept;
 
     static
     ir_constant&&
-    prepare_operand (const citer&, ir_constant&& t) noexcept;
+    prepare_operand (citer pos, ir_constant&& t) noexcept;
 
     ir_use_timeline&
-    track_def_at (ir_variable& var, iter pos);
+    track_def_at (iter pos, ir_variable& var);
 
   public:
     iter
@@ -298,35 +421,35 @@ namespace gch
     iter
     erase_phi (ir_variable& var);
 
-    ir_block&
-    split_into (citer pivot, ir_block& dest);
-
-    ir_def_timeline
-    split (ir_def_timeline& dt, citer pivot, ir_block& dest);
+    [[nodiscard]]
+    ir_def_timeline::use_timelines_reverse_iterator
+    find_latest_use_timeline_before (const_iterator pos, ir_def_timeline& dt,
+                                     ir_def_timeline::use_timelines_reverse_iterator start) const;
 
     [[nodiscard]]
-    ir_def_timeline::riter
-    find_latest_timeline (ir_def_timeline& dt) const;
+    ir_def_timeline::use_timelines_reverse_iterator
+    find_latest_use_timeline_before (const_iterator pos, ir_def_timeline& dt) const;
 
     [[nodiscard]]
-    ir_def_timeline::riter
-    find_latest_timeline_before (ir_def_timeline& dt, citer pos) const;
-
-    [[nodiscard]]
-    ir_use_timeline&
-    get_latest_timeline (ir_def_timeline& dt);
+    ir_def_timeline::use_timelines_iterator
+    get_latest_use_timeline (ir_def_timeline& dt);
 
     [[nodiscard]]
     ir_use_timeline&
-    get_latest_timeline (ir_variable& var);
+    get_latest_use_timeline (ir_variable& var);
+
+    [[nodiscard]]
+    ir_def_timeline::use_timelines_iterator
+    get_latest_use_timeline_before (const_iterator pos, ir_def_timeline& dt,
+                                    ir_def_timeline::use_timelines_reverse_iterator start);
+
+    [[nodiscard]]
+    ir_def_timeline::use_timelines_iterator
+    get_latest_use_timeline_before (const_iterator pos, ir_def_timeline& dt);
 
     [[nodiscard]]
     ir_use_timeline&
-    get_latest_timeline_before (ir_def_timeline& dt, citer pos);
-
-    [[nodiscard]]
-    ir_use_timeline&
-    get_latest_timeline_before (ir_variable& var, citer pos);
+    get_latest_use_timeline_before (const_iterator pos, ir_variable& var);
 
     iter
     remove_instruction (citer pos);
@@ -338,7 +461,7 @@ namespace gch
     split_uses (ir_use_timeline& src, citer pivot, citer last);
 
     ir_use_timeline::iter
-    find_first_use_after (ir_use_timeline& tl, citer pos, citer last);
+    first_use_after (ir_use_timeline& tl, citer pos, citer last);
 
     [[nodiscard]]
     dt_map_iterator
@@ -378,6 +501,13 @@ namespace gch
     dt_map_const_iterator
     find_def_timeline (const ir_variable& var) const;
 
+    [[nodiscard]]
+    bool
+    has_def_timeline (const ir_variable& var) const;
+
+    dt_map_emplace_return_type
+    try_emplace_def_timeline (ir_variable& var);
+
     ir_def_timeline&
     get_def_timeline (ir_variable& var);
 
@@ -397,30 +527,19 @@ namespace gch
     remove_def_timeline (const ir_variable& var);
 
     //
-    // virtual from ir_component
-    //
-
-    bool
-    reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
-                           std::vector<nonnull_ptr<ir_block>>& until) override;
-
-    void
-    reset (void) noexcept override;
-
-    //
     // templated functions
     //
 
     // with return (places instruction immediately before `pos`)
     template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<ir_instruction_traits<Op>::will_return> * = nullptr>
+              std::enable_if_t<ir_instruction_traits<Op>::has_def> * = nullptr>
     ir_instruction&
     emplace_instruction (const citer pos, ir_variable& v, Args&&... args)
     {
       iter it = emplace<range::body, Op> (v, prepare_operand (pos, std::forward<Args> (args))...);
       try
       {
-        track_def_at (v, it);
+        track_def_at (it, v);
       }
       catch (...)
       {
@@ -432,7 +551,7 @@ namespace gch
 
     // no return (places instruction immediately before `pos`)
     template <ir_opcode Op, typename ...Args,
-      std::enable_if_t<! ir_instruction_traits<Op>::will_return> * = nullptr>
+              std::enable_if_t<! ir_instruction_traits<Op>::has_def> * = nullptr>
     ir_instruction&
     emplace_instruction (const citer pos, Args&&... args)
     {

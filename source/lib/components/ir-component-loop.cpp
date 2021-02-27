@@ -64,23 +64,4 @@ namespace gch
     throw ir_exception ("Could not find the specified component in the loop.");
   }
 
-  //
-  // virtual from ir_component
-  //
-
-  bool
-  ir_component_loop::
-  reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
-                         std::vector<nonnull_ptr<ir_block>>& until)
-  {
-    return get_start ()    .reassociate_timelines (old_dts, new_dt, until)
-       ||  get_condition ().reassociate_timelines (old_dts, new_dt, until)
-       ||  get_body ()     .reassociate_timelines (old_dts, new_dt, until)
-       ||  get_update ()   .reassociate_timelines (old_dts, new_dt, until);
-  }
-
-  //
-  // virtual from ir_structure
-  //
-
 }

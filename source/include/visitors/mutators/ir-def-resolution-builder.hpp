@@ -16,61 +16,6 @@
 namespace gch
 {
 
-  class ir_variable;
-
-  class ir_def_resolution_build_result
-  {
-  public:
-    ir_def_resolution_build_result            (void)                                      = delete;
-    ir_def_resolution_build_result            (const ir_def_resolution_build_result&)     = delete;
-    ir_def_resolution_build_result            (ir_def_resolution_build_result&&) noexcept = default;
-    ir_def_resolution_build_result& operator= (const ir_def_resolution_build_result&)     = delete;
-    ir_def_resolution_build_result& operator= (ir_def_resolution_build_result&&) noexcept = default;
-    ~ir_def_resolution_build_result           (void)                                      = default;
-
-    enum class join : bool
-    {
-      yes = true,
-      no  = false,
-    };
-
-    enum class resolvable : bool
-    {
-      yes = true,
-      no  = false,
-    };
-
-    ir_def_resolution_build_result (ir_variable& var, join j, resolvable r);
-
-    ir_def_resolution_build_result (ir_def_resolution_stack&& s, join j, resolvable r);
-
-    [[nodiscard]]
-    join
-    get_join_state (void) const noexcept;
-
-    [[nodiscard]]
-    resolvable
-    get_resolvable_state (void) const noexcept;
-
-    // returning rvalue reference just for semantic reasons
-    [[nodiscard]]
-    ir_def_resolution_stack&&
-    release_stack (void) noexcept;
-
-    [[nodiscard]]
-    bool
-    needs_join (void) const noexcept;
-
-    [[nodiscard]]
-    bool
-    is_resolvable (void) const noexcept;
-
-  private:
-    ir_def_resolution_stack m_stack;
-    join                    m_join;
-    resolvable              m_resolvable;
-  };
-
   class ir_descending_def_resolution_builder
     : public visitor_traits<ir_descending_def_resolution_builder>
   {
@@ -188,10 +133,6 @@ namespace gch
 
     ir_variable& m_variable;
   };
-
-  [[nodiscard]]
-  ir_def_resolution_build_result
-  build_def_resolution_stack (ir_block& block, ir_variable& var);
 
 }
 

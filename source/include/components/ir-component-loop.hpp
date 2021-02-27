@@ -124,24 +124,6 @@ namespace gch
     subcomponent_id
     get_id (const ir_subcomponent& c) const;
 
-    //
-    // virtual from ir_component
-    //
-
-    bool
-    reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
-                           std::vector<nonnull_ptr<ir_block>>& until) override;
-
-    void
-    reset (void) noexcept override;
-
-    //
-    // virtual from ir_structure
-    //
-
-    ir_use_timeline&
-    join_incoming_at (ir_component_ptr pos, ir_def_timeline& dt) override;
-
   private:
     std::unique_ptr<ir_subcomponent> m_start;     // preds: [pred]        | succs: condition
     ir_condition_block               m_condition; // preds: start, update | succs: body, [succ]

@@ -6,14 +6,15 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "components/ir-block.hpp"
-#include "processors/ir-def-resolution.hpp"
-#include "utilities/ir-optional-util.hpp"
 #include "components/ir-component.hpp"
 #include "components/ir-structure.hpp"
 #include "components/ir-function.hpp"
 #include "components/ir-component-fork.hpp"
 #include "components/ir-component-loop.hpp"
 #include "components/ir-component-sequence.hpp"
+#include "processors/ir-def-resolution.hpp"
+#include "utilities/ir-optional-util.hpp"
+#include "visitors/mutators/ir-def-resolution-builder.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -96,9 +97,10 @@ namespace gch
 
     optional_ref<ir_def> first_def = incoming.front ().maybe_get_common_def ();
     auto found_hetero = std::find_if_not (std::next (incoming.begin ()), incoming.end (),
-                                          [first_def](const ir_def_resolution& r)
+                                          [=](const ir_def_resolution& r)
                                           {
-                                            return first_def == r.maybe_get_common_def ();
+                                            optional_ref r_def { r.maybe_get_common_def () };
+                                            return same_address (first_def, r_def);
                                           });
 
     // check if all the incoming timelines have the same parent def
@@ -148,6 +150,61 @@ namespace gch
     // A: We don't.
 
     return { nonnull_ptr { dt } };
+  }
+
+  //
+  // ir_def_resolution_build_result
+  //
+
+  ir_def_resolution_build_result::
+  ir_def_resolution_build_result (ir_variable& var, join j, resolvable r)
+    : m_stack      (var),
+      m_join       (j),
+      m_resolvable (r)
+  { }
+
+  ir_def_resolution_build_result::
+  ir_def_resolution_build_result (ir_def_resolution_stack&& s, join j, resolvable r)
+    : m_stack      (std::move (s)),
+      m_join       (j),
+      m_resolvable (r)
+  { }
+
+  auto
+  ir_def_resolution_build_result::
+  get_join_state (void) const noexcept
+  -> join
+  {
+    return m_join;
+  }
+
+  auto
+  ir_def_resolution_build_result::
+  get_resolvable_state (void) const noexcept
+  -> resolvable
+  {
+    return m_resolvable;
+  }
+
+  ir_def_resolution_stack&&
+  ir_def_resolution_build_result::
+  release_stack (void) noexcept
+  {
+    return std::move (m_stack);
+  }
+
+  bool
+  ir_def_resolution_build_result::
+  needs_join (void) const noexcept
+  {
+    return get_join_state () == join::yes;
+  }
+
+  bool
+  ir_def_resolution_build_result::
+  is_resolvable (void) const noexcept
+  {
+    return get_resolvable_state () == resolvable::yes;
   }
 
   //
@@ -407,6 +464,29 @@ namespace gch
   get_variable (void) const noexcept
   {
     return m_substack.get_variable ();
+  }
+
+  ir_def_resolution_stack
+  build_def_resolution_stack (ir_block& block, ir_variable& var)
+  {
+    auto stack { ir_ascending_def_resolution_builder { block, var } ().release_stack () };
+
+    assert (! stack.has_leaves ());
+    stack.add_leaf (block);
+
+    return stack;
+  }
+
+  ir_use_timeline&
+  join_at (ir_def_timeline& dt)
+  {
+    assert (! dt.has_incoming_timeline ());
+
+    auto res { build_def_resolution_stack (dt.get_block (), dt.get_variable ()) };
+    res.resolve_with ({ });
+
+    assert (dt.has_incoming_timeline ());
+    return dt.get_incoming_timeline ();
   }
 
 }

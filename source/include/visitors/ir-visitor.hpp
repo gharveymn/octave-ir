@@ -32,6 +32,9 @@ namespace gch
   struct visitor_traits
   { };
 
+  template <typename ...Ts>
+  struct type_pack;
+
   namespace detail
   {
 
@@ -67,6 +70,33 @@ namespace gch
 
   template <typename Visitor>
   using visitor_category_t = typename visitor_category<Visitor>::type;
+
+  // note: visitor_arguments not used yet
+
+  namespace detail
+  {
+
+    template <typename Visitor, typename Enable = void>
+    struct visitor_arguments_impl
+    {
+      using type = type_pack<>;
+    };
+
+    template <typename Visitor>
+    struct visitor_arguments_impl<Visitor, std::void_t<typename Visitor::visitor_arguments>>
+    {
+      using type = typename Visitor::visitor_arguments;
+    };
+
+  } // namespace detail
+
+  template <typename Visitor>
+  struct visitor_arguments
+    : detail::visitor_arguments_impl<Visitor>
+  { };
+
+  template <typename Visitor>
+  using visitor_arguments_t = typename visitor_arguments<Visitor>::type;
 
   template <typename Visitor>
   struct is_inspector

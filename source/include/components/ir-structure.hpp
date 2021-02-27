@@ -164,32 +164,14 @@ namespace gch
     }
 
     template <typename Component, typename ...Args,
-              typename = std::enable_if_t<std::is_base_of_v<ir_component, Component>>>
+              std::enable_if_t<std::is_base_of_v<ir_subcomponent, Component>
+                           &&  std::is_constructible_v<Component, ir_structure&, Args...>
+                               > * = nullptr>
     std::unique_ptr<Component>
     allocate_subcomponent (Args&&... args)
     {
       return std::make_unique<Component> (*this, std::forward<Args> (args)...);
     }
-
-    //
-    // virtual functions
-    //
-
-  public:
-    virtual
-    ir_use_timeline&
-    join_incoming_at (ir_component_ptr pos, ir_def_timeline& dt) = 0;
-
-    //
-    // virtual function accessories
-    //
-
-    ir_use_timeline&
-    join_incoming_at (ir_block& block, ir_variable& var);
-
-    //
-    // functions related to virtual functions
-    //
 
   private:
     mutable ir_link_set<ir_block> m_leaf_cache;

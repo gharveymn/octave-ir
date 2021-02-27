@@ -20,11 +20,12 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-#if !defined(ir_function_h)
-#define ir_function_h 1
+#ifndef OCTAVE_IR_IR_FUNCTION_HPP
+#define OCTAVE_IR_IR_FUNCTION_HPP
 
 #include "ir-structure.hpp"
-#include "ir-component-sequence.hpp"
+
+#include <map>
 
 namespace gch
 {
@@ -35,6 +36,9 @@ namespace gch
       public visitable<ir_function, ir_structure_visitors>
   {
   public:
+    using variable_identifier_char_type = char;
+    using variable_key_type             = std::basic_string<variable_identifier_char_type>;
+
     ir_function            (void);
     ir_function            (const ir_function&)     = delete;
     ir_function            (ir_function&&) noexcept = default;
@@ -44,46 +48,28 @@ namespace gch
 
     [[nodiscard]]
     ir_subcomponent&
-    get_body (void) noexcept
-    {
-      return *m_body;
-    }
+    get_body (void) noexcept;
 
     [[nodiscard]]
     const ir_subcomponent&
-    get_body (void) const noexcept
-    {
-      return as_mutable (*this).get_body ();
-    }
+    get_body (void) const noexcept;
 
     [[nodiscard]]
     bool
-    is_body (const ir_subcomponent& sub) const noexcept
-    {
-      return &sub == &get_body ();
-    }
+    is_body (const ir_subcomponent& sub) const noexcept;
 
-    //
-    // virtual from ir_component
-    //
+    ir_variable&
+    get_variable (const variable_key_type& identifier);
 
-    bool
-    reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts,
-                           ir_def_timeline& new_dt,
-                           std::vector<nonnull_ptr<ir_block>>& until) override;
+    ir_variable&
+    get_variable (variable_key_type&& identifier);
 
-    void
-    reset (void) noexcept override;
-
-    //
-    // virtual from ir_structure
-    //
-
-    ir_use_timeline&
-    join_incoming_at (ir_component_ptr pos, ir_def_timeline& dt) override;
+    ir_variable&
+    get_variable (const variable_identifier_char_type *identifier);
 
   private:
-    ir_component_storage m_body;
+    std::map<variable_key_type, ir_variable> m_variable_map;
+    ir_component_storage                     m_body;
   };
 
 }

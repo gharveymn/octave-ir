@@ -37,9 +37,9 @@ namespace gch
   ir_instruction::
   ir_instruction (ir_instruction&& other) noexcept
     : m_metadata (other.m_metadata),
-      m_return   (other.m_return ? std::optional<ir_def> (std::in_place,
-                                                          std::move (*other.m_return), *this)
-                                 : std::nullopt),
+      m_def (other.m_def ? std::optional<ir_def> (std::in_place,
+                                                  std::move (*other.m_def), *this)
+                         : std::nullopt),
       m_args     (std::move (other.m_args))
   {
     std::for_each (m_args.begin (), m_args.end (),
@@ -51,9 +51,9 @@ namespace gch
 
   void
   ir_instruction::
-  set_return (std::optional<ir_def>&& ret)
+  set_def (std::optional<ir_def>&& def)
   {
-    (m_return = std::move (ret)) >>= [this](ir_def& d) { d.set_instruction (*this); };
+    (m_def = std::move (def)) >>= [this] (ir_def& d) { d.set_instruction (*this); };
   }
 
   void

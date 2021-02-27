@@ -23,12 +23,13 @@ along with Octave; see the file COPYING.  If not, see
 #if ! defined (octave_ir_type_h)
 #define octave_ir_type_h 1
 
-///////////////
-// NO MACROS //
-///////////////
-// Macros obfuscate the code, and make it annoying to debug.
-// Please do not replace the boilerplate below with macros.
-// Templates are ok.
+#ifndef GCH_CPP20_CONSTEVAL
+#  if defined (__cpp_consteval) && __cpp_consteval >= 201811L
+#    define GCH_CPP20_CONSTEVAL consteval
+#  else
+#    define GCH_CPP20_CONSTEVAL constexpr
+#  endif
+#endif
 
 #include <type_traits>
 #include <gch/nonnull_ptr.hpp>
@@ -291,7 +292,7 @@ namespace gch
   //! @param lhs an ir_type
   //! @param rhs another ir_type
   //! @return the lowest common ancestor
-  constexpr
+  GCH_CPP20_CONSTEVAL
   ir_type
   lca (ir_type lhs, ir_type rhs) noexcept
   {
@@ -310,7 +311,7 @@ namespace gch
     return lca (lhs.get_base (), rhs.get_base ());
   }
 
-  constexpr
+  GCH_CPP20_CONSTEVAL
   ir_type
   operator^ (ir_type lhs, ir_type rhs) noexcept
   {

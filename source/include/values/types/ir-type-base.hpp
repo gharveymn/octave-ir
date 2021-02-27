@@ -20,8 +20,8 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-#if ! defined (ir_type_base_h)
-#define ir_type_base_h 1
+#ifndef OCTAVE_IR_IR_TYPE_BASE_HPP
+#define OCTAVE_IR_IR_TYPE_BASE_HPP
 
 #include "ir-type.hpp"
 
@@ -124,7 +124,7 @@ namespace gch
     using type = char;
     static constexpr impl m_impl { create_type<type> ("char") };
   };
-	
+
   template <>
   struct ir_type::instance<const char>
   {
@@ -170,7 +170,7 @@ namespace gch
     using type = bool;
     static constexpr impl m_impl { create_type<type> ("bool") };
   };
-  
+
   template <>
   struct ir_type::instance<ir_type>
   {

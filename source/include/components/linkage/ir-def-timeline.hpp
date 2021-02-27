@@ -78,19 +78,19 @@ namespace gch
     using use_timelines_reverse_iterator        = use_timelines_list::data_reverse_iterator;
     using use_timelines_const_reverse_iterator  = use_timelines_list::data_const_reverse_iterator;
 
-    using uts_val_t   = use_timelines_value_type;
-    using uts_alloc_t = use_timelines_allocator_type;
-    using uts_size_ty = use_timelines_size_type;
-    using uts_diff_ty = use_timelines_difference_type;
-    using uts_ref     = use_timelines_reference;
-    using uts_cref    = use_timelines_const_reference;
-    using uts_ptr     = use_timelines_pointer;
-    using uts_cptr    = use_timelines_const_pointer;
+    using ut_val_t   = use_timelines_value_type;
+    using ut_alloc_t = use_timelines_allocator_type;
+    using ut_size_ty = use_timelines_size_type;
+    using ut_diff_ty = use_timelines_difference_type;
+    using ut_ref     = use_timelines_reference;
+    using ut_cref    = use_timelines_const_reference;
+    using ut_ptr     = use_timelines_pointer;
+    using ut_cptr    = use_timelines_const_pointer;
 
-    using uts_iter    = use_timelines_iterator;
-    using uts_citer   = use_timelines_const_iterator;
-    using uts_riter   = use_timelines_reverse_iterator;
-    using uts_criter  = use_timelines_const_reverse_iterator;
+    using ut_iter    = use_timelines_iterator;
+    using ut_citer   = use_timelines_const_iterator;
+    using ut_riter   = use_timelines_reverse_iterator;
+    using ut_criter  = use_timelines_const_reverse_iterator;
 
     /* incoming map */
 
@@ -499,30 +499,30 @@ namespace gch
 
     [[nodiscard]]
     ir_instruction_riter
-    instructions_rbegin (use_timelines_iterator pos) const noexcept;
+    instructions_rbegin (use_timelines_reverse_iterator pos) const noexcept;
 
     [[nodiscard]]
     ir_instruction_criter
-    instructions_rbegin (use_timelines_const_iterator pos) const noexcept;
+    instructions_rbegin (use_timelines_const_reverse_iterator pos) const noexcept;
 
     [[nodiscard]]
     ir_instruction_criter
-    instructions_crbegin (use_timelines_const_iterator pos) const noexcept;
+    instructions_crbegin (use_timelines_const_reverse_iterator pos) const noexcept;
 
     [[nodiscard]]
     static
     ir_instruction_riter
-    instructions_rend (use_timelines_iterator  pos) noexcept;
+    instructions_rend (use_timelines_reverse_iterator pos) noexcept;
 
     [[nodiscard]]
     static
     ir_instruction_criter
-    instructions_rend (use_timelines_const_iterator pos) noexcept;
+    instructions_rend (use_timelines_const_reverse_iterator pos) noexcept;
 
     [[nodiscard]]
     static
     ir_instruction_criter
-    instructions_crend (use_timelines_const_iterator pos) noexcept;
+    instructions_crend (use_timelines_const_reverse_iterator pos) noexcept;
 
     [[nodiscard]]
     static
@@ -558,11 +558,11 @@ namespace gch
 
     [[nodiscard]]
     bool
-    has_incoming_timeline (void) const noexcept;
+    has_local_timelines (void) const noexcept;
 
     [[nodiscard]]
     bool
-    has_local_timelines (void) const noexcept;
+    has_incoming_timeline (void) const noexcept;
 
     [[nodiscard]]
     ir_use_timeline&
@@ -571,6 +571,14 @@ namespace gch
     [[nodiscard]]
     const ir_use_timeline&
     get_incoming_timeline (void) const noexcept;
+
+    [[nodiscard]]
+    use_timelines_iterator
+    get_incoming_timeline_iter (void) noexcept;
+
+    [[nodiscard]]
+    use_timelines_const_iterator
+    get_incoming_timeline_iter (void) const noexcept;
 
     [[nodiscard]]
     optional_ref<ir_use_timeline>
@@ -599,6 +607,14 @@ namespace gch
     [[nodiscard]]
     const ir_use_timeline&
     get_outgoing_timeline (void) const noexcept;
+
+    [[nodiscard]]
+    use_timelines_iterator
+    get_outgoing_timeline_iter (void) noexcept;
+
+    [[nodiscard]]
+    use_timelines_const_iterator
+    get_outgoing_timeline_iter (void) const noexcept;
 
     [[nodiscard]]
     optional_ref<ir_use_timeline>
@@ -645,11 +661,11 @@ namespace gch
 
     [[nodiscard]]
     intrusive_tracker<ir_use_timeline, remote::intrusive_reporter<ir_use>>::iterator
-    find_first_after (use_timelines_iterator ut_it, ir_instruction_citer pos) const noexcept;
+    first_use_after (ir_instruction_citer pos, use_timelines_iterator ut_it) const noexcept;
 
     [[nodiscard]]
     intrusive_tracker<ir_use_timeline, remote::intrusive_reporter<ir_use>>::const_iterator
-    find_first_after (use_timelines_const_iterator ut_it, ir_instruction_citer pos) const noexcept;
+    first_use_after (ir_instruction_citer pos, use_timelines_const_iterator ut_it) const noexcept;
 
     [[nodiscard]]
     ir_block&
@@ -690,10 +706,12 @@ namespace gch
 
       try
       {
-        auto [pos, exists] = m_incoming.emplace (std::piecewise_construct,
-                                                 std::forward_as_tuple (incoming_block),
-                                                 std::forward_as_tuple<Args...> (args...));
-        assert (! exists && "tried to emplace an incoming node for a key which already exists");
+        auto [pos, inserted] = m_incoming.emplace (
+                                 std::piecewise_construct,
+                                 std::forward_as_tuple (incoming_block),
+                                 std::forward_as_tuple (std::forward<Args> (args)...));
+
+        assert (inserted && "tried to emplace an incoming node for a key which already exists");
         return std::get<ir_incoming_node> (*pos);
       }
       catch (...)
@@ -730,7 +748,7 @@ namespace gch
     nonnull_ptr<ir_block>    m_block;
     nonnull_ptr<ir_variable> m_var;
     incoming_map_type        m_incoming;
-    use_timelines_list        m_use_timelines;
+    use_timelines_list       m_use_timelines;
   };
 
 

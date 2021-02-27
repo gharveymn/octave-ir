@@ -20,14 +20,11 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-#if defined (HAVE_CONFIG_H)
-#  include "config.h"
-#endif
 
 #include "components/ir-function.hpp"
 
-#include "components/ir-component.hpp"
 #include "components/ir-block.hpp"
+#include "components/ir-component-sequence.hpp"
 
 #include "utilities/ir-error.hpp"
 
@@ -40,41 +37,49 @@ namespace gch
     : m_body (allocate_subcomponent<ir_component_sequence> (ir_subcomponent_type<ir_block>))
   { }
 
-  //
-  // virtual from ir_component
-  //
+  ir_subcomponent&
+  ir_function::
+  get_body (void) noexcept
+  {
+    return *m_body;
+  }
+
+  const ir_subcomponent&
+  ir_function::
+  get_body (void) const noexcept
+  {
+    return as_mutable (*this).get_body ();
+  }
 
   bool
   ir_function::
-  reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
-                         std::vector<nonnull_ptr<ir_block>>& until)
+  is_body (const ir_subcomponent& sub) const noexcept
   {
-    ir_component_sequence& seq = static_cast<ir_component_sequence&> (get_body ());
-    seq.reassociate_timelines (old_dts, new_dt, until);
-    return true;
+    return &sub == &get_body ();
   }
 
-  void
+  ir_variable&
   ir_function::
-  reset (void) noexcept
+  get_variable (const variable_key_type& identifier)
   {
-    // get_body_component ().reset ();
-    // get_body_component ().emplace_back<ir_block> ();
+    auto [it, inserted] = m_variable_map.try_emplace (identifier, *this, identifier);
+    return std::get<ir_variable> (*it);
   }
 
-  //
-  // virtual from ir_structure
-  //
-
-  ir_use_timeline&
+  ir_variable&
   ir_function::
-  join_incoming_at (ir_component_ptr pos, ir_def_timeline& dt)
+  get_variable (variable_key_type&& identifier)
   {
-    assert (is_body (*pos) && "pos is not the body component");
+    auto [it, inserted] = m_variable_map.try_emplace (identifier, *this, std::move (identifier));
+    return std::get<ir_variable> (*it);
+  }
 
-    if (dt.has_incoming_timeline ())
-      throw ir_exception ("def timeline already holds an incoming timeline");
-    return dt.create_incoming_timeline ();
+  ir_variable&
+  ir_function::
+  get_variable (const variable_identifier_char_type *identifier)
+  {
+    auto [it, inserted] = m_variable_map.try_emplace (identifier, *this, identifier);
+    return std::get<ir_variable> (*it);
   }
 
 }

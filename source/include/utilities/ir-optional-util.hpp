@@ -968,7 +968,7 @@ namespace gch
                                                  OptionalVT>::value>::type * = nullptr>
   constexpr
   OptionalVT
-  flatten (Optional&& opt)
+  flatten_optional (Optional&& opt)
   {
     return std::forward<Optional> (opt);
   }
@@ -980,9 +980,9 @@ namespace gch
                                                  OptionalVT>::value>::type * = nullptr>
   constexpr
   flattened_optional_t<OptionalVT>
-  flatten (Optional&& opt)
+  flatten_optional (Optional&& opt)
   {
-    return std::forward<Optional> (opt) >>= [](auto&& o) { return flatten (o); };
+    return std::forward<Optional> (opt) >>= [](auto&& o) { return flatten_optional (o); };
   }
 
   static constexpr int zint = 6;
@@ -1006,9 +1006,9 @@ namespace gch
     constexpr const std::optional<const optional_ref<const int>> z { std::in_place, zint };
 
     static_assert (std::is_same_v<const optional_ref<const int>, flattened_optional_t<decltype (z)>>);
-    static_assert (std::is_same_v<const optional_ref<const int>, decltype (flatten (z))>);
-    static_assert (flatten (z).has_value ());
-    static_assert (flatten (z) == zint);
+    static_assert (std::is_same_v<const optional_ref<const int>, decltype (flatten_optional (z))>);
+    static_assert (flatten_optional (z).has_value ());
+    static_assert (flatten_optional (z) == zint);
 
   }
 

@@ -20,19 +20,14 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-#include <components/ir-block.hpp>
-#include <values/types/ir-type-std.hpp>
-#include <values/ir-variable.hpp>
-#include <values/ir-instruction.hpp>
-#include <components/ir-structure.hpp>
-#include <utilities/ir-common-util.hpp>
+#include "components/ir-block.hpp"
+#include "components/ir-structure.hpp"
+#include "processors/ir-def-resolution.hpp"
+#include "utilities/ir-iterator.hpp"
 
-#include <gch/nonnull_ptr.hpp>
-#include <gch/optional_ref.hpp>
 #include <gch/select-iterator.hpp>
 
 #include <algorithm>
-#include <numeric>
 #include <utility>
 #include <list>
 
@@ -69,596 +64,163 @@ namespace gch
     return *this;
   }
 
-  ir_block&
-  ir_block::split_into (const citer pivot, ir_block& dest)
+  ir_def_timeline::ut_riter
+  ir_block::
+  find_latest_use_timeline_before (const citer pos, ir_def_timeline& dt,
+                                   ir_def_timeline::ut_riter start) const
   {
-    if (pivot == end<range::body> ())
-      return dest;
-
-    // move needed timelines into dest
-    std::transform (m_def_timelines_map.begin (), m_def_timelines_map.end (),
-                    std::back_inserter (dest.m_def_timelines_map),
-                    [this, &pivot, &dest](std::pair<ir_variable * const, ir_def_timeline>& pair)
-                    {
-                      return std::pair { std::get<ir_variable * const> (pair),
-                                         split (std::get<ir_def_timeline> (pair), pivot, dest) };
-                    });
-
-    // move the range into dest
-    dest.splice<range::body> (dest.begin<range::body> (), *this, pivot, end<range::body> ());
-    return dest;
-  }
-
-  ir_def_timeline
-  ir_block::split (ir_def_timeline& dt, citer pivot, ir_block& dest)
-  {
-    ir_def_timeline ret (dest, *this, dt);
-    ret.transfer_successors (dt);
-
-    if (dt.local_empty () || pivot == end<range::body> ())
-      return ret;
-
-    if (pivot == begin<range::body> ())
+    for (; start != dt.local_rend (); ++start)
     {
-      // move everything
-      ret.splice (ret.local_end (), dt);
-      if (dt.has_single_incoming ())
-        ret.swap_incoming (dt);
-      return ret;
-    }
+      auto       subrange_riter = dt.instructions_rbegin (start);
+      const auto subrange_rend  = dt.instructions_rend (start);
 
-    auto [tl_rit, tl_rfirst] = find_pair_latest_timeline_before (dt, pivot);
-
-    // if we didnt stop exactly on a timeline boundary
-    if (tl_rit != dt.local_rbegin () && tl_rfirst != rbegin<range::body> () &&
-        &std::prev (tl_rit)->get_instruction () != &(*std::prev (tl_rfirst)))
-    {
-      if (tl_rit != dt.local_rend ())
+      for (; subrange_riter != subrange_rend; ++subrange_riter)
       {
-        ret.emplace_single_incoming (split_uses (*tl_rit, pivot, tl_rfirst.base ()), *this, dt);
-      }
-      else if (auto node = dt.get_single_incoming ())
-      {
-        ret.emplace_single_incoming (split_uses (node->get_use_timeline (), pivot, tl_rfirst.base ()),
-                                     *this, dt);
+        if (subrange_riter.base () == pos)
+          return start;
       }
     }
-
-    ret.splice (ret.local_end (), dt, tl_rit.base (), dt.local_end ());
-
-    return ret;
+    return start;
   }
 
-  ir_def_timeline::riter
+  ir_def_timeline::ut_riter
   ir_block::
-  find_latest_timeline (ir_def_timeline& dt) const
+  find_latest_use_timeline_before (const citer pos, ir_def_timeline& dt) const
   {
-    return dt.timelines_rbegin ();
-  }
-
-  ir_def_timeline::riter
-  ir_block::
-  find_latest_timeline_before (ir_def_timeline& dt, const citer pos) const
-  {
-    if (pos == cend<range::body> ())
-      return dt.timelines_rbegin ();
+    if (pos == end<range::body> ())
+      return dt.use_timelines_rbegin ();
 
     if (pos == cbegin<range::body> ())
       return dt.local_rend ();
 
-    // reverse iterate over the instructions
-    // reverse iterate over the def timeline
-    // compare pos with the position of the def instruction in each use timeline
-    auto dt_rcurr = dt.timelines_rbegin ();
-    for (auto it = end<range::body> (); it != pos && dt_rcurr != dt.local_rend (); --it)
-    {
-      if (std::prev (it) == dt_rcurr->get_def_pos ())
-        ++dt_rcurr;
-    }
-    return dt_rcurr;
+    return find_latest_use_timeline_before (pos, dt, dt.local_rbegin ());
   }
 
-  optional_ref<ir_use_timeline>
-  ir_block::get_latest_timeline (ir_variable& var)
+  ir_def_timeline::use_timelines_iterator
+  ir_block::
+  get_latest_use_timeline (ir_def_timeline& dt)
   {
-    if (dt.defs_empty ())
-    {
+    if (dt.has_outgoing_timeline ())
+      return dt.get_outgoing_timeline_iter ();
 
-    }
-    return dt.defs_back ();
-
-    if (dt.has_defs ())
-      return dt.defs_back ();
-
-    if (optional_ref<ir_def_timeline> dt = maybe_join_incoming (var))
-      return dt->get_outgoing_timeline ();
-    return nullopt;
+    // else we need to join
+    join_at (dt);
+    assert (dt.has_incoming_timeline ());
+    return dt.get_incoming_timeline_iter ();
   }
 
   ir_use_timeline&
-  ir_block::get_latest_timeline (ir_variable& var)
+  ir_block::
+  get_latest_use_timeline (ir_variable& var)
   {
-    if (optional_ref<ir_def_timeline> dt = maybe_join_incoming (var))
-      return dt->get_outgoing_timeline ();
-    return nullopt;
+    return *get_latest_use_timeline (get_def_timeline (var));
   }
 
-  ir_use_timeline&
-  ir_block::get_latest_timeline_before (ir_def_timeline& dt, citer pos)
+  ir_def_timeline::use_timelines_iterator
+  ir_block::
+  get_latest_use_timeline_before (const citer pos, ir_def_timeline& dt,
+                                  ir_def_timeline::ut_riter start)
   {
     if (pos == end<range::body> ())
-      return get_latest_timeline (dt);
+      return get_latest_use_timeline (dt);
 
-    if (optional_ref<ir_def_timeline> dt = maybe_join_incoming (var))
-    {
-      if (auto found = find_latest_timeline_before (*dt, pos) ; found != dt->local_rend ())
-        return *found;
-      return dt->get_entry_timeline ();
-    }
-    return nullopt;
+    auto found = find_latest_use_timeline_before (pos, dt, start);
+    if (found != dt.use_timelines_rend ())
+      return std::prev (found.base ());
+
+    // else we need to join
+    join_at (dt);
+    assert (dt.has_incoming_timeline ());
+    return dt.get_incoming_timeline_iter ();
+  }
+
+  ir_def_timeline::use_timelines_iterator
+  ir_block::
+  get_latest_use_timeline_before (const citer pos, ir_def_timeline& dt)
+  {
+    return get_latest_use_timeline_before (pos, dt, dt.local_rbegin ());
   }
 
   ir_use_timeline&
-  ir_block::get_latest_timeline_before (ir_variable& var, const citer pos)
-  {
-    if (pos == end<range::body> ())
-      return get_latest_timeline (var);
-    if (optional_ref<ir_def_timeline> dt = maybe_join_incoming (var))
-    {
-      if (auto found = find_latest_timeline_before (*dt, pos) ; found != dt->local_rend ())
-        return *found;
-      return dt->get_entry_timeline ();
-    }
-    return nullopt;
-  }
-
-  class ir_associated_incoming
-  {
-  public:
-    ir_associated_incoming            (void)                              = delete;
-    ir_associated_incoming            (const ir_associated_incoming&)     = default;
-    ir_associated_incoming            (ir_associated_incoming&&) noexcept = default;
-    ir_associated_incoming& operator= (const ir_associated_incoming&)     = default;
-    ir_associated_incoming& operator= (ir_associated_incoming&&) noexcept = default;
-    ~ir_associated_incoming           (void)                              = default;
-
-    ir_associated_incoming (nonnull_ptr<ir_block> incoming_block,
-                            std::vector<nonnull_ptr<ir_def_timeline>>&& timelines)
-      : m_incoming_block (incoming_block),
-        m_timelines      (timelines)
-    { }
-
-    [[nodiscard]] auto  begin   (void)       noexcept { return m_timelines.begin ();   }
-    [[nodiscard]] auto  begin   (void) const noexcept { return m_timelines.begin ();   }
-    [[nodiscard]] auto  cbegin  (void) const noexcept { return m_timelines.cbegin ();  }
-
-    [[nodiscard]] auto  end     (void)       noexcept { return m_timelines.end ();     }
-    [[nodiscard]] auto  end     (void) const noexcept { return m_timelines.end ();     }
-    [[nodiscard]] auto  cend    (void) const noexcept { return m_timelines.cend ();    }
-
-    [[nodiscard]] auto  rbegin  (void)       noexcept { return m_timelines.rbegin ();  }
-    [[nodiscard]] auto  rbegin  (void) const noexcept { return m_timelines.rbegin ();  }
-    [[nodiscard]] auto  crbegin (void) const noexcept { return m_timelines.crbegin (); }
-
-    [[nodiscard]] auto  rend    (void)       noexcept { return m_timelines.rend ();    }
-    [[nodiscard]] auto  rend    (void) const noexcept { return m_timelines.rend ();    }
-    [[nodiscard]] auto  crend   (void) const noexcept { return m_timelines.crend ();   }
-
-    [[nodiscard]] auto& front   (void)       noexcept { return m_timelines.front ();   }
-    [[nodiscard]] auto& front   (void) const noexcept { return m_timelines.front ();   }
-
-    [[nodiscard]] auto& back    (void)       noexcept { return m_timelines.back ();    }
-    [[nodiscard]] auto& back    (void) const noexcept { return m_timelines.back ();    }
-
-    [[nodiscard]] auto  size    (void) const noexcept { return m_timelines.size ();    }
-    [[nodiscard]] auto  empty   (void) const noexcept { return m_timelines.empty ();   }
-
-    [[nodiscard]] constexpr
-    ir_block&
-    get_incoming_block (void) noexcept
-    {
-      return *m_incoming_block;
-    }
-
-    [[nodiscard]] constexpr
-    const ir_block&
-    get_incoming_block (void) const noexcept
-    {
-      return *m_incoming_block;
-    }
-
-    void
-    append_timeline (ir_def_timeline& dt)
-    {
-      m_timelines.emplace_back (dt);
-    }
-
-    [[nodiscard]]
-    const ir_def&
-    get_def (void) const noexcept
-    {
-      return front ()->get_outgoing_timeline ().get_def ();
-    }
-
-    [[nodiscard]]
-    optional_cref<ir_def>
-    maybe_get_def (void) const noexcept
-    {
-      if (! empty ())
-        return get_def ();
-      return nullopt;
-    }
-
-    [[nodiscard]]
-    std::vector<nonnull_ptr<ir_def_timeline>>&&
-    release_timelines (void) noexcept
-    {
-      return std::move (m_timelines);
-    }
-
-  private:
-    nonnull_ptr<ir_block>                     m_incoming_block;
-    std::vector<nonnull_ptr<ir_def_timeline>> m_timelines;
-  };
-
-  ir_use_timeline&
   ir_block::
-  join_incoming (ir_def_timeline& dt)
+  get_latest_use_timeline_before (const citer pos, ir_variable& var)
   {
-    // collect associated blocks and timelines
-    std::vector<ir_associated_incoming> incoming_assoc;
-    std::transform (preds_begin (), preds_end (), std::back_inserter (incoming_assoc),
-                    [&dt](nonnull_ptr<ir_block> block) -> ir_associated_incoming
-                    {
-                      return { block, block->forward_outgoing_timelines (dt.get_variable ()) };
-                    });
-    // always create a phi here
-
-  }
-
-  std::vector<nonnull_ptr<ir_def_timeline>>
-  ir_block::
-  forward_incoming_timelines (ir_variable& var)
-  {
-
-    // collect associated blocks and timelines
-    std::vector<ir_associated_incoming> incoming_assoc;
-    std::transform (preds_begin (), preds_end (), std::back_inserter (incoming_assoc),
-                    [&var](nonnull_ptr<ir_block> block) -> ir_associated_incoming
-                    {
-                      return { block, block->forward_outgoing_timelines (var) };
-                    });
-
-    // find the first non-empty association
-    auto found = std::find_if_not (incoming_assoc.begin (), incoming_assoc.end (),
-                                   &ir_associated_incoming::empty);
-
-    if (found == incoming_assoc.end ())
-      return { };
-
-    if (std::all_of (std::next (found), incoming_assoc.end (),
-                     [cmp = &found->get_def ()](const ir_associated_incoming& inc)
-                     {
-                       // note: all defs should already match within an associated block
-                       return cmp == inc.maybe_get_def ();
-                     }))
-    {
-      // if all of the timelines match in their associated defs
-      // we can just forward the timelines without a new phi
-      return std::accumulate (std::next (found), incoming_assoc.end (), found->release_timelines (),
-                              [](auto& ret, ir_associated_incoming& inc)
-                              {
-                                std::move (inc.begin (), inc.end (), std::back_inserter (ret));
-                                return ret;
-                              });
-    }
-
-    // otherwise we need to create a phi
-
-    ir_def_timeline& dt = get_def_timeline (var);
-    if (dt.has_incoming ())
-      throw ir_exception ("the block already has incoming defs");
-
-    std::for_each (incoming_assoc.begin (), incoming_assoc.end (),
-                   [&dt](ir_associated_incoming& inc)
-                   {
-                     dt.append_incoming (inc.get_incoming_block (), inc.begin (), inc.end ());
-                   });
-
-    // now fix up successors
-    if (! dt.has_local_timelines ())
-    {
-      // Incoming timelines in successors will be all-or-nothing in regards to
-      // all of the timelines collected here, so we only need to find one in a
-      // successor. If found, we replace everything in the incoming_node with *this.
-    }
-
-    return { dt };
-  }
-
-  std::vector<nonnull_ptr<ir_def_timeline>>
-  ir_block::
-  forward_outgoing_timelines (ir_variable& var)
-  {
-    if (optional_ref<ir_def_timeline> dt = maybe_get_def_timeline (var))
-    {
-      if (dt->defs_empty ())
-        throw ir_exception ("def timeline should not be empty");
-      return { *dt };
-    }
-
-    switch (num_preds ())
-    {
-      case 0:  return { };
-      case 1:  return preds_front ()->forward_outgoing_timelines (var);
-      default: return collect_defs_incoming (var);
-    }
-  }
-
-  std::vector<std::pair<nonnull_ptr<ir_block>, optional_ref<ir_def_timeline>>>
-  ir_block::
-  collect_outgoing (ir_variable& var)
-  {
-    if (optional_ref<ir_def_timeline> dt = maybe_get_def_timeline (var) ; dt->has_timelines ())
-      return { { *this, dt } };
-    return { { *this, nullopt } };
-  }
-
-  ir_def_timeline&
-  ir_block::
-  append_incoming (ir_variable& var, ir_def_timeline& dt,
-                                   ir_block& incoming_block, ir_def_timeline& pred)
-  {
-    if (! pred.has_timelines ())
-      throw ir_exception ("incoming timeline unexpectedly empty");
-
-    if (auto node = dt.get_single_incoming ())
-    {
-      // don't mutate to phi if the incoming instruction is the same as the current one
-      if (&node->get_instruction () != &pred.get_outgoing_instruction ())
-        dt.mutate_to_phi (append_phi (var)).append (incoming_block, pred);
-      else
-        node->add_predecessor (incoming_block, pred);
-    }
-    else if (auto phi = dt.get_phi ())
-      phi->append (incoming_block, pred);
-    else
-      dt.emplace_single_incoming (incoming_block, pred);
-
-    dt.remove_undefined (incoming_block);
-    return dt;
-  }
-
-  ir_def_timeline&
-  ir_block::
-  append_incoming (ir_variable& var, ir_def_timeline& dt,
-                                   ir_block& incoming_block,
-                                   const std::vector<nonnull_ptr<ir_def_timeline>>& preds)
-  {
-    if (preds.empty ())
-    {
-      dt.append_undefined (incoming_block);
-      return dt;
-    }
-
-    ir_instruction& instr = preds.front ()->get_outgoing_instruction ();
-    bool is_indet = preds.front ()->has_indeterminate_outgoing ();
-
-    if (auto node = dt.get_single_incoming ())
-    {
-      // don't mutate to phi if the incoming instruction is the same as the current one
-      if (&node->get_instruction () != &instr)
-      {
-        dt.mutate_to_phi (append_phi (var)).append (instr, is_indet, incoming_block,
-                                                    preds.begin (), preds.end ());
-      }
-      else
-        node->add_predecessor (incoming_block, preds.begin (), preds.end ());
-    }
-    else if (auto phi = dt.get_phi ())
-      phi->append (instr, is_indet, incoming_block, preds.begin (), preds.end ());
-    else
-      dt.emplace_single_incoming (instr, is_indet, incoming_block, preds.begin (), preds.end ());
-
-    dt.remove_undefined (incoming_block);
-    return dt;
-  }
-
-  ir_def_timeline&
-  ir_block::
-  resolve_undefined_incoming (ir_variable& undef_var, ir_def_timeline& var_dt)
-  {
-    if (auto undef_dt = maybe_get_def_timeline (undef_var))
-    {
-      if (undef_dt->has_any_incoming ())
-        return *undef_dt;
-    }
-
-    std::vector<std::pair<nonnull_ptr<ir_block>, nonnull_ptr<ir_def_timeline>>> pred_dts;
-    std::transform (var_dt.undef_begin (), var_dt.undef_end (), std::back_inserter (pred_dts),
-                   [&undef_var](nonnull_ptr<ir_block> blk)
-                   {
-                     return std::pair { blk,
-                              nonnull_ptr { blk->set_undefined_state (undef_var, true) } };
-                   });
-
-    auto process_node =
-      [&undef_var, &pred_dts](ir_incoming_node& node)
-      {
-        ir_def_timeline& origin = node.get_origin ();
-        ir_block& origin_block = origin.get_block ();
-
-        optional_ref<ir_def_timeline> undef_dt;
-        if (node.is_indeterminate ())
-          undef_dt = origin_block.resolve_undefined_outgoing (undef_var, origin);
-        else
-          undef_dt = origin_block.set_undefined_state (undef_var, false);
-
-        std::transform (node.begin (), node.end (), std::back_inserter (pred_dts),
-                        [undef_dt](ir_def_linkage& link)
-                        {
-                          return std::pair { nonnull_ptr { link.get_incoming_block () },
-                                             nonnull_ptr { *undef_dt } };
-                        });
-      };
-
-    if (auto opt_node = var_dt.get_single_incoming ())
-      process_node (*opt_node);
-    else if (auto phi = var_dt.get_phi ())
-      std::for_each (phi->begin (), phi->end (), process_node);
-
-    ir_def_timeline& undef_dt = get_def_timeline (undef_var);
-    std::for_each (pred_dts.begin (), pred_dts.end (),
-                   applied {
-                             [&](nonnull_ptr<ir_block> block, nonnull_ptr<ir_def_timeline> dt)
-                             {
-                               append_incoming (undef_var, undef_dt, *block, *dt);
-                             }
-                           });
-  }
-
-  ir_def_timeline&
-  ir_block::
-  resolve_undefined_outgoing (ir_variable& undef_var, ir_def_timeline& var_dt)
-  {
-    if (auto undef_dt = maybe_get_def_timeline (undef_var))
-    {
-      if (undef_dt->has_defs ())
-        return *undef_dt;
-    }
-
-    if (var_dt.has_defs ())
-      return set_undefined_state (undef_var, false);
-    return resolve_undefined_incoming (undef_var, var_dt);
-  }
-
-  ir_def_timeline&
-  ir_block::
-  set_undefined_state (ir_variable& undef_var, bool state)
-  {
-    auto found = std::find_if (get<range::undef> ().rbegin (), get<range::undef> ().rend (),
-                               [&undef_var](ir_instruction& instr)
-                               {
-                                 return &instr.get_return ().get_variable () == &undef_var;
-                               });
-
-    if (found != get<range::undef> ().rend ())
-    {
-      ir_constant& arg = *get_if<ir_constant> (found->front ());
-      arg.emplace<bool> (state);
-      return *maybe_get_def_timeline (undef_var);
-    }
-    else
-    {
-      get<range::undef> ().push_back (ir_instruction::create<ir_opcode::assign> (
-        undef_var, ir_constant (state)));
-
-      ir_def_timeline& undef_dt = get_def_timeline (undef_var);
-      if (undef_dt.has_defs ())
-        throw ir_exception ("undef var ir_def_timeline unexpectedly has defs already");
-      undef_dt.emplace_back (get<range::undef> ().back ());
-      return undef_dt;
-    }
-  }
-
-  void
-  ir_block::
-  propagate_def_timeline (ir_variable& var, ir_block& incoming_block,
-                                          ir_def_timeline& remote)
-  {
-    optional_ref<ir_def_timeline> opt_dt = maybe_get_def_timeline (var);
-    if (opt_dt)
-    {
-      if (auto node = opt_dt->get_single_incoming ())
-      {
-        node->replace_predecessor (incoming_block, remote);
-        if (node->is_indeterminate () && !node->get_use_timeline ().empty ())
-        {
-          // we need to split the block
-          ir_def_timeline& undef_dt = resolve_undefined_incoming (var.get_undef_var (), *opt_dt);
-        }
-
-      }
-      else if (auto phi = opt_dt->get_phi ())
-      {
-        phi->replace (*opt_dt, incoming_block, remote);
-      }
-    }
-
-    if (! opt_dt || (opt_dt->has_single_incoming () && opt_dt->local_empty ()))
-    {
-      std::for_each (succs_begin (), succs_end (),
-                     [&var, &remote, this](ir_block& block)
-                     {
-                       block.propagate_def_timeline (var, *this, remote);
-                     });
-    }
+    return *get_latest_use_timeline_before (pos, get_def_timeline (var));
   }
 
   ir_use_info
   ir_block::
   prepare_operand (citer pos, ir_variable& var)
   {
-    ir_def_timeline& dt = get_def_timeline (var);
-    auto found = get_latest_timeline_before (pos, var);
-    return { *found, }
-    if (auto found_pair = get_pair_latest_timeline_before (pos, var))
-    {
-      auto& [tl, tl_rfirst] = *found_pair;
-      return { { tl, find_first_use_after (*tl, pos, tl_rfirst.base ()) } };
-    }
+    ir_def_timeline& dt           = get_def_timeline (var);
+    auto             ut_it        = get_latest_use_timeline (dt);
+    auto             use_position = dt.first_use_after (pos, ut_it);
+
+    return { *ut_it, use_position };
   }
 
   const ir_constant&
   ir_block::
-  prepare_operand (const citer&, const ir_constant& c) noexcept
+  prepare_operand (citer, const ir_constant& c) noexcept
   {
     return c;
   }
 
   ir_constant&&
   ir_block::
-  prepare_operand (const citer&, ir_constant&& t) noexcept
+  prepare_operand (citer, ir_constant&& t) noexcept
   {
     return std::move (t);
   }
 
   ir_use_timeline&
   ir_block::
-  track_def_at (ir_variable& var, iter pos)
+  track_def_at (iter pos, ir_variable& var)
   {
-    ir_def_timeline& dt = get_def_timeline (var);
-    return *dt.emplace_before<range::body> (find_latest_timeline_before (dt, pos).base (), pos);
+    ir_def_timeline& dt     = get_def_timeline (var);
+    auto             ut_pos = find_latest_use_timeline_before (pos, dt).base ();
+
+    return *dt.emplace_local (ut_pos, pos);
   }
 
   ir_block::iter
   ir_block::
   remove_instruction (const citer pos)
   {
-    if (will_return (*pos))
+    const ir_instruction& instr = *pos;
+    assert (! is_a<ir_opcode::phi> (instr) && "cannot remove phi instruction");
+
+    if (has_def (instr))
     {
       // do some stuff to relink the dependent uses
-      ir_def_timeline& dt = get_def_timeline (pos->get_return ().get_variable ());
-      if (! dt.has_timelines ())
-      {
-        // need to terminate
-      }
 
-      auto def_tl = std::find_if (dt.local_rbegin (),
-                                  dt.local_rend (),
-                                  [pos](const ir_use_timeline& tl)
+      assert (has_def_timeline (instr.get_def ().get_variable ()));
+      auto& dt = std::get<ir_def_timeline> (*find_def_timeline (pos->get_def ().get_variable ()));
+
+      auto ut_rit = std::find_if (dt.local_rbegin (), dt.local_rend (),
+                                  [&](const ir_use_timeline& ut)
                                   {
-                                    return &tl.get_instruction () == &(*pos);
+                                    return ut.get_def_pos () == pos;
                                   });
 
-      if (def_tl != dt.local_rend ())
+      assert (ut_rit != dt.local_rend () && "could not find the use-timeline for the instruction");
+
+      if (std::next (ut_rit) == dt.use_timelines_rend ())
       {
-        std::next (def_tl)->splice_back (*def_tl);
-        dt.erase (std::next (def_tl).base ());
+        // then local_rend == use_timelines_rend => no incoming-timeline (need to join)
+
+        join_at (dt);
+        assert (dt.has_incoming_timeline ());
+
+        ir_use_timeline& incoming_tl = dt.get_incoming_timeline ();
+        incoming_tl.splice_back (*ut_rit);
       }
       else
-        throw ir_exception ("ir_def_timeline not found in the block");
+        std::next (ut_rit)->splice_back (*ut_rit);
+
+      dt.erase_local (std::next (ut_rit).base ());
     }
+
     return erase<range::body> (pos);
   }
 
@@ -666,45 +228,54 @@ namespace gch
   ir_block::
   remove_range (const citer first, const citer last) noexcept
   {
-    std::vector<nonnull_ptr<const ir_variable>> unlinked_vars;
+    ir_link_set<const ir_variable> unlinked_vars;
     std::for_each (criter { last }, criter { first },
-                   [this, first, &unlinked_vars](const ir_instruction& instr)
+                   [&](const ir_instruction& instr)
                    {
-                     if (! will_return (instr))
+                     if (! has_def (instr))
                        return;
 
-                     const ir_def& d = instr.get_return ();
-                     if (std::none_of (unlinked_vars.begin (), unlinked_vars.end (), &d
-                       .get_variable ()))
-                     {
-                       ir_def_timeline& dt = *maybe_get_def_timeline (d.get_variable ());
-                       if (! dt.has_timelines ())
-                       {
-                         // need to terminate
-                       }
+                     const ir_def&      def = instr.get_def ();
+                     const ir_variable& var = def.get_variable ();
 
-                       auto def_tl = std::find_if (dt.local_rbegin (),
+                     if (! unlinked_vars.contains (var))
+                     {
+                       assert (has_def_timeline (var));
+                       auto& dt = std::get<ir_def_timeline> (*find_def_timeline (var));
+
+                       auto ut_rit = std::find_if (dt.local_rbegin (),
                                                    dt.local_rend (),
-                                                   [&instr](const ir_use_timeline& tl)
+                                                   [&](const ir_use_timeline& tl)
                                                    {
-                                                     return &tl.get_instruction () == &instr;
+                                                     return &instr == &tl.get_def_instruction ();
                                                    });
 
-                       if (ir_def_timeline::riter found = find_latest_timeline_before (dt, first) ;
-                             found != dt.local_rend ())
+                       assert (ut_rit != dt.local_rend ()
+                           &&  "could not find the use-timeline for the instruction");
+
+                       if (std::next (ut_rit) == dt.use_timelines_rend ())
                        {
-                         found->splice_back (*def_tl);
-                         dt.erase (found.base (), def_tl.base ());
+                         // then local_rend == use_timelines_rend
+                         //   => no incoming-timeline (need to join)
+
+                         join_at (dt);
+                         assert (dt.has_incoming_timeline ());
+
+                         ir_use_timeline& incoming_tl = dt.get_incoming_timeline ();
+                         incoming_tl.splice_back (*ut_rit);
                        }
                        else
                        {
-                         ir_use_timeline& found_tl = *dt.get_entry_timeline ();
-                         found_tl.splice_back (*def_tl);
-                         dt.erase (dt.local_begin (), def_tl.base ());
+                         auto& ut = *get_latest_use_timeline_before (first, dt, std::next (ut_rit));
+                         ut.splice_back (*ut_rit);
                        }
-                       unlinked_vars.emplace_back (d.get_variable ());
+
+                       dt.erase_local (std::next (ut_rit).base ());
+
+                       unlinked_vars.emplace (var);
                      }
                    });
+
     return erase<range::body> (first, last);
   }
 
@@ -733,46 +304,11 @@ namespace gch
     auto pos = std::find_if (begin<range::phi> (), end<range::phi> (),
                              [&var] (const ir_instruction& instr)
                              {
-                               return &instr.get_return ().get_variable () == &var;
+                               return &instr.get_def ().get_variable () == &var;
                              });
 
     assert (pos != end<range::phi> ());
     return erase_phi (pos);
-  }
-
-  ir_use_timeline
-  ir_block::
-  split_uses (ir_use_timeline& src, const citer pivot, const citer last)
-  {
-    ir_use_timeline ret { src.get_instruction () };
-    ret.transfer_back (src, find_first_use_after (src, pivot, last), src.end ());
-    return ret;
-  }
-
-  ir_use_timeline::iter
-  ir_block::
-  find_first_use_after (ir_use_timeline& tl, const citer pos,
-                                        const citer last)
-  {
-    if (last == begin<range::body> () || pos == begin<range::body> ())
-      return tl.begin ();
-
-    if (pos == last)
-      return tl.end ();
-
-    return std::find_if (tl.rbegin (), tl.rend (),
-                         [rfirst = criter { last },
-                          rlast  = rend<range::body> (),
-                          cmp    = &(*pos)](const ir_use& u) mutable
-                         {
-                           const ir_instruction *tl_instr  = &u.get_instruction ();
-                           for (; rfirst != rlast && &(*rfirst) != tl_instr; ++rfirst)
-                           {
-                             if (&(*rfirst) == cmp)
-                               return true;
-                           }
-                           return false;
-                         }).base ();
   }
 
   auto
@@ -843,7 +379,7 @@ namespace gch
   find_def_timeline (const ir_variable& var)
     -> dt_map_iter
   {
-    return m_def_timelines_map.find (&var);
+    return m_def_timelines_map.find (nonnull_ptr { var });
   }
 
   auto
@@ -854,11 +390,27 @@ namespace gch
     return as_mutable (*this).find_def_timeline (var);
   }
 
+  bool
+  ir_block::
+  has_def_timeline (const ir_variable& var) const
+  {
+    return find_def_timeline (var) != dt_map_end ();
+  }
+
+  auto
+  ir_block::
+  try_emplace_def_timeline (ir_variable& var)
+    -> dt_map_emplace_return_type
+  {
+    auto res = m_def_timelines_map.try_emplace (nonnull_ptr { var }, *this, var);
+    return { std::get<dt_map_iter> (res), std::get<bool> (res) };
+  }
+
   ir_def_timeline&
   ir_block::
   get_def_timeline (ir_variable& var)
   {
-    return std::get<ir_def_timeline> (*m_def_timelines_map.try_emplace (&var, *this, var).first);
+    return std::get<ir_def_timeline> (*try_emplace_def_timeline (var).position);
   }
 
   optional_ref<ir_def_timeline>
@@ -897,40 +449,7 @@ namespace gch
   ir_block::
   remove_def_timeline (const ir_variable& var)
   {
-    return m_def_timelines_map.erase (&var) != 0;
-  }
-
-  bool
-  ir_block::
-  reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
-                         std::vector<nonnull_ptr<ir_block>>& until)
-  {
-    if (auto stop_found = std::find (until.begin (), until.end (), this) ;
-        stop_found != until.end ())
-    {
-      until.erase (stop_found);
-      return true;
-    }
-
-    ir_variable& var = new_dt.get_variable ();
-    if (optional_ref local_dt { maybe_get_def_timeline (var) })
-    {
-      assert (local_dt->has_timelines () && "def timeline should not be empty");
-      return true;
-    }
-    return false;
-  }
-
-  void
-  ir_block::reset (void) noexcept
-  {
-    erase (begin<range::body> (), end<range::body> ());
-
-    // TODO remove when verified
-    for (const auto& p : m_def_timelines_map)
-    {
-
-    }
+    return m_def_timelines_map.erase (nonnull_ptr { var }) != 0;
   }
 
 }

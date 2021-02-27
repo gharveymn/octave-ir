@@ -76,24 +76,6 @@ namespace gch
     template <typename T>
     using is_component = std::is_base_of<ir_component, T>;
 
-    //
-    // virtual functions
-    //
-
-    // returns whether the caller should stop executing
-    virtual
-    bool
-    reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
-                           std::vector<nonnull_ptr<ir_block>>& until) = 0;
-
-    virtual
-    void
-    reset (void) noexcept = 0;
-
-    //
-    // virtual function accessories
-    //
-
   private:
   };
 

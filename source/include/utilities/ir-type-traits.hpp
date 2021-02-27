@@ -396,18 +396,6 @@ namespace gch
   template <typename T>
   using is_pointer_ref = std::is_pointer<typename std::remove_reference<T>::type>;
 
-  template <typename T>
-  constexpr
-  std::remove_const_t<T>&
-  as_mutable (T& ref)
-  {
-    return const_cast<std::remove_const_t<T>&> (ref);
-  }
-
-  template <typename T>
-  void
-  as_mutable (const T&&) = delete;
-
   namespace detail
   {
 

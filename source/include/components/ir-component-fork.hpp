@@ -203,24 +203,6 @@ namespace gch
       return find_case (as_mutable (c));
     }
 
-    //
-    // virtual from ir_component
-    //
-
-    bool
-    reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
-                           std::vector<nonnull_ptr<ir_block>>& until) override;
-
-    void
-    reset (void) noexcept override;
-
-    //
-    // virtual from ir_structure
-    //
-
-    ir_use_timeline&
-    join_incoming_at (ir_component_ptr pos, ir_def_timeline& dt) override;
-
   private:
     ir_condition_block m_condition;
     cases_container    m_cases;

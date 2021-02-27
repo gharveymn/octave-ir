@@ -73,11 +73,12 @@ namespace gch
     -> iter
   {
     // find the new size as a result of the flattening operation
-    std::size_t new_size = std::accumulate (citer (first), last, size (),
-      [](std::size_t curr, ir_component& c)
+    std::size_t new_size = std::accumulate (first, make_mutable (last), size (),
+      [](std::size_t curr, ir_subcomponent& sub)
       {
-        return curr + (maybe_cast<ir_component_sequence> (c)
-                         >>= [](ir_component_sequence& seq) { return seq.size () - 1; });
+
+        return curr + (maybe_cast<ir_component_sequence> (sub)
+                         >>= [](auto& seq) { return seq.size () - 1; });
       });
 
     assert (size () <= new_size);
@@ -121,7 +122,7 @@ namespace gch
 
   void
   ir_component_sequence::
-  flatten (void)
+  flatten_level (void)
   {
     flatten_range (begin (), end ());
   }
@@ -143,32 +144,6 @@ namespace gch
     // now flatten all subcomponents
     std::for_each (begin (), end (),
                    [](ir_subcomponent& sub) { maybe_cast<ir_structure> (sub) >>= &gch::flatten; });
-  }
-
-  //
-  // virtual from ir_component
-  //
-
-  bool
-  ir_component_sequence::
-  reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
-                         std::vector<nonnull_ptr<ir_block>>& until)
-  {
-    return std::any_of (begin (), end (),
-                        [&](ir_component& c)
-                        {
-                          return c.reassociate_timelines (old_dts, new_dt, until);
-                        });
-  }
-
-  void
-  ir_component_sequence::
-  reset (void) noexcept
-  {
-    m_body.erase (std::next (m_body.begin ()), m_body.end ());
-    front ().reset ();
-    m_find_cache.emplace (make_handle (begin ()));
-    invalidate_leaf_cache ();
   }
 
   auto

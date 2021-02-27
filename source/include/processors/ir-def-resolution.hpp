@@ -86,15 +86,19 @@ namespace gch
 
       leading_block_resolution (ir_block& block, ir_link_set<ir_def_timeline>&& resolution);
 
+      [[nodiscard]]
       ir_block&
       get_block (void) const noexcept;
 
+      [[nodiscard]]
       bool
       has_resolution (void) const noexcept;
 
+      [[nodiscard]]
       const ir_link_set<ir_def_timeline>&
       get_resolution (void) const noexcept;
 
+      [[nodiscard]]
       const std::optional<ir_link_set<ir_def_timeline>>&
       maybe_get_resolution (void) const noexcept;
 
@@ -232,6 +236,69 @@ namespace gch
     nonnull_ptr<ir_block>   m_join_block;
     ir_def_resolution_stack m_substack;
   };
+
+  class ir_def_resolution_build_result
+  {
+  public:
+    ir_def_resolution_build_result            (void)                                      = delete;
+    ir_def_resolution_build_result            (const ir_def_resolution_build_result&)     = delete;
+    ir_def_resolution_build_result            (ir_def_resolution_build_result&&) noexcept = default;
+    ir_def_resolution_build_result& operator= (const ir_def_resolution_build_result&)     = delete;
+    ir_def_resolution_build_result& operator= (ir_def_resolution_build_result&&) noexcept = default;
+    ~ir_def_resolution_build_result           (void)                                      = default;
+
+    enum class join : bool
+    {
+      yes = true,
+      no  = false,
+    };
+
+    enum class resolvable : bool
+    {
+      yes = true,
+      no  = false,
+    };
+
+    ir_def_resolution_build_result (ir_variable& var, join j, resolvable r);
+
+    ir_def_resolution_build_result (ir_def_resolution_stack&& s, join j, resolvable r);
+
+    [[nodiscard]]
+    join
+    get_join_state (void) const noexcept;
+
+    [[nodiscard]]
+    resolvable
+    get_resolvable_state (void) const noexcept;
+
+    // returning rvalue reference just for semantic reasons
+    [[nodiscard]]
+    ir_def_resolution_stack&&
+    release_stack (void) noexcept;
+
+    [[nodiscard]]
+    bool
+    needs_join (void) const noexcept;
+
+    [[nodiscard]]
+    bool
+    is_resolvable (void) const noexcept;
+
+  private:
+    ir_def_resolution_stack m_stack;
+    join                    m_join;
+    resolvable              m_resolvable;
+  };
+
+  [[nodiscard]]
+  ir_def_resolution_stack
+  build_def_resolution_stack (ir_block& block, ir_variable& var);
+
+  ir_use_timeline&
+  join_at (ir_block& block, ir_variable& var);
+
+  ir_use_timeline&
+  join_at (ir_def_timeline& dt);
 
 }
 

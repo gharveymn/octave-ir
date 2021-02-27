@@ -87,13 +87,6 @@ namespace gch
     return { new_seq.begin (), new_seq.last () };
   }
 
-  ir_use_timeline&
-  ir_structure::
-  join_incoming_at (ir_block& block, ir_variable& var)
-  {
-    return join_incoming_at (get_ptr (block), block.get_def_timeline (var));
-  }
-
   //
   // non-member functions
   //

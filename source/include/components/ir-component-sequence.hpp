@@ -109,21 +109,28 @@ namespace gch
     ir_component_sequence& operator= (ir_component_sequence&&) noexcept = default;
     ~ir_component_sequence (void) override                              = default;
 
-    template <typename Entry, typename ...Args>
+    template <typename Entry, typename ...Args,
+              std::enable_if_t<std::is_constructible_v<Entry, ir_structure&, Args...>> * = nullptr>
     ir_component_sequence (ir_structure& parent, ir_subcomponent_type_t<Entry>, Args&&... args)
       : ir_substructure { parent },
-        m_body          { allocate_subcomponent<Entry> (std::forward<Args> (args)...) },
-        m_find_cache    { make_handle (begin ()) }
-    { }
+        m_find_cache { make_handle (end ()) }
+    {
+      m_body.push_back (allocate_subcomponent<Entry> (std::forward<Args> (args)...));
+      m_find_cache.emplace (make_handle (begin ()));
+    }
 
     template <typename ...Args,
               std::enable_if_t<std::conjunction_v<
                 std::is_same<ir_component_mover, std::decay_t<Args>>...>> * = nullptr>
     ir_component_sequence (ir_structure& parent, ir_component_mover m, Args&&... args)
       : ir_substructure { parent },
-        m_body          { m, args... },
-        m_find_cache    { make_handle (begin ()) }
-    { }
+        m_find_cache    { make_handle (end ()) }
+    {
+      m_body.reserve (1 + sizeof...(Args));
+      m_body.push_back (m);
+      (m_body.push_back (args), ...);
+      m_find_cache.emplace (make_handle (begin ()));
+    }
 
     [[nodiscard]]
     iter
@@ -341,28 +348,10 @@ namespace gch
     flatten_range (iter first, citer last);
 
     void
-    flatten (void);
+    flatten_level (void);
 
     void
     recursive_flatten (void);
-
-    //
-    // virtual from ir_component
-    //
-
-    bool
-    reassociate_timelines (const ir_link_set<ir_def_timeline>& old_dts, ir_def_timeline& new_dt,
-                           std::vector<nonnull_ptr<ir_block>>& until) override;
-
-    void
-    reset (void) noexcept override;
-
-    //
-    // virtual from ir_structure
-    //
-
-    ir_use_timeline&
-    join_incoming_at (ir_component_ptr pos, ir_def_timeline& dt) override;
 
   protected:
     citer

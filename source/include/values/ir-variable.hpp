@@ -20,13 +20,14 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-#if ! defined (octave_ir_variable_h)
-#define octave_ir_variable_h 1
+#ifndef OCTAVE_IR_IR_VARIABLE_HPP
+#define OCTAVE_IR_IR_VARIABLE_HPP
 
 #include "utilities/ir-common-util.hpp"
+#include "utilities/ir-type-traits.hpp"
 #include "values/types/ir-type-base.hpp"
-#include "ir-instruction-fwd.hpp"
-#include "ir-constant.hpp"
+#include "values/ir-constant.hpp"
+#include "values/ir-instruction-fwd.hpp"
 
 #include <gch/optional_ref.hpp>
 #include <gch/nonnull_ptr.hpp>

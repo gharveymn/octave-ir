@@ -55,6 +55,18 @@ namespace gch
   }
 
   template <typename T>
+  constexpr
+  std::remove_const_t<T>&
+  as_mutable (T& ref)
+  {
+    return const_cast<std::remove_const_t<T>&> (ref);
+  }
+
+  template <typename T>
+  void
+  as_mutable (const T&&) = delete;
+
+  template <typename T>
   class mover
   {
   public:
@@ -83,6 +95,32 @@ namespace gch
 
   private:
     nonnull_ptr<T> m_ptr;
+  };
+
+  template <typename T>
+  class value_mover
+  {
+  public:
+    value_mover            (void)                   = delete;
+    value_mover            (const value_mover&)     = delete;
+    value_mover            (value_mover&&) noexcept = default;
+    value_mover& operator= (const value_mover&)     = delete;
+    value_mover& operator= (value_mover&&) noexcept = default;
+    ~value_mover           (void)                   = default;
+
+    constexpr /* implicit */
+    value_mover (T&& ref)
+      : m_value (std::move (ref))
+    { }
+
+    constexpr /* implicit */
+    operator T&& (void) const
+    {
+      return std::move (m_value);
+    }
+
+  private:
+    T m_value;
   };
 
   template <typename T>

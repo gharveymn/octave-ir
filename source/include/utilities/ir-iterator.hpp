@@ -378,14 +378,6 @@ namespace gch
   template <typename Container>
   class set_emplacer
   {
-    template <typename Tuple, std::size_t... I>
-    constexpr
-    void
-    assign (Tuple&& t, std::index_sequence<I...>)
-    {
-      m_container->emplace (std::get<I> (std::forward<Tuple> (t))...);
-    }
-
   public:
     using container_type = Container;
 
@@ -404,7 +396,7 @@ namespace gch
 
     constexpr explicit
     set_emplacer (Container& c)
-      : m_container { std::addressof (c) }
+      : m_set { c }
     { }
 
     template <typename Tuple,
@@ -413,8 +405,8 @@ namespace gch
     set_emplacer&
     operator= (Tuple&& t)
     {
-      assign (std::forward<Tuple> (t),
-              std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple>>> { });
+      std::apply ([this](auto&&... e) { m_set.emplace (std::forward<decltype (e)> (e)...); },
+                  std::forward<Tuple> (t));
       return *this;
     }
 
@@ -440,7 +432,7 @@ namespace gch
     }
 
   private:
-    nonnull_ptr<Container> m_container;
+    nonnull_ptr<Container> m_set;
   };
 
 }

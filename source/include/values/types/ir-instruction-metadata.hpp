@@ -8,7 +8,14 @@
 #ifndef OCTAVE_IR_IR_INSTRUCTION_METADATA_HPP
 #define OCTAVE_IR_IR_INSTRUCTION_METADATA_HPP
 
-#include "utilities/ir-common.hpp"
+#ifndef GCH_CPP20_CONSTEVAL
+#  if defined (__cpp_consteval) && __cpp_consteval >= 201811L
+#    define GCH_CPP20_CONSTEVAL consteval
+#  else
+#    define GCH_CPP20_CONSTEVAL constexpr
+#  endif
+#endif
+
 #include "utilities/ir-functional.hpp"
 
 #include <array>
@@ -65,56 +72,46 @@ namespace gch
   class ir_instruction_metadata
   {
   public:
-    enum class arity : signed
-    {
-      n_ary    = -1,
-      nullary  =  0,
-      unary    =  1,
-      binary   =  2,
-      ternary  =  3,
-    };
 
-    enum class returning : bool
+    struct flag
     {
-      yes = true,
-      no  = false,
-    };
+      enum class arity : signed
+      {
+        n_ary    = -1,
+        nullary  =  0,
+        unary    =  1,
+        binary   =  2,
+        ternary  =  3,
+      };
 
-    enum class abstract : bool
-    {
-      yes = true,
-      no  = false,
+      enum class has_def : bool
+      {
+        yes = true,
+        no  = false,
+      };
+
+      enum class is_abstract : bool
+      {
+        yes = true,
+        no  = false,
+      };
     };
 
   private:
     struct impl
     {
-      const char *    m_name;
-      const impl *    m_base;
-      const ir_opcode m_opcode;
-      const arity     m_arity;
-      const returning m_returning;
-      const abstract  m_abstract;
+      const char *            m_name;
+      const impl *            m_base;
+      const ir_opcode         m_opcode;
+      const flag::arity       m_arity;
+      const flag::has_def     m_has_def;
+      const flag::is_abstract m_abstract;
     };
-
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
-    returning
-    returning_state (void) const noexcept
-    {
-      return m_ptr->m_returning;
-    }
-
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
-    abstract
-    abstract_state (void) const noexcept
-    {
-      return m_ptr->m_abstract;
-    }
 
     template <ir_opcode Op>
     struct instance;
 
-    constexpr
+    constexpr explicit
     ir_instruction_metadata (const impl& impl_ref) noexcept
       : m_ptr (&impl_ref)
     { }
@@ -138,7 +135,7 @@ namespace gch
     ir_instruction_metadata
     get_base (void) const noexcept
     {
-      return *m_ptr->m_base;
+      return ir_instruction_metadata { *m_ptr->m_base };
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
@@ -149,7 +146,7 @@ namespace gch
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
-    arity
+    flag::arity
     get_arity (void) const noexcept
     {
       return m_ptr->m_arity;
@@ -157,16 +154,16 @@ namespace gch
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
-    will_return (void) const noexcept
+    has_def (void) const noexcept
     {
-      return returning_state () == returning::yes;
+      return m_ptr->m_has_def == flag::has_def::yes;
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_abstract (void) const noexcept
     {
-      return abstract_state () == abstract::yes;
+      return m_ptr->m_abstract == flag::is_abstract::yes;
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
@@ -180,35 +177,35 @@ namespace gch
     bool
     is_n_ary (void) const noexcept
     {
-      return get_arity () == arity::n_ary;
+      return get_arity () == flag::arity::n_ary;
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_nullary (void) const noexcept
     {
-      return get_arity () == arity::nullary;
+      return get_arity () == flag::arity::nullary;
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_unary (void) const noexcept
     {
-      return get_arity () == arity::unary;
+      return get_arity () == flag::arity::unary;
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_binary (void) const noexcept
     {
-      return get_arity () == arity::binary;
+      return get_arity () == flag::arity::binary;
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     is_ternary (void) const noexcept
     {
-      return get_arity () == arity::ternary;
+      return get_arity () == flag::arity::ternary;
     }
 
     friend GCH_CPP20_CONSTEVAL
@@ -235,7 +232,7 @@ namespace gch
     ir_instruction_metadata
     get (void) noexcept
     {
-      return instance<Op>::data;
+      return ir_instruction_metadata { instance<Op>::data };
     }
 
     static constexpr
@@ -267,39 +264,53 @@ namespace gch
     [[nodiscard]]
     static GCH_CPP20_CONSTEVAL
     impl
-    create_type (const char* name, ir_opcode Op, returning ret, arity n, abstract abs) noexcept
+    create_type (const char *      name,
+                 ir_opcode         Op,
+                 flag::has_def     def,
+                 flag::arity       n,
+                 flag::is_abstract abs) noexcept
     {
-      return { name, nullptr, Op, n, ret, abs };
+      return { name, nullptr, Op, n, def, abs };
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     impl
-    derive (const char* name, ir_opcode Op, returning ret,
-            abstract abs = abstract::no) const noexcept
+    derive (const char *      name,
+            ir_opcode         Op,
+            flag::has_def     def,
+            flag::is_abstract abs = flag::is_abstract::no) const noexcept
     {
-      return { name, m_ptr, Op, get_arity (), ret, abs };
+      return { name, m_ptr, Op, get_arity (), def, abs };
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     impl
-    derive (const char* name, ir_opcode Op, returning ret, arity n,
-            abstract abs = abstract::no) const noexcept
+    derive (const char *      name,
+            ir_opcode         Op,
+            flag::has_def     def,
+            flag::arity       n,
+            flag::is_abstract abs = flag::is_abstract::no) const noexcept
     {
-      return { name, m_ptr, Op, n, ret, abs };
+      return { name, m_ptr, Op, n, def, abs };
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     impl
-    derive (const char* name, ir_opcode Op, arity n, abstract abs = abstract::no) const noexcept
+    derive (const char *      name,
+            ir_opcode         Op,
+            flag::arity       n,
+            flag::is_abstract abs = flag::is_abstract::no) const noexcept
     {
-      return { name, m_ptr, Op, n, returning_state (), abs };
+      return { name, m_ptr, Op, n, m_ptr->m_has_def, abs };
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     impl
-    derive (const char* name, ir_opcode Op, abstract abs = abstract::no) const noexcept
+    derive (const char *      name,
+            ir_opcode         Op,
+            flag::is_abstract abs = flag::is_abstract::no) const noexcept
     {
-      return { name, m_ptr, Op, get_arity (), returning_state (), abs };
+      return { name, m_ptr, Op, get_arity (), m_ptr->m_has_def, abs };
     }
 
     const impl *m_ptr;
@@ -310,12 +321,20 @@ namespace gch
   {
     static_assert (sizeof...(Indices) == num_opcodes);
 
+    template <typename Result>
+    constexpr
+    std::array<Result, num_opcodes>
+    operator() (Result (ir_instruction_metadata::* proj) (void) const noexcept) const noexcept
+    {
+      return { (get<static_cast<ir_opcode> (Indices)> ().*proj) ()... };
+    }
+
     template <typename Projection>
-    GCH_CPP20_CONSTEVAL
+    constexpr
     std::array<std::invoke_result_t<Projection, ir_instruction_metadata>, num_opcodes>
     operator() (Projection proj) const noexcept
     {
-      return { invoke (proj, get<static_cast<ir_opcode> (Indices)> ())... };
+      return { proj (get<static_cast<ir_opcode> (Indices)> ())... };
     }
   };
 
@@ -349,10 +368,10 @@ namespace gch
     static constexpr
     impl
     data = create_type ("phi",
-                        ir_opcode::phi,
-                        returning::yes,
-                        arity::    n_ary,
-                        abstract:: no);
+                        ir_opcode::        phi,
+                        flag::has_def::    yes,
+                        flag::arity::      n_ary,
+                        flag::is_abstract::no);
   };
 
   template <>
@@ -361,10 +380,10 @@ namespace gch
     static constexpr
     impl
     data = create_type ("assign",
-                        ir_opcode::assign,
-                        returning::yes,
-                        arity::    unary,
-                        abstract:: no);
+                        ir_opcode::        assign,
+                        flag::has_def::    yes,
+                        flag::arity::      unary,
+                        flag::is_abstract::no);
   };
 
   template <>
@@ -373,10 +392,10 @@ namespace gch
     static constexpr
     impl
     data = create_type ("call",
-                        ir_opcode::call,
-                        returning::yes,
-                        arity::    n_ary,
-                        abstract:: no);
+                        ir_opcode::        call,
+                        flag::has_def::    yes,
+                        flag::arity::      n_ary,
+                        flag::is_abstract::no);
   };
 
   template <>
@@ -385,10 +404,10 @@ namespace gch
     static constexpr
     impl
     data = create_type ("fetch",
-                        ir_opcode::fetch,
-                        returning::yes,
-                        arity::    unary,
-                        abstract:: no);
+                        ir_opcode::        fetch,
+                        flag::has_def::    yes,
+                        flag::arity::      unary,
+                        flag::is_abstract::no);
   };
 
   template <>
@@ -397,10 +416,10 @@ namespace gch
     static constexpr
     impl
     data = create_type ("convert",
-                        ir_opcode::convert,
-                        returning::yes,
-                        arity::    unary,
-                        abstract:: no);
+                        ir_opcode::        convert,
+                        flag::has_def::    yes,
+                        flag::arity::      unary,
+                        flag::is_abstract::no);
   };
 
   template <>
@@ -409,10 +428,10 @@ namespace gch
     static constexpr
     impl
     data = create_type ("branch",
-                        ir_opcode::branch,
-                        returning::no,
-                        arity::    n_ary,
-                        abstract:: yes);
+                        ir_opcode::        branch,
+                        flag::has_def::    no,
+                        flag::arity::      n_ary,
+                        flag::is_abstract::yes);
   };
 
   template <>
@@ -421,10 +440,10 @@ namespace gch
     static constexpr
     impl
     data = create_type ("relation",
-                        ir_opcode::relation,
-                        returning::yes,
-                        arity::    binary,
-                        abstract:: yes);
+                        ir_opcode::        relation,
+                        flag::has_def::    yes,
+                        flag::arity::      binary,
+                        flag::is_abstract::yes);
   };
 
   template <>
@@ -433,10 +452,10 @@ namespace gch
     static constexpr
     impl
     data = create_type ("arithmetic",
-                        ir_opcode::arithmetic,
-                        returning::yes,
-                        arity::    n_ary,
-                        abstract:: yes);
+                        ir_opcode::        arithmetic,
+                        flag::has_def::    yes,
+                        flag::arity::      n_ary,
+                        flag::is_abstract::yes);
   };
 
   template <>
@@ -445,10 +464,10 @@ namespace gch
     static constexpr
     impl
     data = create_type ("logical",
-                        ir_opcode::logical,
-                        returning::yes,
-                        arity::    n_ary,
-                        abstract:: yes) ;
+                        ir_opcode::        logical,
+                        flag::has_def::    yes,
+                        flag::arity::      n_ary,
+                        flag::is_abstract::yes) ;
   };
 
   template <>
@@ -457,10 +476,10 @@ namespace gch
     static constexpr
     impl
     data = create_type ("bitwise",
-                        ir_opcode::bitwise,
-                        returning::yes,
-                        arity::    n_ary,
-                        abstract:: yes);
+                        ir_opcode::        bitwise,
+                        flag::has_def::    yes,
+                        flag::arity::      n_ary,
+                        flag::is_abstract::yes);
   };
 
   /* branch */
@@ -471,8 +490,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::branch> ().derive ("br",
-                                             ir_opcode::cbranch,
-                                             arity::    binary);
+                                             ir_opcode::  cbranch,
+                                             flag::arity::binary);
   };
 
   template <>
@@ -481,8 +500,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::branch> ().derive ("ubr",
-                                             ir_opcode::ucbranch,
-                                             arity::    unary);
+                                             ir_opcode::  ucbranch,
+                                             flag::arity::unary);
   };
 
   /* relation */
@@ -549,8 +568,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::arithmetic> ().derive ("+",
-                                                 ir_opcode::add,
-                                                 arity::    binary);
+                                                 ir_opcode::  add,
+                                                 flag::arity::binary);
   };
 
   template <>
@@ -559,8 +578,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::arithmetic> ().derive ("-",
-                                                 ir_opcode::sub,
-                                                 arity::    binary);
+                                                 ir_opcode::  sub,
+                                                 flag::arity::binary);
   };
 
   template <>
@@ -569,8 +588,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::arithmetic> ().derive ("*",
-                                                 ir_opcode::mul,
-                                                 arity::    binary);
+                                                 ir_opcode::  mul,
+                                                 flag::arity::binary);
   };
 
   template <>
@@ -579,8 +598,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::arithmetic> ().derive ("/",
-                                                 ir_opcode::div,
-                                                 arity::    binary);
+                                                 ir_opcode::  div,
+                                                 flag::arity::binary);
   };
 
   template <>
@@ -589,8 +608,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::arithmetic> ().derive ("%",
-                                                 ir_opcode::mod,
-                                                 arity::    binary);
+                                                 ir_opcode::  mod,
+                                                 flag::arity::binary);
   };
 
   template <>
@@ -599,8 +618,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::arithmetic> ().derive ("rem",
-                                                 ir_opcode::rem,
-                                                 arity::    binary);
+                                                 ir_opcode::  rem,
+                                                 flag::arity::binary);
   };
 
   template <>
@@ -609,8 +628,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::arithmetic> ().derive ("-",
-                                                 ir_opcode::neg,
-                                                 arity::    unary );
+                                                 ir_opcode::  neg,
+                                                 flag::arity::unary );
   };
 
   /* logical */
@@ -621,8 +640,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::logical> ().derive ("&&",
-                                              ir_opcode::land,
-                                              arity::    binary);
+                                              ir_opcode::  land,
+                                              flag::arity::binary);
   };
 
   template <>
@@ -631,8 +650,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::logical> ().derive ("||",
-                                              ir_opcode::lor,
-                                              arity::    binary);
+                                              ir_opcode::  lor,
+                                              flag::arity::binary);
   };
 
   template <>
@@ -641,8 +660,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::logical> ().derive ("!",
-                                              ir_opcode::lnot,
-                                              arity::    unary );
+                                              ir_opcode::  lnot,
+                                              flag::arity::unary );
   };
 
   /* bitwise */
@@ -653,8 +672,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::bitwise> ().derive ("&",
-                                              ir_opcode::band,
-                                              arity::    binary);
+                                              ir_opcode::  band,
+                                              flag::arity::binary);
   };
 
   template <>
@@ -663,8 +682,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::bitwise> ().derive ("|",
-                                              ir_opcode::bor,
-                                              arity::    binary);
+                                              ir_opcode::  bor,
+                                              flag::arity::binary);
   };
 
   template <>
@@ -673,8 +692,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::bitwise> ().derive ("^",
-                                              ir_opcode::bxor,
-                                              arity::    binary);
+                                              ir_opcode::  bxor,
+                                              flag::arity::binary);
   };
 
   template <>
@@ -683,8 +702,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::bitwise> ().derive ("<<",
-                                              ir_opcode::bshiftl,
-                                              arity::    binary);
+                                              ir_opcode::  bshiftl,
+                                              flag::arity::binary);
   };
 
   template <>
@@ -693,8 +712,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::bitwise> ().derive (">>",
-                                              ir_opcode::bashiftr,
-                                              arity::    binary);
+                                              ir_opcode::  bashiftr,
+                                              flag::arity::binary);
   };
 
   template <>
@@ -703,8 +722,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::bitwise> ().derive (">>",
-                                              ir_opcode::blshiftr,
-                                              arity::    binary);
+                                              ir_opcode::  blshiftr,
+                                              flag::arity::binary);
   };
 
   template <>
@@ -713,8 +732,8 @@ namespace gch
     static constexpr
     impl
     data = get<ir_opcode::bitwise> ().derive ("~",
-                                              ir_opcode::bnot,
-                                              arity::    unary );
+                                              ir_opcode::  bnot,
+                                              flag::arity::unary );
   };
 
   template <ir_opcode Op>
@@ -722,12 +741,12 @@ namespace gch
   ir_instruction_metadata
   ir_instruction_metadata_v = ir_instruction_metadata::get<Op> ();
 
-  GCH_CPP20_CONSTEVAL
+  constexpr
   ir_instruction_metadata
   get_metadata (ir_opcode op)
   {
     constexpr auto values = ir_instruction_metadata::generate_array ();
-    return values[static_cast<std::size_t> (op)];
+    return values[static_cast<std::underlying_type_t<ir_opcode>> (op)];
   }
 
   static_assert (ir_instruction_metadata_v<ir_opcode::ge> == get_metadata (ir_opcode::ge));

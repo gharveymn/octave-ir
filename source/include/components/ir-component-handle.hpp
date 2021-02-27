@@ -506,14 +506,14 @@ namespace gch
   bool
   operator== (const ir_component_cptr& lhs, const ir_component_cptr::observer& rhs)
   {
-    return lhs.maybe_get_component ().contains (rhs);
+    return lhs.maybe_get_component ().same_address (rhs);
   }
 
   constexpr
   bool
   operator== (const ir_component_cptr::observer& lhs, const ir_component_cptr& rhs)
   {
-    return lhs.contains (rhs.maybe_get_component ());
+    return rhs == lhs;
   }
 
   constexpr

@@ -200,7 +200,7 @@ namespace gch
   ir_use_timeline::
   get_def (void) noexcept
   {
-    return get_def_instruction ().get_return ();
+    return get_def_instruction ().get_def ();
   }
 
   ir_instruction_iter

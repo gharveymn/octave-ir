@@ -62,15 +62,15 @@ namespace gch
 
   void
   ir_def_timeline::
-  splice_local (uts_citer pos, ir_def_timeline& other)
+  splice_local (ut_citer pos, ir_def_timeline& other)
   {
     get_use_timelines<range::local> ().splice (pos, other.get_use_timelines<range::local> ());
   }
 
   void
   ir_def_timeline::
-  splice_local (uts_citer pos, ir_def_timeline& other,
-                                      uts_citer first, uts_citer last)
+  splice_local (ut_citer pos, ir_def_timeline& other,
+                                      ut_citer first, ut_citer last)
   {
     get_use_timelines<range::local> ().splice (pos, other.get_use_timelines<range::local> (),
                                                first, last);
@@ -78,8 +78,8 @@ namespace gch
 
   auto
   ir_def_timeline::
-  emplace_local (const uts_citer pos, const ir_instruction_iter instr_pos)
-    -> uts_iter
+  emplace_local (const ut_citer pos, const ir_instruction_iter instr_pos)
+    -> ut_iter
   {
     return get_use_timelines<range::local> ().emplace (pos, instr_pos);
   }
@@ -93,16 +93,16 @@ namespace gch
 
   auto
   ir_def_timeline::
-  erase_local (uts_citer pos)
-    -> uts_iter
+  erase_local (ut_citer pos)
+    -> ut_iter
   {
     return get_use_timelines<range::local> ().erase (pos);
   }
 
   auto
   ir_def_timeline::
-  erase_local (const uts_citer first, const uts_citer last)
-    -> uts_iter
+  erase_local (const ut_citer first, const ut_citer last)
+    -> ut_iter
   {
     return get_use_timelines<range::local> ().erase (first, last);
   }
@@ -159,7 +159,7 @@ namespace gch
   [[nodiscard]]
   ir_instruction_iter
   ir_def_timeline::
-  instructions_begin (uts_iter pos) noexcept
+  instructions_begin (ut_iter pos) noexcept
   {
     return pos->get_def_pos ();
   }
@@ -167,7 +167,7 @@ namespace gch
   [[nodiscard]]
   ir_instruction_citer
   ir_def_timeline::
-  instructions_begin (uts_citer pos) noexcept
+  instructions_begin (ut_citer pos) noexcept
   {
     return pos->get_def_pos ();
   }
@@ -175,7 +175,7 @@ namespace gch
   [[nodiscard]]
   ir_instruction_citer
   ir_def_timeline::
-  instructions_cbegin (uts_citer pos) noexcept
+  instructions_cbegin (ut_citer pos) noexcept
   {
     return instructions_begin (pos);
   }
@@ -183,7 +183,7 @@ namespace gch
   [[nodiscard]]
   ir_instruction_iter
   ir_def_timeline::
-  instructions_end (uts_iter pos) const noexcept
+  instructions_end (ut_iter pos) const noexcept
   {
     if (pos != local_end ())
       return std::next (pos)->get_def_pos ();
@@ -193,7 +193,7 @@ namespace gch
   [[nodiscard]]
   ir_instruction_citer
   ir_def_timeline::
-  instructions_end (uts_citer pos) const noexcept
+  instructions_end (ut_citer pos) const noexcept
   {
     if (pos != local_end ())
       return std::next (pos)->get_def_pos ();
@@ -203,7 +203,7 @@ namespace gch
   [[nodiscard]]
   ir_instruction_citer
   ir_def_timeline::
-  instructions_cend (uts_citer pos) const noexcept
+  instructions_cend (ut_citer pos) const noexcept
   {
     return instructions_end (pos);
   }
@@ -211,23 +211,23 @@ namespace gch
   [[nodiscard]]
   ir_instruction_riter
   ir_def_timeline::
-  instructions_rbegin (uts_iter pos) const noexcept
+  instructions_rbegin (ut_iter pos) const noexcept
   {
-    return ir_instruction_riter  { instructions_end (pos) };
+    return ir_instruction_riter { instructions_end (pos) };
   }
 
   [[nodiscard]]
   ir_instruction_criter
   ir_def_timeline::
-  instructions_rbegin (uts_citer pos) const noexcept
+  instructions_rbegin (ut_citer pos) const noexcept
   {
-    return ir_instruction_criter  { instructions_cend (pos) };
+    return ir_instruction_criter { instructions_cend (pos) };
   }
 
   [[nodiscard]]
   ir_instruction_criter
   ir_def_timeline::
-  instructions_crbegin (uts_citer pos) const noexcept
+  instructions_crbegin (ut_citer pos) const noexcept
   {
     return instructions_rbegin (pos);
   }
@@ -235,58 +235,58 @@ namespace gch
   [[nodiscard]]
   ir_instruction_riter
   ir_def_timeline::
-  instructions_rend (uts_iter pos) noexcept
+  instructions_rend (ut_iter pos) noexcept
   {
-    return ir_instruction_riter  { instructions_begin (pos) };
+    return ir_instruction_riter { instructions_begin (pos) };
   }
 
   [[nodiscard]]
   ir_instruction_criter
   ir_def_timeline::
-  instructions_rend (uts_citer pos) noexcept
+  instructions_rend (ut_citer pos) noexcept
   {
-    return ir_instruction_criter  { instructions_cbegin (pos) };
+    return ir_instruction_criter { instructions_cbegin (pos) };
   }
 
   [[nodiscard]]
   ir_instruction_criter
   ir_def_timeline::
-  instructions_crend (uts_citer pos) noexcept
+  instructions_crend (ut_citer pos) noexcept
   {
     return instructions_rend (pos);
   }
 
   ir_instruction&
   ir_def_timeline::
-  instructions_front (uts_iter pos) noexcept
+  instructions_front (ut_iter pos) noexcept
   {
     return *instructions_begin (pos);
   }
 
   const ir_instruction&
   ir_def_timeline::
-  instructions_front (uts_citer pos) noexcept
+  instructions_front (ut_citer pos) noexcept
   {
     return *instructions_begin (pos);
   }
 
   ir_instruction&
   ir_def_timeline::
-  instructions_back (uts_iter pos) const noexcept
+  instructions_back (ut_iter pos) const noexcept
   {
     return *instructions_rbegin (pos);
   }
 
   const ir_instruction&
   ir_def_timeline::
-  instructions_back (uts_citer pos) const noexcept
+  instructions_back (ut_citer pos) const noexcept
   {
     return *instructions_rbegin (pos);
   }
 
   ir_use_timeline::iter
   ir_def_timeline::
-  find_first_after (const uts_iter ut_it, const ir_instruction_citer pos) const noexcept
+  first_use_after (const ir_instruction_citer pos, const ut_iter ut_it) const noexcept
   {
     // we reverse iterate because the instruction is more likely to
     // be near the back of the timeline.
@@ -305,7 +305,7 @@ namespace gch
 
   ir_use_timeline::citer
   ir_def_timeline::
-  find_first_after (const uts_citer ut_it, const ir_instruction_citer pos) const noexcept
+  first_use_after (const ir_instruction_citer pos, const ut_citer ut_it) const noexcept
   {
     auto rcurr = ut_it->rbegin ();
     for (auto it = std::prev (instructions_end (ut_it));
@@ -320,14 +320,14 @@ namespace gch
 
   std::ptrdiff_t
   ir_def_timeline::
-  num_instructions (uts_citer pos) const noexcept
+  num_instructions (ut_citer pos) const noexcept
   {
     return std::distance (instructions_begin (pos), instructions_end (pos));
   }
 
   bool
   ir_def_timeline::
-  has_instructions (uts_citer pos) const noexcept
+  has_instructions (ut_citer pos) const noexcept
   {
     return instructions_begin (pos) == instructions_end (pos);
   }

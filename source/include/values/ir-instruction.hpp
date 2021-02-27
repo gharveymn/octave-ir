@@ -49,7 +49,7 @@ namespace gch
     static constexpr auto name        = metadata.get_name ();
     static constexpr auto is_abstract = metadata.is_abstract ();
     static constexpr auto has_base    = metadata.has_base ();
-    static constexpr auto will_return = metadata.will_return ();
+    static constexpr auto has_def     = metadata.has_def ();
     static constexpr auto arity       = metadata.get_arity ();
 
     static constexpr auto is_n_ary    = metadata.is_n_ary ();
@@ -131,19 +131,19 @@ namespace gch
     template <ir_opcode Op>
     static constexpr
     void
-    assert_has_return (void)
+    assert_has_def (void)
     {
-      static_assert (type<Op>::will_return,
-                     "Instruction metadata specified no such return.");
+      static_assert (type<Op>::has_def,
+                     "Instruction metadata specified no such def.");
     }
 
     template <ir_opcode Op>
     static constexpr
     void
-    assert_no_return (void)
+    assert_no_def (void)
     {
-      static_assert (! type<Op>::will_return,
-                     "Instruction metadata specified a return.");
+      static_assert (! type<Op>::has_def,
+                     "Instruction metadata specified a def.");
     }
 
     template <ir_opcode Op, std::size_t N>
@@ -167,11 +167,11 @@ namespace gch
     template <ir_opcode Op, typename ...Args>
     ir_instruction (tag_t<Op>, ir_variable& ret_var, Args&&... args)
       : m_metadata (type<Op>::metadata),
-        m_return   (std::in_place, ret_var, *this),
+        m_def (std::in_place, ret_var, *this),
         m_args     ()
     {
       assert_not_abstract<Op> ();
-      assert_has_return<Op> ();
+      assert_has_def<Op> ();
 
       initialize_with_pack<Op> (std::forward<Args> (args)...);
     }
@@ -179,11 +179,11 @@ namespace gch
     template <ir_opcode Op, typename ...Args>
     ir_instruction (tag_t<Op>, ir_operand_in&& op, Args&&... args)
       : m_metadata (type<Op>::metadata),
-        m_return   (std::nullopt),
+        m_def (std::nullopt),
         m_args     ()
     {
       assert_not_abstract<Op> ();
-      assert_no_return<Op> ();
+      assert_no_def<Op> ();
 
       initialize_with_pack<Op> (std::move (op), std::forward<Args> (args)...);
     }
@@ -191,11 +191,11 @@ namespace gch
     template <ir_opcode Op, typename ...Args>
     ir_instruction (tag_t<Op>, ir_constant&& c, Args&&... args)
       : m_metadata (type<Op>::metadata),
-        m_return   (std::nullopt),
+        m_def (std::nullopt),
         m_args     ()
     {
       assert_not_abstract<Op> ();
-      assert_no_return<Op> ();
+      assert_no_def<Op> ();
 
       initialize_with_pack<Op> (std::move (c), std::forward<Args> (args)...);
     }
@@ -206,11 +206,11 @@ namespace gch
     explicit
     ir_instruction (tag_t<Op>, ir_variable& ret_var, std::array<ir_operand_in, N>&& args)
       : m_metadata (type<Op>::metadata),
-        m_return   (std::in_place, ret_var, *this),
+        m_def (std::in_place, ret_var, *this),
         m_args     ()
     {
       assert_not_abstract<Op> ();
-      assert_has_return<Op> ();
+      assert_has_def<Op> ();
 
       initialize_with_array<Op> (std::move (args));
     }
@@ -219,11 +219,11 @@ namespace gch
     explicit
     ir_instruction (tag_t<Op>, std::array<ir_operand_in, N>&& args)
       : m_metadata (type<Op>::metadata),
-        m_return   (std::nullopt),
+        m_def (std::nullopt),
         m_args     ()
     {
       assert_not_abstract<Op> ();
-      assert_no_return<Op> ();
+      assert_no_def<Op> ();
 
       initialize_with_array<Op> (std::move (args));
     }
@@ -232,11 +232,11 @@ namespace gch
     explicit
     ir_instruction (tag_t<Op>)
       : m_metadata (type<Op>::metadata),
-        m_return   (std::nullopt),
+        m_def (std::nullopt),
         m_args     ()
     {
       assert_not_abstract<Op> ();
-      assert_no_return<Op> ();
+      assert_no_def<Op> ();
       assert_no_args<Op> ();
     }
 
@@ -244,7 +244,7 @@ namespace gch
     operator= (ir_instruction&& other) noexcept
     {
       m_metadata = other.m_metadata;
-      set_return (std::move (other.m_return));
+      set_def (std::move (other.m_def));
       set_args (std::move (other.m_args));
       return *this;
     }
@@ -325,7 +325,7 @@ namespace gch
     };
 
     void
-    set_return (std::optional<ir_def>&& ret);
+    set_def (std::optional<ir_def>&& def);
 
     void
     set_args (args_container_type&& args);
@@ -353,20 +353,20 @@ namespace gch
 
     [[nodiscard]] constexpr
     ir_def&
-    get_return (void) noexcept
+    get_def (void) noexcept
     {
-      return *m_return;
+      return *m_def;
     }
     [[nodiscard]] constexpr
     const ir_def&
-    get_return (void) const noexcept
+    get_def (void) const noexcept
     {
-      return *m_return;
+      return *m_def;
     }
 
   private:
     metadata_t            m_metadata;
-    std::optional<ir_def> m_return;
+    std::optional<ir_def> m_def;
     args_container_type   m_args;
   };
 
@@ -380,9 +380,9 @@ namespace gch
 
   [[nodiscard]] constexpr
   bool
-  will_return (const ir_instruction& instr) noexcept
+  has_def (const ir_instruction& instr) noexcept
   {
-    return instr.get_metadata ().will_return ();
+    return instr.get_metadata ().has_def ();
   }
 
 }

@@ -17,61 +17,6 @@ namespace gch
 {
 
   //
-  // ir_def_resolution_build_result
-  //
-
-  ir_def_resolution_build_result::
-  ir_def_resolution_build_result (ir_variable& var, join j, resolvable r)
-    : m_stack      (var),
-      m_join       (j),
-      m_resolvable (r)
-  { }
-
-  ir_def_resolution_build_result::
-  ir_def_resolution_build_result (ir_def_resolution_stack&& s, join j, resolvable r)
-    : m_stack      (std::move (s)),
-      m_join       (j),
-      m_resolvable (r)
-  { }
-
-  auto
-  ir_def_resolution_build_result::
-  get_join_state (void) const noexcept
-  -> join
-  {
-    return m_join;
-  }
-
-  auto
-  ir_def_resolution_build_result::
-  get_resolvable_state (void) const noexcept
-  -> resolvable
-  {
-    return m_resolvable;
-  }
-
-  ir_def_resolution_stack&&
-  ir_def_resolution_build_result::
-  release_stack (void) noexcept
-  {
-    return std::move (m_stack);
-  }
-
-  bool
-  ir_def_resolution_build_result::
-  needs_join (void) const noexcept
-  {
-    return get_join_state () == join::yes;
-  }
-
-  bool
-  ir_def_resolution_build_result::
-  is_resolvable (void) const noexcept
-  {
-    return get_resolvable_state () == resolvable::yes;
-  }
-
-  //
   // ir_def_resolution_build_descender
   //
 
@@ -227,8 +172,7 @@ namespace gch
       result_type body_res { dispatch_descender (loop.get_body ()) };
       if (body_res.needs_join ())
       {
-        auto tmp = std::exchange (body_stack, ir_def_resolution_stack (get_variable ()));
-        body_stack.add_leaf (std::move (tmp));
+        body_stack.add_leaf (std::exchange (body_stack, ir_def_resolution_stack (get_variable ())));
         body_stack.push_frame (get_entry_block (loop.get_update ()), body_res.release_stack ());
         body_needs_join = true;
       }
@@ -570,22 +514,6 @@ namespace gch
   get_variable (void) const noexcept
   {
     return m_variable;
-  }
-
-  ir_def_resolution_build_result
-  build_def_resolution_stack (ir_block& block, ir_variable& var)
-  {
-    using result_type = ir_def_resolution_build_result;
-
-    result_type             res   { ir_ascending_def_resolution_builder { block, var } () };
-    ir_def_resolution_stack stack { res.release_stack () };
-
-    assert (! stack.has_leaves ());
-    stack.add_leaf (block);
-
-    return { std::move (stack),
-             res.get_join_state (),
-             res.get_resolvable_state () };
   }
 
 }
