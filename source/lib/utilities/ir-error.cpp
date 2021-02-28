@@ -13,9 +13,6 @@
 namespace gch
 {
 
-  ir_exception::
-  ~ir_exception (void) = default;
-
   namespace abort
   {
 

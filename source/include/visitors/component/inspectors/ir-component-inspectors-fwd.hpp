@@ -15,10 +15,13 @@ namespace gch
 
   class ir_leaf_collector;
 
+  class ir_block_counter;
+
   template <>
   struct exclusive_inspectors<ir_component>
   {
-    using type = visitor_types<ir_leaf_collector>;
+    using type = visitor_types<ir_leaf_collector,
+                               ir_block_counter>;
   };
 
   template <typename T>
@@ -32,7 +35,13 @@ namespace gch
     using visitor_category = const_inspector_tag;
   };
 
-
+  template <>
+  struct visitor_traits<ir_block_counter>
+    : acceptor_trait<ir_block_counter>
+  {
+    using result_type      = std::size_t;
+    using visitor_category = const_inspector_tag;
+  };
 
 }
 

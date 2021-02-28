@@ -10,8 +10,34 @@
 
 #include "ir-structure-inspectors-fwd.hpp"
 
+#include "visitors/ir-visitor.hpp"
+
 namespace gch
 {
+
+  template <>
+  auto
+  acceptor<ir_component_fork, inspector_type<ir_entry_collector>>::
+  accept (visitor_reference v) const
+    -> result_type;
+
+  template <>
+  auto
+  acceptor<ir_component_loop, inspector_type<ir_entry_collector>>::
+  accept (visitor_reference v) const
+    -> result_type;
+
+  template <>
+  auto
+  acceptor<ir_component_sequence, inspector_type<ir_entry_collector>>::
+  accept (visitor_reference v) const
+    -> result_type;
+
+  template <>
+  auto
+  acceptor<ir_function, inspector_type<ir_entry_collector>>::
+  accept (visitor_reference v) const
+    -> result_type;
 
   class ir_entry_collector
     : public visitor_traits<ir_entry_collector>

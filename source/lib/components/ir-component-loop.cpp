@@ -7,7 +7,7 @@
 
 #include "components/ir-component-loop.hpp"
 #include "components/ir-component-sequence.hpp"
-#include "components/ir-block.hpp"
+#include "utilities/ir-error.hpp"
 
 namespace gch
 {
@@ -61,7 +61,7 @@ namespace gch
     if (is_condition (c)) return subcomponent_id::condition;
     if (is_body      (c)) return subcomponent_id::body;
     if (is_update    (c)) return subcomponent_id::update;
-    throw ir_exception ("Could not find the specified component in the loop.");
+    abort<reason::logic_error> ("Could not find the specified component in the loop.");
   }
 
 }

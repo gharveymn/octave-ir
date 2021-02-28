@@ -139,7 +139,7 @@ namespace gch
   using visitor_reference_t = typename visitor_reference<Visitor>::type;
 
   template <typename Visitor>
-  struct visitor_named_type
+  struct visitor_category_wrapper
     : std::conditional<is_inspector_v<Visitor>, inspector_type<Visitor>, mutator_type<Visitor>>
   {
     static_assert (is_inspector_v<Visitor> || is_mutator_v<Visitor>,
@@ -147,7 +147,7 @@ namespace gch
   };
 
   template <typename Visitor>
-  using visitor_named_category_t = typename visitor_named_type<Visitor>::type;
+  using visitor_category_wrapper_t = typename visitor_category_wrapper<Visitor>::type;
 
   template <typename, typename>
   struct acceptor;
@@ -156,10 +156,10 @@ namespace gch
   struct acceptor_trait
   {
     template <typename V = Visitor>
-    using named_type = visitor_named_category_t<V>;
+    using category_wrapper = visitor_category_wrapper_t<V>;
 
     template <typename Concrete, typename V = Visitor>
-    using acceptor_type = acceptor<Concrete, named_type<V>>;
+    using acceptor_type = acceptor<Concrete, category_wrapper<V>>;
   };
 
   template <typename Component>

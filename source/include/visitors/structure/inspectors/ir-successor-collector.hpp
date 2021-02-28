@@ -9,12 +9,10 @@
 #define OCTAVE_IR_IR_SUCCESSOR_COLLECTOR_HPP
 
 #include "ir-structure-inspectors-fwd.hpp"
+#include "utility/ir-subcomponent-inspector.hpp"
 
-#include "visitors/structure/inspectors/utility/ir-subcomponent-inspector.hpp"
-
-#include "components/ir-component-fwd.hpp"
 #include "utilities/ir-link-set.hpp"
-#include "visitors/ir-visitor-fwd.hpp"
+#include "visitors/ir-visitor.hpp"
 
 namespace gch
 {
@@ -60,7 +58,7 @@ namespace gch
     [[nodiscard]]
     static
     result_type
-    visit (const ir_function&) { return { }; };
+    visit (const ir_function&) { return { }; }
   };
 
 }

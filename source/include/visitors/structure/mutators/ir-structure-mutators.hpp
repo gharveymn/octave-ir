@@ -8,9 +8,9 @@
 #ifndef OCTAVE_IR_IR_STRUCTURE_MUTATORS_HPP
 #define OCTAVE_IR_IR_STRUCTURE_MUTATORS_HPP
 
-#include "ir-def-propagator.hpp"
-#include "ir-def-resolution-builder.hpp"
-#include "ir-forward-mutator.hpp"
+#include "ir-ascending-def-propagator.hpp"
+#include "ir-ascending-def-resolution-builder.hpp"
+#include "ir-ascending-forward-mutator.hpp"
 #include "ir-structure-flattener.hpp"
 
 #endif // OCTAVE_IR_IR_STRUCTURE_MUTATORS_HPP

@@ -46,7 +46,9 @@ namespace gch
   struct pack_size;
 
   template <typename Pack>
-  inline constexpr bool pack_size_v = pack_size<Pack>::value;
+  inline constexpr
+  std::size_t
+  pack_size_v = pack_size<Pack>::value;
 
   template <typename Pack>
   struct pack_empty;

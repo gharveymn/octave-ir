@@ -9,8 +9,9 @@
 #define OCTAVE_IR_IR_PREDECESSOR_COLLECTOR_HPP
 
 #include "ir-structure-inspectors-fwd.hpp"
+#include "utility/ir-subcomponent-inspector.hpp"
 
-#include "visitors/structure/inspectors/utility/ir-subcomponent-inspector.hpp"
+#include "visitors/ir-visitor.hpp"
 
 namespace gch
 {

@@ -85,7 +85,7 @@ namespace gch
       case id::body      : return copy_leaves (loop.get_condition ());
       case id::update    : return copy_leaves (loop.get_body ());
     }
-    abort::ir_impossible ();
+    abort<reason::impossible> ();
   }
 
   auto

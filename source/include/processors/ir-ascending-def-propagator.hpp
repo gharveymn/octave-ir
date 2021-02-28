@@ -5,7 +5,7 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_DEF_PROPAGATOR_HPP
+#ifndef OCTAVE_IR_IR_ASCENDING_DEF_PROPAGATOR_HPP
 #define OCTAVE_IR_IR_DEF_PROPAGATOR_HPP
 
 #include "utilities/ir-link-set.hpp"
@@ -48,4 +48,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_DEF_PROPAGATOR_HPP
+#endif // OCTAVE_IR_IR_ASCENDING_DEF_PROPAGATOR_HPP

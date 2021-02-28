@@ -309,7 +309,6 @@ namespace gch
     return contiguous_read_iterator<std::remove_reference_t<decltype (*it)>> (*it);
   }
 
-
   template <typename Container>
   class set_inserter
   {
@@ -376,6 +375,9 @@ namespace gch
   };
 
   template <typename Container>
+  set_inserter (Container&) -> set_inserter<Container>;
+
+  template <typename Container>
   class set_emplacer
   {
   public:
@@ -434,6 +436,9 @@ namespace gch
   private:
     nonnull_ptr<Container> m_set;
   };
+
+  template <typename Container>
+  set_emplacer (Container&) -> set_emplacer<Container>;
 
 }
 

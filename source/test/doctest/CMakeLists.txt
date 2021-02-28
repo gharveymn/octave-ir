@@ -33,6 +33,7 @@ IF (CMAKE_CXX_COMPILER_ID
                        -Weverything
                        -Wno-padded
                        -Wno-c++98-compat
+                     -Wno-c++98-compat-pedantic
                        -Wno-zero-as-null-pointer-constant)
 
   LIST (APPEND

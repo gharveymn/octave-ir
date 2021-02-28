@@ -12,6 +12,7 @@
 #include "components/ir-component-sequence.hpp"
 #include "components/ir-function.hpp"
 #include "utilities/ir-error.hpp"
+#include "utilities/ir-iterator.hpp"
 
 namespace gch
 {
@@ -98,7 +99,7 @@ namespace gch
       case id::update:
         return { nonnull_ptr { as_mutable (loop.get_condition ()) } };
     }
-    abort::ir_impossible ();
+    abort<reason::impossible> ();
   }
 
   auto

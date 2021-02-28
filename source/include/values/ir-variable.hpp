@@ -71,45 +71,77 @@ namespace gch
     ir_variable (ir_function& m, std::string name);
 
     // has side-effects
-    static ir_type normalize_types (block_def_vect& pairs);
+    static
+    ir_type
+    normalize_types (block_def_vect& pairs);
 
     // variables create defs and hold a pointer to that ir_def
     // these pointers must be adjusted when moving or deleting.
 
     [[nodiscard]]
-    constexpr const std::string& get_name (void) const { return m_name; }
+    constexpr
+    const std::string&
+    get_name (void) const
+    {
+      return m_name;
+    }
 
     [[nodiscard]]
-    constexpr ir_function& get_module (void) const { return m_function; }
+    constexpr
+    ir_function&
+    get_module (void) const
+    {
+      return m_function;
+    }
 
     [[nodiscard]]
-    bool has_sentinel (void) const noexcept
+    bool
+    has_sentinel (void) const noexcept
     {
       return m_undef_var != nullptr;
     }
 
     [[nodiscard]]
-    ir_variable& get_sentinel (void);
+    ir_variable&
+    get_sentinel (void);
 
-    void mark_uninit (ir_block& blk);
+    void
+    mark_uninit (ir_block& blk);
 
     [[nodiscard]]
-    constexpr ir_function& get_function (void) noexcept
+    constexpr
+    ir_function&
+    get_function (void) noexcept
     {
       return m_function;
     }
 
     [[nodiscard]]
-    constexpr const ir_function& get_function (void) const noexcept
+    constexpr
+    const ir_function&
+    get_function (void) const noexcept
     {
       return m_function;
     }
 
-    [[nodiscard]] constexpr ir_type get_type (void) const noexcept { return m_type; }
+    [[nodiscard]]
+    constexpr
+    ir_type
+    get_type (void) const noexcept
+    {
+      return m_type;
+    }
 
-    constexpr void set_type (ir_type ty) { m_type = ty; };
+    constexpr
+    void
+    set_type (ir_type ty)
+    {
+      m_type = ty;
+    }
 
-    constexpr int create_id (void) noexcept
+    constexpr
+    int
+    create_id (void) noexcept
     {
       return curr_id++;
     }
@@ -169,10 +201,10 @@ namespace gch
     { }
 
     [[nodiscard]]
-    constexpr ir_variable& get_variable (void) noexcept { return *m_var; };
+    constexpr ir_variable& get_variable (void) noexcept { return *m_var; }
 
     [[nodiscard]]
-    constexpr const ir_variable& get_variable (void) const noexcept { return *m_var; };
+    constexpr const ir_variable& get_variable (void) const noexcept { return *m_var; }
 
     std::ostream& print (std::ostream& os) const;
 
@@ -180,7 +212,7 @@ namespace gch
     const std::string& get_name (void) const;
 
     [[nodiscard]]
-    constexpr auto get_id (void) const { return m_id; };
+    constexpr auto get_id (void) const { return m_id; }
 
     [[nodiscard]]
     constexpr ir_type get_type (void) const noexcept { return get_variable ().get_type (); }

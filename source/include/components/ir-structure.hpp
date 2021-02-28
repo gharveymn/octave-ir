@@ -66,7 +66,7 @@ namespace gch
     ir_structure            (ir_structure&&) noexcept = default;
     ir_structure& operator= (const ir_structure&)     = default;
     ir_structure& operator= (ir_structure&&) noexcept = default;
-    virtual ~ir_structure   (void)                    = 0;
+    ~ir_structure           (void) override;
 
     [[nodiscard]]
     leaves_const_iterator
@@ -185,6 +185,16 @@ namespace gch
       public ir_subcomponent
   {
   public:
+    ir_substructure            (void)                       = delete;
+    ir_substructure            (const ir_substructure&)     = default;
+    ir_substructure            (ir_substructure&&) noexcept = default;
+    ir_substructure& operator= (const ir_substructure&)     = default;
+    ir_substructure& operator= (ir_substructure&&) noexcept = default;
+    ~ir_substructure           (void) override;
+
+    using ir_structure::accept;
+    using ir_subcomponent::accept;
+
     explicit
     ir_substructure (ir_structure& parent)
       : ir_subcomponent { parent }

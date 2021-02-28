@@ -8,15 +8,48 @@
 #ifndef OCTAVE_IR_IR_BLOCK_COUNTER_HPP
 #define OCTAVE_IR_IR_BLOCK_COUNTER_HPP
 
-#include "ir-subcomponent-inspectors-fwd.hpp"
+#include "ir-component-inspectors-fwd.hpp"
+
+#include "visitors/ir-visitor.hpp"
 
 namespace gch
 {
+
+  template <>
+  auto
+  acceptor<ir_block, inspector_type<ir_block_counter>>::
+  accept (visitor_reference v) const
+    -> result_type;
+
+  template <>
+  auto
+  acceptor<ir_component_fork, inspector_type<ir_block_counter>>::
+  accept (visitor_reference v) const
+    -> result_type;
+
+  template <>
+  auto
+  acceptor<ir_component_loop, inspector_type<ir_block_counter>>::
+  accept (visitor_reference v) const
+    -> result_type;
+
+  template <>
+  auto
+  acceptor<ir_component_sequence, inspector_type<ir_block_counter>>::
+  accept (visitor_reference v) const
+    -> result_type;
+
+  template <>
+  auto
+  acceptor<ir_function, inspector_type<ir_block_counter>>::
+  accept (visitor_reference v) const
+    -> result_type;
 
   class ir_block_counter
     : public visitor_traits<ir_block_counter>
   {
   public:
+    friend acceptor_type<ir_block>;
     friend acceptor_type<ir_component_fork>;
     friend acceptor_type<ir_component_loop>;
     friend acceptor_type<ir_component_sequence>;
@@ -31,9 +64,13 @@ namespace gch
 
     [[nodiscard]]
     result_type
-    operator() (const ir_function& func) const;
+    operator() (const ir_component& c) const;
 
   private:
+    [[nodiscard]]
+    result_type
+    visit (const ir_block& block) const;
+
     [[nodiscard]]
     result_type
     visit (const ir_component_fork& fork) const;

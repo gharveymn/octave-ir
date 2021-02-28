@@ -36,33 +36,41 @@ namespace gch
 {
 
   ir_component::
-  ~ir_component (void) noexcept = default;
+  ~ir_component (void) = default;
 
-  ir_function&
-  get_function (ir_component& c)
-  {
-    // note: this is too simple to need to create a new visitor
-    optional_ref func { maybe_cast<ir_function> (c) };
-    for (nonnull_ptr<ir_component> curr { c };
-         ! func.has_value ();
-         func = maybe_cast<ir_function> (curr))
-    {
-      optional_ref sub { maybe_cast<ir_subcomponent> (c) };
-      assert (sub && "Expected a subcomponent.");
-      curr.emplace (sub->get_parent ());
-    }
-    return *func;
-  }
+  ir_subcomponent::
+  ~ir_subcomponent (void) = default;
 
   ir_block&
   get_entry_block (ir_component& c)
   {
-    nonnull_ptr<ir_component> curr { c };
-    while (optional_ref s { maybe_cast<ir_structure> (curr) })
-      curr.emplace (*s->get_entry_ptr ());
+    if (optional_ref s { maybe_cast<ir_structure> (c) })
+      return get_entry_block (*s);
+    assert (is_a<ir_block> (c));
+    return get_entry_block (static_cast<ir_block&> (c));
+  }
 
-    assert (is_a<ir_block> (*curr));
-    return static_cast<ir_block&> (*curr);
+  const ir_block&
+  get_entry_block (const ir_component& c)
+  {
+    return get_entry_block (as_mutable (c));
+  }
+
+  ir_function&
+  get_function (ir_subcomponent& sub)
+  {
+    // Note: this is too simple to need to create a new visitor.
+    nonnull_ptr<ir_structure> parent { sub.get_parent () };
+    while (optional_ref s { maybe_cast<ir_substructure> (parent) })
+      parent.emplace (s->get_parent ());
+    assert (is_a<ir_function> (parent));
+    return static_cast<ir_function&> (*parent);
+  }
+
+  const ir_function&
+  get_function (const ir_subcomponent& sub)
+  {
+    return get_function (as_mutable (sub));
   }
 
   ir_link_set<ir_block>

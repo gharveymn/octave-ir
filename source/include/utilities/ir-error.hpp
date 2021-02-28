@@ -10,6 +10,8 @@
 
 #include <exception>
 #include <stdexcept>
+#include <cstring>
+#include <iostream>
 
 namespace gch
 {
@@ -21,25 +23,43 @@ namespace gch
     using std::runtime_error::runtime_error;
   };
 
-  namespace abort
+  enum class reason
   {
+    impossible,
+    logic_error,
+  };
 
-    inline constexpr
+  template <reason R>
+  struct abort_message;
+
+  template <reason R>
+  inline constexpr bool abort_message_v = abort_message<R>::value;
+
+  template <>
+  struct abort_message<reason::impossible>
+  {
+    static constexpr
     const char *
-    ir_impossible_message = "The program reached an impossible state and will now abort.";
+    value = "The program reached an impossible state and will now abort.";
+  };
 
-    [[noreturn]]
-    void
-    ir_impossible (const char *message = ir_impossible_message);
-
-    inline constexpr
+  template <>
+  struct abort_message<reason::logic_error>
+  {
+    static constexpr
     const char *
-    ir_logic_error_message = "The program encountered a logic error and must abort.";
+    value = "The program encountered a logic error and must abort.";
+  };
 
-    [[noreturn]]
-    void
-    ir_logic_error (const char *message = "");
-
+  template <reason R>
+  [[noreturn]]
+  void
+  abort (const char *message = "")
+  {
+    if (std::strlen (message) != 0)
+      std::cerr << message << "\n\n";
+    std::cerr << abort_message_v<R> << std::endl;
+    std::abort ();
   }
 
 }

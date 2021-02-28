@@ -45,12 +45,16 @@ SET (HEADERS
      values/ir-variable.hpp
 
      # component visitors
+     visitors/component/inspectors/ir-block-counter.hpp
      visitors/component/inspectors/ir-component-inspectors.hpp
      visitors/component/inspectors/ir-component-inspectors-fwd.hpp
      visitors/component/inspectors/ir-leaf-collector.hpp
 
      visitors/component/mutators/ir-component-mutators.hpp
      visitors/component/mutators/ir-component-mutators-fwd.hpp
+     visitors/component/mutators/ir-descending-def-propagator.hpp
+     visitors/component/mutators/ir-descending-def-resolution-builder.hpp
+     visitors/component/mutators/ir-descending-forward-mutator.hpp
 
      visitors/component/ir-component-visitors.hpp
      visitors/component/ir-component-visitors-fwd.hpp
@@ -65,9 +69,9 @@ SET (HEADERS
      visitors/structure/inspectors/ir-successor-collector.hpp
 
      visitors/structure/mutators/utility/ir-subcomponent-mutator.hpp
-     visitors/structure/mutators/ir-def-propagator.hpp
-     visitors/structure/mutators/ir-def-resolution-builder.hpp
-     visitors/structure/mutators/ir-forward-mutator.hpp
+     visitors/structure/mutators/ir-ascending-def-propagator.hpp
+     visitors/structure/mutators/ir-ascending-def-resolution-builder.hpp
+     visitors/structure/mutators/ir-ascending-forward-mutator.hpp
      visitors/structure/mutators/ir-structure-flattener.hpp
      visitors/structure/mutators/ir-structure-mutators.hpp
      visitors/structure/mutators/ir-structure-mutators-fwd.hpp
@@ -76,7 +80,6 @@ SET (HEADERS
      visitors/structure/ir-structure-visitors-fwd.hpp
 
      # subcomponent visitors
-     visitors/subcomponent/inspectors/ir-block-counter.hpp
      visitors/subcomponent/inspectors/ir-subcomponent-inspectors.hpp
      visitors/subcomponent/inspectors/ir-subcomponent-inspectors-fwd.hpp
 
@@ -130,7 +133,12 @@ SET (SOURCES
      values/ir-variable.cpp
 
      # component visitors
+     visitors/component/inspectors/ir-block-counter.cpp
      visitors/component/inspectors/ir-leaf-collector.cpp
+
+     visitors/component/mutators/ir-descending-def-propagator.cpp
+     visitors/component/mutators/ir-descending-def-resolution-builder.cpp
+     visitors/component/mutators/ir-descending-forward-mutator.cpp
 
      # structure visitors
      visitors/structure/inspectors/utility/ir-subcomponent-inspector.cpp
@@ -140,13 +148,12 @@ SET (SOURCES
      visitors/structure/inspectors/ir-successor-collector.cpp
 
      visitors/structure/mutators/utility/ir-subcomponent-mutator.cpp
-     visitors/structure/mutators/ir-def-propagator.cpp
-     visitors/structure/mutators/ir-def-resolution-builder.cpp
-     visitors/structure/mutators/ir-forward-mutator.cpp
+     visitors/structure/mutators/ir-ascending-def-propagator.cpp
+     visitors/structure/mutators/ir-ascending-def-resolution-builder.cpp
+     visitors/structure/mutators/ir-ascending-forward-mutator.cpp
      visitors/structure/mutators/ir-structure-flattener.cpp
 
      # subcomponent visitors
-     visitors/subcomponent/inspectors/ir-block-counter.cpp
 
      # substructure visitors
 
@@ -157,7 +164,7 @@ SET(TARGET_VERSIONS 17 20)
 SET(COMPILE_OPTS )
 SET(LINK_OPTS )
 
-IF (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+IF (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 
   LIST (APPEND
         COMPILE_OPTS -ftime-trace
@@ -165,6 +172,7 @@ IF (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
                      -Weverything
                      -Wno-padded
                      -Wno-c++98-compat
+                     -Wno-c++98-compat-pedantic
                      -Wno-zero-as-null-pointer-constant)
 
     LIST (APPEND
@@ -187,7 +195,7 @@ IF (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
 
   ENDIF ()
 
-ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 
   # GCC options
 
@@ -217,12 +225,12 @@ ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
                      -Wundef
                      -Wno-unused)
 
-ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL MSVC)
+ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
   # MSVC options
 
   LIST (APPEND
-        COMPILE_OPTS /Wall /wd4250)
+        COMPILE_OPTS /W4 /wd4250)
 
 ENDIF ()
 
@@ -261,6 +269,32 @@ FOREACH (version ${TARGET_VERSIONS})
                                     CXX_STANDARD_REQUIRED NO
                                     CXX_EXTENSIONS        NO)
 ENDFOREACH ()
+
+ADD_LIBRARY (test-visitor-link)
+TARGET_SOURCES(test-visitor-link
+               PUBLIC "$<BUILD_INTERFACE:${OCTAVE_IR_C__20_ABSOLUTE_HEADERS}>"
+               PRIVATE "lib/components/ir-component-sequence.cpp;lib/visitors/component/inspectors/ir-leaf-collector.cpp")
+
+TARGET_INCLUDE_DIRECTORIES(test-visitor-link
+                           PUBLIC "$<BUILD_INTERFACE:${OCTAVE_IR_C__20_ABSOLUTE_HEADERS_PATH}>")
+
+TARGET_INCLUDE_DIRECTORIES(test-visitor-link SYSTEM INTERFACE
+                           "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${OCTAVE_IR_C__20_HEADERS_INSTALL_PATH}>")
+
+TARGET_LINK_LIBRARIES (test-visitor-link
+                       PRIVATE
+                       optional_ref
+                       plf_list
+                       tracker
+                       nonnull_ptr
+                       select-iterator
+                       partition
+                       small_vector)
+
+SET_TARGET_PROPERTIES (test-visitor-link
+                       PROPERTIES CXX_STANDARD          17
+                                  CXX_STANDARD_REQUIRED NO
+                                  CXX_EXTENSIONS        NO)
 
 # Only include tests if we are at the top level
 IF (OCTAVE_IR_BUILD_TESTS)

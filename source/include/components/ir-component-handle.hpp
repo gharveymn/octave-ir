@@ -534,14 +534,14 @@ namespace gch
   bool
   operator< (const ir_component_cptr& lhs, const ir_component_cptr::observer& rhs)
   {
-    return std::less { } (lhs.get_component_pointer (), rhs.get_pointer ());
+    return std::less<void> { } (lhs.get_component_pointer (), rhs.get_pointer ());
   }
 
   constexpr
   bool
   operator< (const ir_component_cptr::observer& lhs, const ir_component_cptr& rhs)
   {
-    return std::less { } (lhs.get_pointer (), rhs.get_component_pointer ());
+    return std::less<void> { } (lhs.get_pointer (), rhs.get_component_pointer ());
   }
 
   constexpr

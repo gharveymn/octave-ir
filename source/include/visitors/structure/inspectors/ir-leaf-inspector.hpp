@@ -9,9 +9,10 @@
 #define OCTAVE_IR_IR_LEAF_INSPECTOR_HPP
 
 #include "ir-structure-inspectors-fwd.hpp"
+#include "utility/ir-subcomponent-inspector.hpp"
 
 #include "utilities/ir-common.hpp"
-#include "visitors/structure/inspectors/utility/ir-subcomponent-inspector.hpp"
+#include "visitors/ir-visitor.hpp"
 
 namespace gch
 {
@@ -57,7 +58,7 @@ namespace gch
     [[nodiscard]]
     static GCH_CPP20_CONSTEVAL
     result_type
-    visit (const ir_function& func) noexcept { return true; };
+    visit (const ir_function&) noexcept { return true; }
   };
 
 }

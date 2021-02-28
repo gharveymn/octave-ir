@@ -48,6 +48,9 @@ namespace gch
   class ir_structure;
   class ir_def_timeline;
 
+  template <typename T>
+  using is_ir_component = std::is_base_of<ir_component, T>;
+
   // abstract
   class ir_component
     : public abstract_visitable<exclusive_visitors_t<ir_component>>
@@ -58,10 +61,7 @@ namespace gch
     ir_component            (ir_component&&) noexcept = default;
     ir_component& operator= (const ir_component&)     = default;
     ir_component& operator= (ir_component&&) noexcept = default;
-    virtual ~ir_component   (void)           noexcept = 0;
-
-    template <typename T>
-    using is_component = std::is_base_of<ir_component, T>;
+    ~ir_component           (void) override;
 
   private:
   };
@@ -77,7 +77,7 @@ namespace gch
     ir_subcomponent            (ir_subcomponent&&) noexcept = default;
     ir_subcomponent& operator= (const ir_subcomponent&)     = default;
     ir_subcomponent& operator= (ir_subcomponent&&) noexcept = default;
-    ~ir_subcomponent           (void) override              = 0;
+    ~ir_subcomponent           (void) override;
 
     using ir_component::accept;
     using abstract_visitable<exclusive_visitors_t<ir_subcomponent>>::accept;
@@ -111,43 +111,19 @@ namespace gch
     nonnull_ptr<ir_structure> m_parent;
   };
 
-
-
-  [[nodiscard]]
-  ir_function&
-  get_function (ir_component& c);
-
-  [[nodiscard]] inline
-  const ir_function&
-  get_function (const ir_component& c)
-  {
-    return get_function (as_mutable (c));
-  }
-
-  [[nodiscard]]
   ir_block&
   get_entry_block (ir_component& c);
 
-  [[nodiscard]] inline
   const ir_block&
-  get_entry_block (const ir_component& c)
-  {
-    return get_entry_block (as_mutable (c));
-  }
+  get_entry_block (const ir_component& c);
 
-  [[nodiscard]] inline
-  ir_block&
-  get_entry_block (ir_component_ptr comp)
-  {
-    return get_entry_block (*comp);
-  }
+  [[nodiscard]]
+  ir_function&
+  get_function (ir_subcomponent& sub);
 
-  [[nodiscard]] inline
-  const ir_block&
-  get_entry_block (ir_component_cptr comp)
-  {
-    return get_entry_block (*comp);
-  }
+  [[nodiscard]]
+  const ir_function&
+  get_function (const ir_subcomponent& sub);
 
   ir_link_set<ir_block>
   get_predecessors (const ir_subcomponent& sub);
@@ -170,28 +146,12 @@ namespace gch
   ir_link_set<ir_block>
   copy_leaves (const ir_block& b);
 
-  template <typename ...Args>
+  template <typename C, typename ...Args>
   [[nodiscard]] inline
   ir_link_set<ir_block>
-  copy_leaves (const ir_component& c, Args&&... args)
+  copy_leaves (C&& c, Args&&... args)
   {
-    return (copy_leaves (c) | ... | copy_leaves (std::forward<Args> (args)));
-  }
-
-  template <typename ...Args>
-  [[nodiscard]] inline
-  ir_link_set<ir_block>
-  copy_leaves (const ir_structure& s, Args&&... args)
-  {
-    return (copy_leaves (s) | ... | copy_leaves (std::forward<Args> (args)));
-  }
-
-  template <typename ...Args>
-  [[nodiscard]] inline
-  ir_link_set<ir_block>
-  copy_leaves (const ir_block& b, Args&&... args)
-  {
-    return (copy_leaves (b) | ... | copy_leaves (std::forward<Args> (args)));
+    return (copy_leaves (std::forward<C> (c)) | ...| copy_leaves (std::forward<Args> (args)));
   }
 
 }

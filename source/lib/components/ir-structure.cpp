@@ -39,6 +39,9 @@ namespace gch
   ir_structure::
   ~ir_structure (void) = default;
 
+  ir_substructure::
+  ~ir_substructure (void) = default;
+
   const ir_link_set<ir_block>&
   ir_structure::
   get_leaves (void) const

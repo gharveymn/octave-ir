@@ -10,6 +10,7 @@
 #include "components/ir-block.hpp"
 #include "utilities/ir-optional-util.hpp"
 #include "utilities/ir-error.hpp"
+#include "visitors/ir-all-subcomponent-visitors.hpp"
 
 #include <cassert>
 #include <numeric>
@@ -17,6 +18,75 @@
 
 namespace gch
 {
+
+  extern template
+  auto
+  acceptor<ir_component_sequence, inspector_type<ir_entry_collector>>::
+  accept (visitor_reference v) const
+    -> result_type;
+
+  extern template
+  auto
+  acceptor<ir_component_sequence, inspector_type<ir_leaf_inspector>>::
+  accept (visitor_reference v) const
+    -> result_type;
+
+  extern template
+  auto
+  acceptor<ir_component_sequence, inspector_type<ir_predecessor_collector>>::
+  accept (visitor_reference v) const
+    -> result_type;
+
+  extern template
+  auto
+  acceptor<ir_component_sequence, inspector_type<ir_successor_collector>>::
+  accept (visitor_reference v) const
+    -> result_type;
+
+  extern template
+  auto
+  acceptor<ir_component_sequence, mutator_type<ir_ascending_def_propagator>>::
+  accept (visitor_reference v)
+    -> result_type;
+
+  extern template
+  auto
+  acceptor<ir_component_sequence, mutator_type<ir_ascending_def_resolution_builder>>::
+  accept (visitor_reference v)
+    -> result_type;
+
+  extern template
+  auto
+  acceptor<ir_component_sequence, mutator_type<ir_ascending_forward_mutator>>::
+  accept (visitor_reference v)
+    -> result_type;
+
+  extern template
+  auto
+  acceptor<ir_component_sequence, mutator_type<ir_descending_def_propagator>>::
+  accept (visitor_reference v)
+    -> result_type;
+
+  extern template
+  auto
+  acceptor<ir_component_sequence, mutator_type<ir_descending_def_resolution_builder>>::
+  accept (visitor_reference v)
+    -> result_type;
+
+  extern template
+  auto
+  acceptor<ir_component_sequence, mutator_type<ir_descending_forward_mutator>>::
+  accept (visitor_reference v)
+    -> result_type;
+
+  extern template
+  auto
+  acceptor<ir_component_sequence, mutator_type<ir_structure_flattener>>::
+  accept (visitor_reference v)
+    -> result_type;
+
+  ir_component_sequence::
+  ~ir_component_sequence (void) = default;
 
   ir_component_sequence::
   ir_component_sequence (ir_structure& parent, std::initializer_list<ir_component_mover> init)
@@ -107,9 +177,9 @@ namespace gch
 
       // the reset is noexcept
       // iterate backwards over the range to place new elements
-      std::reverse_iterator rcurr_it { new_last_it };
-      std::for_each (std::reverse_iterator { resolved_last_it  },
-                     std::reverse_iterator { resolved_first_it },
+      std::reverse_iterator<container_type::iterator> rcurr_it { new_last_it };
+      std::for_each (std::make_reverse_iterator (resolved_last_it),
+                     std::make_reverse_iterator (resolved_first_it),
                      [&](ir_component_storage& u)
                      {
                        if (optional_ref seq { maybe_cast<ir_component_sequence> (*u) })
@@ -144,7 +214,7 @@ namespace gch
     assert (size () <= collected.size ());
     if (size () < collected.size ())
     {
-      const auto pivot = std::next (collected.begin (), size ());
+      const auto pivot = std::next (collected.begin (), static_cast<diff_ty> (size ()));
       const auto old_end = m_body.insert (m_body.end (), pivot, collected.end ());
       std::move_backward (collected.begin (), collected.end (), old_end);
     }
@@ -161,7 +231,7 @@ namespace gch
   {
     if (citer cit = find (c); cit != end ())
       return cit;
-    abort::ir_logic_error ("Component not found in the structure.");
+    abort<reason::logic_error> ("Component not found in the structure.");
   }
 
   //

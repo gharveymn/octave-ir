@@ -101,8 +101,8 @@ namespace gch
       const impl *  m_base_type;
       const impl *  m_pointer_base_type;
       std::size_t   m_rep_size;
-      bool          m_is_integral;
       ir_type_array m_members;
+      bool          m_is_integral;
     };
 
     template <typename ...T>
@@ -143,35 +143,46 @@ namespace gch
 
   private:
     template <typename T>
-    static constexpr impl create_type (const char *name, std::nullptr_t) noexcept
+    static constexpr
+    impl
+    create_type (const char *name, std::nullptr_t) noexcept
     {
-      return { name, nullptr, nullptr, sizeof (T), std::is_integral_v<T>, { } };
+      return { name, nullptr, nullptr, sizeof (T), { }, std::is_integral_v<T> };
     }
 
     template <typename T>
-    static constexpr impl create_type (const char *name, ir_type base) noexcept
+    static constexpr
+    impl
+    create_type (const char *name, ir_type base) noexcept
     {
-      return { name, base.m_ptr, nullptr, sizeof (T), std::is_integral_v<T>, { } };
+      return { name, base.m_ptr, nullptr, sizeof (T), { }, std::is_integral_v<T> };
     }
 
     // shortcut for ir_type_impl::create_compound_type
     template <typename T, std::size_t N>
-    static constexpr impl create_compound_type (const char *name, const ir_type (&members)[N],
+    static constexpr
+    impl
+    create_compound_type (const char *name, const ir_type (&members)[N],
                                                 ir_type base) noexcept
     {
-      return { name, base.m_ptr, nullptr, sizeof (T), std::is_integral_v<T>,
-               ir_type_array (members) };
+      return { name, base.m_ptr, nullptr, sizeof (T), ir_type_array (members),
+               std::is_integral_v<T> };
     }
 
     template <typename T>
-    static constexpr impl create_type (const char *name) noexcept;
+    static constexpr
+    impl
+    create_type (const char *name) noexcept;
 
     template <typename T, std::size_t N>
-    static constexpr impl create_compound_type (const char *name,
-                                                const ir_type (&members)[N]) noexcept;
+    static constexpr
+    impl
+    create_compound_type (const char *name, const ir_type (&members)[N]) noexcept;
 
     template <typename T>
-    static constexpr impl create_pointer (ir_type pointer_base) noexcept;
+    static constexpr
+    impl
+    create_pointer (ir_type pointer_base) noexcept;
 
     nonnull_ptr<const impl> m_ptr;
   };
@@ -253,7 +264,7 @@ namespace gch
   ir_type::create_pointer (ir_type pointer_base) noexcept
   {
     return { pointer_base.get_name_base (), ir_type_v<any>.m_ptr, pointer_base.m_ptr, sizeof (T),
-             false, { }};
+             { }, false };
   }
 
   // template instantiations

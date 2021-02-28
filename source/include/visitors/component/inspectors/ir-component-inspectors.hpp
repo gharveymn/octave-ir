@@ -8,6 +8,7 @@
 #ifndef OCTAVE_IR_IR_COMPONENT_INSPECTORS_HPP
 #define OCTAVE_IR_IR_COMPONENT_INSPECTORS_HPP
 
+#include "ir-block-counter.hpp"
 #include "ir-leaf-collector.hpp"
 
 #endif // OCTAVE_IR_IR_COMPONENT_INSPECTORS_HPP

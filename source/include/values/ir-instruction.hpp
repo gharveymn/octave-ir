@@ -96,21 +96,34 @@ namespace gch
     using metadata_t = ir_instruction_metadata;
 
     using args_container_type     = std::vector<ir_operand>;
-    using iterator                = typename args_container_type::iterator;
-    using const_iterator          = typename args_container_type::const_iterator;
-    using reverse_iterator        = typename args_container_type::reverse_iterator;
-    using const_reverse_iterator  = typename args_container_type::const_reverse_iterator;
-    using reference               = typename args_container_type::reference;
-    using const_reference         = typename args_container_type::const_reference;
-    using size_type               = typename args_container_type::size_type;
-    using difference_type         = typename args_container_type::difference_type;
-    using value_type              = typename args_container_type::value_type;
-    using allocator_type          = typename args_container_type::allocator_type;
 
-    using iter  = iterator;
-    using citer = const_iterator;
-    using ref   = reference;
-    using cref  = const_reference;
+    using value_type              = args_container_type::value_type;
+    using allocator_type          = args_container_type::allocator_type;
+    using size_type               = args_container_type::size_type;
+    using difference_type         = args_container_type::difference_type;
+    using reference               = args_container_type::reference;
+    using const_reference         = args_container_type::const_reference;
+    using pointer                 = args_container_type::pointer;
+    using const_pointer           = args_container_type::const_pointer;
+
+    using iterator                = args_container_type::iterator;
+    using const_iterator          = args_container_type::const_iterator;
+    using reverse_iterator        = args_container_type::reverse_iterator;
+    using const_reverse_iterator  = args_container_type::const_reverse_iterator;
+
+    using val_t   = value_type;
+    using alloc_t = allocator_type;
+    using size_ty = size_type;
+    using diff_ty = difference_type;
+    using ref     = reference;
+    using cref    = const_reference;
+    using ptr     = pointer;
+    using cptr    = const_pointer;
+
+    using iter    = iterator;
+    using citer   = const_iterator;
+    using riter   = reverse_iterator;
+    using criter  = const_reverse_iterator;
 
     ir_instruction            (void)                      = delete;
     ir_instruction            (const ir_instruction&)     = delete;
@@ -274,55 +287,83 @@ namespace gch
                      });
     }
 
-    [[nodiscard]] auto  begin   (void)       noexcept { return m_args.begin ();   }
-    [[nodiscard]] auto  begin   (void) const noexcept { return m_args.begin ();   }
-    [[nodiscard]] auto  cbegin  (void) const noexcept { return m_args.cbegin ();  }
-
-    [[nodiscard]] auto  end     (void)       noexcept { return m_args.end ();     }
-    [[nodiscard]] auto  end     (void) const noexcept { return m_args.end ();     }
-    [[nodiscard]] auto  cend    (void) const noexcept { return m_args.cend ();    }
-
-    [[nodiscard]] auto  rbegin  (void)       noexcept { return m_args.rbegin ();  }
-    [[nodiscard]] auto  rbegin  (void) const noexcept { return m_args.rbegin ();  }
-    [[nodiscard]] auto  crbegin (void) const noexcept { return m_args.crbegin (); }
-
-    [[nodiscard]] auto  rend    (void)       noexcept { return m_args.rend ();    }
-    [[nodiscard]] auto  rend    (void) const noexcept { return m_args.rend ();    }
-    [[nodiscard]] auto  crend   (void) const noexcept { return m_args.crend ();   }
-
-    [[nodiscard]] auto& front   (void)       noexcept { return m_args.front ();   }
-    [[nodiscard]] auto& front   (void) const noexcept { return m_args.front ();   }
-
-    [[nodiscard]] auto& back    (void)       noexcept { return m_args.back ();    }
-    [[nodiscard]] auto& back    (void) const noexcept { return m_args.back ();    }
-
-    // distinguish between expected num_args from arity
     [[nodiscard]]
-    auto
-    current_num_args (void) const noexcept
-    {
-      return m_args.size ();
-    }
+    iterator
+    begin (void) noexcept;
 
-    // instead of empty () to distinguish between expected empty instruction and current state
+    [[nodiscard]]
+    const_iterator
+    begin (void) const noexcept;
+
+    [[nodiscard]]
+    const_iterator
+    cbegin (void) const noexcept;
+
+    [[nodiscard]]
+    iterator
+    end (void) noexcept;
+
+    [[nodiscard]]
+    const_iterator
+    end (void) const noexcept;
+
+    [[nodiscard]]
+    const_iterator
+    cend (void) const noexcept;
+
+    [[nodiscard]]
+    reverse_iterator
+    rbegin (void) noexcept;
+
+    [[nodiscard]]
+    const_reverse_iterator
+    rbegin (void) const noexcept;
+
+    [[nodiscard]]
+    const_reverse_iterator
+    crbegin (void) const noexcept;
+
+    [[nodiscard]]
+    reverse_iterator
+    rend (void) noexcept;
+
+    [[nodiscard]]
+    const_reverse_iterator
+    rend (void) const noexcept;
+
+    [[nodiscard]]
+    const_reverse_iterator
+    crend (void) const noexcept;
+
+    [[nodiscard]]
+    reference
+    front (void);
+
+    [[nodiscard]]
+    const_reference
+    front (void) const;
+
+    [[nodiscard]]
+    reference
+    back (void);
+
+    [[nodiscard]]
+    const_reference
+    back (void) const;
+
+    [[nodiscard]]
+    size_type
+    size (void) const noexcept;
+
     [[nodiscard]]
     bool
-    is_currently_empty (void) const noexcept
-    {
-      return m_args.empty ();
-    }
+    empty (void) const noexcept;
 
     iter
-    erase (citer pos)
-    {
-      return m_args.erase (pos);
-    };
+    erase (citer pos);
 
     iter
-    erase (citer first, citer last)
-    {
-      return m_args.erase (first, last);
-    };
+    erase (citer first, citer last);
 
     void
     set_def (std::optional<ir_def>&& def);
@@ -344,25 +385,17 @@ namespace gch
       return m_args.emplace (pos, *this, std::forward<Args> (args)...);
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     metadata_t
-    get_metadata (void) const noexcept
-    {
-      return m_metadata;
-    }
+    get_metadata (void) const noexcept;
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     ir_def&
-    get_def (void) noexcept
-    {
-      return *m_def;
-    }
-    [[nodiscard]] constexpr
+    get_def (void) noexcept;
+
+    [[nodiscard]]
     const ir_def&
-    get_def (void) const noexcept
-    {
-      return *m_def;
-    }
+    get_def (void) const noexcept;
 
   private:
     metadata_t            m_metadata;

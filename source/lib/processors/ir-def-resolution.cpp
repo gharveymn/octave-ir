@@ -14,7 +14,7 @@
 #include "components/ir-component-sequence.hpp"
 #include "processors/ir-def-resolution.hpp"
 #include "utilities/ir-optional-util.hpp"
-#include "visitors/structure/mutators/ir-def-resolution-builder.hpp"
+#include "visitors/structure/mutators/ir-ascending-def-resolution-builder.hpp"
 
 #include <algorithm>
 #include <cassert>

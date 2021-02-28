@@ -566,14 +566,14 @@ namespace gch
     ir_instruction&
     append_instruction (ir_variable& v, Args&&... args)
     {
-      return emplace_instruction<Op> (end<range::body> (), std::forward<Args> (args)...);
+      return emplace_instruction<Op> (end<range::body> (), v, std::forward<Args> (args)...);
     }
 
     template <ir_opcode Op, typename ...Args>
     ir_instruction&
     prepend_instruction (ir_variable& v, Args&&... args)
     {
-      return emplace_instruction<Op> (begin<range::body> (), std::forward<Args> (args)...);
+      return emplace_instruction<Op> (begin<range::body> (), v, std::forward<Args> (args)...);
     }
 
   private:

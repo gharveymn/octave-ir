@@ -21,17 +21,17 @@ namespace gch
   template <>
   struct exclusive_mutators<ir_structure>
   {
-    using type = visitor_types<ir_structure_flattener,
+    using type = visitor_types<ir_ascending_def_propagator,
                                ir_ascending_def_resolution_builder,
                                ir_ascending_forward_mutator,
-                               ir_ascending_def_propagator>;
+                               ir_structure_flattener>;
   };
 
   class ir_def_resolution_build_result;
 
   template <>
-  struct visitor_traits<ir_structure_flattener>
-    : acceptor_trait<ir_structure_flattener>
+  struct visitor_traits<ir_ascending_def_propagator>
+    : acceptor_trait<ir_ascending_def_propagator>
   {
     using result_type      = void;
     using visitor_category = const_mutator_tag;
@@ -54,8 +54,8 @@ namespace gch
   };
 
   template <>
-  struct visitor_traits<ir_ascending_def_propagator>
-    : acceptor_trait<ir_ascending_def_propagator>
+  struct visitor_traits<ir_structure_flattener>
+    : acceptor_trait<ir_structure_flattener>
   {
     using result_type      = void;
     using visitor_category = const_mutator_tag;

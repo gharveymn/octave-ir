@@ -5,7 +5,7 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "processors/ir-def-propagator.hpp"
+#include "processors/ir-ascending-def-propagator.hpp"
 
 #include "components/ir-component.hpp"
 
