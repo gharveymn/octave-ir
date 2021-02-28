@@ -18,6 +18,13 @@
 namespace gch
 {
 
+  ir_component_sequence::
+  ir_component_sequence (ir_structure& parent, std::initializer_list<ir_component_mover> init)
+    : ir_substructure { parent },
+      m_body          (init.begin (), init.end ()),
+      m_find_cache    { make_handle (begin ()) }
+  { }
+
   auto
   ir_component_sequence::
   find (ir_subcomponent& sub) const
@@ -51,8 +58,8 @@ namespace gch
       const auto resolved_it
         = std::prev (m_body.insert (
                        std::next (get_container_iter (pos)),
-                       std::move_iterator { std::next (seq->m_body.begin ()) },
-                       std::move_iterator { seq->m_body.end () }));
+                       std::make_move_iterator (std::next (seq->m_body.begin ())),
+                       std::make_move_iterator (seq->m_body.end ())));
 
       // then move the first element into *iter
       *resolved_it = std::move (seq->m_body.front ());

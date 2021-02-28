@@ -28,9 +28,9 @@ along with Octave; see the file COPYING.  If not, see
 #include "components/ir-function.hpp"
 #include "components/ir-structure.hpp"
 #include "components/ir-block.hpp"
-#include "visitors/inspectors/ir-predecessor-collector.hpp"
-#include "visitors/inspectors/ir-successor-collector.hpp"
-#include "visitors/inspectors/ir-leaf-inspector.hpp"
+#include "visitors/structure/inspectors/ir-predecessor-collector.hpp"
+#include "visitors/structure/inspectors/ir-successor-collector.hpp"
+#include "visitors/structure/inspectors/ir-leaf-inspector.hpp"
 
 namespace gch
 {

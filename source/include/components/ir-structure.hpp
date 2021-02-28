@@ -30,14 +30,16 @@ along with Octave; see the file COPYING.  If not, see
 #include "utilities/ir-link-set.hpp"
 #include "values/ir-instruction-fwd.hpp"
 #include "visitors/ir-visitor.hpp"
-#include "visitors/ir-visitor-fwd.hpp"
+
+#include "visitors/structure/ir-structure-visitors-fwd.hpp"
+#include "visitors/substructure/ir-substructure-visitors-fwd.hpp"
 
 namespace gch
 {
   class ir_use_timeline;
 
   class ir_structure
-    : public abstract_visitable<abstract_visitors_t<ir_structure>>
+    : public abstract_visitable<exclusive_visitors_t<ir_structure>>
   {
   public:
     using leaves_container_type          = ir_link_set<ir_block>;

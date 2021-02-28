@@ -29,8 +29,8 @@ along with Octave; see the file COPYING.  If not, see
 #include "components/ir-component-sequence.hpp"
 #include "components/ir-block.hpp"
 
-#include "visitors/inspectors/ir-subcomponent-inspector.hpp"
-#include "visitors/inspectors/ir-leaf-collector.hpp"
+#include "visitors/structure/inspectors/utility/ir-subcomponent-inspector.hpp"
+#include "visitors/component/inspectors/ir-leaf-collector.hpp"
 
 #include <numeric>
 

@@ -41,7 +41,7 @@ namespace gch
     ir_incoming_node (ir_def_timeline& parent, Iterator first_pred, Iterator last_pred)
       : m_parent (parent)
     {
-      std::for_each (first_pred, last_pred, [this](auto&& ptr) { add_predecessor (*ptr); });
+      std::for_each (first_pred, last_pred, [this](auto&& p) { add_predecessor (*p); });
     }
 
     void
@@ -76,7 +76,9 @@ namespace gch
     nonnull_ptr<ir_def_timeline> m_parent;
   };
 
-  void swap (ir_incoming_node& lhs, ir_incoming_node& rhs) noexcept
+  inline
+  void
+  swap (ir_incoming_node& lhs, ir_incoming_node& rhs) noexcept
   {
     lhs.swap (rhs);
   }

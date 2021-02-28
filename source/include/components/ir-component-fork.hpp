@@ -17,7 +17,7 @@ namespace gch
 
   class ir_component_fork
     : public ir_substructure,
-      public visitable<ir_component_fork, implemented_visitors_t<ir_substructure>>
+      public visitable<ir_component_fork, consolidated_visitors_t<ir_substructure>>
   {
   public:
     using cases_container = std::vector<ir_component_storage>;

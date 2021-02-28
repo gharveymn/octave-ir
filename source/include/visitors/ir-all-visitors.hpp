@@ -8,19 +8,9 @@
 #ifndef OCTAVE_IR_IR_ALL_VISITORS_HPP
 #define OCTAVE_IR_IR_ALL_VISITORS_HPP
 
-#include "visitors/ir-visitor-fwd.hpp"
-
-#include "visitors/inspectors/ir-entry-collector.hpp"
-#include "visitors/inspectors/ir-leaf-collector.hpp"
-#include "visitors/inspectors/ir-leaf-inspector.hpp"
-#include "visitors/inspectors/ir-predecessor-collector.hpp"
-#include "visitors/inspectors/ir-subcomponent-inspector.hpp"
-#include "visitors/inspectors/ir-successor-collector.hpp"
-
-#include "visitors/mutators/ir-def-propagator.hpp"
-#include "visitors/mutators/ir-def-resolution-builder.hpp"
-#include "visitors/mutators/ir-forward-mutator.hpp"
-#include "visitors/mutators/ir-structure-flattener.hpp"
-#include "visitors/mutators/ir-subcomponent-mutator.hpp"
+#include "component/ir-component-visitors.hpp"
+#include "structure/ir-structure-visitors.hpp"
+#include "subcomponent/ir-subcomponent-visitors.hpp"
+#include "substructure/ir-substructure-visitors.hpp"
 
 #endif // OCTAVE_IR_IR_ALL_VISITORS_HPP

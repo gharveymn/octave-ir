@@ -16,7 +16,7 @@ namespace gch
 
   class ir_component_sequence
     : public ir_substructure,
-      public visitable<ir_component_sequence, implemented_visitors_t<ir_substructure>>
+      public visitable<ir_component_sequence, consolidated_visitors_t<ir_substructure>>
   {
   public:
     using container_type = std::vector<ir_component_storage>;
@@ -111,11 +111,7 @@ namespace gch
       m_find_cache.emplace (make_handle (begin ()));
     }
 
-    ir_component_sequence (ir_structure& parent, std::initializer_list<ir_component_mover> init)
-      : ir_substructure { parent },
-        m_body          (init.begin (), init.end ()),
-        m_find_cache    { make_handle (begin ()) }
-    { }
+    ir_component_sequence (ir_structure& parent, std::initializer_list<ir_component_mover> init);
 
     [[nodiscard]]
     iter

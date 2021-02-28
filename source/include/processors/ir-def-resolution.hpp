@@ -15,6 +15,7 @@
 #include <gch/small_vector.hpp>
 
 #include <stack>
+#include <optional>
 #include <vector>
 
 namespace gch

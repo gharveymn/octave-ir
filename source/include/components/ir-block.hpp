@@ -36,6 +36,8 @@ along with Octave; see the file COPYING.  If not, see
 #include "values/ir-instruction-fwd.hpp"
 #include "values/ir-constant.hpp"
 
+#include "visitors/subcomponent/ir-subcomponent-visitors-fwd.hpp"
+
 #include <gch/tracker.hpp>
 #include <gch/optional_ref.hpp>
 #include <gch/partition/list_partition.hpp>
@@ -61,9 +63,11 @@ namespace gch
   class ir_def;
   class ir_use;
 
+  // static_assert (std::is_same_v<void, consolidated_visitors_t<ir_subcomponent>>);
+
   class ir_block
     : public ir_subcomponent,
-      public visitable<ir_block, implemented_visitors_t<ir_subcomponent>>
+      public visitable<ir_block, consolidated_visitors_t<ir_subcomponent>>
   {
   public:
     using container_type          = ir_instruction_container;

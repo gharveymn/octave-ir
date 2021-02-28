@@ -94,6 +94,12 @@ namespace gch
   template <typename Pack>
   using pack_unique_t = typename pack_unique<Pack>::type;
 
+  template <typename ...Pack>
+  struct pack_union;
+
+  template <typename ...Pack>
+  using pack_union_t = typename pack_union<Pack...>::type;
+
   template <typename ...Packs>
   struct pack_equivalent;
 
@@ -314,6 +320,11 @@ namespace gch
     : detail::pack_flatten_impl<Pack>
   { };
 
+  template <typename ...Pack>
+  struct pack_union
+    : pack_unique<pack_concatenate_t<Pack...>>
+  { };
+
   template <typename Pack>
   struct pack_unique
     : detail::pack_unique_impl<Pack>
@@ -337,7 +348,7 @@ namespace gch
       : std::true_type
     { };
 
-  }
+  } // namespace detail
 
   template <typename It>
   struct is_iterator

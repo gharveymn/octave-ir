@@ -7,7 +7,7 @@
 
 #include "components/ir-component-fork.hpp"
 #include "components/ir-block.hpp"
-#include "visitors/mutators/ir-def-resolution-builder.hpp"
+#include "visitors/structure/mutators/ir-def-resolution-builder.hpp"
 
 #include <algorithm>
 #include <numeric>

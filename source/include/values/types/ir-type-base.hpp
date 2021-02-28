@@ -153,7 +153,7 @@ namespace gch
     static constexpr impl m_impl { create_type<type> ("char16") };
   };
 
-#if __cpp_char8_t >= 201811L
+#if defined (__cpp_char8_t) && __cpp_char8_t >= 201811L
 
   template <>
   struct ir_type::instance<char8_t>

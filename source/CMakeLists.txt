@@ -44,21 +44,60 @@ SET (HEADERS
      values/ir-instruction-fwd.hpp
      values/ir-variable.hpp
 
-     visitors/inspectors/ir-block-counter.hpp
-     visitors/inspectors/ir-entry-collector.hpp
-     visitors/inspectors/ir-leaf-collector.hpp
-     visitors/inspectors/ir-leaf-inspector.hpp
-     visitors/inspectors/ir-predecessor-collector.hpp
-     visitors/inspectors/ir-subcomponent-inspector.hpp
-     visitors/inspectors/ir-successor-collector.hpp
+     # component visitors
+     visitors/component/inspectors/ir-component-inspectors.hpp
+     visitors/component/inspectors/ir-component-inspectors-fwd.hpp
+     visitors/component/inspectors/ir-leaf-collector.hpp
 
-     visitors/mutators/ir-def-propagator.hpp
-     visitors/mutators/ir-def-resolution-builder.hpp
-     visitors/mutators/ir-forward-mutator.hpp
-     visitors/mutators/ir-structure-flattener.hpp
-     visitors/mutators/ir-subcomponent-mutator.hpp
+     visitors/component/mutators/ir-component-mutators.hpp
+     visitors/component/mutators/ir-component-mutators-fwd.hpp
 
-     visitors/ir-traverser.hpp
+     visitors/component/ir-component-visitors.hpp
+     visitors/component/ir-component-visitors-fwd.hpp
+
+     # structure visitors
+     visitors/structure/inspectors/utility/ir-subcomponent-inspector.hpp
+     visitors/structure/inspectors/ir-entry-collector.hpp
+     visitors/structure/inspectors/ir-leaf-inspector.hpp
+     visitors/structure/inspectors/ir-predecessor-collector.hpp
+     visitors/structure/inspectors/ir-structure-inspectors.hpp
+     visitors/structure/inspectors/ir-structure-inspectors-fwd.hpp
+     visitors/structure/inspectors/ir-successor-collector.hpp
+
+     visitors/structure/mutators/utility/ir-subcomponent-mutator.hpp
+     visitors/structure/mutators/ir-def-propagator.hpp
+     visitors/structure/mutators/ir-def-resolution-builder.hpp
+     visitors/structure/mutators/ir-forward-mutator.hpp
+     visitors/structure/mutators/ir-structure-flattener.hpp
+     visitors/structure/mutators/ir-structure-mutators.hpp
+     visitors/structure/mutators/ir-structure-mutators-fwd.hpp
+
+     visitors/structure/ir-structure-visitors.hpp
+     visitors/structure/ir-structure-visitors-fwd.hpp
+
+     # subcomponent visitors
+     visitors/subcomponent/inspectors/ir-block-counter.hpp
+     visitors/subcomponent/inspectors/ir-subcomponent-inspectors.hpp
+     visitors/subcomponent/inspectors/ir-subcomponent-inspectors-fwd.hpp
+
+     visitors/subcomponent/mutators/ir-subcomponent-mutators.hpp
+     visitors/subcomponent/mutators/ir-subcomponent-mutators-fwd.hpp
+
+     visitors/subcomponent/ir-subcomponent-visitors.hpp
+     visitors/subcomponent/ir-subcomponent-visitors-fwd.hpp
+
+     # substructure visitors
+     visitors/substructure/inspectors/ir-substructure-inspectors.hpp
+     visitors/substructure/inspectors/ir-substructure-inspectors-fwd.hpp
+
+     visitors/substructure/mutators/ir-substructure-mutators.hpp
+     visitors/substructure/mutators/ir-substructure-mutators-fwd.hpp
+
+     visitors/substructure/ir-substructure-visitors.hpp
+     visitors/substructure/ir-substructure-visitors-fwd.hpp
+
+     visitors/ir-all-visitors.hpp
+     visitors/ir-all-visitors-fwd.hpp
      visitors/ir-visitor.hpp
      visitors/ir-visitor-fwd.hpp)
 
@@ -90,21 +129,28 @@ SET (SOURCES
      values/ir-instruction.cpp
      values/ir-variable.cpp
 
-     visitors/inspectors/ir-block-counter.cpp
-     visitors/inspectors/ir-entry-collector.cpp
-     visitors/inspectors/ir-leaf-collector.cpp
-     visitors/inspectors/ir-leaf-inspector.cpp
-     visitors/inspectors/ir-predecessor-collector.cpp
-     visitors/inspectors/ir-subcomponent-inspector.cpp
-     visitors/inspectors/ir-successor-collector.cpp
+     # component visitors
+     visitors/component/inspectors/ir-leaf-collector.cpp
 
-     visitors/mutators/ir-def-propagator.cpp
-     visitors/mutators/ir-def-resolution-builder.cpp
-     visitors/mutators/ir-forward-mutator.cpp
-     visitors/mutators/ir-structure-flattener.cpp
-     visitors/mutators/ir-subcomponent-mutator.cpp
+     # structure visitors
+     visitors/structure/inspectors/utility/ir-subcomponent-inspector.cpp
+     visitors/structure/inspectors/ir-entry-collector.cpp
+     visitors/structure/inspectors/ir-leaf-inspector.cpp
+     visitors/structure/inspectors/ir-predecessor-collector.cpp
+     visitors/structure/inspectors/ir-successor-collector.cpp
 
-     visitors/ir-traverser.cpp)
+     visitors/structure/mutators/utility/ir-subcomponent-mutator.cpp
+     visitors/structure/mutators/ir-def-propagator.cpp
+     visitors/structure/mutators/ir-def-resolution-builder.cpp
+     visitors/structure/mutators/ir-forward-mutator.cpp
+     visitors/structure/mutators/ir-structure-flattener.cpp
+
+     # subcomponent visitors
+     visitors/subcomponent/inspectors/ir-block-counter.cpp
+
+     # substructure visitors
+
+     )
 
 SET(TARGET_VERSIONS 17 20)
 

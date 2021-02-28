@@ -9,312 +9,201 @@
 #define OCTAVE_IR_IR_VISITOR_FWD_HPP
 
 #include "components/ir-component-fwd.hpp"
+#include "utilities/ir-type-traits.hpp"
 
 namespace gch
 {
 
+  //
+  // visitor_types
+  //
+
   template <typename ...Visitors>
   struct visitor_types;
 
-  template <typename, typename, typename>
-  struct acceptor;
-
-  struct const_visitor_tag;
-
-  struct inspector_tag;
-  struct const_inspector_tag;
-
-  struct mutator_tag;
-  struct const_mutator_tag;
-
+  template <typename Visitor>
+  struct inspector_type;
 
   template <typename Visitor>
-  struct visitor_traits;
+  struct mutator_type;
 
+  struct const_visitor_tag                                      { };
+
+  struct inspector_tag                                          { };
+  struct const_inspector_tag : inspector_tag, const_visitor_tag { };
+
+  struct mutator_tag                                            { };
+  struct const_mutator_tag : mutator_tag, const_visitor_tag     { };
+
+  template <typename Visitor>
+  struct visitor_traits
+  { };
+
+  template <typename ...Ts>
+  struct type_pack;
+
+  namespace detail
+  {
+
+    template <typename T, typename Traits = visitor_traits<T>, typename Enable = void>
+    struct valid_visitor_traits
+      : std::false_type
+    { };
+
+    template <typename T, typename Traits>
+    struct valid_visitor_traits<T, Traits, std::void_t<typename Traits::result_type,
+                                                       typename Traits::visitor_category>>
+      : std::true_type
+    { };
+
+  } // namespace detail
+
+  template <typename Visitor>
+  struct visitor_result
+  {
+    static_assert (detail::valid_visitor_traits<Visitor>::value, "Invalid visitor traits.");
+    using type = typename visitor_traits<Visitor>::result_type;
+  };
+
+  template <typename Visitor>
+  using visitor_result_t = typename visitor_result<Visitor>::type;
+
+  template <typename Visitor>
+  struct visitor_category
+  {
+    static_assert (detail::valid_visitor_traits<Visitor>::value, "Invalid visitor traits.");
+    using type = typename visitor_traits<Visitor>::visitor_category;
+  };
+
+  template <typename Visitor>
+  using visitor_category_t = typename visitor_category<Visitor>::type;
+
+  // note: visitor_arguments not used yet
+
+  namespace detail
+  {
+
+    template <typename Visitor, typename Enable = void>
+    struct visitor_arguments_impl
+    {
+      using type = type_pack<>;
+    };
+
+    template <typename Visitor>
+    struct visitor_arguments_impl<Visitor, std::void_t<typename Visitor::visitor_arguments>>
+    {
+      using type = typename Visitor::visitor_arguments;
+    };
+
+  } // namespace detail
+
+  template <typename Visitor>
+  struct visitor_arguments
+    : detail::visitor_arguments_impl<Visitor>
+  { };
+
+  template <typename Visitor>
+  using visitor_arguments_t = typename visitor_arguments<Visitor>::type;
+
+  template <typename Visitor>
+  struct is_inspector
+    : std::bool_constant<std::is_base_of_v<inspector_tag, visitor_category_t<Visitor>>>
+  { };
+
+  template <typename Visitor>
+  inline constexpr bool is_inspector_v = is_inspector<Visitor>::value;
+
+  template <typename Visitor>
+  struct is_mutator
+    : std::bool_constant<std::is_base_of_v<mutator_tag, visitor_category_t<Visitor>>>
+  { };
+
+  template <typename Visitor>
+  inline constexpr bool is_mutator_v = is_mutator<Visitor>::value;
+
+  template <typename Visitor>
+  struct is_const_visitor
+    : std::bool_constant<std::is_base_of_v<const_visitor_tag, visitor_category_t<Visitor>>>
+  { };
+
+  template <typename Visitor>
+  inline constexpr bool is_const_visitor_v = is_const_visitor<Visitor>::value;
+
+  template <typename Visitor>
+  struct visitor_reference
+  {
+    using type = std::conditional_t<is_const_visitor_v<Visitor>, const Visitor&, Visitor&>;
+  };
+
+  template <typename Visitor>
+  using visitor_reference_t = typename visitor_reference<Visitor>::type;
+
+  template <typename Visitor>
+  struct visitor_named_type
+    : std::conditional<is_inspector_v<Visitor>, inspector_type<Visitor>, mutator_type<Visitor>>
+  {
+    static_assert (is_inspector_v<Visitor> || is_mutator_v<Visitor>,
+                   "Visitor should be either an inspector or a mutator.");
+  };
+
+  template <typename Visitor>
+  using visitor_named_category_t = typename visitor_named_type<Visitor>::type;
+
+  template <typename, typename>
+  struct acceptor;
 
   template <typename Visitor>
   struct acceptor_trait
   {
-    template <typename Concrete>
-    using acceptor_type = acceptor<Concrete, Visitor, void>;
+    template <typename V = Visitor>
+    using named_type = visitor_named_category_t<V>;
+
+    template <typename Concrete, typename V = Visitor>
+    using acceptor_type = acceptor<Concrete, named_type<V>>;
   };
 
   template <typename Component>
-  struct abstract_visitors
+  struct exclusive_inspectors
   {
     using type = visitor_types<>;
   };
 
   template <typename Component>
-  using abstract_visitors_t = typename abstract_visitors<Component>::type;
-
-  template <typename ...Components>
-  struct implemented_visitors;
-
-  template <typename ...Components>
-  using implemented_visitors_t = typename implemented_visitors<Components...>::type;
-
-  template <typename ...Components>
-  struct implemented_visitors
-  {
-    using type = pack_unique_t<pack_flatten_t<pack_concatenate_t<
-      typename implemented_visitors<Components>::type...>>>;
-  };
+  using exclusive_inspectors_t = typename exclusive_inspectors<Component>::type;
 
   template <typename Component>
-  struct implemented_visitors<Component>
-    : abstract_visitors<Component>
-  { };
-
-  template <typename Component, typename ...BaseComponents>
-  struct merged_base_visitors
-  {
-    using type = pack_unique_t<pack_flatten_t<pack_concatenate_t<
-      abstract_visitors_t<Component>,
-      implemented_visitors_t<BaseComponents>...>>>;
-  };
-
-  //
-  // component visitors
-  //
-
-  /* ir_leaf_collector */
-
-  template <typename T>
-  class ir_link_set;
-
-  class ir_leaf_collector;
-  template <>
-  struct visitor_traits<ir_leaf_collector>
-    : acceptor_trait<ir_leaf_collector>
-  {
-    using result_type      = ir_link_set<ir_block>;
-    using visitor_category = const_inspector_tag;
-  };
-
-  /* component_inspector_types */
-
-  using component_inspector_types = visitor_types<ir_leaf_collector>;
-
-  /* ir_descending_def_resolution_builder */
-
-  class ir_def_resolution_build_result;
-  class ir_descending_def_resolution_builder;
-  template <>
-  struct visitor_traits<ir_descending_def_resolution_builder>
-    : acceptor_trait<ir_descending_def_resolution_builder>
-  {
-    using result_type      = ir_def_resolution_build_result;
-    using visitor_category = const_mutator_tag;
-  };
-
-  /* ir_descending_forward_mutator */
-
-  class ir_descending_forward_mutator;
-  template <>
-  struct visitor_traits<ir_descending_forward_mutator>
-    : acceptor_trait<ir_descending_forward_mutator>
-  {
-    using result_type      = bool;
-    using visitor_category = const_mutator_tag;
-  };
-
-  /* ir_descending_def_propagator */
-
-  class ir_descending_def_propagator;
-  template <>
-  struct visitor_traits<ir_descending_def_propagator>
-    : acceptor_trait<ir_descending_def_propagator>
-  {
-    using result_type      = ir_link_set<ir_block>;
-    using visitor_category = const_mutator_tag;
-  };
-
-  /* component_mutator_types */
-
-  using component_mutator_types = visitor_types<ir_descending_def_resolution_builder,
-                                                ir_descending_forward_mutator,
-                                                ir_descending_def_propagator>;
-
-  /* ir_component_visitors */
-
-  template <>
-  struct abstract_visitors<ir_component>
-  {
-    using type = visitor_types<component_inspector_types,
-                               component_mutator_types>;
-  };
-
-  using ir_component_visitors_exclusive = visitor_types<component_inspector_types,
-                                                        component_mutator_types>;
-
-  //
-  // subcomponent visitors
-  //
-
-  /* ir_block_counter */
-
-  class ir_block_counter;
-  template <>
-  struct visitor_traits<ir_block_counter>
-    : acceptor_trait<ir_block_counter>
-  {
-    using result_type      = std::size_t;
-    using visitor_category = const_inspector_tag;
-  };
-
-  /* subcomponent_inspector_types */
-
-  using subcomponent_inspector_types = visitor_types<ir_block_counter>;
-
-  /* subcomponent_mutator_types */
-
-  using subcomponent_mutator_types = visitor_types<>;
-
-  template <>
-  struct abstract_visitors<ir_subcomponent>
-  {
-    using type = visitor_types<subcomponent_inspector_types,
-                               subcomponent_mutator_types>;
-  };
-
-  template <>
-  struct implemented_visitors<ir_subcomponent>
-    : merged_base_visitors<ir_subcomponent, ir_component>
-  { };
-
-  // aggregate
-  using ir_subcomponent_visitors_exclusive = visitor_types<subcomponent_inspector_types,
-                                                           subcomponent_mutator_types>;
-
-  //
-  // structure visitors
-  //
-
-  class ir_entry_collector;
-  template <>
-  struct visitor_traits<ir_entry_collector>
-    : acceptor_trait<ir_entry_collector>
-  {
-    using result_type      = const ir_subcomponent&;
-    using visitor_category = const_inspector_tag;
-  };
-
-  /* ir_predecessor_collector */
-
-  class ir_predecessor_collector;
-  template <>
-  struct visitor_traits<ir_predecessor_collector>
-    : acceptor_trait<ir_predecessor_collector>
-  {
-    using result_type      = ir_link_set<ir_block>;
-    using visitor_category = const_inspector_tag;
-  };
-
-  /* ir_successor_collector */
-
-  class ir_successor_collector;
-  template <>
-  struct visitor_traits<ir_successor_collector>
-    : acceptor_trait<ir_successor_collector>
-  {
-    using result_type      = ir_link_set<ir_block>;
-    using visitor_category = const_inspector_tag;
-  };
-
-  /* ir_leaf_inspector */
-
-  class ir_leaf_inspector;
-  template <>
-  struct visitor_traits<ir_leaf_inspector>
-    : acceptor_trait<ir_leaf_inspector>
-  {
-    using result_type      = bool;
-    using visitor_category = const_inspector_tag;
-  };
-
-  /* structure_inspector_types */
-
-  using structure_inspector_types = visitor_types<ir_entry_collector,
-                                                  ir_predecessor_collector,
-                                                  ir_successor_collector,
-                                                  ir_leaf_inspector>;
-
-  /* ir_structure_flattener */
-
-  class ir_structure_flattener;
-  template <>
-  struct visitor_traits<ir_structure_flattener>
-    : acceptor_trait<ir_structure_flattener>
-  {
-    using result_type      = void;
-    using visitor_category = const_mutator_tag;
-  };
-
-  /* ir_ascending_def_resolution_builder */
-
-  class ir_ascending_def_resolution_builder;
-  template <>
-  struct visitor_traits<ir_ascending_def_resolution_builder>
-    : acceptor_trait<ir_ascending_def_resolution_builder>
-  {
-    using result_type      = ir_def_resolution_build_result;
-    using visitor_category = const_mutator_tag;
-  };
-
-  /* ir_ascending_forward_mutator */
-
-  class ir_ascending_forward_mutator;
-  template <>
-  struct visitor_traits<ir_ascending_forward_mutator>
-    : acceptor_trait<ir_ascending_forward_mutator>
-  {
-    using result_type      = void;
-    using visitor_category = const_mutator_tag;
-  };
-
-  /* ir_ascending_def_propagator */
-
-  class ir_ascending_def_propagator;
-  template <>
-  struct visitor_traits<ir_ascending_def_propagator>
-    : acceptor_trait<ir_ascending_def_propagator>
-  {
-    using result_type      = void;
-    using visitor_category = const_mutator_tag;
-  };
-
-  /* structure_mutator_types */
-
-  using structure_mutator_types = visitor_types<ir_structure_flattener,
-                                                ir_ascending_def_resolution_builder,
-                                                ir_ascending_forward_mutator,
-                                                ir_ascending_def_propagator>;
-
-  template <>
-  struct abstract_visitors<ir_structure>
-  {
-    using type = visitor_types<structure_inspector_types,
-                               structure_mutator_types>;
-  };
-
-  // aggregate
-  using ir_structure_visitors_exclusive = visitor_types<structure_inspector_types,
-                                                        structure_mutator_types>;
-
-  //
-  // substructure visitors
-  //
-
-  template <>
-  struct abstract_visitors<ir_substructure>
+  struct exclusive_mutators
   {
     using type = visitor_types<>;
   };
 
-  template <>
-  struct implemented_visitors<ir_substructure>
-    : merged_base_visitors<ir_substructure, ir_structure, ir_subcomponent>
+  template <typename Component>
+  using exclusive_mutators_t = typename exclusive_mutators<Component>::type;
+
+  template <typename Component>
+  struct exclusive_visitors
+    : pack_union<exclusive_inspectors_t<Component>, exclusive_mutators_t<Component>>
+  { };
+
+  template <typename Component>
+  using exclusive_visitors_t = typename exclusive_visitors<Component>::type;
+
+  template <typename ...Components>
+  struct consolidated_visitors;
+
+  template <typename ...Components>
+  using consolidated_visitors_t = typename consolidated_visitors<Components...>::type;
+
+  template <typename ...Components>
+  struct consolidated_visitors
+  {
+    using type = pack_unique_t<pack_flatten_t<pack_concatenate_t<
+      typename consolidated_visitors<Components>::type...>>>;
+  };
+
+  template <typename Component>
+  struct consolidated_visitors<Component>
+    : exclusive_visitors<Component>
   { };
 
 }

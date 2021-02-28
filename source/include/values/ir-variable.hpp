@@ -376,21 +376,21 @@ namespace gch
 
   [[nodiscard]] inline
   bool
-  has_same_def (const ir_use_timeline& l, const ir_use_timeline& r)
+  has_same_def (const ir_use_timeline& l, const ir_use_timeline& r) noexcept
   {
     return l.get_def_pos () == r.get_def_pos ();
   }
 
   [[nodiscard]] inline
   bool
-  has_same_def (optional_ref<const ir_use_timeline> lhs, const ir_use_timeline& r)
+  has_same_def (optional_ref<const ir_use_timeline> lhs, const ir_use_timeline& r) noexcept
   {
-    return lhs >>= [&r](const ir_use_timeline& l) { return has_same_def (l, r); };
+    return lhs >>= [&r](const ir_use_timeline& l) noexcept { return has_same_def (l, r); };
   }
 
   [[nodiscard]] inline
   bool
-  has_same_def (const ir_use_timeline& l, optional_ref<const ir_use_timeline> rhs)
+  has_same_def (const ir_use_timeline& l, optional_ref<const ir_use_timeline> rhs) noexcept
   {
     return has_same_def (rhs, l);
   }
@@ -398,8 +398,9 @@ namespace gch
   [[nodiscard]] inline
   bool
   has_same_def (optional_ref<const ir_use_timeline> lhs, optional_ref<const ir_use_timeline> rhs)
+    noexcept
   {
-    return lhs >>= [rhs](const ir_use_timeline& l) { return has_same_def (l, rhs); };
+    return lhs >>= [rhs](const ir_use_timeline& l) noexcept { return has_same_def (l, rhs); };
   }
 
   class ir_use_info
@@ -547,7 +548,7 @@ namespace gch
     {
       if (auto u = maybe_get<ir_use> (*this))
         return u->get_type ();
-      return std::visit ([] (auto&& x) -> ir_type { return x.get_type (); }, m_data);
+      return std::visit ([] (auto&& x) noexcept -> ir_type { return x.get_type (); }, m_data);
     }
 
     [[nodiscard]] constexpr

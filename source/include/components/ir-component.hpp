@@ -28,7 +28,8 @@ along with Octave; see the file COPYING.  If not, see
 #include "utilities/ir-link-set.hpp"
 
 #include "visitors/ir-visitor.hpp"
-#include "visitors/ir-visitor-fwd.hpp"
+#include "visitors/component/ir-component-visitors-fwd.hpp"
+#include "visitors/subcomponent/ir-subcomponent-visitors-fwd.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 #include <gch/optional_ref.hpp>
@@ -47,23 +48,9 @@ namespace gch
   class ir_structure;
   class ir_def_timeline;
 
-  template <typename BlockVisitor>
-  class ir_forward_descender;
-
-  template <typename BlockVisitor>
-  class ir_forward_ascender;
-
-  template <typename BlockVisitor>
-  class ir_backward_descender;
-
-  template <typename BlockVisitor>
-  class ir_backward_ascender;
-
-  class ir_block_visitor_prototype;
-
   // abstract
   class ir_component
-    : public abstract_visitable<abstract_visitors_t<ir_component>>
+    : public abstract_visitable<exclusive_visitors_t<ir_component>>
   {
   public:
     ir_component            (void)                    = default;
@@ -82,7 +69,7 @@ namespace gch
   // a subcomponent is any component that isn't an function
   class ir_subcomponent
     : public ir_component,
-      public abstract_visitable<abstract_visitors_t<ir_subcomponent>>
+      public abstract_visitable<exclusive_visitors_t<ir_subcomponent>>
   {
   public:
     ir_subcomponent            (void)                       = delete;
@@ -91,6 +78,9 @@ namespace gch
     ir_subcomponent& operator= (const ir_subcomponent&)     = default;
     ir_subcomponent& operator= (ir_subcomponent&&) noexcept = default;
     ~ir_subcomponent           (void) override              = 0;
+
+    using ir_component::accept;
+    using abstract_visitable<exclusive_visitors_t<ir_subcomponent>>::accept;
 
     explicit
     ir_subcomponent (ir_structure& parent)

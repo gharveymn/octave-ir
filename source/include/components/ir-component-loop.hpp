@@ -16,7 +16,7 @@ namespace gch
 
   class ir_component_loop
     : public ir_substructure,
-      public visitable<ir_component_loop, implemented_visitors_t<ir_substructure>>
+      public visitable<ir_component_loop, consolidated_visitors_t<ir_substructure>>
   {
   public:
     enum class subcomponent_id
