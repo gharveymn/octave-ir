@@ -13,4 +13,29 @@
 #include "ir-predecessor-collector.hpp"
 #include "ir-successor-collector.hpp"
 
+namespace gch
+{
+
+  extern template class acceptor<ir_component_fork,     inspector_type<ir_entry_collector>>;
+  extern template class acceptor<ir_component_loop,     inspector_type<ir_entry_collector>>;
+  extern template class acceptor<ir_component_sequence, inspector_type<ir_entry_collector>>;
+  extern template class acceptor<ir_function,           inspector_type<ir_entry_collector>>;
+
+  extern template class acceptor<ir_component_fork,     inspector_type<ir_leaf_inspector>>;
+  extern template class acceptor<ir_component_loop,     inspector_type<ir_leaf_inspector>>;
+  extern template class acceptor<ir_component_sequence, inspector_type<ir_leaf_inspector>>;
+  extern template class acceptor<ir_function,           inspector_type<ir_leaf_inspector>>;
+
+  extern template class acceptor<ir_component_fork,     inspector_type<ir_predecessor_collector>>;
+  extern template class acceptor<ir_component_loop,     inspector_type<ir_predecessor_collector>>;
+  extern template class acceptor<ir_component_sequence, inspector_type<ir_predecessor_collector>>;
+  extern template class acceptor<ir_function,           inspector_type<ir_predecessor_collector>>;
+
+  extern template class acceptor<ir_component_fork,     inspector_type<ir_successor_collector>>;
+  extern template class acceptor<ir_component_loop,     inspector_type<ir_successor_collector>>;
+  extern template class acceptor<ir_component_sequence, inspector_type<ir_successor_collector>>;
+  extern template class acceptor<ir_function,           inspector_type<ir_successor_collector>>;
+
+}
+
 #endif // OCTAVE_IR_IR_STRUCTURE_INSPECTORS_HPP

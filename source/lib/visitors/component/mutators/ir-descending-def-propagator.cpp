@@ -118,12 +118,9 @@ namespace gch
             block_dt->incoming_begin (), block_dt->incoming_begin (),
             m_incoming_blocks.begin (),  m_incoming_blocks.end (),
             std::back_inserter (replaced_nodes),
-            [](const auto& lhs, const auto& rhs)
+            [](const auto& lhs, const nonnull_ptr<ir_block>& rhs)
             {
-              if constexpr (std::is_same_v<const nonnull_ptr<ir_block>&, decltype (lhs)>)
-                return lhs == std::get<const nonnull_cptr<ir_block>> (rhs);
-              else
-                return std::get<const nonnull_cptr<ir_block>> (lhs) == rhs;
+              return std::get<const nonnull_cptr<ir_block>> (lhs) == rhs;
             });
 
           std::for_each (replaced_nodes.begin (), replaced_nodes.end (),

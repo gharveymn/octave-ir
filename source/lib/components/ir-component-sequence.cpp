@@ -8,9 +8,8 @@
 
 #include "components/ir-component-sequence.hpp"
 #include "components/ir-block.hpp"
-#include "utilities/ir-optional-util.hpp"
 #include "utilities/ir-error.hpp"
-#include "visitors/ir-all-subcomponent-visitors.hpp"
+#include "visitors/ir-all-substructure-visitors.hpp"
 
 #include <cassert>
 #include <numeric>
@@ -18,72 +17,6 @@
 
 namespace gch
 {
-
-  extern template
-  auto
-  acceptor<ir_component_sequence, inspector_type<ir_entry_collector>>::
-  accept (visitor_reference v) const
-    -> result_type;
-
-  extern template
-  auto
-  acceptor<ir_component_sequence, inspector_type<ir_leaf_inspector>>::
-  accept (visitor_reference v) const
-    -> result_type;
-
-  extern template
-  auto
-  acceptor<ir_component_sequence, inspector_type<ir_predecessor_collector>>::
-  accept (visitor_reference v) const
-    -> result_type;
-
-  extern template
-  auto
-  acceptor<ir_component_sequence, inspector_type<ir_successor_collector>>::
-  accept (visitor_reference v) const
-    -> result_type;
-
-  extern template
-  auto
-  acceptor<ir_component_sequence, mutator_type<ir_ascending_def_propagator>>::
-  accept (visitor_reference v)
-    -> result_type;
-
-  extern template
-  auto
-  acceptor<ir_component_sequence, mutator_type<ir_ascending_def_resolution_builder>>::
-  accept (visitor_reference v)
-    -> result_type;
-
-  extern template
-  auto
-  acceptor<ir_component_sequence, mutator_type<ir_ascending_forward_mutator>>::
-  accept (visitor_reference v)
-    -> result_type;
-
-  extern template
-  auto
-  acceptor<ir_component_sequence, mutator_type<ir_descending_def_propagator>>::
-  accept (visitor_reference v)
-    -> result_type;
-
-  extern template
-  auto
-  acceptor<ir_component_sequence, mutator_type<ir_descending_def_resolution_builder>>::
-  accept (visitor_reference v)
-    -> result_type;
-
-  extern template
-  auto
-  acceptor<ir_component_sequence, mutator_type<ir_descending_forward_mutator>>::
-  accept (visitor_reference v)
-    -> result_type;
-
-  extern template
-  auto
-  acceptor<ir_component_sequence, mutator_type<ir_structure_flattener>>::
-  accept (visitor_reference v)
-    -> result_type;
 
   ir_component_sequence::
   ~ir_component_sequence (void) = default;

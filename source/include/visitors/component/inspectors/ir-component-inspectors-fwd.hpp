@@ -12,15 +12,18 @@
 
 namespace gch
 {
-
   class ir_leaf_collector;
+  class ir_const_leaf_collector;
 
   class ir_block_counter;
+
+  class ir_block;
 
   template <>
   struct exclusive_inspectors<ir_component>
   {
     using type = visitor_types<ir_leaf_collector,
+                               ir_const_leaf_collector,
                                ir_block_counter>;
   };
 
@@ -32,6 +35,14 @@ namespace gch
     : acceptor_trait<ir_leaf_collector>
   {
     using result_type      = ir_link_set<ir_block>;
+    using visitor_category = const_inspector_tag;
+  };
+
+  template <>
+  struct visitor_traits<ir_const_leaf_collector>
+    : acceptor_trait<ir_const_leaf_collector>
+  {
+    using result_type      = ir_link_set<const ir_block>;
     using visitor_category = const_inspector_tag;
   };
 

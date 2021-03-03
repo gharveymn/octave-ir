@@ -38,7 +38,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "visitors/subcomponent/ir-subcomponent-visitors-fwd.hpp"
 
-#include <gch/tracker.hpp>
+#include <gch/tracker/tracker.hpp>
 #include <gch/optional_ref.hpp>
 #include <gch/partition/list_partition.hpp>
 #include <gch/small_vector.hpp>
@@ -52,7 +52,6 @@ along with Octave; see the file COPYING.  If not, see
 #include <stack>
 #include <vector>
 #include <list>
-#include <map>
 
 namespace gch
 {

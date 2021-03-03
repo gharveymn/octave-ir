@@ -25,7 +25,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "ir-structure.hpp"
 
-#include <map>
+#include <unordered_map>
 
 namespace gch
 {
@@ -68,8 +68,8 @@ namespace gch
     get_variable (const variable_identifier_char_type *identifier);
 
   private:
-    std::map<variable_key_type, ir_variable> m_variable_map;
-    ir_component_storage                     m_body;
+    std::unordered_map<variable_key_type, ir_variable> m_variable_map;
+    ir_component_storage                               m_body;
   };
 
 }

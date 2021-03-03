@@ -20,7 +20,8 @@ namespace gch
   struct exclusive_visitors<ir_structure>
     : pack_union<exclusive_inspectors_t<ir_structure>,
                  exclusive_mutators_t<ir_structure>,
-                 visitor_types<ir_leaf_collector>>
+                 visitor_types<ir_leaf_collector,
+                               ir_const_leaf_collector>>
   { };
 
 }

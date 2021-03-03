@@ -20,10 +20,6 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-#if defined (HAVE_CONFIG_H)
-#  include "config.h"
-#endif
-
 #include "components/ir-component.hpp"
 #include "components/ir-structure.hpp"
 #include "components/ir-component-sequence.hpp"
@@ -31,6 +27,7 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "visitors/structure/inspectors/utility/ir-subcomponent-inspector.hpp"
 #include "visitors/component/inspectors/ir-leaf-collector.hpp"
+#include "visitors/ir-all-structure-visitors.hpp"
 
 #include <numeric>
 
@@ -41,6 +38,70 @@ namespace gch
 
   ir_substructure::
   ~ir_substructure (void) = default;
+
+  auto
+  ir_structure::
+  leaves_begin (void) const noexcept
+    -> leaves_const_iterator
+  {
+   return get_leaves ().begin ();
+  }
+
+  auto
+  ir_structure::
+  leaves_end (void) const noexcept
+    -> leaves_const_iterator
+  {
+   return get_leaves ().end ();
+  }
+
+  auto
+  ir_structure::
+  leaves_rbegin (void) const noexcept
+    -> leaves_const_reverse_iterator
+  {
+   return get_leaves ().rbegin ();
+  }
+
+  auto
+  ir_structure::
+  leaves_rend (void) const noexcept
+    -> leaves_const_reverse_iterator
+  {
+   return get_leaves ().rend ();
+  }
+
+  auto
+  ir_structure::
+  leaves_front (void) const noexcept
+    -> leaves_value_type
+  {
+    return *leaves_begin ();
+  }
+
+  auto
+  ir_structure::
+  leaves_back (void) const noexcept
+    -> leaves_value_type
+  {
+    return *leaves_rbegin ();
+  }
+
+  auto
+  ir_structure::
+  leaves_size (void) const noexcept
+    -> leaves_size_type
+  {
+   return get_leaves ().size ();
+  }
+
+  [[nodiscard]]
+  bool
+  ir_structure::
+  leaves_empty (void) const noexcept
+  {
+    return get_leaves ().empty ();
+  }
 
   const ir_link_set<ir_block>&
   ir_structure::
@@ -68,30 +129,26 @@ namespace gch
     }
   }
 
-  std::pair<ir_component_ptr, ir_component_ptr>
-  ir_structure::
-  split (ir_component_ptr block_ptr, ir_instruction_iter pivot)
-  {
-    assert (holds_type<ir_block> (block_ptr) && "block_ptr must point to an ir_block");
-    ir_block& src = as_type<ir_block> (block_ptr);
-
-    // pivot is now in src
-
-    ir_component_sequence& new_seq = mutate<ir_component_sequence> (make_handle (block_ptr));
-    ir_block& dst = new_seq.emplace_back<ir_block> ();
-
-    // new_seq now has size 2
-    assert (new_seq.size () == 2);
-
-    // transfer instructions which occur after the pivot
-    src.split_into (pivot, dst);
-
-    assert (&dst == &new_seq.back ());
-    return { new_seq.begin (), new_seq.last () };
-  }
-
   //
   // non-member functions
   //
+
+  ir_link_set<ir_block>
+  collect_leaves (const ir_structure& s)
+  {
+    return ir_leaf_collector { } (s);
+  }
+
+  ir_link_set<const ir_block>
+  collect_const_leaves (const ir_structure& s)
+  {
+    return ir_const_leaf_collector { } (s);
+  }
+
+  void
+  flatten (ir_structure& s)
+  {
+    return ir_structure_flattener { } (s);
+  }
 
 }

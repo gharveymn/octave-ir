@@ -150,7 +150,7 @@ namespace gch
   using visitor_category_wrapper_t = typename visitor_category_wrapper<Visitor>::type;
 
   template <typename, typename>
-  struct acceptor;
+  class acceptor;
 
   template <typename Visitor>
   struct acceptor_trait

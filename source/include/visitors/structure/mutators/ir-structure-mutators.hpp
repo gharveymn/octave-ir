@@ -13,4 +13,29 @@
 #include "ir-ascending-forward-mutator.hpp"
 #include "ir-structure-flattener.hpp"
 
+namespace gch
+{
+
+  extern template class acceptor<ir_component_fork,     mutator_type<ir_ascending_def_propagator>>;
+  extern template class acceptor<ir_component_loop,     mutator_type<ir_ascending_def_propagator>>;
+  extern template class acceptor<ir_component_sequence, mutator_type<ir_ascending_def_propagator>>;
+  extern template class acceptor<ir_function,           mutator_type<ir_ascending_def_propagator>>;
+
+  extern template class acceptor<ir_component_fork,     mutator_type<ir_ascending_def_resolution_builder>>;
+  extern template class acceptor<ir_component_loop,     mutator_type<ir_ascending_def_resolution_builder>>;
+  extern template class acceptor<ir_component_sequence, mutator_type<ir_ascending_def_resolution_builder>>;
+  extern template class acceptor<ir_function,           mutator_type<ir_ascending_def_resolution_builder>>;
+
+  extern template class acceptor<ir_component_fork,     mutator_type<ir_ascending_forward_mutator>>;
+  extern template class acceptor<ir_component_loop,     mutator_type<ir_ascending_forward_mutator>>;
+  extern template class acceptor<ir_component_sequence, mutator_type<ir_ascending_forward_mutator>>;
+  extern template class acceptor<ir_function,           mutator_type<ir_ascending_forward_mutator>>;
+
+  extern template class acceptor<ir_component_fork,     mutator_type<ir_structure_flattener>>;
+  extern template class acceptor<ir_component_loop,     mutator_type<ir_structure_flattener>>;
+  extern template class acceptor<ir_component_sequence, mutator_type<ir_structure_flattener>>;
+  extern template class acceptor<ir_function,           mutator_type<ir_structure_flattener>>;
+
+}
+
 #endif // OCTAVE_IR_IR_STRUCTURE_MUTATORS_HPP

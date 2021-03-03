@@ -16,6 +16,7 @@
 #include <chrono>
 #include <random>
 #include <iostream>
+#include <set>
 
 using namespace gch; // yeah, yeah, we're in a source file, it's fine
 

@@ -100,10 +100,4 @@ namespace gch
     maybe_cast<ir_structure> (sub) >>= [this](ir_structure& s) { (*this) (s); };
   }
 
-  void
-  flatten (ir_structure& s)
-  {
-    return ir_structure_flattener { } (s);
-  }
-
 }

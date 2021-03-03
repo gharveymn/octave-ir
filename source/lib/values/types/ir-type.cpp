@@ -20,10 +20,6 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-#if defined (HAVE_CONFIG_H)
-#  include "config.h"
-#endif
-
 #include "utilities/ir-common-util.hpp"
 #include "values/types/ir-type.hpp"
 

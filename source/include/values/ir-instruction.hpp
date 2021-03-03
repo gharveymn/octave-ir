@@ -180,7 +180,7 @@ namespace gch
     template <ir_opcode Op, typename ...Args>
     ir_instruction (tag_t<Op>, ir_variable& ret_var, Args&&... args)
       : m_metadata (type<Op>::metadata),
-        m_def (std::in_place, ret_var, *this),
+        m_def      (std::in_place, *this, ret_var),
         m_args     ()
     {
       assert_not_abstract<Op> ();
@@ -192,8 +192,7 @@ namespace gch
     template <ir_opcode Op, typename ...Args>
     ir_instruction (tag_t<Op>, ir_operand_in&& op, Args&&... args)
       : m_metadata (type<Op>::metadata),
-        m_def (std::nullopt),
-        m_args     ()
+        m_def      (std::nullopt)
     {
       assert_not_abstract<Op> ();
       assert_no_def<Op> ();
@@ -204,8 +203,7 @@ namespace gch
     template <ir_opcode Op, typename ...Args>
     ir_instruction (tag_t<Op>, ir_constant&& c, Args&&... args)
       : m_metadata (type<Op>::metadata),
-        m_def (std::nullopt),
-        m_args     ()
+        m_def      (std::nullopt)
     {
       assert_not_abstract<Op> ();
       assert_no_def<Op> ();
@@ -219,8 +217,7 @@ namespace gch
     explicit
     ir_instruction (tag_t<Op>, ir_variable& ret_var, std::array<ir_operand_in, N>&& args)
       : m_metadata (type<Op>::metadata),
-        m_def (std::in_place, ret_var, *this),
-        m_args     ()
+        m_def      (std::in_place, *this, ret_var)
     {
       assert_not_abstract<Op> ();
       assert_has_def<Op> ();
@@ -232,8 +229,7 @@ namespace gch
     explicit
     ir_instruction (tag_t<Op>, std::array<ir_operand_in, N>&& args)
       : m_metadata (type<Op>::metadata),
-        m_def (std::nullopt),
-        m_args     ()
+        m_def (std::nullopt)
     {
       assert_not_abstract<Op> ();
       assert_no_def<Op> ();
@@ -245,8 +241,7 @@ namespace gch
     explicit
     ir_instruction (tag_t<Op>)
       : m_metadata (type<Op>::metadata),
-        m_def (std::nullopt),
-        m_args     ()
+        m_def (std::nullopt)
     {
       assert_not_abstract<Op> ();
       assert_no_def<Op> ();
@@ -385,17 +380,26 @@ namespace gch
       return m_args.emplace (pos, *this, std::forward<Args> (args)...);
     }
 
-    [[nodiscard]]
+    [[nodiscard]] constexpr
     metadata_t
-    get_metadata (void) const noexcept;
+    get_metadata (void) const noexcept
+    {
+      return m_metadata;
+    }
 
-    [[nodiscard]]
+    [[nodiscard]] constexpr
     ir_def&
-    get_def (void) noexcept;
+    get_def (void) noexcept
+    {
+      return *m_def;
+    }
 
-    [[nodiscard]]
+    [[nodiscard]] constexpr
     const ir_def&
-    get_def (void) const noexcept;
+    get_def (void) const noexcept
+    {
+      return *m_def;
+    }
 
   private:
     metadata_t            m_metadata;

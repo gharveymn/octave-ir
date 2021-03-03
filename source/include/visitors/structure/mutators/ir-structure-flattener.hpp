@@ -49,9 +49,6 @@ namespace gch
     maybe_recurse (ir_subcomponent& sub) const;
   };
 
-  void
-  flatten (ir_structure& s);
-
 }
 
 #endif // OCTAVE_IR_IR_STRUCTURE_FLATTENER_HPP

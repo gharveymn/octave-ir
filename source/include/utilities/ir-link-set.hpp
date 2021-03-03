@@ -9,9 +9,12 @@
 #define OCTAVE_IR_IR_LINK_SET_HPP
 
 #include "utilities/ir-type-traits.hpp"
+#include "utilities/ir-iterator.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 #include <gch/small_vector.hpp>
+
+#include <ranges>
 
 namespace gch
 {
@@ -31,10 +34,10 @@ namespace gch
     using remote_reference       = T&;
     using const_remote_reference = const T&;
 
-    using iterator               = typename container_type::const_iterator;
     using const_iterator         = typename container_type::const_iterator;
-    using reverse_iterator       = typename container_type::const_reverse_iterator;
-    using const_reverse_iterator = typename container_type::const_reverse_iterator;
+    using iterator               = const_iterator;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    using reverse_iterator       = const_reverse_iterator;
 
     using value_t = value_type;
     using size_ty = size_type;
@@ -112,7 +115,7 @@ namespace gch
         return m_first == m_last;
       }
 
-      [[nodiscard]]
+      [[nodiscard]] explicit
       operator bool (void) const noexcept
       {
         return ! empty ();
@@ -187,42 +190,42 @@ namespace gch
     const_iterator
     begin (void) const noexcept
     {
-     return m_data.begin ();
+     return const_iterator { m_data.begin () };
     }
 
     [[nodiscard]]
     const_iterator
     end (void) const noexcept
     {
-     return m_data.end ();
+     return const_iterator { m_data.end () };
     }
 
     [[nodiscard]]
     const_reverse_iterator
     rbegin (void) const noexcept
     {
-     return m_data.rbegin ();
+     return const_reverse_iterator { end () };
     }
 
     [[nodiscard]]
     const_reverse_iterator
     rend (void) const noexcept
     {
-     return m_data.rend ();
+     return const_reverse_iterator { begin () };
     }
 
     [[nodiscard]]
     value_type
     front (void) const noexcept
     {
-      return *m_data.begin ();
+      return *begin ();
     }
 
     [[nodiscard]]
     value_type
     back (void) const noexcept
     {
-      return *m_data.rbegin ();
+      return *rbegin ();
     }
 
     [[nodiscard]]
@@ -268,14 +271,8 @@ namespace gch
     void
     insert (InputIt first, InputIt last)
     {
-      if (first == last)
-        return;
-
-      container_type sorted { first, last };
-      std::sort (sorted.begin (), sorted.end ());
-      sorted.erase (std::unique (sorted.begin (), sorted.end ()), sorted.end ());
-
-      presorted_union (std::move (sorted));
+      if (first != last)
+        insert_range (first, last);
     }
 
     void
@@ -335,7 +332,24 @@ namespace gch
     ir_link_set&
     merge (const ir_link_set& other)
     {
-      presorted_union (other.m_data);
+      if (empty ())
+        m_data = other.m_data;
+      else
+        nontrivial_union (other.m_data.begin (), other.m_data.end ());
+      return *this;
+    }
+
+    ir_link_set&
+    merge (ir_link_set&& other)
+    {
+      if (empty ())
+        m_data = std::move (other.m_data);
+      else
+      {
+        nontrivial_union (other.m_data.begin (), other.m_data.end ());
+        other.clear ();
+      }
+
       return *this;
     }
 
@@ -406,9 +420,19 @@ namespace gch
       return upper_bound (nonnull_ptr { remote });
     }
 
+    constexpr
+    const container_type&
+    data (void) const noexcept
+    {
+      return m_data;
+    }
+
     ir_link_set&
     operator-= (const ir_link_set& rhs)
     {
+      if (empty ())
+        return *this;
+
       container_type res;
       res.reserve (m_data.size ());
       std::set_difference (m_data.begin (), m_data.end (),
@@ -420,53 +444,57 @@ namespace gch
     ir_link_set
     operator- (const ir_link_set& rhs) const
     {
+      if (empty ())
+        return { };
+
       ir_link_set ret;
-      ret.m_data.reserve (m_data.size ());
+      ret.reserve (m_data.size ());
       std::set_difference (m_data.begin (), m_data.end (),
                               rhs.begin (),    rhs.end (), std::back_inserter (ret.m_data));
       return ret;
     }
 
-    friend inline
-    bool
-    operator== (const ir_link_set& lhs, const ir_link_set& rhs) noexcept
-    {
-      return lhs.m_data == rhs.m_data;
-    }
-
-    friend inline
-    bool
-    operator< (const ir_link_set& lhs, const ir_link_set& rhs)
-    {
-      return ! (lhs == rhs);
-    }
-
   private:
+    template <typename InputIt>
     void
-    presorted_union (const container_type& sorted_input)
+    insert_range (InputIt first, InputIt last)
     {
-      if (m_data.empty ())
-        m_data = sorted_input;
-      else if (! sorted_input.empty ())
-        nontrivial_union (sorted_input);
+      if (empty ())
+      {
+        m_data.assign (first, last);
+        std::sort (m_data.begin (), m_data.end ());
+        m_data.erase (std::unique (m_data.begin (), m_data.end ()), m_data.end ());
+      }
+      else
+      {
+        container_type sorted { first, last };
+        std::sort (sorted.begin (), sorted.end ());
+        nontrivial_union (sorted.begin (), std::unique (sorted.begin (), sorted.end ()));
+      }
     }
 
+    template <typename RandomIt,
+              std::enable_if_t<is_random_access_iterator_v<RandomIt>> * = nullptr>
     void
-    presorted_union (container_type&& sorted_input)
+    insert_range (std::move_iterator<RandomIt> first, std::move_iterator<RandomIt> last)
     {
-      if (m_data.empty ())
-        m_data = std::move (sorted_input);
-      else if (! sorted_input.empty ())
-        nontrivial_union (sorted_input);
+      std::sort (first, last);
+
+      if (empty ())
+        m_data.assign (first, std::unique (first, last));
+      else
+        nontrivial_union (first, std::unique (first, last));
     }
 
+    template <typename RandomIt>
     void
-    nontrivial_union (const container_type& sorted_input)
+    nontrivial_union (RandomIt sorted_first, RandomIt sorted_last)
     {
       container_type res;
-      res.reserve (m_data.size () + sorted_input.size ());
-      std::set_union (      m_data.begin (),       m_data.end (),
-                      sorted_input.begin (), sorted_input.end (), std::back_inserter (res));
+      auto in_size =  static_cast<size_ty> (std::distance (sorted_first, sorted_last));
+      res.reserve (m_data.size () + in_size);
+      std::set_union (m_data.begin (), m_data.end (),
+                      sorted_first,    sorted_last,   std::back_inserter (res));
       m_data = std::move (res);
     }
 
@@ -476,7 +504,31 @@ namespace gch
   template <typename T>
   inline
   bool
+  operator== (const ir_link_set<T>& lhs, const ir_link_set<T>& rhs) noexcept
+  {
+    return lhs.data () == rhs.data ();
+  }
+
+  template <typename T, typename U>
+  inline
+  bool
+  operator== (const ir_link_set<T>& lhs, const ir_link_set<U>& rhs) noexcept
+  {
+    return lhs.data () == rhs.data ();
+  }
+
+  template <typename T>
+  inline
+  bool
   operator!= (const ir_link_set<T>& lhs, const ir_link_set<T>& rhs) noexcept
+  {
+    return ! (lhs == rhs);
+  }
+
+  template <typename T, typename U>
+  inline
+  bool
+  operator!= (const ir_link_set<T>& lhs, const ir_link_set<U>& rhs) noexcept
   {
     return ! (lhs == rhs);
   }
@@ -484,7 +536,31 @@ namespace gch
   template <typename T>
   inline
   bool
+  operator< (const ir_link_set<T>& lhs, const ir_link_set<T>& rhs)
+  {
+    return lhs.data () < rhs.data ();
+  }
+
+  template <typename T, typename U>
+  inline
+  bool
+  operator< (const ir_link_set<T>& lhs, const ir_link_set<U>& rhs)
+  {
+    return lhs.data () < rhs.data ();
+  }
+
+  template <typename T>
+  inline
+  bool
   operator>= (const ir_link_set<T>& lhs, const ir_link_set<T>& rhs)
+  {
+    return ! (lhs < rhs);
+  }
+
+  template <typename T, typename U>
+  inline
+  bool
+  operator>= (const ir_link_set<T>& lhs, const ir_link_set<U>& rhs)
   {
     return ! (lhs < rhs);
   }
@@ -497,10 +573,26 @@ namespace gch
     return rhs < lhs;
   }
 
+  template <typename T, typename U>
+  inline
+  bool
+  operator> (const ir_link_set<T>& lhs, const ir_link_set<U>& rhs)
+  {
+    return rhs < lhs;
+  }
+
   template <typename T>
   inline
   bool
   operator<= (const ir_link_set<T>& lhs, const ir_link_set<T>& rhs)
+  {
+    return rhs >= lhs;
+  }
+
+  template <typename T, typename U>
+  inline
+  bool
+  operator<= (const ir_link_set<T>& lhs, const ir_link_set<U>& rhs)
   {
     return rhs >= lhs;
   }

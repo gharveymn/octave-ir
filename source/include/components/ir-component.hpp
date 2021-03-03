@@ -23,7 +23,7 @@ along with Octave; see the file COPYING.  If not, see
 #ifndef OCTAVE_IR_IR_COMPONENT_HPP
 #define OCTAVE_IR_IR_COMPONENT_HPP
 
-#include "ir-component-handle.hpp"
+#include "components/utility/ir-component-handle.hpp"
 #include "utilities/ir-common-util.hpp"
 #include "utilities/ir-link-set.hpp"
 
@@ -146,12 +146,12 @@ namespace gch
   ir_link_set<ir_block>
   copy_leaves (const ir_block& b);
 
-  template <typename C, typename ...Args>
+  template <typename ...Components>
   [[nodiscard]] inline
   ir_link_set<ir_block>
-  copy_leaves (C&& c, Args&&... args)
+  copy_leaves (Components&&... components)
   {
-    return (copy_leaves (std::forward<C> (c)) | ...| copy_leaves (std::forward<Args> (args)));
+    return (copy_leaves (std::forward<Components> (components)) | ...);
   }
 
 }

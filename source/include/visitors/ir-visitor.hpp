@@ -18,15 +18,17 @@ namespace gch
   //
 
   template <typename ...Types>
-  struct abstract_inspector
-    : abstract_inspector<Types>...
+  class abstract_inspector
+    : public abstract_inspector<Types>...
   {
+  public:
     using abstract_inspector<Types>::visit...;
   };
 
   template <typename T>
-  struct abstract_inspector<T>
+  class abstract_inspector<T>
   {
+  public:
     abstract_inspector            (void)                          = default;
     abstract_inspector            (const abstract_inspector&)     = default;
     abstract_inspector            (abstract_inspector&&) noexcept = default;
@@ -44,15 +46,17 @@ namespace gch
   //
 
   template <typename ...Types>
-  struct abstract_mutator
-    : abstract_mutator<Types>...
+  class abstract_mutator
+    : public abstract_mutator<Types>...
   {
+  public:
     using abstract_mutator<Types>::visit...;
   };
 
   template <typename T>
-  struct abstract_mutator<T>
+  class abstract_mutator<T>
   {
+  public:
     abstract_mutator            (void)                        = default;
     abstract_mutator            (const abstract_mutator&)     = default;
     abstract_mutator            (abstract_mutator&&) noexcept = default;
@@ -70,10 +74,10 @@ namespace gch
   //
 
   template <typename Visitor>
-  struct abstract_acceptor;
+  class abstract_acceptor;
 
   template <typename Inspector>
-  struct abstract_acceptor<inspector_type<Inspector>>
+  class abstract_acceptor<inspector_type<Inspector>>
   {
   protected:
     abstract_acceptor            (void)                         = default;
@@ -99,7 +103,7 @@ namespace gch
   ~abstract_acceptor (void) = default;
 
   template <typename Mutator>
-  struct abstract_acceptor<mutator_type<Mutator>>
+  class abstract_acceptor<mutator_type<Mutator>>
   {
   protected:
     abstract_acceptor            (void)                         = default;
@@ -125,7 +129,7 @@ namespace gch
   ~abstract_acceptor (void) = default;
 
   template <>
-  struct abstract_acceptor<void>
+  class abstract_acceptor<void>
   {
   protected:
     abstract_acceptor            (void)                         = default;
@@ -142,13 +146,13 @@ namespace gch
   };
 
   template <typename Visitor>
-  struct abstract_visitable
-    : virtual abstract_acceptor<visitor_category_wrapper_t<Visitor>>
+  class abstract_visitable
+    : public virtual abstract_acceptor<visitor_category_wrapper_t<Visitor>>
   { };
 
   template <>
-  struct abstract_visitable<visitor_types<>>
-    : virtual abstract_acceptor<void>
+  class abstract_visitable<visitor_types<>>
+    : public virtual abstract_acceptor<void>
   {
   protected:
     abstract_visitable            (void)                          = default;
@@ -160,9 +164,10 @@ namespace gch
   };
 
   template <typename ...VisitorSubTypes>
-  struct abstract_visitable<visitor_types<VisitorSubTypes...>>
-    : abstract_visitable<VisitorSubTypes>...
+  class abstract_visitable<visitor_types<VisitorSubTypes...>>
+    : public abstract_visitable<VisitorSubTypes>...
   {
+  public:
     using abstract_visitable<VisitorSubTypes>::accept...;
   };
 
@@ -171,12 +176,13 @@ namespace gch
   //
 
   template <typename Derived, typename Visitor>
-  struct acceptor;
+  class acceptor;
 
   template <typename Derived, typename Inspector>
-  struct acceptor<Derived, inspector_type<Inspector>>
-    : virtual abstract_acceptor<inspector_type<Inspector>>
+  class acceptor<Derived, inspector_type<Inspector>>
+    : public virtual abstract_acceptor<inspector_type<Inspector>>
   {
+  public:
     using category_wrapper         = inspector_type<Inspector>;
     using concrete_reference = const Derived&;
     using visitor_reference  = typename abstract_acceptor<category_wrapper>::visitor_reference;
@@ -187,9 +193,10 @@ namespace gch
   };
 
   template <typename Derived, typename Mutator>
-  struct acceptor<Derived, mutator_type<Mutator>>
-    : virtual abstract_acceptor<mutator_type<Mutator>>
+  class acceptor<Derived, mutator_type<Mutator>>
+    : public virtual abstract_acceptor<mutator_type<Mutator>>
   {
+  public:
     using category_wrapper         = mutator_type<Mutator>;
     using concrete_reference = Derived&;
     using visitor_reference  = typename abstract_acceptor<category_wrapper>::visitor_reference;
@@ -200,19 +207,20 @@ namespace gch
   };
 
   template <typename Derived, typename Visitor>
-  struct visitable
-    : acceptor<Derived, visitor_category_wrapper_t<Visitor>>
+  class visitable
+    : public acceptor<Derived, visitor_category_wrapper_t<Visitor>>
   { };
 
   template <typename Derived>
-  struct visitable<Derived, visitor_types<>>
-    : virtual abstract_acceptor<void>
+  class visitable<Derived, visitor_types<>>
+    : public virtual abstract_acceptor<void>
   { };
 
   template <typename Derived, typename ...VisitorSubTypes>
-  struct visitable<Derived, visitor_types<VisitorSubTypes...>>
-    : visitable<Derived, VisitorSubTypes>...
+  class visitable<Derived, visitor_types<VisitorSubTypes...>>
+    : public visitable<Derived, VisitorSubTypes>...
   {
+  public:
     using visitable<Derived, VisitorSubTypes>::accept...;
   };
 

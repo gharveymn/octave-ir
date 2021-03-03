@@ -114,7 +114,7 @@ namespace gch
     { }
 
     constexpr /* implicit */
-    operator T&& (void) const
+    operator T&& (void)
     {
       return std::move (m_value);
     }
@@ -169,6 +169,52 @@ namespace gch
     static inline std::size_t num_moves;
     static inline std::size_t num_copy_assigns;
     static inline std::size_t num_move_assigns;
+  };
+
+  template <typename T>
+  class named_type
+  {
+  public:
+    using value_type = T;
+
+    named_type            (void)                  = default;
+    named_type            (const named_type&)     = default;
+    named_type            (named_type&&) noexcept = default;
+    named_type& operator= (const named_type&)     = default;
+    named_type& operator= (named_type&&) noexcept = default;
+    ~named_type           (void)                  = default;
+
+    template <typename U, typename ...Args,
+              std::enable_if_t<! std::is_same_v<named_type, std::decay_t<U>>
+                             &&  std::is_constructible_v<value_type, U, Args...>> * = nullptr>
+    explicit
+    named_type (U&& u, Args&&... args)
+          noexcept (std::is_nothrow_constructible_v<value_type, U, Args...>)
+      : m_value (std::forward<U> (u), std::forward<Args> (args)...)
+    { }
+
+    operator const value_type& (void) const noexcept
+    {
+      return m_value;
+    }
+
+    operator value_type&& (void) && noexcept
+    {
+      return std::move (m_value);
+    }
+
+  private:
+    value_type m_value;
+  };
+
+  template <typename T, typename ParameterTag>
+  class named_parameter
+    : public named_type<T>
+  {
+  public:
+    using tag = ParameterTag;
+
+    using named_type<T>::named_type;
   };
 
 }

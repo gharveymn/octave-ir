@@ -7,7 +7,7 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "components/ir-component-handle.hpp"
+#include "components/utility/ir-component-handle.hpp"
 #include "utilities/ir-common-util.hpp"
 #include "utilities/ir-optional-util.hpp"
 #include "utilities/ir-link-set.hpp"
@@ -233,9 +233,9 @@ namespace gch
   [[nodiscard]]
   static
   ir_link_set<ir_block>
-  copy_leaves (unsigned comp, Args&&... args)
+  copy_leaves (Args&&... args)
   {
-    return (copy_leaves (comp) | ... | copy_leaves (std::forward<Args> (args)));
+    return (copy_leaves (std::forward<Args> (args)) | ...);
   }
 
   static
@@ -263,6 +263,9 @@ namespace gch
           std::cout << "[ " << s << " ]" << std::endl;
         };
   }
+
+// #define DO_VISITOR_TESTS
+#ifdef DO_VISITOR_TESTS
 
   //*****************************************************************
 // Pre-declare the shapes.
@@ -548,7 +551,7 @@ namespace gch
   {
   public:
     template <typename, typename, typename>
-    friend struct acceptor;
+    friend class acceptor;
 
     void
     operator() (Shape& s)
@@ -658,6 +661,8 @@ namespace gch
     ApplyInspector (serialise_visitor);
     ApplyStatic (static_visitor_v);
   }
+
+#endif
 
   struct blah
   {
@@ -1059,7 +1064,9 @@ main (void)
   f ();
   g ();
 
+#ifdef DO_VISITOR_TESTS
   test_visitor ();
+#endif
 
   test_links ();
 

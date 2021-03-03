@@ -12,7 +12,7 @@
 #include "utilities/ir-allocator-util.hpp"
 
 #include <gch/nonnull_ptr.hpp>
-#include <gch/tracker.hpp>
+#include <gch/tracker/tracker.hpp>
 
 namespace gch
 {

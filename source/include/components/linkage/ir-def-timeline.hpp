@@ -13,9 +13,9 @@
 
 #include <gch/optional_ref.hpp>
 #include <gch/partition/list_partition.hpp>
-#include <gch/tracker.hpp>
+#include <gch/tracker/tracker.hpp>
 
-#include <map>
+#include <unordered_map>
 
 namespace gch
 {
@@ -94,11 +94,11 @@ namespace gch
 
     /* incoming map */
 
-    using incoming_map_type
-      = std::map<nonnull_cptr<ir_block>,
-                 ir_incoming_node,
-                 std::less<nonnull_cptr<ir_block>>,
-                 ir_incoming_node::element_allocator::rebind_for_map<nonnull_cptr<ir_block>>>;
+    using incoming_map_type = std::unordered_map<
+      nonnull_cptr<ir_block>,
+      ir_incoming_node,
+      std::less<nonnull_cptr<ir_block>>,
+      ir_incoming_node::element_allocator::rebind_for_map<nonnull_cptr<ir_block>>>;
 
     using incoming_value_type              = incoming_map_type::value_type;
     using incoming_allocator_type          = incoming_map_type::allocator_type;
@@ -111,8 +111,6 @@ namespace gch
 
     using incoming_iterator                = incoming_map_type::iterator;
     using incoming_const_iterator          = incoming_map_type::const_iterator;
-    using incoming_reverse_iterator        = incoming_map_type::reverse_iterator;
-    using incoming_const_reverse_iterator  = incoming_map_type::const_reverse_iterator;
 
     using incoming_val_t   = incoming_value_type;
     using incoming_alloc_t = incoming_allocator_type;
@@ -125,8 +123,6 @@ namespace gch
 
     using incoming_iter    = incoming_iterator;
     using incoming_citer   = incoming_const_iterator;
-    using incoming_riter   = incoming_reverse_iterator;
-    using incoming_criter  = incoming_const_reverse_iterator;
 
     /* successors */
 
@@ -195,30 +191,6 @@ namespace gch
     [[nodiscard]]
     incoming_const_iterator
     incoming_cend (void) const noexcept;
-
-    [[nodiscard]]
-    incoming_reverse_iterator
-    incoming_rbegin (void) noexcept;
-
-    [[nodiscard]]
-    incoming_const_reverse_iterator
-    incoming_rbegin (void) const noexcept;
-
-    [[nodiscard]]
-    incoming_const_reverse_iterator
-    incoming_crbegin (void) const noexcept;
-
-    [[nodiscard]]
-    incoming_reverse_iterator
-    incoming_rend (void) noexcept;
-
-    [[nodiscard]]
-    incoming_const_reverse_iterator
-    incoming_rend (void) const noexcept;
-
-    [[nodiscard]]
-    incoming_const_reverse_iterator
-    incoming_crend (void) const noexcept;
 
     [[nodiscard]]
     incoming_size_type

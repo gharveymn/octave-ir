@@ -15,36 +15,6 @@
 namespace gch
 {
 
-  template <>
-  auto
-  acceptor<ir_block, inspector_type<ir_block_counter>>::
-  accept (visitor_reference v) const
-    -> result_type;
-
-  template <>
-  auto
-  acceptor<ir_component_fork, inspector_type<ir_block_counter>>::
-  accept (visitor_reference v) const
-    -> result_type;
-
-  template <>
-  auto
-  acceptor<ir_component_loop, inspector_type<ir_block_counter>>::
-  accept (visitor_reference v) const
-    -> result_type;
-
-  template <>
-  auto
-  acceptor<ir_component_sequence, inspector_type<ir_block_counter>>::
-  accept (visitor_reference v) const
-    -> result_type;
-
-  template <>
-  auto
-  acceptor<ir_function, inspector_type<ir_block_counter>>::
-  accept (visitor_reference v) const
-    -> result_type;
-
   class ir_block_counter
     : public visitor_traits<ir_block_counter>
   {

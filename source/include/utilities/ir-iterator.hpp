@@ -8,12 +8,73 @@
 #ifndef OCTAVE_IR_IR_ITERATOR_HPP
 #define OCTAVE_IR_IR_ITERATOR_HPP
 
+#include "utilities/ir-common.hpp"
+
+#include <gch/nonnull_ptr.hpp>
+
+#include <iterator>
+
+#if defined (__cpp_lib_concepts) && __cpp_lib_concepts >= 202002L
+#  if ! defined (GCH_LIB_CONCEPTS) && ! defined (GCH_DISABLE_CONCEPTS)
+#    define GCH_LIB_CONCEPTS
+#  endif
+#endif
+
 namespace gch
 {
 
+  template <typename Iterator>
+  struct is_input_iterator
+    : std::bool_constant<std::is_base_of_v<
+        std::input_iterator_tag,
+        typename std::iterator_traits<Iterator>::iterator_category>>
+  { };
+
+  template <typename Iterator>
+  inline constexpr bool is_input_iterator_v = is_input_iterator<Iterator>::value;
+
+  template <typename Iterator>
+  struct is_output_iterator
+    : std::bool_constant<std::is_base_of_v<
+        std::output_iterator_tag ,
+        typename std::iterator_traits<Iterator>::iterator_category>>
+  { };
+
+  template <typename Iterator>
+  inline constexpr bool is_output_iterator_v = is_output_iterator<Iterator>::value;
+
+  template <typename Iterator>
+  struct is_forward_iterator
+    : std::bool_constant<std::is_base_of_v<
+        std::forward_iterator_tag ,
+        typename std::iterator_traits<Iterator>::iterator_category>>
+  { };
+
+  template <typename Iterator>
+  inline constexpr bool is_forward_iterator_v = is_forward_iterator<Iterator>::value;
+
+  template <typename Iterator>
+  struct is_bidirectional_iterator
+    : std::bool_constant<std::is_base_of_v<
+        std::bidirectional_iterator_tag ,
+        typename std::iterator_traits<Iterator>::iterator_category>>
+  { };
+
+  template <typename Iterator>
+  inline constexpr bool is_bidirectional_iterator_v = is_bidirectional_iterator<Iterator>::value;
+
+  template <typename Iterator>
+  struct is_random_access_iterator
+    : std::bool_constant<std::is_base_of_v<
+        std::random_access_iterator_tag ,
+        typename std::iterator_traits<Iterator>::iterator_category>>
+  { };
+
+  template <typename Iterator>
+  inline constexpr bool is_random_access_iterator_v = is_random_access_iterator<Iterator>::value;
 
   template <typename Value>
-  class contiguous_read_iterator
+  class basic_contiguous_iterator
   {
   public:
     using difference_type   = typename std::iterator_traits<Value *>::difference_type;
@@ -21,81 +82,70 @@ namespace gch
     using pointer           = typename std::iterator_traits<Value *>::pointer;
     using reference         = typename std::iterator_traits<Value *>::reference;
     using iterator_category = typename std::iterator_traits<Value *>::iterator_category;
+#ifdef GCH_LIB_CONCEPTS
+    using iterator_concept  = std::contiguous_iterator_tag;
+#endif
 
-  private:
-    template <typename U> struct is_self                         : std::false_type { };
-    template <typename U> struct is_self<contiguous_read_iterator<U>> : std::true_type  { };
-
-    template <typename U>
-    static constexpr
-    bool
-    is_self_v = is_self<U>::value;
-
-    template <typename U>
-    static constexpr
-    bool
-    pointer_is_convertible_v = std::is_convertible_v<decltype (&std::declval<U&> ()), pointer>;
-
-  public:
-//  contiguous_read_iterator            (void)                                = impl;
-    contiguous_read_iterator            (const contiguous_read_iterator&)     = default;
-    contiguous_read_iterator            (contiguous_read_iterator&&) noexcept = default;
-    contiguous_read_iterator& operator= (const contiguous_read_iterator&)     = default;
-    contiguous_read_iterator& operator= (contiguous_read_iterator&&) noexcept = default;
-    ~contiguous_read_iterator (void)                                          = default;
+//  basic_contiguous_iterator            (void)                                 = impl;
+    basic_contiguous_iterator            (const basic_contiguous_iterator&)     = default;
+    basic_contiguous_iterator            (basic_contiguous_iterator&&) noexcept = default;
+    basic_contiguous_iterator& operator= (const basic_contiguous_iterator&)     = default;
+    basic_contiguous_iterator& operator= (basic_contiguous_iterator&&) noexcept = default;
+    ~basic_contiguous_iterator           (void)                                 = default;
 
 #ifdef NDEBUG
-    contiguous_read_iterator (void) = default;
+    basic_contiguous_iterator (void) = default;
 #else
     constexpr
-    contiguous_read_iterator (void) noexcept
+    basic_contiguous_iterator (void) noexcept
       : m_ptr ()
     { }
 #endif
 
     constexpr explicit
-    contiguous_read_iterator (Value& v) noexcept
+    basic_contiguous_iterator (Value& v) noexcept
       : m_ptr (std::addressof (v))
     { }
 
-    template <typename U, typename = std::enable_if_t<pointer_is_convertible_v<U>>>
-    constexpr /* implicit */
-    contiguous_read_iterator (const contiguous_read_iterator<U>& other) noexcept
+    template <typename U,
+              std::enable_if_t<std::is_convertible_v<U *, pointer>> * = nullptr>
+    constexpr GCH_IMPLICIT_CONVERSION
+    basic_contiguous_iterator (const basic_contiguous_iterator<U>& other) noexcept
       : m_ptr (other.base ())
     { }
 
-    GCH_CPP14_CONSTEXPR
-    contiguous_read_iterator&
+    constexpr
+    basic_contiguous_iterator&
     operator++ (void) noexcept
     {
       ++m_ptr;
       return *this;
     }
 
-    GCH_CPP14_CONSTEXPR
-    contiguous_read_iterator
+    constexpr
+    basic_contiguous_iterator
     operator++ (int) noexcept
     {
-      return contiguous_read_iterator (m_ptr++);
+      return basic_contiguous_iterator (m_ptr++);
     }
 
-    GCH_CPP14_CONSTEXPR
-    contiguous_read_iterator&
+    constexpr
+    basic_contiguous_iterator&
     operator-- (void) noexcept
     {
       --m_ptr;
       return *this;
     }
 
-    GCH_CPP14_CONSTEXPR
-    contiguous_read_iterator
+    constexpr
+    basic_contiguous_iterator
     operator-- (int) noexcept
     {
-      return contiguous_read_iterator (m_ptr--);
+      return basic_contiguous_iterator (m_ptr--);
     }
 
-    GCH_CPP14_CONSTEXPR
-    contiguous_read_iterator&
+    constexpr
+    basic_contiguous_iterator&
     operator+= (difference_type n) noexcept
     {
       m_ptr += n;
@@ -103,14 +153,14 @@ namespace gch
     }
 
     constexpr
-    contiguous_read_iterator
+    basic_contiguous_iterator
     operator+ (difference_type n) const noexcept
     {
-      return contiguous_read_iterator (m_ptr + n);
+      return basic_contiguous_iterator (m_ptr + n);
     }
 
-    GCH_CPP14_CONSTEXPR
-    contiguous_read_iterator&
+    constexpr
+    basic_contiguous_iterator&
     operator-= (difference_type n) noexcept
     {
       m_ptr -= n;
@@ -118,14 +168,15 @@ namespace gch
     }
 
     constexpr
-    contiguous_read_iterator
+    basic_contiguous_iterator
     operator- (difference_type n) const noexcept
     {
-      return contiguous_read_iterator (m_ptr - n);
+      return basic_contiguous_iterator (m_ptr - n);
     }
 
     constexpr
-    reference operator* (void) const noexcept
+    reference
+    operator* (void) const noexcept
     {
       return *m_ptr;
     }
@@ -151,8 +202,6 @@ namespace gch
       return m_ptr;
     }
 
-    /* comparisons */
-
   private:
     pointer m_ptr;
   };
@@ -161,8 +210,8 @@ namespace gch
             typename ValueRHS>
   constexpr
   bool
-  operator== (const contiguous_read_iterator<ValueLHS>& lhs,
-              const contiguous_read_iterator<ValueRHS>& rhs) noexcept
+  operator== (const basic_contiguous_iterator<ValueLHS>& lhs,
+              const basic_contiguous_iterator<ValueRHS>& rhs) noexcept
   {
     return lhs.base () == rhs.base ();
   }
@@ -170,8 +219,8 @@ namespace gch
   template <typename Value>
   constexpr
   bool
-  operator== (const contiguous_read_iterator<Value>& lhs,
-              const contiguous_read_iterator<Value>& rhs) noexcept
+  operator== (const basic_contiguous_iterator<Value>& lhs,
+              const basic_contiguous_iterator<Value>& rhs) noexcept
   {
     return lhs.base () == rhs.base ();
   }
@@ -180,8 +229,8 @@ namespace gch
             typename ValueRHS>
   constexpr
   bool
-  operator!= (const contiguous_read_iterator<ValueLHS>& lhs,
-              const contiguous_read_iterator<ValueRHS>& rhs) noexcept
+  operator!= (const basic_contiguous_iterator<ValueLHS>& lhs,
+              const basic_contiguous_iterator<ValueRHS>& rhs) noexcept
   {
     return lhs.base () != rhs.base ();
   }
@@ -189,8 +238,8 @@ namespace gch
   template <typename Value>
   constexpr
   bool
-  operator!= (const contiguous_read_iterator<Value>& lhs,
-              const contiguous_read_iterator<Value>& rhs) noexcept
+  operator!= (const basic_contiguous_iterator<Value>& lhs,
+              const basic_contiguous_iterator<Value>& rhs) noexcept
   {
     return lhs.base () != rhs.base ();
   }
@@ -199,8 +248,8 @@ namespace gch
             typename ValueRHS>
   constexpr
   bool
-  operator< (const contiguous_read_iterator<ValueLHS>& lhs,
-             const contiguous_read_iterator<ValueRHS>& rhs) noexcept
+  operator< (const basic_contiguous_iterator<ValueLHS>& lhs,
+             const basic_contiguous_iterator<ValueRHS>& rhs) noexcept
   {
     return lhs.base () < rhs.base ();
   }
@@ -208,8 +257,8 @@ namespace gch
   template <typename Value>
   constexpr
   bool
-  operator< (const contiguous_read_iterator<Value>& lhs,
-             const contiguous_read_iterator<Value>& rhs) noexcept
+  operator< (const basic_contiguous_iterator<Value>& lhs,
+             const basic_contiguous_iterator<Value>& rhs) noexcept
   {
     return lhs.base () < rhs.base ();
   }
@@ -218,8 +267,8 @@ namespace gch
             typename ValueRHS>
   constexpr
   bool
-  operator> (const contiguous_read_iterator<ValueLHS>& lhs,
-             const contiguous_read_iterator<ValueRHS>& rhs) noexcept
+  operator> (const basic_contiguous_iterator<ValueLHS>& lhs,
+             const basic_contiguous_iterator<ValueRHS>& rhs) noexcept
   {
     return lhs.base () > rhs.base ();
   }
@@ -227,8 +276,8 @@ namespace gch
   template <typename Value>
   constexpr
   bool
-  operator> (const contiguous_read_iterator<Value>& lhs,
-             const contiguous_read_iterator<Value>& rhs) noexcept
+  operator> (const basic_contiguous_iterator<Value>& lhs,
+             const basic_contiguous_iterator<Value>& rhs) noexcept
   {
     return lhs.base () > rhs.base ();
   }
@@ -237,8 +286,8 @@ namespace gch
             typename ValueRHS>
   constexpr
   bool
-  operator<= (const contiguous_read_iterator<ValueLHS>& lhs,
-              const contiguous_read_iterator<ValueRHS>& rhs) noexcept
+  operator<= (const basic_contiguous_iterator<ValueLHS>& lhs,
+              const basic_contiguous_iterator<ValueRHS>& rhs) noexcept
   {
     return lhs.base () <= rhs.base ();
   }
@@ -246,8 +295,8 @@ namespace gch
   template <typename Value>
   constexpr
   bool
-  operator<= (const contiguous_read_iterator<Value>& lhs,
-              const contiguous_read_iterator<Value>& rhs) noexcept
+  operator<= (const basic_contiguous_iterator<Value>& lhs,
+              const basic_contiguous_iterator<Value>& rhs) noexcept
   {
     return lhs.base () <= rhs.base ();
   }
@@ -256,8 +305,8 @@ namespace gch
             typename ValueRHS>
   constexpr
   bool
-  operator>= (const contiguous_read_iterator<ValueLHS>& lhs,
-              const contiguous_read_iterator<ValueRHS>& rhs) noexcept
+  operator>= (const basic_contiguous_iterator<ValueLHS>& lhs,
+              const basic_contiguous_iterator<ValueRHS>& rhs) noexcept
   {
     return lhs.base () >= rhs.base ();
   }
@@ -265,8 +314,8 @@ namespace gch
   template <typename Value>
   constexpr
   bool
-  operator>= (const contiguous_read_iterator<Value>& lhs,
-              const contiguous_read_iterator<Value>& rhs) noexcept
+  operator>= (const basic_contiguous_iterator<Value>& lhs,
+              const basic_contiguous_iterator<Value>& rhs) noexcept
   {
     return lhs.base () >= rhs.base ();
   }
@@ -275,8 +324,8 @@ namespace gch
             typename ValueRHS>
   constexpr
   auto
-  operator- (const contiguous_read_iterator<ValueLHS>& lhs,
-             const contiguous_read_iterator<ValueRHS>& rhs) noexcept
+  operator- (const basic_contiguous_iterator<ValueLHS>& lhs,
+             const basic_contiguous_iterator<ValueRHS>& rhs) noexcept
     -> decltype (lhs.base () - rhs.base ())
   {
     return lhs.base () - rhs.base ();
@@ -285,8 +334,8 @@ namespace gch
   template <typename Value>
   constexpr
   auto
-  operator- (const contiguous_read_iterator<Value>& lhs,
-             const contiguous_read_iterator<Value>& rhs) noexcept
+  operator- (const basic_contiguous_iterator<Value>& lhs,
+             const basic_contiguous_iterator<Value>& rhs) noexcept
     -> decltype (lhs.base () - rhs.base ())
   {
     return lhs.base () - rhs.base ();
@@ -294,9 +343,9 @@ namespace gch
 
   template <typename Value>
   constexpr
-  contiguous_read_iterator<Value>
-  operator+ (typename contiguous_read_iterator<Value>::difference_type n,
-             const contiguous_read_iterator<Value>& it) noexcept
+  basic_contiguous_iterator<Value>
+  operator+ (typename basic_contiguous_iterator<Value>::difference_type n,
+             const basic_contiguous_iterator<Value>& it) noexcept
   {
     return it + n;
   }
@@ -304,9 +353,9 @@ namespace gch
   template <typename Iterator>
   auto
   as_contiguous_iterator (Iterator it)
-    -> std::remove_reference_t<decltype (*it)>
+    -> basic_contiguous_iterator<std::remove_reference_t<decltype (*it)>>
   {
-    return contiguous_read_iterator<std::remove_reference_t<decltype (*it)>> (*it);
+    return basic_contiguous_iterator<std::remove_reference_t<decltype (*it)>> (*it);
   }
 
   template <typename Container>

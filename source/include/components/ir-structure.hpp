@@ -70,63 +70,42 @@ namespace gch
 
     [[nodiscard]]
     leaves_const_iterator
-    leaves_begin (void) const noexcept
-    {
-     return get_leaves ().begin ();
-    }
+    leaves_begin (void) const noexcept;
 
     [[nodiscard]]
     leaves_const_iterator
-    leaves_end (void) const noexcept
-    {
-     return get_leaves ().end ();
-    }
+    leaves_end (void) const noexcept;
 
     [[nodiscard]]
     leaves_const_reverse_iterator
-    leaves_rbegin (void) const noexcept
-    {
-     return get_leaves ().rbegin ();
-    }
+    leaves_rbegin (void) const noexcept;
 
     [[nodiscard]]
     leaves_const_reverse_iterator
-    leaves_rend (void) const noexcept
-    {
-     return get_leaves ().rend ();
-    }
+    leaves_rend (void) const noexcept;
 
     [[nodiscard]]
     leaves_value_type
-    leaves_front (void) const noexcept
-    {
-      return *leaves_begin ();
-    }
+    leaves_front (void) const noexcept;
 
     [[nodiscard]]
     leaves_value_type
-    leaves_back (void) const noexcept
-    {
-      return *leaves_rbegin ();
-    }
+    leaves_back (void) const noexcept;
 
     [[nodiscard]]
     leaves_size_type
-    leaves_size (void) const noexcept
-    {
-     return get_leaves ().size ();
-    }
+    leaves_size (void) const noexcept;
 
     [[nodiscard]]
     bool
-    leaves_empty (void) const noexcept
-    {
-      return get_leaves ().empty ();
-    }
+    leaves_empty (void) const noexcept;
 
     [[nodiscard]]
     const ir_link_set<ir_block>&
     get_leaves (void) const;
+
+    void
+    invalidate_leaf_cache (void) noexcept;
 
     // mutate a component inside a structure to a different type of component
     template <typename T>
@@ -137,32 +116,12 @@ namespace gch
       return as_type<T> (comp);
     }
 
-    void
-    invalidate_leaf_cache (void) noexcept;
-
-    // returns ptrs to the newly split blocks (inside the mutated block_ptr)
-    std::pair<ir_component_ptr, ir_component_ptr>
-    split (ir_component_ptr block_ptr, ir_instruction_iter pivot);
-
   protected:
     static
     ir_component_handle
     make_handle (ir_component_ptr comp) noexcept
     {
       return ir_component_handle { as_mutable (comp.get_storage ()) };
-    }
-
-    [[nodiscard]]
-    bool
-    leaf_cache_empty (void) const noexcept
-    {
-      return m_leaf_cache.empty ();
-    }
-
-    void
-    clear_leaf_cache (void) noexcept
-    {
-      m_leaf_cache.clear ();
     }
 
     template <typename Component, typename ...Args,
@@ -204,11 +163,11 @@ namespace gch
   ir_link_set<ir_block>
   collect_leaves (const ir_structure& s);
 
-  ir_subcomponent&
-  get_entry_component (ir_structure& s);
+  ir_link_set<const ir_block>
+  collect_const_leaves (const ir_structure& s);
 
-  const ir_subcomponent&
-  get_entry_component (const ir_structure& s);
+  void
+  flatten (ir_structure& s);
 
   ir_block&
   get_entry_block (ir_structure& s);
@@ -216,8 +175,11 @@ namespace gch
   const ir_block&
   get_entry_block (const ir_structure& s);
 
-  void
-  flatten (ir_structure& s);
+  ir_subcomponent&
+  get_entry_component (ir_structure& s);
+
+  const ir_subcomponent&
+  get_entry_component (const ir_structure& s);
 
 }
 
