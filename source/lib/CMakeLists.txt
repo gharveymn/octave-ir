@@ -1,0 +1,24 @@
+SET (OCTAVE_IR_LIB_DIR "${CMAKE_CURRENT_LIST_DIR}")
+
+MACRO (OCTAVE_IR_ADD_SOURCES)
+  IF (${ARGC} GREATER 0)
+    SET (ABSOLUTE_SOURCES)
+    FOREACH (source ${ARGV})
+      GET_FILENAME_COMPONENT (ABSOLUTE_PATH
+                              "${source}"
+                              ABSOLUTE
+                              BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+      LIST (APPEND ABSOLUTE_SOURCES "${ABSOLUTE_PATH}")
+    ENDFOREACH ()
+
+    FOREACH (target ${OCTAVE_IR_TARGETS})
+      TARGET_SOURCES (${target} PRIVATE "${ABSOLUTE_SOURCES}")
+    ENDFOREACH ()
+  ENDIF ()
+ENDMACRO ()
+
+ADD_SUBDIRECTORY (components)
+ADD_SUBDIRECTORY (processors)
+ADD_SUBDIRECTORY (utilities)
+ADD_SUBDIRECTORY (values)
+ADD_SUBDIRECTORY (visitors)

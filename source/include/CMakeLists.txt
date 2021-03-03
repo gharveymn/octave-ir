@@ -1,0 +1,24 @@
+SET (OCTAVE_IR_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+
+MACRO (OCTAVE_IR_ADD_HEADERS)
+  IF (${ARGC} GREATER 0)
+    SET (ABSOLUTE_HEADERS)
+    FOREACH (header ${ARGV})
+      GET_FILENAME_COMPONENT (ABSOLUTE_PATH
+                              "${header}"
+                              ABSOLUTE
+                              BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+      LIST (APPEND ABSOLUTE_HEADERS "${ABSOLUTE_PATH}")
+    ENDFOREACH ()
+
+    FOREACH (target ${OCTAVE_IR_TARGETS})
+      TARGET_SOURCES (${target} PUBLIC "$<BUILD_INTERFACE:${ABSOLUTE_HEADERS}>")
+    ENDFOREACH ()
+  ENDIF ()
+ENDMACRO ()
+
+ADD_SUBDIRECTORY (components)
+ADD_SUBDIRECTORY (processors)
+ADD_SUBDIRECTORY (utilities)
+ADD_SUBDIRECTORY (values)
+ADD_SUBDIRECTORY (visitors)
