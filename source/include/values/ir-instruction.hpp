@@ -26,8 +26,12 @@ along with Octave; see the file COPYING.  If not, see
 #include "utilities/ir-common.hpp"
 #include "values/types/ir-instruction-metadata.hpp"
 #include "values/types/ir-type-ir.hpp"
+#include "values/ir-def.hpp"
 #include "values/ir-instruction-fwd.hpp"
+#include "values/ir-operand.hpp"
 #include "values/ir-variable.hpp"
+
+#include <gch/small_vector.hpp>
 
 #include <unordered_map>
 #include <list>
@@ -96,7 +100,6 @@ namespace gch
     using metadata_t = ir_instruction_metadata;
 
     using args_container_type     = std::vector<ir_operand>;
-
     using value_type              = args_container_type::value_type;
     using allocator_type          = args_container_type::allocator_type;
     using size_type               = args_container_type::size_type;

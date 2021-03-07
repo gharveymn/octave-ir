@@ -75,6 +75,13 @@ namespace gch
     return m_id;
   }
 
+  const std::string&
+  ir_def::
+  get_name (void) const
+  {
+    return get_variable ().get_name ();
+  }
+
   ir_type
   ir_def::
   get_type (void) const noexcept

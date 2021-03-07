@@ -11,6 +11,8 @@
 #include <gch/nonnull_ptr.hpp>
 #include <gch/tracker/tracker.hpp>
 
+#include <string>
+
 namespace gch
 {
 
@@ -67,16 +69,16 @@ namespace gch
     get_variable (void) const noexcept;
 
     [[nodiscard]]
-    ir_type
-    get_type (void) const noexcept;
+    std::size_t
+    get_id (void);
 
     [[nodiscard]]
     const std::string&
     get_name (void) const;
 
     [[nodiscard]]
-    std::size_t
-    get_id (void);
+    ir_type
+    get_type (void) const noexcept;
 
     [[nodiscard]]
     ir_instruction&

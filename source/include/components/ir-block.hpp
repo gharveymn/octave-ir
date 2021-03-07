@@ -35,6 +35,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "values/ir-instruction.hpp"
 #include "values/ir-instruction-fwd.hpp"
 #include "values/ir-constant.hpp"
+#include "values/ir-use-timeline.hpp"
 
 #include "visitors/subcomponent/ir-subcomponent-visitors-fwd.hpp"
 
@@ -586,6 +587,23 @@ namespace gch
   public:
     using ir_block::ir_block;
   };
+
+  template <typename RandomIt,
+            std::enable_if_t<std::is_convertible_v<
+              typename std::iterator_traits<RandomIt>::value_type,
+              ir_block::const_iterator>> * = nullptr>
+  void
+  relative_sort (const RandomIt first, RandomIt last,
+                 const ir_block::const_iterator instr_first, ir_block::const_iterator instr_last)
+  {
+    while (first != last)
+    {
+      RandomIt found = last;
+      while (instr_first != instr_last && found == last)
+        found = std::find (first, last, --instr_last);
+      std::iter_swap (found, --last);
+    }
+  }
 
 }
 
