@@ -15,7 +15,7 @@
 namespace gch
 {
 
-  class ir_component_fork
+  class ir_component_fork final
     : public ir_substructure,
       public visitable<ir_component_fork, consolidated_visitors_t<ir_substructure>>
   {
@@ -196,8 +196,8 @@ namespace gch
     }
 
   private:
-    ir_condition_block m_condition;
-    cases_container    m_cases;
+    ir_block        m_condition;
+    cases_container m_cases;
   };
 
 }

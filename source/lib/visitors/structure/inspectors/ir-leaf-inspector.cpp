@@ -69,7 +69,7 @@ namespace gch
   visit (const ir_component_fork& fork) const noexcept
     -> result_type
   {
-    return &get_subcomponent () != &fork.get_condition ();
+    return ! fork.is_condition (get_subcomponent ());
   }
 
   auto

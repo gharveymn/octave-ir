@@ -31,14 +31,14 @@ namespace gch
 
     template <typename T,
               std::enable_if_t<! std::is_same_v<std::decay_t<T>, ir_constant>> * = nullptr>
-    constexpr explicit
+    explicit
     ir_constant (T&& t)
       : m_type (ir_type_v<std::decay_t<T>>),
         m_data (std::forward<T> (t))
     { }
 
     template <typename ...Args>
-    constexpr explicit
+    explicit
     ir_constant (ir_type type, Args&&... args)
       : m_type (type),
         m_data (std::forward<Args> (args)...)

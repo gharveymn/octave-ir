@@ -32,48 +32,34 @@ namespace gch
   class ir_def_resolution
   {
   public:
-    ir_def_resolution (ir_block& b, const ir_link_set<ir_def_timeline>& s)
-      : m_leaf_block (b),
-        m_timelines (s)
-    { }
+    ir_def_resolution            (void)                         = delete;
+    ir_def_resolution            (const ir_def_resolution&)     = default;
+    ir_def_resolution            (ir_def_resolution&&) noexcept = default;
+    ir_def_resolution& operator= (const ir_def_resolution&)     = default;
+    ir_def_resolution& operator= (ir_def_resolution&&) noexcept = default;
+    ~ir_def_resolution           (void)                         = default;
 
-    ir_def_resolution (ir_block& b, ir_link_set<ir_def_timeline>&& s)
-      : m_leaf_block (b),
-        m_timelines (std::move (s))
-    { }
+    ir_def_resolution (ir_block& b, optional_ref<ir_def_timeline> dt);
 
     [[nodiscard]]
     ir_block&
-    get_leaf_block (void) const noexcept
-    {
-      return *m_leaf_block;
-    }
+    get_leaf_block (void) const noexcept;
 
     [[nodiscard]]
-    const ir_link_set<ir_def_timeline>&
-    get_timelines (void) const noexcept
-    {
-      return m_timelines;
-    }
+    ir_def_timeline&
+    get_timeline (void) const noexcept;
 
     [[nodiscard]]
     bool
-    is_nonempty (void) const noexcept
-    {
-      return ! m_timelines.empty ();
-    }
-
-    [[nodiscard]]
-    ir_def&
-    get_common_def (void) const;
+    has_timeline (void) const noexcept;
 
     [[nodiscard]]
     optional_ref<ir_def>
-    maybe_get_common_def (void) const;
+    maybe_get_timeline (void) const;
 
   private:
-    nonnull_ptr<ir_block>        m_leaf_block;
-    ir_link_set<ir_def_timeline> m_timelines;
+    nonnull_ptr<ir_block>         m_leaf_block;
+    optional_ref<ir_def_timeline> m_timeline;
   };
 
   class ir_def_resolution_stack
@@ -96,16 +82,16 @@ namespace gch
       has_resolution (void) const noexcept;
 
       [[nodiscard]]
-      const ir_link_set<ir_def_timeline>&
+      optional_ref<ir_def_timeline>
       get_resolution (void) const noexcept;
 
       [[nodiscard]]
-      const std::optional<ir_link_set<ir_def_timeline>>&
+      const std::optional<optional_ref<ir_def_timeline>>&
       maybe_get_resolution (void) const noexcept;
 
     private:
-      nonnull_ptr<ir_block>                       m_block;
-      std::optional<ir_link_set<ir_def_timeline>> m_resolution;
+      nonnull_ptr<ir_block>                        m_block;
+      std::optional<optional_ref<ir_def_timeline>> m_resolution;
     };
 
     using stack_backing_type = std::vector<ir_def_resolution_frame>;
@@ -171,13 +157,13 @@ namespace gch
 
     [[nodiscard]]
     optional_ref<ir_block>
-    maybe_cast_block (void) const noexcept;
+    maybe_cast_block (void) const noexcept; // FIXME: terrible name
 
     small_vector<ir_def_resolution>
     resolve (void);
 
     small_vector<ir_def_resolution>
-    resolve_with (ir_link_set<ir_def_timeline> s);
+    resolve_with (optional_ref<ir_def_timeline> dt);
 
     void
     set_block_resolution (ir_block& block, std::nullopt_t);
@@ -218,12 +204,12 @@ namespace gch
     is_joinable (void) const noexcept;
 
     [[nodiscard]]
-    ir_link_set<ir_def_timeline>
+    optional_ref<ir_def_timeline>
     join (void);
 
     [[nodiscard]]
-    ir_link_set<ir_def_timeline>
-    join_with (ir_link_set<ir_def_timeline>&& s);
+    optional_ref<ir_def_timeline>
+    join_with (optional_ref<ir_def_timeline> dt);
 
     [[nodiscard]]
     ir_block&

@@ -23,14 +23,15 @@ along with Octave; see the file COPYING.  If not, see
 #ifndef OCTAVE_IR_IR_FUNCTION_HPP
 #define OCTAVE_IR_IR_FUNCTION_HPP
 
-#include "ir-structure.hpp"
+#include "components/ir-structure.hpp"
+#include "values/ir-variable.hpp"
 
 #include <unordered_map>
 
 namespace gch
 {
 
-  class ir_function
+  class ir_function final
     : public ir_component,
       public ir_structure,
       public visitable<ir_function, consolidated_visitors_t<ir_component, ir_structure>>
@@ -71,6 +72,12 @@ namespace gch
     std::unordered_map<variable_key_type, ir_variable> m_variable_map;
     ir_component_storage                               m_body;
   };
+
+  ir_block&
+  get_entry_block (ir_function& c);
+
+  const ir_block&
+  get_entry_block (const ir_function& c);
 
 }
 

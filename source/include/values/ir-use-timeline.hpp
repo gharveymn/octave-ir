@@ -75,6 +75,10 @@ namespace gch
     void
     set_instruction_pos (ir_instruction_iter instr) noexcept;
 
+    [[nodiscard]]
+    bool
+    has_uses (void) const noexcept;
+
   private:
     ir_instruction_iter m_instruction_pos;
   };

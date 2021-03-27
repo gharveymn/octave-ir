@@ -28,10 +28,12 @@ namespace gch
     ir_operand_in& operator= (ir_operand_in&&) noexcept = default;
     ~ir_operand_in (void)                               = default;
 
+    constexpr
     ir_operand_in (const ir_use_info& info)
       : m_data (std::in_place_type<ir_use_info>, info)
     { }
 
+    constexpr
     ir_operand_in (ir_constant&& c)
       : m_data (std::in_place_type<ir_constant>, std::move (c))
     { }
@@ -96,6 +98,7 @@ namespace gch
     ir_operand& operator= (ir_operand&&) noexcept = default;
     ~ir_operand           (void)                  = default;
 
+    constexpr
     ir_operand (ir_instruction& instr, ir_operand_in&& in)
     {
       if (optional_ref<ir_constant> c = maybe_get<ir_constant> (in))
@@ -104,24 +107,42 @@ namespace gch
         m_data.emplace<ir_use> (instr, get<ir_use_info> (std::move (in)));
     }
 
+    constexpr
+    ir_operand (ir_instruction&, const ir_constant& c)
+      : m_data (std::in_place_type<ir_constant>, c)
+    { }
+
+    constexpr
     ir_operand (ir_instruction&, ir_constant&& c)
       : m_data (std::in_place_type<ir_constant>, std::move (c))
     { }
 
     template <typename T>
+    [[nodiscard]]
     friend constexpr
     optional_ref<T>
-    maybe_get (ir_operand&);
+    maybe_get (ir_operand& op) noexcept
+    {
+      return std::get_if<T> (&op.m_data);
+    }
 
     template <typename T>
+    [[nodiscard]]
     friend constexpr
     optional_cref<T>
-    maybe_get (const ir_operand&);
+    maybe_get (const ir_operand& op) noexcept
+    {
+      return std::get_if<T> (&op.m_data);
+    }
 
     template <typename T, typename U>
+    [[nodiscard]]
     friend constexpr
     std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_operand>, match_cvref_t<U, T>>
-    get (U&&);
+    get (U&& op)
+    {
+      return static_cast<match_cvref_t<U, T>> (*std::get_if<T> (&op.m_data));
+    }
 
     [[nodiscard]] constexpr
     ir_type
@@ -129,7 +150,7 @@ namespace gch
     {
       if (auto u = maybe_get<ir_use> (*this))
         return u->get_type ();
-      return std::visit ([] (auto&& x) noexcept -> ir_type { return x.get_type (); }, m_data);
+      return get<ir_constant> (*this).get_type ();
     }
 
     [[nodiscard]] constexpr
@@ -150,37 +171,11 @@ namespace gch
     std::variant<ir_constant, ir_use> m_data;
   };
 
-  template <typename T>
-  [[nodiscard]] constexpr
-  optional_ref<T>
-  maybe_get (ir_operand& op)
-  {
-    return std::get_if<T> (&op.m_data);
-  }
-
-  template <typename T>
-  [[nodiscard]] constexpr
-  optional_cref<T>
-  maybe_get (const ir_operand& op)
-  {
-    return std::get_if<T> (&op.m_data);
-  }
-
-  template <typename T, typename U>
-  [[nodiscard]] constexpr
-  std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_operand>, match_cvref_t<U, T>>
-  get (U&& op)
-  {
-    return static_cast<match_cvref_t<U, T>> (*std::get_if<T> (&op.m_data));
-  }
-
   [[nodiscard]] constexpr
   ir_type
   get_type (const ir_operand& op) noexcept
   {
-    if (optional_cref<ir_use> u = maybe_get<ir_use> (op))
-      return u->get_type ();
-    return get<ir_constant> (op).get_type ();
+    return op.get_type ();
   }
 
 }

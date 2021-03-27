@@ -35,55 +35,11 @@ along with Octave; see the file COPYING.  If not, see
 
 #include <unordered_map>
 #include <list>
-#include <vector>
 #include <memory>
 #include <utility>
 
 namespace gch
 {
-
-  template <ir_opcode Op>
-  struct ir_instruction_traits
-  {
-    explicit
-    ir_instruction_traits (void) = default;
-
-    static constexpr auto metadata    = ir_instruction_metadata_v<Op>;
-    static constexpr auto opcode      = metadata.get_opcode ();
-    static constexpr auto name        = metadata.get_name ();
-    static constexpr auto is_abstract = metadata.is_abstract ();
-    static constexpr auto has_base    = metadata.has_base ();
-    static constexpr auto has_def     = metadata.has_def ();
-    static constexpr auto arity       = metadata.get_arity ();
-
-    static constexpr auto is_n_ary    = metadata.is_n_ary ();
-    static constexpr auto is_nullary  = metadata.is_nullary ();
-    static constexpr auto is_unary    = metadata.is_unary ();
-    static constexpr auto is_binary   = metadata.is_binary ();
-    static constexpr auto is_ternary  = metadata.is_ternary ();
-
-    template <bool HasBase = has_base, std::enable_if_t<HasBase> * = nullptr>
-    static constexpr
-    auto
-    base = metadata.get_base ();
-
-    template <ir_opcode BaseOp>
-    static constexpr
-    bool
-    is_a = metadata.is_a (ir_instruction_metadata_v<BaseOp>);
-
-    template <ir_opcode OtherOp>
-    static constexpr
-    bool
-    is_base_of = metadata.is_base_of (ir_instruction_metadata_v<OtherOp>);
-
-    template <std::size_t N>
-    static constexpr
-    bool
-    is_valid_num_args = is_n_ary || (static_cast<std::size_t> (arity) == N);
-  };
-
-  static_assert (ir_instruction_traits<ir_opcode::band>::is_a<ir_opcode::bitwise>);
 
   class ir_instruction
   {
@@ -99,7 +55,7 @@ namespace gch
 
     using metadata_t = ir_instruction_metadata;
 
-    using args_container_type     = std::vector<ir_operand>;
+    using args_container_type     = small_vector<ir_operand, 2>;
     using value_type              = args_container_type::value_type;
     using allocator_type          = args_container_type::allocator_type;
     using size_type               = args_container_type::size_type;
@@ -132,7 +88,7 @@ namespace gch
     ir_instruction            (const ir_instruction&)     = delete;
     ir_instruction            (ir_instruction&&) noexcept;
     ir_instruction& operator= (const ir_instruction&)     = delete;
-//  ir_instruction& operator= (ir_instruction&&) noexcept = impl;
+    ir_instruction& operator= (ir_instruction&&) noexcept;
     ~ir_instruction           (void)                      = default;
 
     template <ir_opcode Op>
@@ -217,7 +173,6 @@ namespace gch
 
 
     template <ir_opcode Op, std::size_t N>
-    explicit
     ir_instruction (tag_t<Op>, ir_variable& ret_var, std::array<ir_operand_in, N>&& args)
       : m_metadata (type<Op>::metadata),
         m_def      (std::in_place, *this, ret_var)
@@ -229,7 +184,6 @@ namespace gch
     }
 
     template <ir_opcode Op, std::size_t N>
-    explicit
     ir_instruction (tag_t<Op>, std::array<ir_operand_in, N>&& args)
       : m_metadata (type<Op>::metadata),
         m_def (std::nullopt)
@@ -249,15 +203,6 @@ namespace gch
       assert_not_abstract<Op> ();
       assert_no_def<Op> ();
       assert_no_args<Op> ();
-    }
-
-    ir_instruction&
-    operator= (ir_instruction&& other) noexcept
-    {
-      m_metadata = other.m_metadata;
-      set_def (std::move (other.m_def));
-      set_args (std::move (other.m_args));
-      return *this;
     }
 
     template <ir_opcode Op, typename ...Args>
@@ -364,9 +309,6 @@ namespace gch
     erase (citer first, citer last);
 
     void
-    set_def (std::optional<ir_def>&& def);
-
-    void
     set_args (args_container_type&& args);
 
     template <typename ...Args>
@@ -383,26 +325,29 @@ namespace gch
       return m_args.emplace (pos, *this, std::forward<Args> (args)...);
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     metadata_t
-    get_metadata (void) const noexcept
-    {
-      return m_metadata;
-    }
+    get_metadata (void) const noexcept;
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     ir_def&
-    get_def (void) noexcept
-    {
-      return *m_def;
-    }
+    get_def (void) noexcept;
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     const ir_def&
-    get_def (void) const noexcept
-    {
-      return *m_def;
-    }
+    get_def (void) const noexcept;
+
+    [[nodiscard]]
+    optional_ref<ir_def>
+    maybe_get_def (void) noexcept;
+
+    [[nodiscard]]
+    optional_cref<ir_def>
+    maybe_get_def (void) const noexcept;
+
+    [[nodiscard]]
+    bool
+    has_def (void) const noexcept;
 
   private:
     metadata_t            m_metadata;
@@ -411,19 +356,24 @@ namespace gch
   };
 
   template <ir_opcode BaseOp>
-  [[nodiscard]] constexpr
+  [[nodiscard]]
   bool
   is_a (const ir_instruction& instr) noexcept
   {
     return instr.get_metadata ().is_a (ir_instruction_metadata_v<BaseOp>);
   }
 
-  [[nodiscard]] constexpr
+  [[nodiscard]]
   bool
-  has_def (const ir_instruction& instr) noexcept
-  {
-    return instr.get_metadata ().has_def ();
-  }
+  has_def (const ir_instruction& instr) noexcept;
+
+  [[nodiscard]]
+  optional_ref<ir_def>
+  maybe_get_def (ir_instruction& instr) noexcept;
+
+  [[nodiscard]]
+  optional_cref<ir_def>
+  maybe_get_def (const ir_instruction& instr) noexcept;
 
 }
 

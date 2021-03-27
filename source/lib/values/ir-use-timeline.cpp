@@ -7,7 +7,7 @@
 
 #include "values/ir-use-timeline.hpp"
 
-#include "utilities/ir-common-util.hpp"
+#include "utilities/ir-utility.hpp"
 #include "values/ir-def.hpp"
 #include "values/ir-instruction.hpp"
 

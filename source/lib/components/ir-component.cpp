@@ -72,6 +72,32 @@ namespace gch
     return ir_leaf_inspector { sub } ();
   }
 
+  bool
+  is_subcomponent_of (const ir_component& parent, const ir_subcomponent& sub)
+  {
+    optional_ref curr { sub };
+    do
+    {
+      if (curr.refers_to (parent))
+        return true;
+    } while ((curr = maybe_cast<ir_subcomponent> (curr->get_parent ())));
+
+    return is_a<ir_function> (parent);
+  }
+
+  bool
+  is_leaf_of (const ir_component& parent, const ir_subcomponent& sub)
+  {
+    optional_ref curr { sub };
+    do
+    {
+      if (curr.refers_to (parent))
+        return true;
+    } while (is_leaf (*curr) && (curr = maybe_cast<ir_subcomponent> (curr->get_parent ())));
+
+    return is_a<ir_function> (parent);
+  }
+
   ir_link_set<ir_block>
   copy_leaves (const ir_component& c)
   {

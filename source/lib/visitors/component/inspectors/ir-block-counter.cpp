@@ -13,6 +13,8 @@
 #include "components/ir-component-sequence.hpp"
 #include "components/ir-function.hpp"
 
+#include <numeric>
+
 namespace gch
 {
 
@@ -21,50 +23,66 @@ namespace gch
   operator() (const ir_component& c) const
   -> result_type
   {
-    return func.get_body ().accept (*this);
+    return c.accept (*this);
   }
 
   auto
   ir_block_counter::
-  visit (const ir_block& block) const
+  visit (const ir_block& block)
     -> result_type
   {
-    return { nonnull_ptr (as_mutable (block)) };
+    return 1;
   }
 
   auto
   ir_block_counter::
-  visit (const ir_component_fork& fork) const
+  visit (const ir_component_fork& fork)
   -> result_type
   {
-    result_type ret;
-    std::for_each (fork.cases_begin (), fork.cases_end (),
-                   [&](const ir_subcomponent& sub) { ret += subcomponent_result (sub); });
-    return ret;
+    return std::reduce (fork.cases_begin (), fork.cases_end (), result_type (1),
+                        [](result_type res, const ir_subcomponent& sub)
+                        {
+                          return res + subcomponent_result (sub);
+                        });
   }
 
   auto
   ir_block_counter::
-  visit (const ir_component_loop& loop) const
+  visit (const ir_component_loop& loop)
     -> result_type
   {
-    return subcomponent_result (loop.get_condition ());
+    return subcomponent_result (loop.get_start ())
+         + result_type (1) // condition block
+         + subcomponent_result (loop.get_body ())
+         + subcomponent_result (loop.get_update ());
   }
 
   auto
   ir_block_counter::
-  visit (const ir_component_sequence& seq) const
+  visit (const ir_component_sequence& seq)
     -> result_type
   {
-    return subcomponent_result (*seq.last ());
+    return std::reduce (seq.begin (), seq.end (), result_type (0),
+                        [](result_type res, const ir_subcomponent& sub)
+                        {
+                          return res + subcomponent_result (sub);
+                        });
   }
 
   auto
   ir_block_counter::
-  subcomponent_result (const ir_subcomponent& sub) const
+  visit (const ir_function& func)
+  -> result_type
+  {
+    return subcomponent_result (func.get_body ());
+  }
+
+  auto
+  ir_block_counter::
+  subcomponent_result (const ir_subcomponent& sub)
     -> result_type
   {
-    return sub.accept (*this);
+    return sub.accept (ir_block_counter { });
   }
 
 }

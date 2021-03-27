@@ -20,7 +20,7 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-#include "utilities/ir-common-util.hpp"
+#include "utilities/ir-utility.hpp"
 #include "utilities/ir-error.hpp"
 #include "values/types/ir-type.hpp"
 

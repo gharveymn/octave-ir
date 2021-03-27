@@ -24,7 +24,7 @@ along with Octave; see the file COPYING.  If not, see
 #define OCTAVE_IR_IR_COMPONENT_HPP
 
 #include "components/utility/ir-component-handle.hpp"
-#include "utilities/ir-common-util.hpp"
+#include "utilities/ir-utility.hpp"
 #include "utilities/ir-link-set.hpp"
 
 #include "visitors/ir-visitor.hpp"
@@ -125,6 +125,10 @@ namespace gch
   const ir_function&
   get_function (const ir_subcomponent& sub);
 
+  [[nodiscard]]
+  std::string
+  get_name (const ir_component& c);
+
   ir_link_set<ir_block>
   get_predecessors (const ir_subcomponent& sub);
 
@@ -133,6 +137,12 @@ namespace gch
 
   bool
   is_leaf (const ir_subcomponent& sub);
+
+  bool
+  is_subcomponent_of (const ir_component& parent, const ir_subcomponent& sub);
+
+  bool
+  is_leaf_of (const ir_component& parent, const ir_subcomponent& sub);
 
   [[nodiscard]]
   ir_link_set<ir_block>

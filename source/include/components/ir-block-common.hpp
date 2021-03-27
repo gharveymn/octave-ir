@@ -17,7 +17,6 @@ namespace gch
   class ir_def_timeline;
 
   class ir_block;
-  class ir_condition_block;
 
   enum class ir_instruction_range : std::size_t
   {

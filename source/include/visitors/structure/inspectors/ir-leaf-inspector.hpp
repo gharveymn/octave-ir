@@ -27,8 +27,6 @@ namespace gch
     friend acceptor_type<ir_component_sequence>;
     friend acceptor_type<ir_function>;
 
-    using result_type  = bool;
-
     ir_leaf_inspector            (void)                         = delete;
     ir_leaf_inspector            (const ir_leaf_inspector&)     = delete;
     ir_leaf_inspector            (ir_leaf_inspector&&) noexcept = delete;

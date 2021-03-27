@@ -15,7 +15,7 @@ char (*__gch__fail) (void)[sizeof(TYPE)] = 1;
 #define GCH_STRCAT_(x, y) x ## y
 #define GCH_STRCAT(x, y) GCH_STRCAT_(x, y)
 #define GCH_PRINT_VALUE(x) \
-template <int> struct GCH_STRCAT(GCH_STRCAT(value_of_, x), _is); \
+template <auto> struct GCH_STRCAT(GCH_STRCAT(value_of_, x), _is); \
 static_assert (GCH_STRCAT (GCH_STRCAT (value_of_, x), _is)<x>::x, " ");
 
 #ifndef GCH_ACCUMULATE_REF

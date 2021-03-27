@@ -10,7 +10,7 @@
 
 #include <gch/nonnull_ptr.hpp>
 
-#include <string>
+#include <string_view>
 
 namespace gch
 {
@@ -55,11 +55,11 @@ namespace gch
 
     [[nodiscard]]
     id_type
-    get_id (void) const;
+    get_id (void) const noexcept;
 
     [[nodiscard]]
-    const std::string&
-    get_name (void) const;
+    std::string_view
+    get_variable_name (void) const noexcept;
 
     [[nodiscard]]
     ir_type

@@ -17,6 +17,7 @@ namespace gch
   class ir_predecessor_collector;
   class ir_successor_collector;
   class ir_leaf_inspector;
+  class ir_abstract_structure_inspector;
 
   template <>
   struct exclusive_inspectors<ir_structure>
@@ -24,7 +25,8 @@ namespace gch
     using type = visitor_types<ir_entry_collector,
                                ir_predecessor_collector,
                                ir_successor_collector,
-                               ir_leaf_inspector>;
+                               ir_leaf_inspector,
+                               ir_abstract_structure_inspector>;
   };
 
   class ir_subcomponent;
@@ -62,6 +64,14 @@ namespace gch
   {
     using result_type      = bool;
     using visitor_category = const_inspector_tag;
+  };
+
+  template <>
+  struct visitor_traits<ir_abstract_structure_inspector>
+    : acceptor_trait<ir_abstract_structure_inspector>
+  {
+    using result_type      = void;
+    using visitor_category = inspector_tag;
   };
 
 }

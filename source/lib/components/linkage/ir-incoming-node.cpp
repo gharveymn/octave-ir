@@ -7,9 +7,8 @@
 
 #include "components/linkage/ir-incoming-node.hpp"
 
-
 #include "components/linkage/ir-def-timeline.hpp"
-#include "utilities/ir-common.hpp"
+#include "utilities/ir-utility.hpp"
 
 namespace gch
 {
@@ -17,19 +16,26 @@ namespace gch
   ir_incoming_node::
   ir_incoming_node (ir_def_timeline& parent, ir_incoming_node&& other) noexcept
     : base             (std::move (other)),
-      m_parent         (parent)
+      m_parent_timeline (parent)
   { }
 
   ir_incoming_node::
-  ir_incoming_node (ir_def_timeline& parent)
-    : m_parent         (parent)
+  ir_incoming_node (ir_def_timeline& parent, nullopt_t)
+    : m_parent_timeline (parent)
   { }
 
   ir_incoming_node::
-  ir_incoming_node (ir_def_timeline& parent, ir_def_timeline& pred)
-    : base             (tag::bind, pred),
-      m_parent         (parent)
+  ir_incoming_node (ir_def_timeline& parent, ir_def_timeline& incoming)
+    : base              (tag::bind, incoming),
+      m_parent_timeline (parent)
   { }
+
+  ir_incoming_node::
+  ir_incoming_node (ir_def_timeline& parent, optional_ref<ir_def_timeline> opt_incoming)
+    : m_parent_timeline (parent)
+  {
+    opt_incoming >>= [this](ir_def_timeline& dt) { rebind (dt); };
+  }
 
   ir_incoming_node&
   ir_incoming_node::
@@ -41,57 +47,39 @@ namespace gch
 
   void
   ir_incoming_node::
-  set_parent (ir_def_timeline& dt) noexcept
+  set_parent_timeline (ir_def_timeline& dt) noexcept
   {
-    m_parent.emplace (dt);
+    m_parent_timeline.emplace (dt);
   }
 
   [[nodiscard]]
   ir_def_timeline&
   ir_incoming_node::
-  get_parent (void) noexcept
+  get_parent_timeline (void) noexcept
   {
-    return *m_parent;
+    return *m_parent_timeline;
   }
 
   [[nodiscard]]
   const ir_def_timeline&
   ir_incoming_node::
-  get_parent (void) const noexcept
+  get_parent_timeline (void) const noexcept
   {
-    return as_mutable (*this).get_parent ();
+    return as_mutable (*this).get_parent_timeline ();
   }
 
   ir_block&
   ir_incoming_node::
   get_parent_block (void) noexcept
   {
-    return get_parent ().get_block ();
+    return get_parent_timeline ().get_block ();
   }
 
   const ir_block&
   ir_incoming_node::
   get_parent_block (void) const noexcept
   {
-    return get_parent ().get_block ();
-  }
-
-  auto
-  ir_incoming_node::
-  add_predecessor (ir_def_timeline& dt)
-    -> iter
-  {
-    return base::bind (dt);
-  }
-
-  // return true if the removal caused a erasure
-  auto
-  ir_incoming_node::
-  remove_predecessor (const ir_def_timeline& dt)
-    -> iter
-  {
-    auto finder = [&dt](const ir_def_timeline& e) { return &e == &dt; };
-    return erase (std::find_if (begin (), end (), finder));
+    return get_parent_timeline ().get_block ();
   }
 
   void
@@ -99,6 +87,12 @@ namespace gch
   swap (ir_incoming_node& other) noexcept
   {
     base::swap (other);
+  }
+
+  void
+  swap (ir_incoming_node& lhs, ir_incoming_node& rhs) noexcept
+  {
+    lhs.swap (rhs);
   }
 
 }

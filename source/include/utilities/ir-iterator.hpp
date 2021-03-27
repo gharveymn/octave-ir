@@ -9,9 +9,11 @@
 #define OCTAVE_IR_IR_ITERATOR_HPP
 
 #include "utilities/ir-common.hpp"
+#include "utilities/ir-functional.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 
+#include <cassert>
 #include <iterator>
 
 #if defined (__cpp_lib_concepts) && __cpp_lib_concepts >= 202002L
@@ -206,8 +208,7 @@ namespace gch
     pointer m_ptr;
   };
 
-  template <typename ValueLHS,
-            typename ValueRHS>
+  template <typename ValueLHS, typename ValueRHS>
   constexpr
   bool
   operator== (const basic_contiguous_iterator<ValueLHS>& lhs,
@@ -225,8 +226,7 @@ namespace gch
     return lhs.base () == rhs.base ();
   }
 
-  template <typename ValueLHS,
-            typename ValueRHS>
+  template <typename ValueLHS, typename ValueRHS>
   constexpr
   bool
   operator!= (const basic_contiguous_iterator<ValueLHS>& lhs,
@@ -244,8 +244,7 @@ namespace gch
     return lhs.base () != rhs.base ();
   }
 
-  template <typename ValueLHS,
-            typename ValueRHS>
+  template <typename ValueLHS, typename ValueRHS>
   constexpr
   bool
   operator< (const basic_contiguous_iterator<ValueLHS>& lhs,
@@ -263,8 +262,7 @@ namespace gch
     return lhs.base () < rhs.base ();
   }
 
-  template <typename ValueLHS,
-            typename ValueRHS>
+  template <typename ValueLHS, typename ValueRHS>
   constexpr
   bool
   operator> (const basic_contiguous_iterator<ValueLHS>& lhs,
@@ -282,8 +280,7 @@ namespace gch
     return lhs.base () > rhs.base ();
   }
 
-  template <typename ValueLHS,
-            typename ValueRHS>
+  template <typename ValueLHS, typename ValueRHS>
   constexpr
   bool
   operator<= (const basic_contiguous_iterator<ValueLHS>& lhs,
@@ -301,8 +298,7 @@ namespace gch
     return lhs.base () <= rhs.base ();
   }
 
-  template <typename ValueLHS,
-            typename ValueRHS>
+  template <typename ValueLHS, typename ValueRHS>
   constexpr
   bool
   operator>= (const basic_contiguous_iterator<ValueLHS>& lhs,
@@ -320,8 +316,7 @@ namespace gch
     return lhs.base () >= rhs.base ();
   }
 
-  template <typename ValueLHS,
-            typename ValueRHS>
+  template <typename ValueLHS, typename ValueRHS>
   constexpr
   auto
   operator- (const basic_contiguous_iterator<ValueLHS>& lhs,
@@ -488,6 +483,393 @@ namespace gch
 
   template <typename Container>
   set_emplacer (Container&) -> set_emplacer<Container>;
+
+  template <typename Iterator, typename Projection>
+  class projection_iterator
+  {
+  public:
+    using iterator_type   = Iterator;
+    using projection_type = Projection;
+
+    using iterator_dereference_type = decltype (*std::declval<iterator_type> ());
+    using projection_result_type = std::invoke_result_t<projection_type, iterator_dereference_type>;
+
+    using difference_type   = typename std::iterator_traits<iterator_type>::difference_type;
+    using value_type        = remove_cvref_t<projection_result_type>;
+    using pointer           = void;
+    using reference         = projection_result_type;
+    using iterator_category = typename std::iterator_traits<iterator_type>::iterator_category;
+
+    projection_iterator            (void)                           = default;
+    projection_iterator            (const projection_iterator&)     = default;
+    projection_iterator            (projection_iterator&&) noexcept = default;
+    projection_iterator& operator= (const projection_iterator&)     = default;
+    projection_iterator& operator= (projection_iterator&&) noexcept = default;
+    ~projection_iterator           (void)                           = default;
+
+    template <typename Iter, typename Proj>
+    constexpr
+    projection_iterator (Iter&& iter, Proj&& proj)
+      : m_iterator   (std::forward<Iter> (iter)),
+        m_projection (std::in_place, std::forward<Projection> (proj))
+    { }
+
+    template <typename I,
+              std::enable_if_t<std::is_convertible_v<I, iterator_type>> * = nullptr>
+    constexpr GCH_IMPLICIT_CONVERSION
+    projection_iterator (const projection_iterator<I, projection_type>& other)
+      : m_iterator   (other.get_iterator ()),
+        m_projection (std::in_place, other.get_projection ())
+    { }
+
+    constexpr
+    projection_iterator&
+    operator++ (void)
+    {
+      ++m_iterator;
+      return *this;
+    }
+
+    constexpr
+    projection_iterator
+    operator++ (int)
+    {
+      return projection_iterator (m_iterator++, *m_projection);
+    }
+
+    constexpr
+    projection_iterator&
+    operator-- (void)
+    {
+      --m_iterator;
+      return *this;
+    }
+
+    constexpr
+    projection_iterator
+    operator-- (int)
+    {
+      return projection_iterator (m_iterator--, *m_projection);
+    }
+
+    constexpr
+    projection_iterator&
+    operator+= (difference_type n)
+    {
+      m_iterator += n;
+      return *this;
+    }
+
+    constexpr
+    projection_iterator
+    operator+ (difference_type n) const
+    {
+      return projection_iterator (m_iterator + n, *m_projection);
+    }
+
+    constexpr
+    projection_iterator&
+    operator-= (difference_type n)
+    {
+      m_iterator -= n;
+      return *this;
+    }
+
+    constexpr
+    projection_iterator
+    operator- (difference_type n) const
+    {
+      return projection_iterator (m_iterator - n, *m_projection);
+    }
+
+    constexpr
+    reference
+    operator* (void) const
+      noexcept (std::is_nothrow_invocable_v<projection_type, iterator_dereference_type>)
+    {
+      return gch::invoke (*m_projection, *m_iterator);
+    }
+
+    constexpr
+    reference
+    operator[] (difference_type n) const
+      noexcept (std::is_nothrow_invocable_v<projection_type, iterator_dereference_type>)
+    {
+      return *(*this + n);
+    }
+
+    constexpr
+    iterator_type
+    get_iterator () const
+    {
+      return m_iterator;
+    }
+
+    constexpr
+    projection_type
+    get_projection (void) const
+    {
+      return *m_projection;
+    }
+
+  private:
+    iterator_type                  m_iterator;
+    std::optional<projection_type> m_projection;
+  };
+
+  template <typename IteratorLHS, typename ProjectionLHS,
+            typename IteratorRHS, typename ProjectionRHS>
+  constexpr
+  bool
+  operator== (const projection_iterator<IteratorLHS, ProjectionLHS>& lhs,
+              const projection_iterator<IteratorRHS, ProjectionRHS>& rhs)
+  {
+    return lhs.get_iterator () == rhs.get_iterator ();
+  }
+
+  template <typename IteratorLHS, typename ProjectionLHS,
+            typename IteratorRHS, typename ProjectionRHS>
+  constexpr
+  bool
+  operator!= (const projection_iterator<IteratorLHS, ProjectionLHS>& lhs,
+              const projection_iterator<IteratorRHS, ProjectionRHS>& rhs)
+  {
+    return lhs.get_iterator () != rhs.get_iterator ();
+  }
+
+  template <typename IteratorLHS, typename ProjectionLHS,
+            typename IteratorRHS, typename ProjectionRHS>
+  constexpr
+  bool
+  operator< (const projection_iterator<IteratorLHS, ProjectionLHS>& lhs,
+             const projection_iterator<IteratorRHS, ProjectionRHS>& rhs)
+  {
+    return lhs.get_iterator () < rhs.get_iterator ();
+  }
+
+  template <typename IteratorLHS, typename ProjectionLHS,
+            typename IteratorRHS, typename ProjectionRHS>
+  constexpr
+  bool
+  operator> (const projection_iterator<IteratorLHS, ProjectionLHS>& lhs,
+             const projection_iterator<IteratorRHS, ProjectionRHS>& rhs)
+  {
+    return lhs.get_iterator () > rhs.get_iterator ();
+  }
+
+  template <typename IteratorLHS, typename ProjectionLHS,
+            typename IteratorRHS, typename ProjectionRHS>
+  constexpr
+  bool
+  operator<= (const projection_iterator<IteratorLHS, ProjectionLHS>& lhs,
+              const projection_iterator<IteratorRHS, ProjectionRHS>& rhs)
+  {
+    return lhs.get_iterator () <= rhs.get_iterator ();
+  }
+
+  template <typename IteratorLHS, typename ProjectionLHS,
+            typename IteratorRHS, typename ProjectionRHS>
+  constexpr
+  bool
+  operator>= (const projection_iterator<IteratorLHS, ProjectionLHS>& lhs,
+              const projection_iterator<IteratorRHS, ProjectionRHS>& rhs)
+  {
+    return lhs.get_iterator () >= rhs.get_iterator ();
+  }
+
+  template <typename IteratorLHS, typename ProjectionLHS,
+            typename IteratorRHS, typename ProjectionRHS>
+  constexpr
+  auto
+  operator- (const projection_iterator<IteratorLHS, ProjectionLHS>& lhs,
+             const projection_iterator<IteratorRHS, ProjectionRHS>& rhs)
+    -> decltype (lhs.get_iterator () - rhs.get_iterator ())
+  {
+    return lhs.get_iterator () - rhs.get_iterator ();
+  }
+
+  template <typename Iterator, typename Projection>
+  constexpr
+  projection_iterator<Iterator, Projection>
+  operator+ (typename projection_iterator<Iterator, Projection>::difference_type n,
+             const projection_iterator<Iterator, Projection>& it)
+  {
+    return it + n;
+  }
+
+  template <typename Iterator, typename Projection>
+  projection_iterator (Iterator, Projection) -> projection_iterator<Iterator, Projection>;
+
+  class index_generator
+  {
+  public:
+    using difference_type   = std::ptrdiff_t;
+    using value_type        = void;
+    using pointer           = void;
+    using reference         = void;
+    using iterator_category = std::random_access_iterator_tag;
+
+    index_generator            (void)                       = default;
+    index_generator            (const index_generator&)     = default;
+    index_generator            (index_generator&&) noexcept = default;
+    index_generator& operator= (const index_generator&)     = default;
+    index_generator& operator= (index_generator&&) noexcept = default;
+    ~index_generator           (void)                       = default;
+
+    constexpr explicit
+    index_generator (difference_type index)
+      : m_index (index)
+    { }
+
+    template <typename T, std::enable_if_t<std::is_unsigned_v<T>> * = nullptr>
+    constexpr explicit
+    index_generator (T index)
+      : m_index (static_cast<difference_type> (index))
+    {
+      assert (index <= static_cast<std::size_t> ((std::numeric_limits<difference_type>::max) ()));
+    }
+
+    constexpr
+    index_generator&
+    operator++ (void) noexcept
+    {
+      ++m_index;
+      return *this;
+    }
+
+    constexpr
+    index_generator
+    operator++ (int) noexcept
+    {
+      return index_generator (m_index++);
+    }
+
+    constexpr
+    index_generator&
+    operator-- (void)
+    {
+      --m_index;
+      return *this;
+    }
+
+    constexpr
+    index_generator
+    operator-- (int)
+    {
+      return index_generator (m_index--);
+    }
+
+    constexpr
+    index_generator&
+    operator+= (difference_type n)
+    {
+      m_index += n;
+      return *this;
+    }
+
+    constexpr
+    index_generator
+    operator+ (difference_type n) const
+    {
+      return index_generator (m_index + n);
+    }
+
+    constexpr
+    index_generator&
+    operator-= (difference_type n)
+    {
+      m_index -= n;
+      return *this;
+    }
+
+    constexpr
+    index_generator
+    operator- (difference_type n) const
+    {
+      return index_generator (m_index - n);
+    }
+
+    constexpr
+    const index_generator&
+    operator* (void) const noexcept
+    {
+      return *this;
+    }
+
+    constexpr
+    difference_type
+    get_index (void) const noexcept
+    {
+      return m_index;
+    }
+
+  private:
+    difference_type m_index;
+  };
+
+  constexpr
+  bool
+  operator== (const index_generator& lhs, const index_generator& rhs)
+  {
+    return lhs.get_index () == rhs.get_index ();
+  }
+
+  constexpr
+  bool
+  operator!= (const index_generator& lhs, const index_generator& rhs)
+  {
+    return lhs.get_index () != rhs.get_index ();
+  }
+
+  constexpr
+  bool
+  operator< (const index_generator& lhs, const index_generator& rhs)
+  {
+    return lhs.get_index () < rhs.get_index ();
+  }
+
+  constexpr
+  bool
+  operator> (const index_generator& lhs, const index_generator& rhs)
+  {
+    return lhs.get_index () > rhs.get_index ();
+  }
+
+  constexpr
+  bool
+  operator<= (const index_generator& lhs, const index_generator& rhs)
+  {
+    return lhs.get_index () <= rhs.get_index ();
+  }
+
+  constexpr
+  bool
+  operator>= (const index_generator& lhs, const index_generator& rhs)
+  {
+    return lhs.get_index () >= rhs.get_index ();
+  }
+
+  constexpr
+  auto
+  operator- (const index_generator& lhs, const index_generator& rhs)
+    -> decltype (lhs.get_index () - rhs.get_index ())
+  {
+    return lhs.get_index () - rhs.get_index ();
+  }
+
+  constexpr
+  index_generator
+  operator+ (index_generator::difference_type n, const index_generator& it)
+  {
+    return it + n;
+  }
+
+  template <typename Integer, typename Functor>
+  projection_iterator<index_generator, Functor>
+  make_generation_iterator (Integer&& index, Functor&& functor)
+  {
+    return { index_generator (std::forward<Integer> (index)), std::forward<Functor> (functor) };
+  }
 
 }
 

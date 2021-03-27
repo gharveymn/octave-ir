@@ -29,7 +29,7 @@ along with Octave; see the file COPYING.  If not, see
 #include "components/ir-component.hpp"
 
 #include "utilities/ir-allocator-util.hpp"
-#include "utilities/ir-common-util.hpp"
+#include "utilities/ir-utility.hpp"
 
 #include "values/types/ir-type.hpp"
 #include "values/ir-instruction.hpp"
@@ -44,15 +44,7 @@ along with Octave; see the file COPYING.  If not, see
 #include <gch/partition/list_partition.hpp>
 #include <gch/small_vector.hpp>
 
-#include <plf_list.h>
-
-#include <memory>
-#include <unordered_set>
 #include <unordered_map>
-#include <deque>
-#include <stack>
-#include <vector>
-#include <list>
 
 namespace gch
 {
@@ -63,9 +55,7 @@ namespace gch
   class ir_def;
   class ir_use;
 
-  // static_assert (std::is_same_v<void, consolidated_visitors_t<ir_subcomponent>>);
-
-  class ir_block
+  class ir_block final
     : public ir_subcomponent,
       public visitable<ir_block, consolidated_visitors_t<ir_subcomponent>>
   {
@@ -579,13 +569,6 @@ namespace gch
   private:
     instruction_container m_instr_partition;
     dt_map_type           m_def_timelines_map;
-  };
-
-  class ir_condition_block
-    : public ir_block
-  {
-  public:
-    using ir_block::ir_block;
   };
 
   template <typename RandomIt,

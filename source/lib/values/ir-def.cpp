@@ -69,15 +69,15 @@ namespace gch
 
   auto
   ir_def::
-  get_id (void) const
+  get_id (void) const noexcept
     -> id_type
   {
     return m_id;
   }
 
-  const std::string&
+  std::string_view
   ir_def::
-  get_name (void) const
+  get_variable_name (void) const noexcept
   {
     return get_variable ().get_name ();
   }

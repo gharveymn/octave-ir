@@ -38,24 +38,35 @@ namespace gch
 
   private:
     [[nodiscard]]
+    static
     result_type
-    visit (const ir_block& block) const;
+    visit (const ir_block& block);
 
     [[nodiscard]]
+    static
     result_type
-    visit (const ir_component_fork& fork) const;
+    visit (const ir_component_fork& fork);
 
     [[nodiscard]]
+    static
     result_type
-    visit (const ir_component_loop& loop) const;
+    visit (const ir_component_loop& loop);
 
     [[nodiscard]]
+    static
     result_type
-    visit (const ir_component_sequence& seq) const;
+    visit (const ir_component_sequence& seq);
 
     [[nodiscard]]
+    static
     result_type
-    visit (const ir_function& func) const;
+    visit (const ir_function& func);
+
+    [[nodiscard]]
+    static
+    result_type
+    subcomponent_result (const ir_subcomponent& sub);
+
   };
 
 }

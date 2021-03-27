@@ -14,7 +14,7 @@
 namespace gch
 {
 
-  class ir_component_loop
+  class ir_component_loop final
     : public ir_substructure,
       public visitable<ir_component_loop, consolidated_visitors_t<ir_substructure>>
   {
@@ -118,7 +118,7 @@ namespace gch
 
   private:
     std::unique_ptr<ir_subcomponent> m_start;     // preds: [pred]        | succs: condition
-    ir_condition_block               m_condition; // preds: start, update | succs: body, [succ]
+    ir_block                         m_condition; // preds: start, update | succs: body, [succ]
     std::unique_ptr<ir_subcomponent> m_body;      // preds: condition     | succs: update
     std::unique_ptr<ir_subcomponent> m_update;    // preds: body          | succs: condition
 
@@ -135,6 +135,10 @@ namespace gch
     //                   +----+     +------+
 
   };
+
+  bool
+  is_loop_condition (const ir_block& block) noexcept;
+
 }
 
 #endif // OCTAVE_IR_IR_COMPONENT_LOOP_HPP

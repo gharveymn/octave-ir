@@ -68,7 +68,7 @@ namespace gch
       *resolved_it = std::move (seq->m_body.front ());
       const auto after = std::next (resolved_it, size_change + 1);
 
-      std::for_each (resolved_it, after, [this](auto& u) { u->set_parent (*this); });
+      std::for_each (resolved_it, after, [this](auto& u) { u->set_parent_timeline (*this); });
 
       return make_ptr (after);
     }

@@ -8,7 +8,7 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "components/utility/ir-component-handle.hpp"
-#include "utilities/ir-common-util.hpp"
+#include "utilities/ir-utility.hpp"
 #include "utilities/ir-optional-util.hpp"
 #include "utilities/ir-link-set.hpp"
 #include "visitors/ir-visitor.hpp"

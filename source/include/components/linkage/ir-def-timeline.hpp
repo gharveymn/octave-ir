@@ -20,6 +20,7 @@
 namespace gch
 {
 
+  class ir_def_resolution;
   class ir_use_timeline;
   class ir_variable;
 
@@ -49,9 +50,9 @@ namespace gch
   //   , ...]
 
   class ir_def_timeline
-    : public intrusive_tracker<ir_def_timeline, remote::intrusive_tracker<ir_incoming_node>>
+    : public intrusive_tracker<ir_def_timeline, remote::intrusive_reporter<ir_incoming_node>>
   {
-    using base = intrusive_tracker<ir_def_timeline, remote::intrusive_tracker<ir_incoming_node>>;
+    using base = intrusive_tracker<ir_def_timeline, remote::intrusive_reporter<ir_incoming_node>>;
 
     enum class range : std::size_t
     {
@@ -97,7 +98,7 @@ namespace gch
     using incoming_map_type = std::unordered_map<
       nonnull_cptr<ir_block>,
       ir_incoming_node,
-      std::less<nonnull_cptr<ir_block>>,
+      std::less<>,
       ir_incoming_node::element_allocator::rebind_for_map<nonnull_cptr<ir_block>>>;
 
     using incoming_value_type              = incoming_map_type::value_type;

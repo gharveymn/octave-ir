@@ -18,14 +18,12 @@
 
 #include "utilities/ir-functional.hpp"
 
-#include <array>
-
 namespace gch
 {
 
   enum class ir_opcode : unsigned
   {
-    _size_     =  35,
+    _size_     =  36,
 
     phi        =  0,
     assign     =  1,
@@ -67,6 +65,8 @@ namespace gch
     bashiftr   = 32,
     blshiftr   = 33,
     bnot       = 34,
+
+    terminate  = 35,
   };
 
   class ir_instruction_metadata
@@ -240,6 +240,19 @@ namespace gch
     num_opcodes = static_cast<std::underlying_type_t<ir_opcode>> (ir_opcode::_size_);
 
   private:
+    template <typename T>
+    struct value_map
+    {
+      constexpr
+      const T&
+      operator[] (ir_opcode op) const noexcept
+      {
+        return m_values[static_cast<std::underlying_type_t<ir_opcode>> (op)];
+      }
+
+      T m_values[num_opcodes];
+    };
+
     struct identity_projection
     {
       GCH_CPP20_CONSTEVAL
@@ -251,14 +264,33 @@ namespace gch
     };
 
     template <typename IndexSequence = std::make_index_sequence<num_opcodes>>
-    struct array_generator;
+    struct map_generator;
+
+    template <template <ir_opcode> typename MappedT,
+              typename IndexSequence = std::make_index_sequence<num_opcodes>>
+    struct common_mapping_result;
+
+    template <template <ir_opcode> typename MappedT, std::size_t ...Indices>
+    struct common_mapping_result<MappedT, std::index_sequence<Indices...>>
+      : std::common_type<std::remove_reference_t<std::invoke_result_t<
+          MappedT<static_cast<ir_opcode> (Indices)>>>...>
+    { };
+
+    template <template <ir_opcode> typename MappedT>
+    using common_mapping_result_t = typename common_mapping_result<MappedT>::type;
 
   public:
     template <typename Projection = identity_projection>
     [[nodiscard]]
     static GCH_CPP20_CONSTEVAL
-    std::array<std::invoke_result_t<Projection, ir_instruction_metadata>, num_opcodes>
-    generate_array (Projection proj = { }) noexcept;
+    value_map<std::remove_reference_t<std::invoke_result_t<Projection, ir_instruction_metadata>>>
+    generate_map (Projection proj = { }) noexcept;
+
+    template <template <ir_opcode> typename MappedT>
+    [[nodiscard]]
+    static GCH_CPP20_CONSTEVAL
+    value_map<common_mapping_result_t<MappedT>>
+    generate_template_map (void) noexcept;
 
   private:
     [[nodiscard]]
@@ -317,13 +349,13 @@ namespace gch
   };
 
   template <std::size_t ...Indices>
-  struct ir_instruction_metadata::array_generator<std::index_sequence<Indices...>>
+  struct ir_instruction_metadata::map_generator<std::index_sequence<Indices...>>
   {
     static_assert (sizeof...(Indices) == num_opcodes);
 
     template <typename Result>
     constexpr
-    std::array<Result, num_opcodes>
+    value_map<Result>
     operator() (Result (ir_instruction_metadata::* proj) (void) const noexcept) const noexcept
     {
       return { (get<static_cast<ir_opcode> (Indices)> ().*proj) ()... };
@@ -331,21 +363,40 @@ namespace gch
 
     template <typename Projection>
     constexpr
-    std::array<std::invoke_result_t<Projection, ir_instruction_metadata>, num_opcodes>
+    value_map<std::remove_reference_t<std::invoke_result_t<Projection, ir_instruction_metadata>>>
     operator() (Projection proj) const noexcept
     {
       return { proj (get<static_cast<ir_opcode> (Indices)> ())... };
     }
+
+    template <template <ir_opcode> typename MappedT>
+    constexpr
+    value_map<common_mapping_result_t<MappedT>>
+    map_template (void) const noexcept
+    {
+      return { invoke (MappedT<static_cast<ir_opcode> (Indices)> { })... };
+    }
+
   };
 
   template <typename Projection>
   GCH_CPP20_CONSTEVAL
   auto
   ir_instruction_metadata::
-  generate_array (Projection proj) noexcept
-    -> std::array<std::invoke_result_t<Projection, ir_instruction_metadata>, num_opcodes>
+  generate_map (Projection proj) noexcept
+    -> value_map<std::remove_reference_t<std::invoke_result_t<Projection, ir_instruction_metadata>>>
   {
-    return array_generator<std::make_index_sequence<num_opcodes>> { } (proj);
+    return map_generator<> { } (proj);
+  }
+
+  template <template <ir_opcode> typename MappedT>
+  GCH_CPP20_CONSTEVAL
+  auto
+  ir_instruction_metadata::
+  generate_template_map (void) noexcept
+  -> value_map<common_mapping_result_t<MappedT>>
+  {
+    return map_generator<> { }.map_template<MappedT> ();
   }
 
   [[nodiscard]] GCH_CPP20_CONSTEVAL
@@ -480,6 +531,18 @@ namespace gch
                         flag::has_def::    yes,
                         flag::arity::      n_ary,
                         flag::is_abstract::yes);
+  };
+
+  template <>
+  struct ir_instruction_metadata::instance<ir_opcode::terminate>
+  {
+    static constexpr
+    impl
+    data = create_type ("terminate",
+                        ir_opcode::        terminate,
+                        flag::has_def::    no,
+                        flag::arity::      nullary,
+                        flag::is_abstract::no);
   };
 
   /* branch */
@@ -745,11 +808,54 @@ namespace gch
   ir_instruction_metadata
   get_metadata (ir_opcode op)
   {
-    constexpr auto values = ir_instruction_metadata::generate_array ();
-    return values[static_cast<std::underlying_type_t<ir_opcode>> (op)];
+    constexpr auto values = ir_instruction_metadata::generate_map ();
+    return values[op];
   }
 
   static_assert (ir_instruction_metadata_v<ir_opcode::ge> == get_metadata (ir_opcode::ge));
+
+  template <ir_opcode Op>
+  struct ir_instruction_traits
+  {
+    explicit
+    ir_instruction_traits (void) = default;
+
+    static constexpr auto metadata    = ir_instruction_metadata_v<Op>;
+    static constexpr auto opcode      = metadata.get_opcode ();
+    static constexpr auto name        = metadata.get_name ();
+    static constexpr auto is_abstract = metadata.is_abstract ();
+    static constexpr auto has_base    = metadata.has_base ();
+    static constexpr auto has_def     = metadata.has_def ();
+    static constexpr auto arity       = metadata.get_arity ();
+
+    static constexpr auto is_n_ary    = metadata.is_n_ary ();
+    static constexpr auto is_nullary  = metadata.is_nullary ();
+    static constexpr auto is_unary    = metadata.is_unary ();
+    static constexpr auto is_binary   = metadata.is_binary ();
+    static constexpr auto is_ternary  = metadata.is_ternary ();
+
+    template <bool HasBase = has_base, std::enable_if_t<HasBase> * = nullptr>
+    static constexpr
+    auto
+    base = metadata.get_base ();
+
+    template <ir_opcode BaseOp>
+    static constexpr
+    bool
+    is_a = metadata.is_a (ir_instruction_metadata_v<BaseOp>);
+
+    template <ir_opcode OtherOp>
+    static constexpr
+    bool
+    is_base_of = metadata.is_base_of (ir_instruction_metadata_v<OtherOp>);
+
+    template <std::size_t N>
+    static constexpr
+    bool
+    is_valid_num_args = is_n_ary || (static_cast<std::size_t> (arity) == N);
+  };
+
+  static_assert (ir_instruction_traits<ir_opcode::band>::is_a<ir_opcode::bitwise>);
 
 }
 

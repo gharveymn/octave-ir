@@ -11,18 +11,19 @@ namespace gch
 {
 
   ir_variable::
-  ir_variable (ir_function& func, const std::string& name)
+  ir_variable (ir_function& func, std::string_view name)
     : m_function (func),
       m_name     (name)
   { }
 
   ir_variable::
-  ir_variable (ir_function& func, std::string&& name)
+  ir_variable (ir_function& func, std::string_view name, ir_type type)
     : m_function (func),
-      m_name     (std::move (name))
+      m_name     (name),
+      m_type     (type)
   { }
 
-  const std::string&
+  std::string_view
   ir_variable::
   get_name (void) const noexcept
   {

@@ -28,11 +28,12 @@ along with Octave; see the file COPYING.  If not, see
 #include <gch/nonnull_ptr.hpp>
 
 #include <string>
+#include <string_view>
 
 namespace gch
 {
 
-  class ir_function;
+  class ir_component;
 
   class ir_variable
   {
@@ -43,31 +44,23 @@ namespace gch
     const char
     anonymous_name[] = "<@>";
 
-    // variables own both defs and uses
-    // defs and uses may allow references elsewhere, but these singular
-    // and may not be copied or addressed (may be moved).
-
-    ir_variable            (void);
+    ir_variable            (void)                   = delete;
     ir_variable            (const ir_variable&)     = delete;
     ir_variable            (ir_variable&&) noexcept = delete;
     ir_variable& operator= (const ir_variable&)     = delete;
     ir_variable& operator= (ir_variable&&) noexcept = delete;
     ~ir_variable           (void)                   = default;
 
-    ir_variable (ir_function& func, const std::string& name);
-    ir_variable (ir_function& func, std::string&& name);
+    ir_variable (const ir_component& c, std::string_view name);
+    ir_variable (const ir_component& c, std::string_view name, ir_type type);
 
     [[nodiscard]]
-    const std::string&
+    std::string_view
     get_name (void) const noexcept;
 
     [[nodiscard]]
-    ir_function&
-    get_function (void) noexcept;
-
-    [[nodiscard]]
-    const ir_function&
-    get_function (void) const noexcept;
+    const ir_component&
+    get_component (void) const noexcept;
 
     [[nodiscard]]
     ir_type
@@ -80,10 +73,10 @@ namespace gch
     create_id (void) noexcept;
 
    private:
-    nonnull_ptr<ir_function> m_function;
-    std::string              m_name     = anonymous_name;
-    ir_type                  m_type     = ir_type_v<void>;
-    id_type                  m_curr_id  = 0;
+    nonnull_cptr<ir_component> m_component;
+    const std::string          m_name     = anonymous_name;
+    ir_type                    m_type     = ir_type_v<void>;
+    id_type                    m_curr_id  = 0;
   };
 
   ir_type

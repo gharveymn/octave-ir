@@ -14,7 +14,7 @@
 namespace gch
 {
 
-  class ir_component_sequence
+  class ir_component_sequence final
     : public ir_substructure,
       public visitable<ir_component_sequence, consolidated_visitors_t<ir_substructure>>
   {

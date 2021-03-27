@@ -12,15 +12,18 @@
 #include "utilities/ir-allocator-util.hpp"
 
 #include <gch/nonnull_ptr.hpp>
-#include <gch/tracker/tracker.hpp>
+#include <gch/optional_ref.hpp>
+#include <gch/tracker/reporter.hpp>
 
 namespace gch
 {
 
+  class ir_def_timeline;
+
   class ir_incoming_node
-    : public intrusive_tracker<ir_incoming_node, remote::intrusive_tracker<ir_def_timeline>>
+    : public intrusive_reporter<ir_incoming_node, remote::intrusive_tracker<ir_def_timeline>>
   {
-    using base = intrusive_tracker<ir_incoming_node, remote::intrusive_tracker<ir_def_timeline>>;
+    using base = intrusive_reporter<ir_incoming_node, remote::intrusive_tracker<ir_def_timeline>>;
 
   public:
     using element_allocator = strongly_linked_allocator<ir_incoming_node, ir_def_timeline>;
@@ -34,26 +37,20 @@ namespace gch
 
     ir_incoming_node (ir_def_timeline& parent, ir_incoming_node&& other) noexcept;
 
-    ir_incoming_node (ir_def_timeline& parent);
-    ir_incoming_node (ir_def_timeline& parent, ir_def_timeline& pred);
-
-    template <typename Iterator>
-    ir_incoming_node (ir_def_timeline& parent, Iterator first_pred, Iterator last_pred)
-      : m_parent (parent)
-    {
-      std::for_each (first_pred, last_pred, [this](auto&& p) { add_predecessor (*p); });
-    }
+    ir_incoming_node (ir_def_timeline& parent, nullopt_t);
+    ir_incoming_node (ir_def_timeline& parent, ir_def_timeline& incoming);
+    ir_incoming_node (ir_def_timeline& parent, optional_ref<ir_def_timeline> opt_incoming);
 
     void
-    set_parent (ir_def_timeline& dt) noexcept;
+    set_parent_timeline (ir_def_timeline& dt) noexcept;
 
     [[nodiscard]]
     ir_def_timeline&
-    get_parent (void) noexcept;
+    get_parent_timeline (void) noexcept;
 
     [[nodiscard]]
     const ir_def_timeline&
-    get_parent (void) const noexcept;
+    get_parent_timeline (void) const noexcept;
 
     [[nodiscard]]
     ir_block&
@@ -63,25 +60,27 @@ namespace gch
     const ir_block&
     get_parent_block (void) const noexcept;
 
-    iter
-    add_predecessor (ir_def_timeline& dt);
+    [[nodiscard]]
+    bool
+    has_incoming_timeline (void) const noexcept;
 
-    iter
-    remove_predecessor (const ir_def_timeline& dt);
+    [[nodiscard]]
+    ir_def_timeline&
+    get_incoming_timeline (void) noexcept;
+
+    [[nodiscard]]
+    const ir_def_timeline&
+    get_incoming_timeline (void) const noexcept;
 
     void
     swap (ir_incoming_node& other) noexcept;
 
   private:
-    nonnull_ptr<ir_def_timeline> m_parent;
+    nonnull_ptr<ir_def_timeline> m_parent_timeline;
   };
 
-  inline
   void
-  swap (ir_incoming_node& lhs, ir_incoming_node& rhs) noexcept
-  {
-    lhs.swap (rhs);
-  }
+  swap (ir_incoming_node& lhs, ir_incoming_node& rhs) noexcept;
 
 }
 

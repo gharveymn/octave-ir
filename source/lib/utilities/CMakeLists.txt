@@ -1,5 +1,5 @@
 OCTAVE_IR_ADD_SOURCES (
-  ir-common-util.cpp
+  ir-utility.cpp
   ir-error.cpp
   ir-link-set.cpp
 )

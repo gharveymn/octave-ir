@@ -7,7 +7,7 @@
 
 #include "values/ir-use.hpp"
 
-#include "utilities/ir-common-util.hpp"
+#include "utilities/ir-utility.hpp"
 #include "values/ir-def.hpp"
 #include "values/ir-use-timeline.hpp"
 
@@ -78,18 +78,18 @@ namespace gch
     return get_def ().get_type ();
   }
 
-  const std::string&
-  ir_use::
-  get_name (void) const
-  {
-    return get_def ().get_name ();
-  }
-
   std::size_t
   ir_use::
-  get_id (void)
+  get_id (void) const noexcept
   {
     return get_position ();
+  }
+
+  std::string_view
+  ir_use::
+  get_variable_name (void) const
+  {
+    return get_def ().get_variable_name ();
   }
 
   [[nodiscard]]

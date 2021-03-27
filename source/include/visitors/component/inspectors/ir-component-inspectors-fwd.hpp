@@ -17,6 +17,8 @@ namespace gch
 
   class ir_block_counter;
 
+  class ir_abstract_component_inspector;
+
   class ir_block;
 
   template <>
@@ -24,7 +26,8 @@ namespace gch
   {
     using type = visitor_types<ir_leaf_collector,
                                ir_const_leaf_collector,
-                               ir_block_counter>;
+                               ir_block_counter,
+                               ir_abstract_component_inspector>;
   };
 
   template <typename T>
@@ -52,6 +55,14 @@ namespace gch
   {
     using result_type      = std::size_t;
     using visitor_category = const_inspector_tag;
+  };
+
+  template <>
+  struct visitor_traits<ir_abstract_component_inspector>
+    : acceptor_trait<ir_abstract_component_inspector>
+  {
+    using result_type      = void;
+    using visitor_category = inspector_tag;
   };
 
 }

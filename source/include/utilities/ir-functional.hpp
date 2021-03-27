@@ -8,7 +8,7 @@
 #ifndef OCTAVE_IR_IR_FUNCTIONAL_HPP
 #define OCTAVE_IR_IR_FUNCTIONAL_HPP
 
-#include "ir-type-traits.hpp"
+#include "utilities/ir-type-traits.hpp"
 
 #include <utility>
 #include <tuple>
@@ -107,7 +107,7 @@ namespace gch
     return overloaded_ret<R, overloaded<Ts...>> { std::forward<Ts> (ts)... };
   }
 
-  template <typename Function>
+  template <typename Functor>
   struct applied
   {
     template <typename Tuple>
@@ -117,10 +117,10 @@ namespace gch
       return std::apply (m_func, std::forward<Tuple> (t));
     }
 
-    Function m_func;
+    Functor m_func;
   };
 
-  template <typename Function> applied (Function&&) -> applied<Function>;
+  template <typename Functor> applied (Functor) -> applied<Functor>;
 
   namespace detail
   {
@@ -255,6 +255,33 @@ namespace gch
   {
     return detail::bound_mem_fn_object { object, m };
   }
+
+  template <typename T>
+  struct value_projection
+  {
+    template <typename ...Args>
+    T
+    operator() (Args&&...) const
+      noexcept (std::is_nothrow_copy_constructible_v<T>)
+    {
+      return m_value;
+    }
+
+    T m_value;
+  };
+
+  template <typename T>
+  value_projection (T) -> value_projection<T>;
+
+  struct identity
+  {
+    template <typename T>
+    decltype (auto)
+    operator() (T&& t) const noexcept
+    {
+      return std::forward<T> (t);
+    }
+  };
 
 }
 

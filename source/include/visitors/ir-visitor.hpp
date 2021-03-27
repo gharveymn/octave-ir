@@ -14,62 +14,6 @@ namespace gch
 {
 
   //
-  // abstract_inspector
-  //
-
-  template <typename ...Types>
-  class abstract_inspector
-    : public abstract_inspector<Types>...
-  {
-  public:
-    using abstract_inspector<Types>::visit...;
-  };
-
-  template <typename T>
-  class abstract_inspector<T>
-  {
-  public:
-    abstract_inspector            (void)                          = default;
-    abstract_inspector            (const abstract_inspector&)     = default;
-    abstract_inspector            (abstract_inspector&&) noexcept = default;
-    abstract_inspector& operator= (const abstract_inspector&)     = default;
-    abstract_inspector& operator= (abstract_inspector&&) noexcept = default;
-    virtual ~abstract_inspector   (void)                          = default;
-
-    virtual
-    void
-    visit (const T&) = 0;
-  };
-
-  //
-  // abstract_mutator
-  //
-
-  template <typename ...Types>
-  class abstract_mutator
-    : public abstract_mutator<Types>...
-  {
-  public:
-    using abstract_mutator<Types>::visit...;
-  };
-
-  template <typename T>
-  class abstract_mutator<T>
-  {
-  public:
-    abstract_mutator            (void)                        = default;
-    abstract_mutator            (const abstract_mutator&)     = default;
-    abstract_mutator            (abstract_mutator&&) noexcept = default;
-    abstract_mutator& operator= (const abstract_mutator&)     = default;
-    abstract_mutator& operator= (abstract_mutator&&) noexcept = default;
-    virtual ~abstract_mutator   (void)                        = default;
-
-    virtual
-    void
-    visit (T&) = 0;
-  };
-
-  //
   // abstract_visitable
   //
 
@@ -223,6 +167,14 @@ namespace gch
   public:
     using visitable<Derived, VisitorSubTypes>::accept...;
   };
+
+  template <typename Visitor, typename... Ts>
+  constexpr
+  decltype (auto)
+  virtual_visit (Visitor&& visitor, Ts&&... ts)
+  {
+
+  }
 
 }
 

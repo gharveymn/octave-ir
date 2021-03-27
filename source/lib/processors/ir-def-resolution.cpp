@@ -66,73 +66,22 @@ namespace gch
   }
 
   [[nodiscard]]
-  bool
-  check_homogeneous (const ir_link_set<ir_def_timeline>& c)
-  {
-    if (c.empty ())
-      return true;
-
-    const ir_def& cmp = c.front ()->get_outgoing_def ();
-    return std::all_of (c.begin (), c.end (), [&cmp](nonnull_ptr<ir_def_timeline> dt)
-                                              {
-                                                return &cmp == &dt->get_outgoing_def ();
-                                              });
-  }
-
-  void
-  assert_homogeneous (const ir_link_set<ir_def_timeline>& c)
-  {
-    assert (check_homogeneous (c)
-        &&  "The def-timeline link-set should be homogeneous in the origin defs of elements.");
-  }
-
-  [[nodiscard]]
-  ir_link_set<ir_def_timeline>
-  join_at (ir_block& join_block, ir_variable& var, small_vector<ir_def_resolution>&& incoming)
+  optional_ref<ir_def_timeline>
+  join_at (ir_block& join_block, ir_variable& var, const small_vector<ir_def_resolution>& incoming)
   {
     assert_matching_incoming_blocks (join_block, incoming);
-
     if (incoming.empty ())
       return { };
 
-    optional_ref<ir_def> first_def = incoming.front ().maybe_get_common_def ();
-    auto found_hetero = std::find_if_not (std::next (incoming.begin ()), incoming.end (),
-                                          [=](const ir_def_resolution& r)
-                                          {
-                                            optional_ref r_def { r.maybe_get_common_def () };
-                                            return same_address (first_def, r_def);
-                                          });
-
-    // check if all the incoming timelines have the same parent def
-    // if they do we can skip creation of an incoming-timeline in the current block
-    if (found_hetero == incoming.end ())
-    {
-      // if homogeneous and we can skip creation of the incoming-timeline
-      // and forward the timelines
-      return std::accumulate (std::next (incoming.begin ()), incoming.end (),
-                              incoming.front ().get_timelines (),
-                              [](auto&& ret, const ir_def_resolution& r) -> decltype (auto)
-                              {
-                                return std::move (ret |= r.get_timelines ());
-                              });
-    }
-
-    optional_ref<ir_def> def = first_def;
-    if (! first_def)
-      def.emplace (found_hetero->get_common_def ());
-    assert (def);
-
-    // otherwise we need to create an incoming-timeline
+    // create an incoming-timeline at the join-block
     ir_def_timeline& dt = join_block.get_def_timeline (var);
 
-    // note: in the case of loops we can be appending to an already existing def-timeline
+    // Note: In the case of loops we may be appending to an def-timeline which already exists.
 
     std::for_each (incoming.begin (), incoming.end (),
                    [&dt](const ir_def_resolution& r)
                    {
-                     dt.append_incoming (r.get_leaf_block (),
-                                         r.get_timelines ().begin (),
-                                         r.get_timelines ().end ());
+                     dt.append_incoming (r.get_leaf_block (), r.maybe_get_timeline ());
                    });
 
     // Q: Do we need to re-point references to the found predecessor timelines
@@ -149,7 +98,7 @@ namespace gch
     //
     // A: We don't.
 
-    return { nonnull_ptr { dt } };
+    return optional_ref { dt };
   }
 
   //
@@ -210,23 +159,6 @@ namespace gch
   //
   // ir_def_resolution
   //
-
-  ir_def&
-  ir_def_resolution::
-  get_common_def (void) const
-  {
-    assert_all_same_nonnull_outgoing (get_timelines ());
-    return get_timelines ().front ()->get_outgoing_def ();
-  }
-
-  optional_ref<ir_def>
-  ir_def_resolution::
-  maybe_get_common_def (void) const
-  {
-    if (is_nonempty ())
-      return optional_ref { get_common_def () };
-    return nullopt;
-  }
 
   //
   // ir_def_resolution_stack
@@ -366,46 +298,40 @@ namespace gch
   {
     assert (is_resolvable () && "stack should be resolvable");
 
-    if (auto res { maybe_get_block_resolution () }) // collapse the stack with the seed
+    if (std::optional res { maybe_get_block_resolution () }) // collapse the stack with the seed
       return resolve_with (res->get_resolution ());
     else if (! m_stack.empty ()) // collapse the stack
     {
-      ir_link_set<ir_def_timeline> curr_result = m_stack.top ().join ();
+      optional_ref<ir_def_timeline> curr_result = m_stack.top ().join ();
       m_stack.pop ();
-      return resolve_with (std::move (curr_result));
+      return resolve_with (curr_result);
     }
     else // the resolution is the aggregate of the leaf components
     {
       small_vector<ir_def_resolution> ret;
       std::for_each (m_leaves.begin (), m_leaves.end (),
-                     [&](ir_def_resolution_stack& leaf_stack)
-                     { ret.append (leaf_stack.resolve ()); });
+                     [&](auto& leaf_stack) { ret.append (leaf_stack.resolve ()); });
       return ret;
     }
   }
 
   small_vector<ir_def_resolution>
   ir_def_resolution_stack::
-  resolve_with (ir_link_set<ir_def_timeline> s)
+  resolve_with (optional_ref<ir_def_timeline> dt)
   {
     if (optional_ref block { maybe_cast_block () })
-      return { { *block, std::move (s) } };
+      return { { *block, dt } };
 
     while (! m_stack.empty ())
     {
-      s = std::move (top ().join_with (std::move (s)));
+      dt = top ().join_with (dt);
       m_stack.pop ();
     }
 
     small_vector<ir_def_resolution> ret;
     std::for_each (m_leaves.begin (), m_leaves.end (),
-                   [&](ir_def_resolution_stack& leaf_stack)
-                   {
-                     small_vector<ir_def_resolution> res = leaf_stack.resolve_with (s);
-                     ret.insert (ret.end (),
-                                 std::move_iterator { res.begin () },
-                                 std::move_iterator { res.end () });
-                   });
+                   [&](auto& leaf_stack) { ret.append (leaf_stack.resolve_with (dt)); });
+
     return ret;
   }
 
@@ -432,24 +358,19 @@ namespace gch
     return m_substack.is_resolvable ();
   }
 
-  ir_link_set<ir_def_timeline>
+  optional_ref<ir_def_timeline>
   ir_def_resolution_frame::
   join (void)
   {
-    assert (is_joinable () && "frame should be joinable");
-    auto ret = join_at (get_join_block (), get_variable (), m_substack.resolve ());
-    assert_homogeneous (ret);
-    return ret;
+    assert (is_joinable () && "Frame should be joinable.");
+    return join_at (get_join_block (), get_variable (), m_substack.resolve ());
   }
 
-  ir_link_set<ir_def_timeline>
+  optional_ref<ir_def_timeline>
   ir_def_resolution_frame::
-  join_with (ir_link_set<ir_def_timeline>&& s)
+  join_with (optional_ref<ir_def_timeline> dt)
   {
-    auto ret = join_at (get_join_block (), get_variable (),
-                        m_substack.resolve_with (std::move (s)));
-    assert_homogeneous (ret);
-    return ret;
+    return join_at (get_join_block (), get_variable (), m_substack.resolve_with (dt));
   }
 
   ir_block&

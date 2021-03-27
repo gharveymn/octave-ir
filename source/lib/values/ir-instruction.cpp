@@ -22,8 +22,7 @@ namespace gch
   ir_instruction::
   ir_instruction (ir_instruction&& other) noexcept
     : m_metadata (other.m_metadata),
-      m_def (other.m_def ? std::optional<ir_def> (std::in_place,
-                                                  std::move (*other.m_def), *this)
+      m_def (other.m_def ? std::optional<ir_def> (std::in_place, *this, std::move (*other.m_def))
                          : std::nullopt),
       m_args     (std::move (other.m_args))
   {
@@ -32,6 +31,21 @@ namespace gch
                    {
                      maybe_get<ir_use> (arg) >>= [this](ir_use& u) { u.set_instruction (*this); };
                    });
+  }
+
+  ir_instruction&
+  ir_instruction::
+  operator= (ir_instruction&& other) noexcept
+  {
+    m_metadata = other.m_metadata;
+
+    if (other.m_def)
+      m_def.emplace (*this, std::move (*other.m_def));
+    else
+      m_def.reset ();
+
+    set_args (std::move (other.m_args));
+    return *this;
   }
 
   auto
@@ -195,13 +209,6 @@ namespace gch
 
   void
   ir_instruction::
-  set_def (std::optional<ir_def>&& def)
-  {
-    (m_def = std::move (def)) >>= [this] (ir_def& d) { d.set_instruction (*this); };
-  }
-
-  void
-  ir_instruction::
   set_args (args_container_type&& args)
   {
     m_args = std::move (args);
@@ -210,6 +217,67 @@ namespace gch
                    {
                      maybe_get<ir_use> (arg) >>= [this](ir_use& u) { u.set_instruction (*this); };
                    });
+  }
+
+  auto
+  ir_instruction::
+  get_metadata (void) const noexcept
+    -> metadata_t
+  {
+    return m_metadata;
+  }
+
+  ir_def&
+  ir_instruction::
+  get_def (void) noexcept
+  {
+    return *m_def;
+  }
+
+  const ir_def&
+  ir_instruction::
+  get_def (void) const noexcept
+  {
+    return *m_def;
+  }
+
+  optional_ref<ir_def>
+  ir_instruction::
+  maybe_get_def (void) noexcept
+  {
+    return m_def >>= identity { };
+  }
+
+  optional_cref<ir_def>
+  ir_instruction::
+  maybe_get_def (void) const noexcept
+  {
+    return as_mutable (*this).maybe_get_def ();
+  }
+
+  bool
+  ir_instruction::
+  has_def (void) const noexcept
+  {
+    return get_metadata ().has_def ();
+  }
+
+  bool
+  has_def (const ir_instruction& instr) noexcept
+  {
+    return instr.get_metadata ().has_def ();
+  }
+
+  optional_ref<ir_def>
+  maybe_get_def (ir_instruction& instr) noexcept
+  {
+    return instr.maybe_get_def ();
+  }
+
+  optional_cref<ir_def>
+  maybe_get_def (const ir_instruction& instr) noexcept
+  {
+    return instr.maybe_get_def ();
   }
 
 }

@@ -180,8 +180,6 @@ namespace gch
       {
         return ascend (loop);
       }
-      default:
-        abort<reason::impossible> ();
     }
 
     return maybe_ascend (loop, { std::move (stack),

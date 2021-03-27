@@ -187,17 +187,19 @@ namespace gch
     template <typename U, typename ...Args,
               std::enable_if_t<! std::is_same_v<named_type, std::decay_t<U>>
                              &&  std::is_constructible_v<value_type, U, Args...>> * = nullptr>
-    explicit
+    constexpr explicit
     named_type (U&& u, Args&&... args)
           noexcept (std::is_nothrow_constructible_v<value_type, U, Args...>)
       : m_value (std::forward<U> (u), std::forward<Args> (args)...)
     { }
 
+    constexpr
     operator const value_type& (void) const noexcept
     {
       return m_value;
     }
 
+    constexpr
     operator value_type&& (void) && noexcept
     {
       return std::move (m_value);
@@ -217,6 +219,51 @@ namespace gch
     using named_type<T>::named_type;
   };
 
-}
+  namespace detail
+  {
+
+    namespace aggregate_rebinder_adl
+    {
+
+      using std::get;
+
+      template <std::size_t I, typename T>
+      void get (T&& t)
+        noexcept (noexcept (get<I> (std::forward<T> (t))));
+
+    } // namespace gch::detail::aggregate_rebinder_adl
+
+    template <typename AggregateType, typename IndexSequence>
+    struct aggregate_rebinder
+    { };
+
+    template <typename T, std::size_t ...I>
+    struct aggregate_rebinder<T, std::index_sequence<I...>>
+    {
+
+      template <typename Tuple>
+      constexpr
+      T
+      operator() (Tuple&& tup) const
+        noexcept (noexcept (T { aggregate_rebinder_adl::get<I> (std::forward<Tuple> (tup))... }))
+      {
+        using std::get;
+        return { get<I> (std::forward<Tuple> (tup))... };
+      }
+
+    };
+
+  } // namespace gch::detail
+
+  template <typename AggregateType, typename Tuple>
+  constexpr
+  AggregateType
+  rebind_to_aggregate (Tuple&& tup)
+  {
+    using seq_type = std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple>>>;
+    return detail::aggregate_rebinder<AggregateType, seq_type> { } (std::forward<Tuple> (tup));
+  }
+
+} // namespace gch
 
 #endif
