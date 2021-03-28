@@ -506,7 +506,7 @@ namespace gch
   bool
   operator== (const ir_component_cptr& lhs, const ir_component_cptr::observer& rhs)
   {
-    return lhs.maybe_get_component ().same_address (rhs);
+    return lhs.maybe_get_component ().equal_pointer (rhs);
   }
 
   constexpr
