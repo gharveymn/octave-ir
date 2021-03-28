@@ -8,6 +8,7 @@
 #ifndef OCTAVE_IR_IR_STATIC_MODULE_GENERATOR_HPP
 #define OCTAVE_IR_IR_STATIC_MODULE_GENERATOR_HPP
 
+#include "components/static/ir-static-block.hpp"
 #include "components/static/ir-static-module.hpp"
 #include "utilities/ir-index-sequence-map.hpp"
 #include "values/static/ir-static-def.hpp"
@@ -30,29 +31,6 @@ namespace gch
   class ir_static_instruction;
   class ir_static_use;
   class ir_variable;
-
-  class ir_static_block_id
-    : public named_type<std::size_t>
-  {
-  public:
-    using named_type<std::size_t>::named_type;
-
-    ir_static_block_id&
-    operator++ (void) noexcept
-    {
-      return *this = ir_static_block_id { static_cast<value_type> (*this) + 1 };
-    }
-
-    ir_static_block_id
-    operator++ (int) noexcept
-    {
-      ir_static_block_id ret { *this };
-      ++(*this);
-      return ret;
-    }
-  };
-
-  inline constexpr ir_static_block_id ir_undefined_block_id { static_cast<std::size_t> (-1) };
 
   class ir_def_reference
   {
@@ -454,6 +432,35 @@ namespace gch
     using phi_map_iter    = phi_map_iterator;
     using phi_map_citer   = phi_map_const_iterator;
 
+    using successors_container_type          = small_vector<ir_static_block_id, 2>;
+    using successors_value_type              = successors_container_type::value_type;
+    using successors_allocator_type          = successors_container_type::allocator_type;
+    using successors_size_type               = successors_container_type::size_type;
+    using successors_difference_type         = successors_container_type::difference_type;
+    using successors_reference               = successors_container_type::reference;
+    using successors_const_reference         = successors_container_type::const_reference;
+    using successors_pointer                 = successors_container_type::pointer;
+    using successors_const_pointer           = successors_container_type::const_pointer;
+
+    using successors_iterator                = successors_container_type::iterator;
+    using successors_const_iterator          = successors_container_type::const_iterator;
+    using successors_reverse_iterator        = successors_container_type::reverse_iterator;
+    using successors_const_reverse_iterator  = successors_container_type::const_reverse_iterator;
+
+    using successors_val_t   = successors_value_type;
+    using successors_alloc_t = successors_allocator_type;
+    using successors_size_ty = successors_size_type;
+    using successors_diff_ty = successors_difference_type;
+    using successors_ref     = successors_reference;
+    using successors_cref    = successors_const_reference;
+    using successors_ptr     = successors_pointer;
+    using successors_cptr    = successors_const_pointer;
+
+    using successors_iter    = successors_iterator;
+    using successors_citer   = successors_const_iterator;
+    using successors_riter   = successors_reverse_iterator;
+    using successors_criter  = successors_const_reverse_iterator;
+
     ir_block_descriptor            (void)                           = delete;
     ir_block_descriptor            (const ir_block_descriptor&)     = default;
     ir_block_descriptor            (ir_block_descriptor&&) noexcept = default;
@@ -560,11 +567,83 @@ namespace gch
 
     [[nodiscard]]
     injections_size_type
-    injections_size (void) const noexcept;
+    num_injections (void) const noexcept;
 
     [[nodiscard]]
     bool
-    injections_empty (void) const noexcept;
+    has_injections (void) const noexcept;
+
+    [[nodiscard]]
+    successors_iterator
+    successors_begin (void) noexcept;
+
+    [[nodiscard]]
+    successors_const_iterator
+    successors_begin (void) const noexcept;
+
+    [[nodiscard]]
+    successors_const_iterator
+    successors_cbegin (void) const noexcept;
+
+    [[nodiscard]]
+    successors_iterator
+    successors_end (void) noexcept;
+
+    [[nodiscard]]
+    successors_const_iterator
+    successors_end (void) const noexcept;
+
+    [[nodiscard]]
+    successors_const_iterator
+    successors_cend (void) const noexcept;
+
+    [[nodiscard]]
+    successors_reverse_iterator
+    successors_rbegin (void) noexcept;
+
+    [[nodiscard]]
+    successors_const_reverse_iterator
+    successors_rbegin (void) const noexcept;
+
+    [[nodiscard]]
+    successors_const_reverse_iterator
+    successors_crbegin (void) const noexcept;
+
+    [[nodiscard]]
+    successors_reverse_iterator
+    successors_rend (void) noexcept;
+
+    [[nodiscard]]
+    successors_const_reverse_iterator
+    successors_rend (void) const noexcept;
+
+    [[nodiscard]]
+    successors_const_reverse_iterator
+    successors_crend (void) const noexcept;
+
+    [[nodiscard]]
+    successors_reference
+    successors_front (void);
+
+    [[nodiscard]]
+    successors_const_reference
+    successors_front (void) const;
+
+    [[nodiscard]]
+    successors_reference
+    successors_back (void);
+
+    [[nodiscard]]
+    successors_const_reference
+    successors_back (void) const;
+
+    [[nodiscard]]
+    successors_size_type
+    num_successors (void) const noexcept;
+
+    [[nodiscard]]
+    bool
+    has_successors (void) const noexcept;
 
     void
     add_successor (ir_static_block_id id);
@@ -593,10 +672,10 @@ namespace gch
     maybe_get_phi (const ir_variable& var) const;
 
   private:
-    ir_static_block_id                  m_id;
-    phi_map_type                        m_phi_nodes;
-    injections_container_type           m_injections;
-    small_vector<ir_static_block_id, 2> m_successors;
+    ir_static_block_id        m_id;
+    phi_map_type              m_phi_nodes;
+    injections_container_type m_injections;
+    successors_container_type m_successors;
   };
 
   class ir_dynamic_block_manager
@@ -729,6 +808,9 @@ namespace gch
     ir_static_use
     create_static_use (const ir_use& use) const;
 
+    ir_static_def_id
+    get_def_id (const ir_def& def) const;
+
   private:
     std::vector<ir_static_variable> m_variables;
     static_variable_map             m_variable_map;
@@ -762,36 +844,6 @@ namespace gch
     dispatch (const ir_component& c);
 
     ir_dynamic_block_manager m_block_manager;
-  };
-
-  class ir_static_module_generator final
-    : public ir_abstract_component_inspector
-  {
-    // dispatch inspector for initial mapping of dynamic blocks to block descriptors
-    // dispatch inspector for discontinuities:
-    //   generate additional static blocks
-    //   resolve determinators
-    // generate instructions
-
-  public:
-    void
-    visit (const ir_block& block) override;
-
-    void
-    visit (const ir_component_fork& fork) override;
-
-    void
-    visit (const ir_component_loop& loop) override;
-
-    void
-    visit (const ir_component_sequence& seq) override;
-
-    void
-    visit (const ir_function& func) override;
-
-  private:
-    nonnull_ptr<ir_function> m_function;
-    ir_static_module         m_static_output;
   };
 
   ir_static_module

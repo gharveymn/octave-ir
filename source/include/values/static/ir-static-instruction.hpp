@@ -121,7 +121,7 @@ namespace gch
   bool
   is_a (const ir_static_instruction& instr) noexcept
   {
-    return instr.get_metadata ().is_a (ir_instruction_metadata_v<BaseOp>);
+    return instr.get_metadata ().is_a (ir_metadata_v<BaseOp>);
   }
 
   [[nodiscard]]

@@ -802,7 +802,7 @@ namespace gch
   template <ir_opcode Op>
   inline constexpr
   ir_instruction_metadata
-  ir_instruction_metadata_v = ir_instruction_metadata::get<Op> ();
+  ir_metadata_v = ir_instruction_metadata::get<Op> ();
 
   constexpr
   ir_instruction_metadata
@@ -812,7 +812,7 @@ namespace gch
     return values[op];
   }
 
-  static_assert (ir_instruction_metadata_v<ir_opcode::ge> == get_metadata (ir_opcode::ge));
+  static_assert (ir_metadata_v<ir_opcode::ge> == get_metadata (ir_opcode::ge));
 
   template <ir_opcode Op>
   struct ir_instruction_traits
@@ -820,7 +820,7 @@ namespace gch
     explicit
     ir_instruction_traits (void) = default;
 
-    static constexpr auto metadata    = ir_instruction_metadata_v<Op>;
+    static constexpr auto metadata    = ir_metadata_v<Op>;
     static constexpr auto opcode      = metadata.get_opcode ();
     static constexpr auto name        = metadata.get_name ();
     static constexpr auto is_abstract = metadata.is_abstract ();
@@ -842,12 +842,12 @@ namespace gch
     template <ir_opcode BaseOp>
     static constexpr
     bool
-    is_a = metadata.is_a (ir_instruction_metadata_v<BaseOp>);
+    is_a = metadata.is_a (ir_metadata_v<BaseOp>);
 
     template <ir_opcode OtherOp>
     static constexpr
     bool
-    is_base_of = metadata.is_base_of (ir_instruction_metadata_v<OtherOp>);
+    is_base_of = metadata.is_base_of (ir_metadata_v<OtherOp>);
 
     template <std::size_t N>
     static constexpr

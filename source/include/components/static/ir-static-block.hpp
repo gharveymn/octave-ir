@@ -8,6 +8,9 @@
 #ifndef OCTAVE_IR_IR_STATIC_BLOCK_HPP
 #define OCTAVE_IR_IR_STATIC_BLOCK_HPP
 
+#include "utilities/ir-utility.hpp"
+#include "values/types/ir-type.hpp"
+
 #include <vector>
 
 namespace gch
@@ -100,6 +103,36 @@ namespace gch
 
   private:
     container_type m_instructions;
+  };
+
+  class ir_static_block_id
+    : public named_type<std::size_t>
+  {
+  public:
+    using named_type<std::size_t>::named_type;
+
+    ir_static_block_id&
+    operator++ (void) noexcept
+    {
+      return *this = ir_static_block_id { static_cast<value_type> (*this) + 1 };
+    }
+
+    ir_static_block_id
+    operator++ (int) noexcept
+    {
+      ir_static_block_id ret { *this };
+      ++(*this);
+      return ret;
+    }
+  };
+
+  inline constexpr ir_static_block_id ir_undefined_block_id { static_cast<std::size_t> (-1) };
+
+  template <>
+  struct ir_type::instance<ir_static_block_id>
+  {
+    using type = ir_static_block_id;
+    static constexpr impl m_impl { create_type<type> ("block_id") };
   };
 
 }

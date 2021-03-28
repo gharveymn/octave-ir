@@ -241,6 +241,13 @@ namespace gch
     return *m_def;
   }
 
+  bool
+  ir_instruction::
+  has_def (void) const noexcept
+  {
+    return get_metadata ().has_def ();
+  }
+
   optional_ref<ir_def>
   ir_instruction::
   maybe_get_def (void) noexcept
@@ -252,15 +259,21 @@ namespace gch
   ir_instruction::
   maybe_get_def (void) const noexcept
   {
-    return as_mutable (*this).maybe_get_def ();
+    return m_def >>= identity { };
   }
 
-  bool
-  ir_instruction::
-  has_def (void) const noexcept
+  ir_def&
+  get_def (ir_instruction& instr) noexcept
   {
-    return get_metadata ().has_def ();
+    return instr.get_def ();
   }
+
+  const ir_def&
+  get_def (const ir_instruction& instr) noexcept
+  {
+    return instr.get_def ();
+  }
+
 
   bool
   has_def (const ir_instruction& instr) noexcept

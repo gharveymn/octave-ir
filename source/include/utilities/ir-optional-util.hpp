@@ -211,6 +211,9 @@ namespace gch
     constexpr
     auto
     maybe_invoke_impl (Optional&& opt, Functor&& f, Args&&... args)
+      noexcept (std::is_nothrow_invocable_v<Functor, just_t<Optional>, Args...>
+            &&  std::is_nothrow_default_constructible_v<
+                  std::invoke_result_t<Functor, just_t<Optional>, Args...>>)
       -> std::enable_if_t<
                std::is_object_v<
                  std::invoke_result_t<Functor, just_t<Optional>, Args...>>
@@ -218,16 +221,17 @@ namespace gch
                  std::invoke_result_t<Functor, just_t<Optional>, Args...>>,
                std::invoke_result_t<Functor, just_t<Optional>, Args...>>
     {
-      using ret_type = std::invoke_result_t<Functor, just_t<Optional>, Args...>;
-      return opt ? gch::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
-                                std::forward<Args> (args)...)
-                 : ret_type ();
+      if (opt)
+        return gch::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
+                            std::forward<Args> (args)...);
+      return std::invoke_result_t<Functor, just_t<Optional>, Args...> ();
     }
 
     template <typename Optional, typename Functor, typename ...Args>
     constexpr
     auto
     maybe_invoke_impl (Optional&& opt, Functor&& f, Args&&... args)
+      noexcept (std::is_nothrow_invocable_v<Functor, just_t<Optional>, Args...>)
       -> std::enable_if_t<
              ! std::is_object_v<
                  std::invoke_result_t<Functor, just_t<Optional>, Args...>>
@@ -236,17 +240,17 @@ namespace gch
            optional_ref<std::remove_reference_t<
              std::invoke_result_t<Functor, just_t<Optional>, Args...>>>>
     {
-      using ret_type = optional_ref<std::remove_reference_t<
-        std::invoke_result_t<Functor, just_t<Optional>, Args...>>>;
-      return opt ? ret_type (gch::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
-                                          std::forward<Args> (args)...))
-                 : ret_type ();
+      if (opt)
+        return optional_ref { gch::invoke (std::forward<Functor> (f), *std::forward<Optional> (opt),
+                                           std::forward<Args> (args)...) };
+      return nullopt;
     }
 
     template <typename Optional, typename Functor, typename ...Args>
     constexpr
     auto
     maybe_invoke_impl (Optional&& opt, Functor&& f, Args&&... args)
+      noexcept (std::is_nothrow_invocable_v<Functor, just_t<Optional>, Args...>)
       -> std::enable_if_t<
              ! std::is_object_v<
                  std::invoke_result_t<Functor, just_t<Optional>, Args...>>

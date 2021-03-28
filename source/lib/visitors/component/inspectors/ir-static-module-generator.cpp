@@ -226,7 +226,7 @@ namespace gch
         if (dt->has_local_timelines ())
         {
           ir_block_descriptor& desc      = m_block_manager[block];
-          ir_instruction_citer instr_pos = dt->local_front ().get_def_pos ();
+          ir_instruction_citer instr_pos = std::next (dt->local_front ().get_def_pos ());
           ir_instruction_citer first     = block.begin<ir_block::range::body> ();
           auto                 pos       = find_first_injection_after (*instr_pos, desc, first);
 
@@ -660,7 +660,7 @@ namespace gch
     void
     visit (const ir_function& func) override
     {
-      m_result = ir_static_def_id { 0 };
+      m_result = ir_static_def_id { 0U };
     }
 
   private:
@@ -1301,7 +1301,7 @@ namespace gch
                        }
                      });
 
-      if (origin >>= [&](ir_def_reference& dr) { return &*dr == &phi_def; })
+      if (origin >>= [&](ir_def_reference& dr) noexcept { return &*dr == &phi_def; })
       {
         m_block_manager[block].add_phi_node (var, m_origin_map.def_id (phi_def),
                                              std::move (incoming_pairs));
@@ -1332,7 +1332,7 @@ namespace gch
         descriptor.emplace_branch (pos, instr_pos, det_id, continue_block_id, terminal_block_id);
 
         // we have determined the def, so set state to false
-        origin >>= [](ir_def_reference& dr) { dr.set_indeterminate_state (false); };
+        origin >>= [](ir_def_reference& dr) noexcept { dr.set_indeterminate_state (false); };
       }
 
       return origin;
@@ -1361,27 +1361,25 @@ namespace gch
   ir_static_block&
   generate_determined_uninit_terminator (ir_static_block& block, const ir_static_variable&)
   {
-    block.push_back ({ ir_instruction_metadata_v<ir_opcode::terminate> });
+    block.push_back ({ ir_metadata_v<ir_opcode::terminate> });
     return block;
   }
 
   static
-  ir_static_module
-  process_block_descriptors (std::string_view                name,
-                             ir_processed_id                 id,
-                             const ir_dynamic_block_manager& block_manager,
-                             ir_static_variable_map&&        var_map)
+  std::vector<ir_static_block>
+  process_block_descriptors (const ir_dynamic_block_manager& block_manager,
+                             const ir_static_variable_map&   var_map)
   {
     std::vector<ir_static_block>       sblocks (block_manager.total_num_blocks ());
     small_vector<ir_static_operand, 2> args;
 
     std::for_each (block_manager.begin (), block_manager.end (), applied {
-      [&](nonnull_cptr<ir_block> block, const ir_block_descriptor& desc)
+      [&](nonnull_cptr<ir_block> block, const ir_block_descriptor& descriptor)
       {
-        nonnull_ptr<ir_static_block> curr_sblock { sblocks[desc.get_id ()] };
+        nonnull_ptr<ir_static_block> curr_sblock { sblocks[descriptor.get_id ()] };
 
         // create phi instructions
-        std::transform (desc.phi_map_begin (), desc.phi_map_end (),
+        std::transform (descriptor.phi_map_begin (), descriptor.phi_map_end (),
                         std::back_inserter (*curr_sblock), applied {
           [&](nonnull_cptr<ir_variable> var, const ir_resolved_phi_node& phi)
             -> ir_static_instruction
@@ -1397,43 +1395,77 @@ namespace gch
                              args.emplace_back (svar, pair.get_def_id ());
                            });
 
-            return { ir_instruction_metadata_v<ir_opcode::phi>,
+            return { ir_metadata_v<ir_opcode::phi>,
                      phi_def,
                      std::exchange (args, { }) };
-          }
-        });
+          } });
 
-        auto instruction_generator = [&](const ir_instruction& instr)
-                                     {
-                                       curr_sblock->append_instruction (instr, var_map);
-                                     };
+        auto generate_subrange =
+          [&](ir_instruction_citer first, ir_instruction_citer last)
+          {
+            std::for_each (first, last, [&](const ir_instruction& instr)
+                                        {
+                                          curr_sblock->append_instruction (instr, var_map);
+                                        });
+          };
 
         // create body instructions
         auto curr_first = block->begin<ir_block::range::body> ();
-        for (auto inj = desc.injections_begin (); inj != desc.injections_end (); ++inj)
-        {
-          auto next = inj->get_pos ();
-          std::for_each (curr_first, next, instruction_generator);
-
-          curr_sblock->push_back (inj->generate_instruction ());
-          if (inj->is_branch ())
+        std::for_each (descriptor.injections_begin (), descriptor.injections_end (),
+          [&](const ir_determinator_injection& inj)
           {
-            // generate terminator block
-            generate_determined_uninit_terminator (sblocks[inj->get_terminal_path_id ()],
-                                                   var_map[inj->get_variable ()]);
+            generate_subrange (curr_first, inj.get_pos ());
 
-            // switch to continuing block
-            curr_sblock.emplace (sblocks[inj->get_continue_path_id ()]);
-          }
-          curr_first = next;
+            curr_sblock->push_back (inj.generate_instruction ());
+            if (inj.is_branch ())
+            {
+              // generate terminator block
+              generate_determined_uninit_terminator (sblocks[inj.get_terminal_path_id ()],
+                                                     var_map[inj.get_variable ()]);
+
+              // switch to continuing block
+              curr_sblock.emplace (sblocks[inj.get_continue_path_id ()]);
+            }
+            curr_first = inj.get_pos ();
+          });
+
+        generate_subrange (curr_first, block->end<ir_block::range::body> ());
+
+        assert (args.empty ());
+
+        if (! descriptor.has_successors ())
+          curr_sblock->push_back (ir_static_instruction { ir_metadata_v<ir_opcode::terminate> });
+        else if (descriptor.num_successors () == 1)
+        {
+          // unconditional branch
+          curr_sblock->push_back ({ ir_metadata_v<ir_opcode::ucbranch>,
+                                    { ir_constant { descriptor.successors_front () } } });
         }
+        else
+        {
+          // conditional branch
+          assert (! block->empty<ir_block::range::body> ());
 
-        std::for_each (curr_first, block->end<ir_block::range::body> (), instruction_generator);
+          assert ((maybe_get_def (block->back<ir_block::range::body> ()) >>=
+                     [](const ir_def& def) noexcept { return def.get_type () == ir_type_v<int>; }));
 
-      }
-    });
+          const ir_instruction&     last_instr  = block->back<ir_block::range::body> ();
+          const ir_def&             last_def    = get_def (last_instr);
+          const ir_variable&        last_var    = last_def.get_variable ();
+          const ir_static_variable& last_svar   = var_map[last_var];
+          ir_static_def_id          last_def_id = var_map.get_def_id (last_def);
 
-    return { name, id, std::move (sblocks), var_map.release_variables () };
+          args.emplace_back (last_svar, last_def_id);
+
+          std::transform (descriptor.successors_begin (), descriptor.successors_end (),
+                          std::back_inserter (args),
+                          [](ir_static_block_id id) { return ir_constant { id }; });
+
+          curr_sblock->push_back ({ ir_metadata_v<ir_opcode::cbranch>, std::exchange (args, { })});
+        }
+      } });
+
+    return sblocks;
   }
 
   ir_static_module
@@ -1441,11 +1473,11 @@ namespace gch
   {
     ir_dynamic_block_manager block_manager { ir_dynamic_block_manager_builder { } (c) };
     set_successor_ids (block_manager);
-    ir_static_variable_map var_map = resolve_defs (block_manager, c);
-    return process_block_descriptors ("hi",
-                                      ir_processed_id { },
-                                      block_manager,
-                                      std::move (var_map));
+
+    ir_static_variable_map       var_map (resolve_defs (block_manager, c));
+    std::vector<ir_static_block> sblocks (process_block_descriptors (block_manager, var_map));
+
+    return { get_name (c), ir_processed_id { }, std::move (sblocks), var_map.release_variables () };
   }
 
 }

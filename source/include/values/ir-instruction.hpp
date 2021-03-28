@@ -338,16 +338,16 @@ namespace gch
     get_def (void) const noexcept;
 
     [[nodiscard]]
+    bool
+    has_def (void) const noexcept;
+
+    [[nodiscard]]
     optional_ref<ir_def>
     maybe_get_def (void) noexcept;
 
     [[nodiscard]]
     optional_cref<ir_def>
     maybe_get_def (void) const noexcept;
-
-    [[nodiscard]]
-    bool
-    has_def (void) const noexcept;
 
   private:
     metadata_t            m_metadata;
@@ -360,8 +360,16 @@ namespace gch
   bool
   is_a (const ir_instruction& instr) noexcept
   {
-    return instr.get_metadata ().is_a (ir_instruction_metadata_v<BaseOp>);
+    return instr.get_metadata ().is_a (ir_metadata_v<BaseOp>);
   }
+
+  [[nodiscard]]
+  ir_def&
+  get_def (ir_instruction& instr) noexcept;
+
+  [[nodiscard]]
+  const ir_def&
+  get_def (const ir_instruction& instr) noexcept;
 
   [[nodiscard]]
   bool

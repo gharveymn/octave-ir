@@ -276,7 +276,7 @@ namespace gch
   //////////
   // void //
   //////////
-  // This is the unit type; the only type which is not a descendent of 'any'.
+  // This is the unit type; the only type which is not a descendant of 'any'.
 
   struct unit { };
 

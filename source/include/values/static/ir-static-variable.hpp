@@ -22,7 +22,7 @@ namespace gch
   public:
     ir_static_variable            (void)                          = delete;
     ir_static_variable            (const ir_static_variable&)     = delete;
-    ir_static_variable            (ir_static_variable&&) noexcept = delete;
+    ir_static_variable            (ir_static_variable&&) noexcept = default;
     ir_static_variable& operator= (const ir_static_variable&)     = delete;
     ir_static_variable& operator= (ir_static_variable&&) noexcept = delete;
     ~ir_static_variable           (void)                          = default;
