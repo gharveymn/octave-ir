@@ -115,8 +115,9 @@ namespace gch
         [[fallthrough]];
       case id::update:
         return ascend (loop);
+      default:
+        abort<reason::impossible> ();
     }
-    abort<reason::impossible> ();
   }
 
   auto

@@ -43,8 +43,9 @@ namespace gch
 
   inline constexpr ir_static_def_id ir_undefined_def_id { static_cast<std::size_t> (-1) };
 
-  struct ir_static_def
+  class ir_static_def
   {
+  public:
     ir_static_def            (void)                     = delete;
     ir_static_def            (const ir_static_def&)     = default;
     ir_static_def            (ir_static_def&&) noexcept = default;

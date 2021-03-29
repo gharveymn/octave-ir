@@ -22,16 +22,12 @@ namespace gch
   ir_instruction::
   ir_instruction (ir_instruction&& other) noexcept
     : m_metadata (other.m_metadata),
-      m_def (other.m_def ? std::optional<ir_def> (std::in_place, *this, std::move (*other.m_def))
-                         : std::nullopt),
+      m_def      (std::move (other.m_def)),
       m_args     (std::move (other.m_args))
   {
-    std::for_each (m_args.begin (), m_args.end (),
-                   [this](ir_operand& arg)
-                   {
-                     maybe_get<ir_use> (arg) >>= [this](ir_use& u) noexcept
-                                                 { u.set_instruction (*this); };
-                   });
+    m_def >>= [&](ir_def& def) noexcept { def.set_instruction (*this); };
+    for (ir_operand& arg : m_args)
+      maybe_get<ir_use> (arg) >>= [&](ir_use& use) noexcept { use.set_instruction (*this); };
   }
 
   ir_instruction&
@@ -213,12 +209,8 @@ namespace gch
   set_args (args_container_type&& args)
   {
     m_args = std::move (args);
-    std::for_each (m_args.begin (), m_args.end (),
-                   [this](ir_operand& arg)
-                   {
-                     maybe_get<ir_use> (arg) >>= [&](ir_use& use) noexcept
-                                                 { use.set_instruction (*this); };
-                   });
+    for (ir_operand& arg : m_args)
+      maybe_get<ir_use> (arg) >>= [&](ir_use& use) noexcept { use.set_instruction (*this); };
   }
 
   auto

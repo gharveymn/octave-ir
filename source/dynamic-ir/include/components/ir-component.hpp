@@ -1,24 +1,9 @@
-/*
-
-Copyright (C) 2019 Gene Harvey
-
-This file is part of Octave.
-
-Octave is free software: you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-Octave is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with Octave; see the file COPYING.  If not, see
-<https://www.gnu.org/licenses/>.
-
-*/
+/** ir-component.hpp
+ * Copyright © 2021 Gene Harvey
+ *
+ * This software may be modified and distributed under the terms
+ * of the MIT license. See the LICENSE file for details.
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef OCTAVE_IR_IR_COMPONENT_HPP
 #define OCTAVE_IR_IR_COMPONENT_HPP
@@ -159,7 +144,8 @@ namespace gch
   ir_link_set<ir_block>
   copy_leaves (const ir_block& b);
 
-  template <typename ...Components>
+  template <typename ...Components,
+            std::enable_if_t<(1 < sizeof...(Components))> * = nullptr>
   [[nodiscard]] inline
   ir_link_set<ir_block>
   copy_leaves (Components&&... components)

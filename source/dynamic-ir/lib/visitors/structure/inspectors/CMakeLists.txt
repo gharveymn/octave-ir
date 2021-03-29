@@ -1,4 +1,5 @@
 OCTAVE_IR_ADD_SOURCES (
+  ir-abstract-structure-inspector.cpp
   ir-entry-collector.cpp
   ir-leaf-inspector.cpp
   ir-predecessor-collector.cpp

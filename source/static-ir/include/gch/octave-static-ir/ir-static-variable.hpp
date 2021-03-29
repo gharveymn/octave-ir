@@ -1,4 +1,4 @@
-/** ir-static-variable.hpp.h
+/** ir-static-variable.hpp
  * Copyright © 2021 Gene Harvey
  *
  * This software may be modified and distributed under the terms
@@ -11,6 +11,8 @@
 #include "gch/octave-static-ir/ir-static-def.hpp"
 
 #include <gch/small_vector.hpp>
+
+#include <string>
 
 namespace gch
 {
@@ -36,6 +38,10 @@ namespace gch
     [[nodiscard]]
     ir_type
     get_type (void) const noexcept;
+
+    [[nodiscard]]
+    std::size_t
+    get_num_defs (void) const noexcept;
 
   private:
     const std::string m_name;

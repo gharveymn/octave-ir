@@ -17,9 +17,10 @@ namespace gch
   ir_static_module::
   ir_static_module (std::string_view name, ir_processed_id id, container_type&& blocks,
                     std::vector<ir_static_variable>&& vars)
-    : m_name   (name),
-      m_id     (id),
-      m_blocks (std::move (blocks))
+    : m_name      (name),
+      m_id        (id),
+      m_blocks    (std::move (blocks)),
+      m_variables (std::move (vars))
   { }
 
   auto

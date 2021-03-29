@@ -16,6 +16,13 @@ namespace gch
     : public abstract_mutator<Types>...
   {
   public:
+    abstract_mutator            (void)                        = default;
+    abstract_mutator            (const abstract_mutator&)     = default;
+    abstract_mutator            (abstract_mutator&&) noexcept = default;
+    abstract_mutator& operator= (const abstract_mutator&)     = default;
+    abstract_mutator& operator= (abstract_mutator&&) noexcept = default;
+    ~abstract_mutator           (void) override               = 0;
+
     using abstract_mutator<Types>::visit...;
   };
 
@@ -32,7 +39,7 @@ namespace gch
 
     virtual
     void
-    visit (T&) = 0;
+    visit (const T&) = 0;
   };
 
 }

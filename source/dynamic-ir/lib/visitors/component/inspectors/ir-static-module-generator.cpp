@@ -644,7 +644,7 @@ namespace gch
     }
 
     void
-    visit (const ir_function& func) override
+    visit (const ir_function&) override
     {
       m_result = ir_static_def_id { 0U };
     }

@@ -28,7 +28,7 @@ namespace gch
 
     ir_def            (void)                = delete;
     ir_def            (const ir_def&)       = delete;
-    ir_def            (ir_def&& d) noexcept = delete;
+    ir_def            (ir_def&& d) noexcept = default;
 //  ir_def& operator= (const ir_def&)       = impl;
 //  ir_def& operator= (ir_def&&)   noexcept = impl;
     ~ir_def           (void)                = default;

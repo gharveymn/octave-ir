@@ -7,7 +7,17 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-int main (void)
+#include "gch/octave-ir-compiler.hpp"
+
+namespace gch
+{
+
+
+
+}
+
+int
+main (void)
 {
   return 0;
 }

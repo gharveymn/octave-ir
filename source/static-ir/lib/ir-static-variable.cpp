@@ -33,4 +33,11 @@ namespace gch
     return m_type;
   }
 
+  std::size_t
+  ir_static_variable::
+  get_num_defs (void) const noexcept
+  {
+    return m_num_defs;
+  }
+
 }

@@ -22,15 +22,7 @@ namespace gch
                                 ir_component_loop,
                                 ir_component_sequence,
                                 ir_function>
-  {
-  public:
-    ir_abstract_component_inspector            (void)                                       = default;
-    ir_abstract_component_inspector            (const ir_abstract_component_inspector&)     = default;
-    ir_abstract_component_inspector            (ir_abstract_component_inspector&&) noexcept = default;
-    ir_abstract_component_inspector& operator= (const ir_abstract_component_inspector&)     = default;
-    ir_abstract_component_inspector& operator= (ir_abstract_component_inspector&&) noexcept = default;
-    ~ir_abstract_component_inspector           (void) override                              = 0;
-  };
+  { };
 
 }
 

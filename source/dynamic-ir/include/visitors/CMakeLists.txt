@@ -1,4 +1,6 @@
 OCTAVE_IR_ADD_HEADERS (
+  ir-abstract-inspector.hpp
+  ir-abstract-mutator.hpp
   ir-all-component-visitors.hpp
   ir-all-structure-visitors.hpp
   ir-all-subcomponent-visitors.hpp

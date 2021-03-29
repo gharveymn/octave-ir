@@ -43,7 +43,7 @@ namespace gch
   template struct ir_type::instance<wchar_t *>;
   template struct ir_type::instance<char32_t *>;
   template struct ir_type::instance<char16_t *>;
-#if __cpp_char8_t >= 201811L
+#if defined (__cpp_char8_t) && __cpp_char8_t >= 201811L
   template struct ir_type::instance<char8_t *>;
 #endif
   template struct ir_type::instance<bool *>;
