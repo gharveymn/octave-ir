@@ -7,7 +7,7 @@
 
 #include "doctest/doctest.h"
 
-#include "utilities/ir-link-set.hpp"
+#include "gch/octave-ir-utilities/ir-link-set.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 

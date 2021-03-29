@@ -1,21 +1,16 @@
-SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-SET(TEST_NAME scratch)
-SET(SOURCE_FILES scratch.cpp
-    ../../utilities/lib/ir-link-set.cpp)
-
-SET(TARGET_VERSIONS 17 20)
+IF (NOT CREATE_PACKAGE_VERSION VERSION_GREATER_EQUAL 0.0.5)
+  IF (NOT EXISTS "${PROJECT_SOURCE_DIR}/external/create-package/cmake/create-package.cmake")
+    MESSAGE (STATUS "Initializing create-package-0.0.5 in git submodule.")
+    EXECUTE_PROCESS (COMMAND git submodule --quiet update --init -- "${PROJECT_SOURCE_DIR}/external/create-package"
+                     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  ENDIF ()
+  INCLUDE ("${PROJECT_SOURCE_DIR}/external/create-package/cmake/create-package.cmake")
+ENDIF ()
 
 SET(COMPILE_OPTS)
 SET(LINK_OPTS)
-SET(LINK_LIBS optional_ref
-              plf_list
-              tracker
-              nonnull_ptr
-              small_vector)
-SET(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/source/include)
 
-IF (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+IF (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 
   LIST (APPEND
         COMPILE_OPTS -ftime-trace
@@ -46,7 +41,7 @@ IF (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
 
   ENDIF ()
 
-ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 
   # GCC options
 
@@ -76,12 +71,12 @@ ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
                      -Wundef
                      -Wno-unused)
 
-ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL MSVC)
+ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
   # MSVC options
 
   LIST (APPEND
-        COMPILE_OPTS /W4)
+        COMPILE_OPTS /W4 /wd4250)
 
 ENDIF ()
 
@@ -96,18 +91,31 @@ IF (UNIX
 
 ENDIF ()
 
-FOREACH (version ${TARGET_VERSIONS})
-  SET(target_name ${TEST_NAME}.test.c++${version})
-  ADD_EXECUTABLE(${target_name} ${SOURCE_FILES})
+CREATE_PACKAGE (AUTHOR       gharveymn
+                NAMESPACE    gch
+                NAME         octave-ir-utilities
+                TYPE         STATIC
 
-  TARGET_INCLUDE_DIRECTORIES(${target_name} PRIVATE ${INCLUDE_DIRS})
+                HEADERS      ir-allocator-util.hpp
+                             ir-common.hpp
+                             ir-error.hpp
+                             ir-functional.hpp
+                             ir-index-sequence-map.hpp
+                             ir-iterator.hpp
+                             ir-link-set.hpp
+                             ir-optional-util.hpp
+                             ir-type-traits.hpp
+                             ir-utility.hpp
 
-  TARGET_COMPILE_OPTIONS(${target_name} PRIVATE ${COMPILE_OPTS})
-  TARGET_LINK_OPTIONS   (${target_name} PRIVATE ${LINK_OPTS})
-  TARGET_LINK_LIBRARIES (${target_name} PRIVATE ${LINK_LIBS})
+                SOURCES      ir-error.cpp
+                             ir-link-set.cpp
+                             ir-utility.cpp
 
-  SET_TARGET_PROPERTIES (${target_name}
-                         PROPERTIES CXX_STANDARD          ${version}
-                                    CXX_STANDARD_REQUIRED NO
-                                    CXX_EXTENSIONS        NO)
-ENDFOREACH ()
+                DEPENDENCIES nonnull_ptr
+                             optional_ref
+                             small_vector)
+
+SET_TARGET_PROPERTIES (octave-ir-utilities
+                       PROPERTIES CXX_STANDARD          17
+                                  CXX_STANDARD_REQUIRED NO
+                                  CXX_EXTENSIONS        NO)
