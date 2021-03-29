@@ -13,24 +13,24 @@ ENDIF ()
 
 # Options
 IF (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-  OPTION (GCH_OCTAVE_IR_BUILD_TESTS "Set to ON to build tests" ON)
+  OPTION (OCTAVE_IR_BUILD_TESTS "Set to ON to build tests" ON)
 ELSE ()
-  OPTION (GCH_OCTAVE_IR_BUILD_TESTS "Set to ON to build tests" OFF)
+  OPTION (OCTAVE_IR_BUILD_TESTS "Set to ON to build tests" OFF)
 ENDIF ()
 
-OPTION (GCH_USE_LIBCXX_WITH_CLANG         "Set to ON to use libc++ when compiling with Clang" OFF)
+OPTION (GCH_USE_LIBCXX_WITH_CLANG     "Set to ON to use libc++ when compiling with Clang" OFF)
 
-OPTION (GCH_OCTAVE_IR_BUILD_DYNAMIC_IR    "Set to ON to build gch::octave-dynamic-ir"         ON)
-OPTION (GCH_OCTAVE_IR_BUILD_STATIC_IR     "Set to ON to build gch::octave-static-ir"          ON)
-OPTION (GCH_OCTAVE_IR_BUILD_IR_COMPILER   "Set to ON to build gch::octave-ir-compiler"        ON)
-OPTION (GCH_OCTAVE_IR_BUILD_LLVM_COMPILER "Set to ON to build gch::octave-ir-llvm-compiler"   ON)
+OPTION (OCTAVE_IR_BUILD_DYNAMIC_IR    "Set to ON to build gch::octave-dynamic-ir"         ON)
+OPTION (OCTAVE_IR_BUILD_STATIC_IR     "Set to ON to build gch::octave-static-ir"          ON)
+OPTION (OCTAVE_IR_BUILD_IR_COMPILER   "Set to ON to build gch::octave-ir-compiler"        ON)
+OPTION (OCTAVE_IR_BUILD_LLVM_COMPILER "Set to ON to build gch::octave-ir-llvm-compiler"   ON)
 
-IF (GCH_OCTAVE_IR_BUILD_DYNAMIC_IR OR GCH_OCTAVE_IR_BUILD_IR_COMPILER)
-  SET (GCH_OCTAVE_IR_BUILD_STATIC_IR ON)
+IF (OCTAVE_IR_BUILD_DYNAMIC_IR OR OCTAVE_IR_BUILD_IR_COMPILER)
+  SET (OCTAVE_IR_BUILD_STATIC_IR ON)
 ENDIF ()
 
-IF (GCH_OCTAVE_IR_BUILD_LLVM_COMPILER)
-  SET (GCH_OCTAVE_IR_BUILD_COMPILER ON)
+IF (OCTAVE_IR_BUILD_LLVM_COMPILER)
+  SET (OCTAVE_IR_BUILD_COMPILER ON)
 ENDIF ()
 
 ADD_SUBDIRECTORY (source)

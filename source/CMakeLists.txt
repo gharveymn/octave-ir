@@ -96,22 +96,22 @@ ENDIF ()
 # Always build octave-ir-utilities
 ADD_SUBDIRECTORY (utilities)
 
-IF (GCH_OCTAVE_IR_BUILD_STATIC_IR)
+IF (OCTAVE_IR_BUILD_STATIC_IR)
   MESSAGE (STATUS "Generating build files for gch::octave-static-ir")
   ADD_SUBDIRECTORY (static-ir)
 ENDIF ()
 
-IF (GCH_OCTAVE_IR_BUILD_DYNAMIC_IR)
+IF (OCTAVE_IR_BUILD_DYNAMIC_IR)
   MESSAGE (STATUS "Generating build files for gch::octave-dynamic-ir")
   ADD_SUBDIRECTORY (dynamic-ir)
 ENDIF ()
 
-IF (GCH_OCTAVE_IR_BUILD_IR_COMPILER)
+IF (OCTAVE_IR_BUILD_IR_COMPILER)
   MESSAGE (STATUS "Generating build files for gch::octave-ir-compiler")
   ADD_SUBDIRECTORY (compiler)
 ENDIF ()
 
-IF (GCH_OCTAVE_IR_BUILD_TESTS)
+IF (OCTAVE_IR_BUILD_TESTS)
   MESSAGE (STATUS "Building tests for gch::octave-ir.")
   ADD_SUBDIRECTORY (test)
 ENDIF ()
