@@ -7,19 +7,19 @@
 
 #include "visitors/component/inspectors/ir-static-module-generator.hpp"
 
-#include "gch/octave-static-ir/ir-static-block.hpp"
-#include "gch/octave-static-ir/ir-static-module.hpp"
+#include "gch/octave-ir-static-ir/ir-static-block.hpp"
+#include "gch/octave-ir-static-ir/ir-static-module.hpp"
 #include "components/ir-all-components.hpp"
 
 #include "gch/octave-ir-utilities/ir-error.hpp"
 #include "gch/octave-ir-utilities/ir-index-sequence-map.hpp"
 
-#include "gch/octave-static-ir/ir-constant.hpp"
-#include "gch/octave-static-ir/ir-static-def.hpp"
-#include "gch/octave-static-ir/ir-static-instruction.hpp"
-#include "gch/octave-static-ir/ir-static-operand.hpp"
-#include "gch/octave-static-ir/ir-static-use.hpp"
-#include "gch/octave-static-ir/ir-static-variable.hpp"
+#include "gch/octave-ir-static-ir/ir-constant.hpp"
+#include "gch/octave-ir-static-ir/ir-static-def.hpp"
+#include "gch/octave-ir-static-ir/ir-static-instruction.hpp"
+#include "gch/octave-ir-static-ir/ir-static-operand.hpp"
+#include "gch/octave-ir-static-ir/ir-static-use.hpp"
+#include "gch/octave-ir-static-ir/ir-static-variable.hpp"
 
 #include "visitors/structure/inspectors/utility/ir-subcomponent-inspector.hpp"
 #include "visitors/structure/inspectors/ir-abstract-structure-inspector.hpp"

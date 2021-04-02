@@ -8,7 +8,7 @@
 #ifndef OCTAVE_IR_OCTAVE_IR_COMPILER_HPP
 #define OCTAVE_IR_OCTAVE_IR_COMPILER_HPP
 
-#include "gch/octave-static-ir/ir-static-module.hpp"
+#include "gch/octave-ir-static-ir/ir-static-module.hpp"
 
 #include <filesystem>
 

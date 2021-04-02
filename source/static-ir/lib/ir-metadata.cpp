@@ -5,7 +5,7 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "gch/octave-static-ir/ir-metadata.hpp"
+#include "gch/octave-ir-static-ir/ir-metadata.hpp"
 
 namespace gch
 {

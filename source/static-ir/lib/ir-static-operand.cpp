@@ -5,7 +5,7 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "gch/octave-static-ir/ir-static-operand.hpp"
+#include "gch/octave-ir-static-ir/ir-static-operand.hpp"
 
 #include "gch/octave-ir-utilities/ir-common.hpp"
 
@@ -165,6 +165,12 @@ namespace gch
   get_type (const ir_static_operand& op) noexcept
   {
     return op.get_type ();
+  }
+
+  std::ostream&
+  operator<< (std::ostream& out, const ir_static_operand& operand)
+  {
+    return visit ([&](const auto& x) { return std::ref (out << x); }, operand);
   }
 
 }

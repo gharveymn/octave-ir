@@ -8,8 +8,10 @@
 #ifndef OCTAVE_IR_IR_STATIC_OPERAND_HPP
 #define OCTAVE_IR_IR_STATIC_OPERAND_HPP
 
-#include "gch/octave-static-ir/ir-static-use.hpp"
-#include "gch/octave-static-ir/ir-constant.hpp"
+#include "gch/octave-ir-static-ir/ir-static-use.hpp"
+#include "gch/octave-ir-static-ir/ir-constant.hpp"
+
+#include <iosfwd>
 
 namespace gch
 {
@@ -101,6 +103,36 @@ namespace gch
   [[nodiscard]]
   ir_type
   get_type (const ir_static_operand& op) noexcept;
+
+  template <typename Visitor>
+  decltype (auto)
+  visit (Visitor&& vis, const ir_static_operand& op)
+  {
+    if (optional_ref constant { maybe_get_constant (op) })
+      return std::invoke (std::forward<Visitor> (vis), *constant);
+    return std::invoke (std::forward<Visitor> (vis), get_use (op));
+  }
+
+  template <typename Result, typename Visitor>
+  std::enable_if_t<std::is_same_v<void, std::remove_cv_t<Result>>, Result>
+  visit (Visitor&& vis, const ir_static_operand& op)
+  {
+    if (optional_ref constant { maybe_get_constant (op) })
+      std::invoke (std::forward<Visitor> (vis), *constant);
+    std::invoke (std::forward<Visitor> (vis), get_use (op));
+  }
+
+  template <typename Result, typename Visitor>
+  std::enable_if_t<! std::is_same_v<void, std::remove_cv_t<Result>>, Result>
+  visit (Visitor&& vis, const ir_static_operand& op)
+  {
+    if (optional_ref constant { maybe_get_constant (op) })
+      return std::invoke (std::forward<Visitor> (vis), *constant);
+    return std::invoke (std::forward<Visitor> (vis), get_use (op));
+  }
+
+  std::ostream&
+  operator<< (std::ostream& out, const ir_static_operand& operand);
 
 }
 

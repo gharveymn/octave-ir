@@ -8,7 +8,7 @@
 #ifndef OCTAVE_IR_IR_OPERAND_HPP
 #define OCTAVE_IR_IR_OPERAND_HPP
 
-#include "gch/octave-static-ir/ir-constant.hpp"
+#include "gch/octave-ir-static-ir/ir-constant.hpp"
 #include "values/ir-use.hpp"
 
 #include <gch/optional_ref.hpp>

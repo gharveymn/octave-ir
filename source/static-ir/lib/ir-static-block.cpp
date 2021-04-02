@@ -5,9 +5,12 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "gch/octave-static-ir/ir-static-block.hpp"
+#include "gch/octave-ir-static-ir/ir-static-block.hpp"
 
-#include "gch/octave-static-ir/ir-static-instruction.hpp"
+#include "gch/octave-ir-static-ir/ir-static-instruction.hpp"
+
+#include <numeric>
+#include <ostream>
 
 namespace gch
 {
@@ -73,6 +76,21 @@ namespace gch
   empty (void) const noexcept
   {
     return m_instructions.empty ();
+  }
+
+  auto
+  ir_static_block::
+  operator[] (size_type n) const
+    -> const_reference
+  {
+    return m_instructions[n];
+  }
+
+  std::ostream&
+  operator<< (std::ostream& out, const ir_static_block& block)
+  {
+    return std::accumulate (std::next (block.begin ()), block.end (), std::ref (out << block[0]),
+                            [](std::ostream& o, auto& i) { return std::ref (o << '\n' << i); });
   }
 
 }

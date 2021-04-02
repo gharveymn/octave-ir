@@ -31,10 +31,10 @@ along with Octave; see the file COPYING.  If not, see
 #include "gch/octave-ir-utilities/ir-allocator-util.hpp"
 #include "gch/octave-ir-utilities/ir-utility.hpp"
 
-#include "gch/octave-static-ir/ir-type.hpp"
+#include "gch/octave-ir-static-ir/ir-type.hpp"
 #include "values/ir-instruction.hpp"
 #include "values/ir-instruction-fwd.hpp"
-#include "gch/octave-static-ir/ir-constant.hpp"
+#include "gch/octave-ir-static-ir/ir-constant.hpp"
 #include "values/ir-use-timeline.hpp"
 
 #include "visitors/subcomponent/ir-subcomponent-visitors-fwd.hpp"

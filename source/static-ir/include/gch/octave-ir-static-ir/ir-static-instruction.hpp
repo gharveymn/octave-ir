@@ -8,13 +8,14 @@
 #ifndef OCTAVE_IR_IR_STATIC_INSTRUCTION_HPP
 #define OCTAVE_IR_IR_STATIC_INSTRUCTION_HPP
 
-#include "gch/octave-static-ir/ir-static-def.hpp"
-#include "gch/octave-static-ir/ir-static-operand.hpp"
-#include "gch/octave-static-ir/ir-metadata.hpp"
+#include "gch/octave-ir-static-ir/ir-static-def.hpp"
+#include "gch/octave-ir-static-ir/ir-static-operand.hpp"
+#include "gch/octave-ir-static-ir/ir-metadata.hpp"
 
 #include <gch/optional_ref.hpp>
 #include <gch/small_vector.hpp>
 
+#include <iosfwd>
 #include <optional>
 
 namespace gch
@@ -102,6 +103,18 @@ namespace gch
     empty (void) const noexcept;
 
     [[nodiscard]]
+    size_type
+    num_args (void) const noexcept;
+
+    [[nodiscard]]
+    bool
+    has_args (void) const noexcept;
+
+    [[nodiscard]]
+    const_reference
+    operator[] (size_type n) const;
+
+    [[nodiscard]]
     metadata_t
     get_metadata (void) const noexcept;
 
@@ -126,6 +139,9 @@ namespace gch
   [[nodiscard]]
   bool
   has_def (const ir_static_instruction& instr) noexcept;
+
+  std::ostream&
+  operator<< (std::ostream& out, const ir_static_instruction& instr);
 
 }
 

@@ -140,6 +140,11 @@ namespace gch
       : std::integral_constant<std::size_t, sizeof...(Ts)>
     { };
 
+    template <template <auto ...> typename PackT, auto ...Vs>
+    struct pack_size_impl<PackT<Vs...>>
+      : std::integral_constant<std::size_t, sizeof...(Vs)>
+    { };
+
     template <std::size_t I, typename Pack>
     struct pack_select_impl
     { };

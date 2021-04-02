@@ -5,10 +5,12 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "gch/octave-static-ir/ir-static-use.hpp"
+#include "gch/octave-ir-static-ir/ir-static-use.hpp"
 
-#include "gch/octave-static-ir/ir-static-def.hpp"
-#include "gch/octave-static-ir/ir-static-variable.hpp"
+#include "gch/octave-ir-static-ir/ir-static-def.hpp"
+#include "gch/octave-ir-static-ir/ir-static-variable.hpp"
+
+#include <ostream>
 
 namespace gch
 {
@@ -45,6 +47,12 @@ namespace gch
   get_type (void) const noexcept
   {
     return get_variable ().get_type ();
+  }
+
+  std::ostream&
+  operator<< (std::ostream& out, const ir_static_use& use)
+  {
+    return out << use.get_variable_name () << use.get_def_id ();
   }
 
 }

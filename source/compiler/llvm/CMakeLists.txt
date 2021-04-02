@@ -22,5 +22,5 @@ SET_TARGET_PROPERTIES (octave-ir-llvm-compiler
                                   CXX_STANDARD_REQUIRED NO
                                   CXX_EXTENSIONS        NO)
 
-SET_PROPERTY (GLOBAL APPEND PROPERTY OCTAVE_IR_LIBS octave-ir-llvm-compiler)
+#SET_PROPERTY (GLOBAL APPEND PROPERTY OCTAVE_IR_LIBS octave-ir-llvm-compiler)
 

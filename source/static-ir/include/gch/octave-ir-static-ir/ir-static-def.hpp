@@ -9,10 +9,11 @@
 #define OCTAVE_IR_IR_STATIC_DEF_HPP
 
 #include "gch/octave-ir-utilities/ir-utility.hpp"
-#include "gch/octave-static-ir/ir-type.hpp"
+#include "gch/octave-ir-static-ir/ir-type.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 
+#include <iosfwd>
 #include <string_view>
 
 namespace gch
@@ -75,6 +76,15 @@ namespace gch
     nonnull_cptr<ir_static_variable> m_variable;
     ir_static_def_id                 m_id;
   };
+
+  bool
+  operator== (const ir_static_def& lhs, const ir_static_def& rhs) noexcept;
+
+  bool
+  operator!= (const ir_static_def& lhs, const ir_static_def& rhs) noexcept;
+
+  std::ostream&
+  operator<< (std::ostream& out, const ir_static_def& def);
 
 }
 

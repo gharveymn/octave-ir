@@ -20,12 +20,14 @@ ENDIF ()
 
 OPTION (GCH_USE_LIBCXX_WITH_CLANG     "Set to ON to use libc++ when compiling with Clang" OFF)
 
-OPTION (OCTAVE_IR_BUILD_DYNAMIC_IR    "Set to ON to build gch::octave-dynamic-ir"         ON)
-OPTION (OCTAVE_IR_BUILD_STATIC_IR     "Set to ON to build gch::octave-static-ir"          ON)
-OPTION (OCTAVE_IR_BUILD_IR_COMPILER   "Set to ON to build gch::octave-ir-compiler"        ON)
+OPTION (OCTAVE_IR_BUILD_DYNAMIC_IR    "Set to ON to build gch::octave-ir-dynamic-ir"      ON)
+OPTION (OCTAVE_IR_BUILD_STATIC_IR     "Set to ON to build gch::octave-ir-static-ir"       ON)
+OPTION (OCTAVE_IR_BUILD_COMPILER      "Set to ON to build gch::octave-ir-compiler"        ON)
 OPTION (OCTAVE_IR_BUILD_LLVM_COMPILER "Set to ON to build gch::octave-ir-llvm-compiler"   ON)
 
-IF (OCTAVE_IR_BUILD_DYNAMIC_IR OR OCTAVE_IR_BUILD_IR_COMPILER)
+IF (OCTAVE_IR_BUILD_DYNAMIC_IR
+ OR OCTAVE_IR_BUILD_COMPILER)
+
   SET (OCTAVE_IR_BUILD_STATIC_IR ON)
 ENDIF ()
 

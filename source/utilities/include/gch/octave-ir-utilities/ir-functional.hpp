@@ -314,6 +314,49 @@ namespace gch
   template <typename T>
   value_projection (T) -> value_projection<T>;
 
+  template <typename Pack, template <typename> typename TransT>
+  struct common_pack_transform_result
+  { };
+
+  template <template <typename ...> typename PackT,
+            template <typename> typename TransT,
+            typename ...Ts>
+  struct common_pack_transform_result<PackT<Ts...>, TransT>
+    : std::common_type<std::remove_reference_t<std::invoke_result_t<TransT<Ts>>>...>
+  { };
+
+  template <typename Pack, template <typename> typename TransT>
+  using common_pack_transform_result_t = typename common_pack_transform_result<Pack, TransT>::type;
+
+  namespace detail
+  {
+
+    template <typename Pack, template <typename> typename TransT>
+    struct pack_transform_impl
+    { };
+
+    template <template <typename ...> typename PackT,
+              template <typename> typename TransT,
+              typename ...Ts>
+    struct pack_transform_impl<PackT<Ts...>, TransT>
+    {
+      static constexpr
+      std::array<common_pack_transform_result_t<PackT<Ts...>, TransT>, sizeof...(Ts)>
+      value { gch::invoke (TransT<Ts> { })... };
+    };
+
+  } // namespace gch::detail
+
+  template <typename Pack, template <typename> typename TransT>
+  struct pack_transform
+    : detail::pack_transform_impl<Pack, TransT>
+  { };
+
+  template <typename Pack, template <typename> typename TransT>
+  inline constexpr
+  std::array<common_pack_transform_result_t<Pack, TransT>, pack_size_v<Pack>>
+  pack_transform_v = pack_transform<Pack, TransT>::value;
+
 }
 
 #endif // OCTAVE_IR_IR_FUNCTIONAL_HPP

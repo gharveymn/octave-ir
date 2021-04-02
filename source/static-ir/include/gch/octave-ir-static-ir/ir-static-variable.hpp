@@ -8,7 +8,7 @@
 #ifndef OCTAVE_IR_IR_STATIC_VARIABLE_HPP
 #define OCTAVE_IR_IR_STATIC_VARIABLE_HPP
 
-#include "gch/octave-static-ir/ir-static-def.hpp"
+#include "gch/octave-ir-static-ir/ir-static-def.hpp"
 
 #include <gch/small_vector.hpp>
 

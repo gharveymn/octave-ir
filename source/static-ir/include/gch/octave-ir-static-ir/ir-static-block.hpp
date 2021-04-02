@@ -9,8 +9,9 @@
 #define OCTAVE_IR_IR_STATIC_BLOCK_HPP
 
 #include "gch/octave-ir-utilities/ir-utility.hpp"
-#include "gch/octave-static-ir/ir-type.hpp"
+#include "gch/octave-ir-static-ir/ir-type.hpp"
 
+#include <iosfwd>
 #include <vector>
 
 namespace gch
@@ -95,6 +96,10 @@ namespace gch
     bool
     empty (void) const noexcept;
 
+    [[nodiscard]]
+    const_reference
+    operator[] (size_type n) const;
+
     void
     push_back (ir_static_instruction&& instr);
 
@@ -134,6 +139,9 @@ namespace gch
     using type = ir_static_block_id;
     static constexpr impl m_impl { create_type<type> ("block_id") };
   };
+
+  std::ostream&
+  operator<< (std::ostream& out, const ir_static_block& block);
 
 }
 

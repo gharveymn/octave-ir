@@ -30,9 +30,9 @@ along with Octave; see the file COPYING.  If not, see
 
 #include "gch/octave-ir-utilities/ir-common.hpp"
 
-#include "gch/octave-static-ir/ir-constant.hpp"
-#include "gch/octave-static-ir/ir-metadata.hpp"
-#include "gch/octave-static-ir/ir-type.hpp"
+#include "gch/octave-ir-static-ir/ir-constant.hpp"
+#include "gch/octave-ir-static-ir/ir-metadata.hpp"
+#include "gch/octave-ir-static-ir/ir-type.hpp"
 
 #include <gch/small_vector.hpp>
 

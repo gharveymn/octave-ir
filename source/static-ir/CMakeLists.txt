@@ -1,7 +1,7 @@
 CREATE_PACKAGE (AUTHOR       gharveymn
                 NAMESPACE    gch
-                NAME         octave-static-ir
-                TYPE         STATIC
+                NAME         octave-ir-static-ir
+                TYPE         SHARED
 
                 HEADERS      ir-constant.hpp
                              ir-metadata.hpp
@@ -13,8 +13,7 @@ CREATE_PACKAGE (AUTHOR       gharveymn
                              ir-static-use.hpp
                              ir-static-variable.hpp
                              ir-type.hpp
-                             ir-type-base.hpp
-                             ir-type-std.hpp
+                             ir-type-util.hpp
 
                 SOURCES      ir-constant.cpp
                              ir-metadata.cpp
@@ -26,21 +25,20 @@ CREATE_PACKAGE (AUTHOR       gharveymn
                              ir-static-use.cpp
                              ir-static-variable.cpp
                              ir-type.cpp
-                             ir-type-base.cpp
-                             ir-type-std.cpp
+                             ir-type-util.cpp
 
                 DEPENDENCIES nonnull_ptr
                              octave-ir-utilities
                              optional_ref
                              small_vector)
 
-TARGET_COMPILE_OPTIONS (octave-static-ir PRIVATE ${OCTAVE_IR_COMPILE_OPTS})
-TARGET_LINK_OPTIONS    (octave-static-ir PRIVATE ${OCTAVE_IR_LINK_OPTS})
-TARGET_LINK_LIBRARIES  (octave-static-ir PRIVATE ${OCTAVE_IR_LINK_LIBS})
+TARGET_COMPILE_OPTIONS (octave-ir-static-ir PRIVATE ${OCTAVE_IR_COMPILE_OPTS})
+TARGET_LINK_OPTIONS    (octave-ir-static-ir PRIVATE ${OCTAVE_IR_LINK_OPTS})
+TARGET_LINK_LIBRARIES  (octave-ir-static-ir PRIVATE ${OCTAVE_IR_LINK_LIBS})
 
-SET_TARGET_PROPERTIES (octave-static-ir
+SET_TARGET_PROPERTIES (octave-ir-static-ir
                        PROPERTIES CXX_STANDARD          17
                                   CXX_STANDARD_REQUIRED NO
                                   CXX_EXTENSIONS        NO)
 
-SET_PROPERTY (GLOBAL APPEND PROPERTY OCTAVE_IR_LIBS octave-static-ir)
+SET_PROPERTY (GLOBAL APPEND PROPERTY OCTAVE_IR_LIBS octave-ir-static-ir)

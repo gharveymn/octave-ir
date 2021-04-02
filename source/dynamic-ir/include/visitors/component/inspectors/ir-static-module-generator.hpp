@@ -8,11 +8,11 @@
 #ifndef OCTAVE_IR_IR_STATIC_MODULE_GENERATOR_HPP
 #define OCTAVE_IR_IR_STATIC_MODULE_GENERATOR_HPP
 
-#include "gch/octave-static-ir/ir-static-block.hpp"
-#include "gch/octave-static-ir/ir-static-module.hpp"
+#include "gch/octave-ir-static-ir/ir-static-block.hpp"
+#include "gch/octave-ir-static-ir/ir-static-module.hpp"
 #include "gch/octave-ir-utilities/ir-index-sequence-map.hpp"
-#include "gch/octave-static-ir/ir-static-def.hpp"
-#include "gch/octave-static-ir/ir-static-variable.hpp"
+#include "gch/octave-ir-static-ir/ir-static-def.hpp"
+#include "gch/octave-ir-static-ir/ir-static-variable.hpp"
 #include "values/ir-instruction.hpp"
 #include "visitors/component/inspectors/ir-abstract-component-inspector.hpp"
 #include "visitors/ir-visitor.hpp"

@@ -20,13 +20,36 @@ along with Octave; see the file COPYING.  If not, see
 
 */
 
-#include "gch/octave-static-ir/ir-type.hpp"
+#include "gch/octave-ir-static-ir/ir-type.hpp"
 
 namespace gch
 {
   /////////////////////////////////
   // pointer type instantiations //
   /////////////////////////////////
+
+  template struct ir_type::instance<long double *>;
+  template struct ir_type::instance<double *>;
+  template struct ir_type::instance<single *>;
+  template struct ir_type::instance<int64_t *>;
+  template struct ir_type::instance<int32_t *>;
+  template struct ir_type::instance<int16_t *>;
+  template struct ir_type::instance<int8_t *>;
+  template struct ir_type::instance<uint64_t *>;
+  template struct ir_type::instance<uint32_t *>;
+  template struct ir_type::instance<uint16_t *>;
+  template struct ir_type::instance<uint8_t *>;
+  template struct ir_type::instance<char *>;
+  template struct ir_type::instance<const char *>;
+  template struct ir_type::instance<wchar_t *>;
+  template struct ir_type::instance<char32_t *>;
+  template struct ir_type::instance<char16_t *>;
+#if defined (__cpp_char8_t) && __cpp_char8_t >= 201811L
+  template struct ir_type::instance<char8_t *>;
+#endif
+  template struct ir_type::instance<bool *>;
+  template struct ir_type::instance<std::complex<double> *>;
+  template struct ir_type::instance<std::complex<single> *>;
 
 #if 0
 

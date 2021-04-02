@@ -5,28 +5,15 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "gch/octave-static-ir/ir-static-instruction.hpp"
+#include "gch/octave-ir-static-ir/ir-static-instruction.hpp"
 
 #include "gch/octave-ir-utilities/ir-optional-util.hpp"
-// #include "values/ir-instruction.hpp"
-// #include "visitors/component/inspectors/ir-static-module-generator.hpp"
+
+#include <numeric>
+#include <ostream>
 
 namespace gch
 {
-  // ir_static_instruction::
-  // ir_static_instruction (const ir_instruction& instr, const ir_static_variable_map& var_map)
-  //   : m_metadata (instr.get_metadata ()),
-  //     m_def (maybe_get_def (instr) >>= [&](const ir_def& def) -> std::optional<ir_static_def>
-  //                                           { return { var_map.create_static_def (def) }; })
-  // {
-  //   std::transform (instr.begin (), instr.end (), std::back_inserter (m_args),
-  //                   [&](const ir_operand& op) -> ir_static_operand
-  //                   {
-  //                     if (optional_ref use { maybe_get<ir_use> (op) })
-  //                       return var_map.create_static_use (*use);
-  //                     return get<ir_constant> (op);
-  //                   });
-  // }
 
   auto
   ir_static_instruction::
@@ -93,6 +80,29 @@ namespace gch
 
   auto
   ir_static_instruction::
+  num_args (void) const noexcept
+    -> size_ty
+  {
+   return size ();
+  }
+
+  bool
+  ir_static_instruction::
+  has_args (void) const noexcept
+  {
+    return ! empty ();
+  }
+
+  auto
+  ir_static_instruction::
+  operator[] (size_type n) const
+    -> const_reference
+  {
+    return m_args[n];
+  }
+
+  auto
+  ir_static_instruction::
   get_metadata (void) const noexcept
   -> metadata_t
   {
@@ -104,6 +114,149 @@ namespace gch
   get_def (void) const noexcept
   {
     return *m_def;
+  }
+
+  enum class needs_parentheses : bool
+  {
+    yes = true,
+    no  = false
+  };
+
+  template <ir_opcode Op>
+  constexpr
+  needs_parentheses
+  needs_parentheses_v = static_cast<needs_parentheses> (
+      ! ir_metadata_v<Op>.is_a (ir_metadata_v<ir_opcode::relation>)
+    &&! ir_metadata_v<Op>.is_a (ir_metadata_v<ir_opcode::arithmetic>)
+    &&! ir_metadata_v<Op>.is_a (ir_metadata_v<ir_opcode::logical>)
+    &&! ir_metadata_v<Op>.is_a (ir_metadata_v<ir_opcode::bitwise>));
+
+  template <ir_opcode Op,
+            ir_metadata::flag::is_abstract IsAbstract       = ir_metadata_v<Op>.get_is_abstract (),
+            ir_metadata::flag::has_def     HasDef           = ir_metadata_v<Op>.get_has_def (),
+            ir_metadata::flag::arity       Arity            = ir_metadata_v<Op>.get_arity (),
+            needs_parentheses              NeedsParentheses = needs_parentheses_v<Op>>
+  struct instruction_printer
+  {
+    static
+    std::ostream&
+    print (std::ostream&, const ir_static_instruction&)
+    {
+      throw std::ios_base::failure { "Cannot print an instruction (it shouldn't even exist)." };
+    }
+  };
+
+  template <ir_opcode Op, needs_parentheses NeedsParentheses>
+  struct instruction_printer<Op,
+                             ir_metadata::flag::is_abstract::no,
+                             ir_metadata::flag::has_def::    no,
+                             ir_metadata::flag::arity::      nullary,
+                             NeedsParentheses>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr)
+    {
+      return out << instr.get_metadata ().get_name ();
+    }
+  };
+
+  template <ir_opcode Op, needs_parentheses NeedsParentheses>
+  struct instruction_printer<Op,
+                             ir_metadata::flag::is_abstract::no,
+                             ir_metadata::flag::has_def::    yes,
+                             ir_metadata::flag::arity::      nullary,
+                             NeedsParentheses>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr)
+    {
+      return out << instr.get_def () << " = " << instr.get_metadata ().get_name ();
+    }
+  };
+
+  template <ir_opcode Op, ir_metadata::flag::arity NotNullary>
+  struct instruction_printer<Op,
+                             ir_metadata::flag::is_abstract::no,
+                             ir_metadata::flag::has_def::    yes,
+                             NotNullary,
+                             needs_parentheses::             yes>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr)
+    {
+      out << instr.get_def ()
+          << " = "
+          << instr.get_metadata ().get_name ()
+          << " (";
+
+      std::accumulate (std::next (instr.begin ()), instr.end (), std::ref (out << instr[0]),
+                       [](std::ostream& o, auto& oper) { return std::ref (o << ", " << oper); });
+
+      return out << ')';
+    }
+  };
+
+  template <ir_opcode Op>
+  struct instruction_printer<Op,
+                             ir_metadata::flag::is_abstract::no,
+                             ir_metadata::flag::has_def::    yes,
+                             ir_metadata::flag::arity::      unary,
+                             needs_parentheses::             no>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr)
+    {
+      return out << instr.get_def ()
+                 << " = "
+                 << instr.get_metadata ().get_name ()
+                 << instr[0];
+    }
+  };
+
+  template <ir_opcode Op>
+  struct instruction_printer<Op,
+                             ir_metadata::flag::is_abstract::no,
+                             ir_metadata::flag::has_def::    yes,
+                             ir_metadata::flag::arity::      binary,
+                             needs_parentheses::             no>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr)
+    {
+      return out << instr.get_def ()
+                 << " = "
+                 << instr[0]
+                 << ' '
+                 << instr.get_metadata ().get_name ()
+                 << ' '
+                 << instr[1];
+    }
+  };
+
+  template <ir_opcode Op>
+  struct instruction_printer_mapper
+  {
+    constexpr
+    auto
+    operator() (void) const noexcept
+    {
+      return instruction_printer<Op>::print;
+    }
+  };
+
+  static constexpr
+  auto
+  instruction_printer_map = ir_metadata::template_generate_map<instruction_printer_mapper> ();
+
+  std::ostream&
+  operator<< (std::ostream& out, const ir_static_instruction& instr)
+  {
+    return instruction_printer_map[instr.get_metadata ()] (out, instr);
   }
 
 }

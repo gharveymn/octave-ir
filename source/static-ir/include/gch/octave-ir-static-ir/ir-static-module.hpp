@@ -11,6 +11,7 @@
 #define OCTAVE_IR_IR_STATIC_MODULE_HPP
 
 #include <cstdint>
+#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -71,6 +72,35 @@ namespace gch
     using riter   = reverse_iterator;
     using criter  = const_reverse_iterator;
 
+    using variables_container_type          = std::vector<ir_static_variable>;
+    using variables_value_type              = variables_container_type::value_type;
+    using variables_allocator_type          = variables_container_type::allocator_type;
+    using variables_size_type               = variables_container_type::size_type;
+    using variables_difference_type         = variables_container_type::difference_type;
+    using variables_reference               = variables_container_type::reference;
+    using variables_const_reference         = variables_container_type::const_reference;
+    using variables_pointer                 = variables_container_type::pointer;
+    using variables_const_pointer           = variables_container_type::const_pointer;
+
+    using variables_iterator                = variables_container_type::iterator;
+    using variables_const_iterator          = variables_container_type::const_iterator;
+    using variables_reverse_iterator        = variables_container_type::reverse_iterator;
+    using variables_const_reverse_iterator  = variables_container_type::const_reverse_iterator;
+
+    using variables_val_t   = variables_value_type;
+    using variables_alloc_t = variables_allocator_type;
+    using variables_size_ty = variables_size_type;
+    using variables_diff_ty = variables_difference_type;
+    using variables_ref     = variables_reference;
+    using variables_cref    = variables_const_reference;
+    using variables_ptr     = variables_pointer;
+    using variables_cptr    = variables_const_pointer;
+
+    using variables_iter    = variables_iterator;
+    using variables_citer   = variables_const_iterator;
+    using variables_riter   = variables_reverse_iterator;
+    using variables_criter  = variables_const_reverse_iterator;
+
     ir_static_module            (void)                        = delete;
     ir_static_module            (const ir_static_module&)     = default;
     ir_static_module            (ir_static_module&&) noexcept = default;
@@ -117,12 +147,31 @@ namespace gch
     const_reference
     operator[] (size_type pos) const;
 
+    [[nodiscard]]
+    variables_const_iterator
+    variables_begin (void) const noexcept;
+
+    [[nodiscard]]
+    variables_const_iterator
+    variables_end (void) const noexcept;
+
+    [[nodiscard]]
+    std::string_view
+    get_name (void) const noexcept;
+
+    [[nodiscard]]
+    std::string
+    get_block_name (const ir_static_block& block) const;
+
   private:
-    std::string                     m_name;
-    ir_processed_id                 m_id;
-    container_type                  m_blocks;
-    std::vector<ir_static_variable> m_variables;
+    std::string              m_name;
+    ir_processed_id          m_id;
+    container_type           m_blocks;
+    variables_container_type m_variables;
   };
+
+  std::ostream&
+  operator<< (std::ostream& out, const ir_static_module& module);
 
 }
 

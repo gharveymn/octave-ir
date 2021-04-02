@@ -8,15 +8,10 @@
 #ifndef OCTAVE_IR_IR_METADATA_HPP
 #define OCTAVE_IR_IR_METADATA_HPP
 
-#ifndef GCH_CPP20_CONSTEVAL
-#  if defined (__cpp_consteval) && __cpp_consteval >= 201811L
-#    define GCH_CPP20_CONSTEVAL consteval
-#  else
-#    define GCH_CPP20_CONSTEVAL constexpr
-#  endif
-#endif
-
+#include "gch/octave-ir-utilities/ir-common.hpp"
 #include "gch/octave-ir-utilities/ir-functional.hpp"
+
+#include <array>
 
 namespace gch
 {
@@ -153,6 +148,20 @@ namespace gch
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
+    flag::has_def
+    get_has_def (void) const noexcept
+    {
+      return m_ptr->m_has_def;
+    }
+
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    flag::is_abstract
+    get_is_abstract (void) const noexcept
+    {
+      return m_ptr->m_abstract;
+    }
+
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
     bool
     has_def (void) const noexcept
     {
@@ -240,17 +249,32 @@ namespace gch
     num_opcodes = static_cast<std::underlying_type_t<ir_opcode>> (ir_opcode::_size_);
 
   private:
-    template <typename T>
+    template <typename Value>
     struct value_map
     {
       constexpr
-      const T&
+      const Value&
       operator[] (ir_opcode op) const noexcept
       {
         return m_values[static_cast<std::underlying_type_t<ir_opcode>> (op)];
       }
 
-      T m_values[num_opcodes];
+      constexpr
+      const Value&
+      operator[] (ir_metadata m) const noexcept
+      {
+        return (*this)[m.get_opcode ()];
+      }
+
+      template <ir_opcode op>
+      constexpr
+      const Value&
+      get (void) const noexcept
+      {
+        return (*this)[op];
+      }
+
+      std::array<Value, num_opcodes> m_values;
     };
 
     struct identity_projection
@@ -268,7 +292,8 @@ namespace gch
 
     template <template <ir_opcode> typename MappedT,
               typename IndexSequence = std::make_index_sequence<num_opcodes>>
-    struct common_mapping_result;
+    struct common_mapping_result
+    { };
 
     template <template <ir_opcode> typename MappedT, std::size_t ...Indices>
     struct common_mapping_result<MappedT, std::index_sequence<Indices...>>
@@ -290,7 +315,7 @@ namespace gch
     [[nodiscard]]
     static GCH_CPP20_CONSTEVAL
     value_map<common_mapping_result_t<MappedT>>
-    generate_template_map (void) noexcept;
+    template_generate_map (void) noexcept;
 
   private:
     [[nodiscard]]
@@ -353,28 +378,20 @@ namespace gch
   {
     static_assert (sizeof...(Indices) == num_opcodes);
 
-    template <typename Result>
-    constexpr
-    value_map<Result>
-    operator() (Result (ir_metadata::* proj) (void) const noexcept) const noexcept
-    {
-      return { (get<static_cast<ir_opcode> (Indices)> ().*proj) ()... };
-    }
-
     template <typename Projection>
     constexpr
     value_map<std::remove_reference_t<std::invoke_result_t<Projection, ir_metadata>>>
     operator() (Projection proj) const noexcept
     {
-      return { proj (get<static_cast<ir_opcode> (Indices)> ())... };
+      return { gch::invoke (proj, get<static_cast<ir_opcode> (Indices)> ())... };
     }
 
-    template <template <ir_opcode> typename MappedT>
+    template <template <ir_opcode> typename MapperT>
     constexpr
-    value_map<common_mapping_result_t<MappedT>>
+    value_map<common_mapping_result_t<MapperT>>
     map_template (void) const noexcept
     {
-      return { invoke (MappedT<static_cast<ir_opcode> (Indices)> { })... };
+      return { gch::invoke (MapperT<static_cast<ir_opcode> (Indices)> { })... };
     }
 
   };
@@ -386,17 +403,17 @@ namespace gch
   generate_map (Projection proj) noexcept
     -> value_map<std::remove_reference_t<std::invoke_result_t<Projection, ir_metadata>>>
   {
-    return map_generator<> { } (proj);
+    return map_generator { } (proj);
   }
 
-  template <template <ir_opcode> typename MappedT>
+  template <template <ir_opcode> typename MapperT>
   GCH_CPP20_CONSTEVAL
   auto
   ir_metadata::
-  generate_template_map (void) noexcept
-  -> value_map<common_mapping_result_t<MappedT>>
+  template_generate_map (void) noexcept
+    -> value_map<common_mapping_result_t<MapperT>>
   {
-    return map_generator<> { }.map_template<MappedT> ();
+    return map_generator { }.map_template<MapperT> ();
   }
 
   [[nodiscard]] GCH_CPP20_CONSTEVAL

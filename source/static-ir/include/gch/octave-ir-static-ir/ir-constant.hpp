@@ -16,6 +16,7 @@
 #include <gch/optional_ref.hpp>
 
 #include <any>
+#include <iosfwd>
 
 namespace gch
 {
@@ -104,6 +105,9 @@ namespace gch
   {
     return static_cast<match_cvref_t<U, T>> (*std::any_cast<T> (&c.m_data));
   }
+
+  std::ostream&
+  operator<< (std::ostream& out, const ir_constant& c);
 
 }
 
