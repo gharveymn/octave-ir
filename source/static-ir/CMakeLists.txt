@@ -6,7 +6,7 @@ CREATE_PACKAGE (AUTHOR       gharveymn
                 HEADERS      ir-constant.hpp
                              ir-metadata.hpp
                              ir-static-block.hpp
-                             ir-static-module.hpp
+                             ir-static-unit.hpp
                              ir-static-def.hpp
                              ir-static-instruction.hpp
                              ir-static-operand.hpp
@@ -18,7 +18,7 @@ CREATE_PACKAGE (AUTHOR       gharveymn
                 SOURCES      ir-constant.cpp
                              ir-metadata.cpp
                              ir-static-block.cpp
-                             ir-static-module.cpp
+                             ir-static-unit.cpp
                              ir-static-def.cpp
                              ir-static-instruction.cpp
                              ir-static-operand.cpp
@@ -37,8 +37,9 @@ TARGET_LINK_OPTIONS    (octave-ir-static-ir PRIVATE ${OCTAVE_IR_LINK_OPTS})
 TARGET_LINK_LIBRARIES  (octave-ir-static-ir PRIVATE ${OCTAVE_IR_LINK_LIBS})
 
 SET_TARGET_PROPERTIES (octave-ir-static-ir
-                       PROPERTIES CXX_STANDARD          17
-                                  CXX_STANDARD_REQUIRED NO
-                                  CXX_EXTENSIONS        NO)
+                       PROPERTIES CXX_STANDARD               17
+                                  CXX_STANDARD_REQUIRED      NO
+                                  CXX_EXTENSIONS             NO
+                                  WINDOWS_EXPORT_ALL_SYMBOLS YES)
 
 SET_PROPERTY (GLOBAL APPEND PROPERTY OCTAVE_IR_LIBS octave-ir-static-ir)

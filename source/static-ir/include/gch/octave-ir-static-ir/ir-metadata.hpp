@@ -403,7 +403,7 @@ namespace gch
   generate_map (Projection proj) noexcept
     -> value_map<std::remove_reference_t<std::invoke_result_t<Projection, ir_metadata>>>
   {
-    return map_generator { } (proj);
+    return map_generator<> { } (proj);
   }
 
   template <template <ir_opcode> typename MapperT>
@@ -413,7 +413,7 @@ namespace gch
   template_generate_map (void) noexcept
     -> value_map<common_mapping_result_t<MapperT>>
   {
-    return map_generator { }.map_template<MapperT> ();
+    return map_generator<> { }.map_template<MapperT> ();
   }
 
   [[nodiscard]] GCH_CPP20_CONSTEVAL

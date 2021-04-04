@@ -20,5 +20,5 @@ FOREACH (version ${TARGET_VERSIONS})
                                     CXX_EXTENSIONS        NO)
 ENDFOREACH ()
 
-ADD_SUBDIRECTORY (scratch)
+#ADD_SUBDIRECTORY (scratch)
 ADD_SUBDIRECTORY (doctest)

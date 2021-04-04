@@ -314,19 +314,19 @@ namespace gch
   template <typename T>
   value_projection (T) -> value_projection<T>;
 
-  template <typename Pack, template <typename> typename TransT>
+  template <typename Pack, template <typename> typename TransT, typename ...Args>
   struct common_pack_transform_result
   { };
 
-  template <template <typename ...> typename PackT,
-            template <typename> typename TransT,
-            typename ...Ts>
-  struct common_pack_transform_result<PackT<Ts...>, TransT>
-    : std::common_type<std::remove_reference_t<std::invoke_result_t<TransT<Ts>>>...>
+  template <template <typename ...> typename PackT, template <typename> typename TransT,
+            typename ...Ts, typename ...Args>
+  struct common_pack_transform_result<PackT<Ts...>, TransT, Args...>
+    : std::common_type<std::remove_reference_t<std::invoke_result_t<TransT<Ts>, Args...>>...>
   { };
 
-  template <typename Pack, template <typename> typename TransT>
-  using common_pack_transform_result_t = typename common_pack_transform_result<Pack, TransT>::type;
+  template <typename Pack, template <typename> typename TransT, typename ...Args>
+  using common_pack_transform_result_t
+    = typename common_pack_transform_result<Pack, TransT, Args...>::type;
 
   namespace detail
   {
@@ -335,8 +335,7 @@ namespace gch
     struct pack_transform_impl
     { };
 
-    template <template <typename ...> typename PackT,
-              template <typename> typename TransT,
+    template <template <typename ...> typename PackT, template <typename> typename TransT,
               typename ...Ts>
     struct pack_transform_impl<PackT<Ts...>, TransT>
     {

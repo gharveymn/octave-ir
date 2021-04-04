@@ -5,11 +5,11 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_STATIC_MODULE_GENERATOR_HPP
-#define OCTAVE_IR_IR_STATIC_MODULE_GENERATOR_HPP
+#ifndef OCTAVE_IR_IR_STATIC_UNIT_GENERATOR_HPP
+#define OCTAVE_IR_IR_STATIC_UNIT_GENERATOR_HPP
 
 #include "gch/octave-ir-static-ir/ir-static-block.hpp"
-#include "gch/octave-ir-static-ir/ir-static-module.hpp"
+#include "gch/octave-ir-static-ir/ir-static-unit.hpp"
 #include "gch/octave-ir-utilities/ir-index-sequence-map.hpp"
 #include "gch/octave-ir-static-ir/ir-static-def.hpp"
 #include "gch/octave-ir-static-ir/ir-static-variable.hpp"
@@ -345,11 +345,11 @@ namespace gch
 
     [[nodiscard]]
     ir_static_block_id
-    get_continue_path_id (void) const noexcept;
+    get_continue_block_id (void) const noexcept;
 
     [[nodiscard]]
     ir_static_block_id
-    get_terminal_path_id (void) const noexcept;
+    get_terminal_block_id (void) const noexcept;
 
     [[nodiscard]]
     ir_static_instruction
@@ -746,9 +746,9 @@ namespace gch
     ir_dynamic_block_manager m_block_manager;
   };
 
-  ir_static_module
-  generate_static_module (const ir_component& c);
+  ir_static_unit
+  generate_static_unit (const ir_component& c);
 
 }
 
-#endif // OCTAVE_IR_IR_STATIC_MODULE_GENERATOR_HPP
+#endif // OCTAVE_IR_IR_STATIC_UNIT_GENERATOR_HPP

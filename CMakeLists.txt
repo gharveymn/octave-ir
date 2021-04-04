@@ -25,9 +25,7 @@ OPTION (OCTAVE_IR_BUILD_STATIC_IR     "Set to ON to build gch::octave-ir-static-
 OPTION (OCTAVE_IR_BUILD_COMPILER      "Set to ON to build gch::octave-ir-compiler"        ON)
 OPTION (OCTAVE_IR_BUILD_LLVM_COMPILER "Set to ON to build gch::octave-ir-llvm-compiler"   ON)
 
-IF (OCTAVE_IR_BUILD_DYNAMIC_IR
- OR OCTAVE_IR_BUILD_COMPILER)
-
+IF (OCTAVE_IR_BUILD_DYNAMIC_IR OR OCTAVE_IR_BUILD_COMPILER)
   SET (OCTAVE_IR_BUILD_STATIC_IR ON)
 ENDIF ()
 

@@ -7,9 +7,12 @@
 
 #include "values/ir-use.hpp"
 
-#include "gch/octave-ir-utilities/ir-utility.hpp"
 #include "values/ir-def.hpp"
 #include "values/ir-use-timeline.hpp"
+
+#include "gch/octave-ir-static-ir/ir-type.hpp"
+#include "gch/octave-ir-utilities/ir-utility.hpp"
+
 
 namespace gch
 {

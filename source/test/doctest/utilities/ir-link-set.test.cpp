@@ -1,4 +1,4 @@
-/** ir-link-set.test.cpp.c
+/** ir-link-set.test.cpp
  * Copyright © 2021 Gene Harvey
  *
  * This software may be modified and distributed under the terms

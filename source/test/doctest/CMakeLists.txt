@@ -14,6 +14,7 @@ SET(TARGET_VERSIONS 17 20)
 SET(COMPILE_OPTS)
 SET(LINK_OPTS)
 SET(LINK_LIBS doctest::doctest
+              octave-ir-utilities
               nonnull_ptr
               optional_ref
               partition
@@ -21,7 +22,7 @@ SET(LINK_LIBS doctest::doctest
               small_vector
               tracker)
 
-SET(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/source/include)
+SET(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/utilities/include)
 
 IF (CMAKE_CXX_COMPILER_ID
     STREQUAL
@@ -33,7 +34,7 @@ IF (CMAKE_CXX_COMPILER_ID
                        -Weverything
                        -Wno-padded
                        -Wno-c++98-compat
-                     -Wno-c++98-compat-pedantic
+                       -Wno-c++98-compat-pedantic
                        -Wno-zero-as-null-pointer-constant)
 
   LIST (APPEND

@@ -51,7 +51,7 @@ namespace gch
   flatten_element (iter pos)
     -> iter
   {
-    if (optional_ref seq { maybe_as_type<ir_component_sequence> (pos) })
+    if (optional_ref seq { maybe_as_component<ir_component_sequence> (pos) })
     {
       assert (! m_body.empty () && "sequence body should not be empty");
 

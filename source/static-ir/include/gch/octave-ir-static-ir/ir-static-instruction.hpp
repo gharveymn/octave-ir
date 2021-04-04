@@ -8,9 +8,11 @@
 #ifndef OCTAVE_IR_IR_STATIC_INSTRUCTION_HPP
 #define OCTAVE_IR_IR_STATIC_INSTRUCTION_HPP
 
-#include "gch/octave-ir-static-ir/ir-static-def.hpp"
-#include "gch/octave-ir-static-ir/ir-static-operand.hpp"
-#include "gch/octave-ir-static-ir/ir-metadata.hpp"
+#include "ir-static-def.hpp"
+#include "ir-static-operand.hpp"
+#include "ir-metadata.hpp"
+
+#include "gch/octave-ir-utilities/ir-common.hpp"
 
 #include <gch/optional_ref.hpp>
 #include <gch/small_vector.hpp>

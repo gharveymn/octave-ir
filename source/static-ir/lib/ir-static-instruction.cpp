@@ -190,10 +190,11 @@ namespace gch
       out << instr.get_def ()
           << " = "
           << instr.get_metadata ().get_name ()
-          << " (";
+          << " ("
+          << instr[0];
 
-      std::accumulate (std::next (instr.begin ()), instr.end (), std::ref (out << instr[0]),
-                       [](std::ostream& o, auto& oper) { return std::ref (o << ", " << oper); });
+      std::for_each (std::next (instr.begin ()), instr.end (),
+                     [&](const ir_static_operand& op) { out << ", " << op; });
 
       return out << ')';
     }

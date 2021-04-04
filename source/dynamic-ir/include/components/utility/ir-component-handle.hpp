@@ -426,7 +426,7 @@ namespace gch
   template <typename T>
   constexpr
   optional_ref<T>
-  maybe_as_type (ir_component_ptr comp)
+  maybe_as_component (ir_component_ptr comp)
   {
     assert (comp && "handle should be viewing a component");
     return maybe_cast<T> (comp.get_component_pointer ());
@@ -435,7 +435,7 @@ namespace gch
   template <typename T>
   constexpr
   optional_ref<const T>
-  maybe_as_type (ir_component_cptr comp)
+  maybe_as_component (ir_component_cptr comp)
   {
     assert (comp && "handle should be viewing a component");
     return maybe_cast<T> (comp.get_component_pointer ());
@@ -444,7 +444,7 @@ namespace gch
   template <typename T>
   constexpr
   T&
-  as_type (ir_component_ptr comp)
+  as_component (ir_component_ptr comp)
   {
     assert (comp && "handle should be viewing a component");
     return static_cast<T&> (*comp);
@@ -453,7 +453,7 @@ namespace gch
   template <typename T>
   constexpr
   const T&
-  as_type (ir_component_cptr comp)
+  as_component (ir_component_cptr comp)
   {
     assert (comp && "handle should be viewing a component");
     return static_cast<const T&> (*comp);

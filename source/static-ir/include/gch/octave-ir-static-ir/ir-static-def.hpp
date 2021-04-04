@@ -8,8 +8,10 @@
 #ifndef OCTAVE_IR_IR_STATIC_DEF_HPP
 #define OCTAVE_IR_IR_STATIC_DEF_HPP
 
+#include "ir-type.hpp"
+
+#include "gch/octave-ir-utilities/ir-common.hpp"
 #include "gch/octave-ir-utilities/ir-utility.hpp"
-#include "gch/octave-ir-static-ir/ir-type.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 
@@ -42,7 +44,9 @@ namespace gch
     }
   };
 
-  inline constexpr ir_static_def_id ir_undefined_def_id { static_cast<std::size_t> (-1) };
+  inline constexpr
+  ir_static_def_id
+  ir_undefined_def_id { static_cast<std::size_t> (-1) };
 
   class ir_static_def
   {

@@ -1,4 +1,4 @@
-/** ir-static-module.hpp
+/** ir-static-unit.hpp
  * A container holding an unordered set of static blocks.
  *
  * Copyright © 2021 Gene Harvey
@@ -7,8 +7,10 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_STATIC_MODULE_HPP
-#define OCTAVE_IR_IR_STATIC_MODULE_HPP
+#ifndef OCTAVE_IR_IR_STATIC_UNIT_HPP
+#define OCTAVE_IR_IR_STATIC_UNIT_HPP
+
+#include "gch/octave-ir-utilities/ir-common.hpp"
 
 #include <cstdint>
 #include <iosfwd>
@@ -40,7 +42,7 @@ namespace gch
     id_type m_id;
   };
 
-  class ir_static_module
+  class ir_static_unit
   {
   public:
     using container_type          = std::vector<ir_static_block>;
@@ -101,15 +103,15 @@ namespace gch
     using variables_riter   = variables_reverse_iterator;
     using variables_criter  = variables_const_reverse_iterator;
 
-    ir_static_module            (void)                        = delete;
-    ir_static_module            (const ir_static_module&)     = default;
-    ir_static_module            (ir_static_module&&) noexcept = default;
-    ir_static_module& operator= (const ir_static_module&)     = default;
-    ir_static_module& operator= (ir_static_module&&) noexcept = default;
-    ~ir_static_module           (void)                        = default;
+    ir_static_unit            (void)                        = delete;
+    ir_static_unit            (const ir_static_unit&)     = default;
+    ir_static_unit            (ir_static_unit&&) noexcept = default;
+    ir_static_unit& operator= (const ir_static_unit&)     = default;
+    ir_static_unit& operator= (ir_static_unit&&) noexcept = default;
+    ~ir_static_unit           (void)                        = default;
 
-    ir_static_module (std::string_view name, ir_processed_id id, container_type&& blocks,
-                      std::vector<ir_static_variable>&& vars);
+    ir_static_unit (std::string_view name, ir_processed_id id, container_type&& blocks,
+                    std::vector<ir_static_variable>&& vars);
 
     [[nodiscard]]
     const_iterator
@@ -144,6 +146,10 @@ namespace gch
     empty (void) const noexcept;
 
     [[nodiscard]]
+    size_type
+    num_blocks (void) const noexcept;
+
+    [[nodiscard]]
     const_reference
     operator[] (size_type pos) const;
 
@@ -160,6 +166,10 @@ namespace gch
     get_name (void) const noexcept;
 
     [[nodiscard]]
+    ir_processed_id
+    get_id (void) const noexcept;
+
+    [[nodiscard]]
     std::string
     get_block_name (const ir_static_block& block) const;
 
@@ -171,8 +181,8 @@ namespace gch
   };
 
   std::ostream&
-  operator<< (std::ostream& out, const ir_static_module& module);
+  operator<< (std::ostream& out, const ir_static_unit& unit);
 
 }
 
-#endif // OCTAVE_IR_IR_STATIC_MODULE_HPP
+#endif // OCTAVE_IR_IR_STATIC_UNIT_HPP

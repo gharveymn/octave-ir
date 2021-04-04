@@ -8,8 +8,10 @@
 #ifndef OCTAVE_IR_IR_STATIC_USE_HPP
 #define OCTAVE_IR_IR_STATIC_USE_HPP
 
-#include "gch/octave-ir-static-ir/ir-static-def.hpp"
-#include "gch/octave-ir-static-ir/ir-type.hpp"
+#include "ir-static-def.hpp"
+#include "ir-type.hpp"
+
+#include "gch/octave-ir-utilities/ir-common.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 

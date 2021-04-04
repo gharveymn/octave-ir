@@ -112,7 +112,7 @@ namespace gch
       bool          m_is_integral;
     };
 
-    template <typename ...T>
+    template <typename T>
     struct instance;
 
     constexpr
@@ -140,12 +140,16 @@ namespace gch
     [[nodiscard]] constexpr bool has_base         (void) const noexcept { return m_ptr->m_base_type         != nullptr; }
     [[nodiscard]] constexpr bool has_pointer_base (void) const noexcept { return m_ptr->m_pointer_base_type != nullptr; }
 
-    template <typename ...Ts>
+    template <typename T,
+              std::enable_if_t<std::is_same_v<
+                const impl,
+                decltype (instance<std::remove_cv_t<T>>::data)>
+              > * = nullptr>
     static constexpr
     ir_type
     get (void) noexcept
     {
-      return { instance<std::remove_cv_t<Ts>...>::data };
+      return { instance<std::remove_cv_t<T>>::data };
     }
 
     friend constexpr
@@ -200,8 +204,61 @@ namespace gch
     nonnull_ptr<const impl> m_ptr;
   };
 
-  template <typename ...Ts>
-  inline constexpr ir_type ir_type_v = ir_type::get<Ts...> ();
+  namespace detail
+  {
+
+    template <typename T, typename Enable = void>
+    struct ir_type_value_impl
+    { };
+
+    template <typename T>
+    struct ir_type_value_impl<T, std::enable_if_t<std::is_convertible_v<
+                                   decltype (ir_type::get<T> ()),
+                                   ir_type>>>
+    {
+      static constexpr
+      ir_type
+      value = ir_type::get<T> ();
+    };
+
+  }
+
+  template <typename T>
+  struct ir_type_value
+    : detail::ir_type_value_impl<T>
+  { };
+
+  template <typename T>
+  inline constexpr
+  ir_type
+  ir_type_v = ir_type_value<T>::value;
+
+  namespace detail
+  {
+
+    template <typename T, typename Enable = void>
+    struct is_ir_type_impl
+      : std::false_type
+    { };
+
+    template <typename T>
+    struct is_ir_type_impl<T, std::enable_if_t<std::is_convertible_v<
+                                decltype (ir_type_value<T>::value),
+                                ir_type>>>
+      : std::true_type
+    { };
+
+  }
+
+  template <typename T>
+  struct is_ir_type
+    : detail::is_ir_type_impl<T>
+  { };
+
+  template <typename T>
+  inline constexpr
+  bool
+  is_ir_type_v = is_ir_type<T>::value;
 
   [[nodiscard]]
   constexpr
@@ -262,25 +319,30 @@ namespace gch
   struct ir_type::instance<any>
   {
     using type = any;
-    static constexpr impl data { create_type<any> ("any", nullptr) };
+    static constexpr
+    impl
+    data { create_type<any> ("any", nullptr) };
   };
 
   template <typename T>
-  constexpr ir_type::impl
+  constexpr
+  ir_type::impl
   ir_type::create_type (const char *name) noexcept
   {
     return create_type<T> (name, ir_type_v<any>);
   }
 
   template <typename T, std::size_t N>
-  constexpr ir_type::impl
+  constexpr
+  ir_type::impl
   ir_type::create_compound_type (const char *name, const ir_type (&members)[N]) noexcept
   {
     return create_compound_type<T, N> (name, members, ir_type_v<any>);
   }
 
   template <typename T>
-  constexpr ir_type::impl
+  constexpr
+  ir_type::impl
   ir_type::create_pointer (ir_type pointer_base) noexcept
   {
     return { pointer_base.get_name_base (), ir_type_v<any>.m_ptr, pointer_base.m_ptr, sizeof (T),
@@ -304,7 +366,9 @@ namespace gch
   struct ir_type::instance<void>
   {
     using type = unit;
-    static constexpr impl data { create_type<type> ("void", nullptr) };
+    static constexpr
+    impl
+    data { create_type<type> ("void", nullptr) };
   };
 
   /////////////////////////////////
@@ -315,7 +379,9 @@ namespace gch
   struct ir_type::instance<T *>
   {
     using type = T *;
-    static constexpr impl data { create_pointer<T *> (ir_type_v<T>) };
+    static constexpr
+    impl
+    data { create_pointer<T *> (ir_type_v<T>) };
   };
 
   //! Compute the lowest common ancestor between the two types.

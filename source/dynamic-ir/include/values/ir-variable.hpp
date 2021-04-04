@@ -23,7 +23,7 @@ along with Octave; see the file COPYING.  If not, see
 #ifndef OCTAVE_IR_IR_VARIABLE_HPP
 #define OCTAVE_IR_IR_VARIABLE_HPP
 
-#include "gch/octave-ir-static-ir/ir-type-base.hpp"
+#include "gch/octave-ir-static-ir/ir-type.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 

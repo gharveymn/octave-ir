@@ -16,6 +16,7 @@
 #include <gch/optional_ref.hpp>
 
 #include <any>
+#include <cassert>
 #include <iosfwd>
 
 namespace gch
@@ -31,19 +32,19 @@ namespace gch
     ir_constant& operator= (ir_constant&&) noexcept = default;
     ~ir_constant           (void)                   = default;
 
-    template <typename T,
-              std::enable_if_t<! std::is_same_v<std::decay_t<T>, ir_constant>> * = nullptr>
+    template <typename T, typename ...Args,
+              std::enable_if_t<is_ir_type_v<T>> * = nullptr>
     explicit
-    ir_constant (T&& t)
-      : m_type (ir_type_v<std::decay_t<T>>),
-        m_data (std::forward<T> (t))
+    ir_constant (std::in_place_type_t<T>, Args&&... args)
+      : m_type (ir_type_v<T>),
+        m_data (std::in_place_type<T>, std::forward<Args> (args)...)
     { }
 
-    template <typename ...Args>
+    template <typename T,
+              std::enable_if_t<pack_contains_v<std::decay_t<T>, ir_type_pack>> * = nullptr>
     explicit
-    ir_constant (ir_type type, Args&&... args)
-      : m_type (type),
-        m_data (std::forward<Args> (args)...)
+    ir_constant (T&& t)
+      : ir_constant (std::in_place_type<std::decay_t<T>>, std::forward<T> (t))
     { }
 
     [[nodiscard]] constexpr
@@ -65,17 +66,17 @@ namespace gch
     template <typename T>
     friend constexpr
     optional_ref<T>
-    maybe_as_type (ir_constant& c) noexcept;
+    maybe_as (ir_constant& c) noexcept;
 
     template <typename T>
     friend constexpr
     optional_ref<const T>
-    maybe_as_type (const ir_constant& c) noexcept;
+    maybe_as (const ir_constant& c) noexcept;
 
     template <typename T, typename U>
     friend constexpr
     std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_constant>, match_cvref_t<U, T>>
-    cast (U&&);
+    as (U&&);
 
   private:
     ir_type  m_type = ir_type_v<void>;
@@ -84,26 +85,37 @@ namespace gch
 
   template <typename T>
   [[nodiscard]] constexpr
-  optional_ref<T>
-  maybe_as_type (ir_constant& c) noexcept
+  bool
+  is_a (const ir_constant& c) noexcept
   {
+    return ir_type_v<T> == c.get_type ();
+  }
+
+  template <typename T, typename U>
+  [[nodiscard]] constexpr
+  std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_constant>, match_cvref_t<U, T>>
+  as (U&& c)
+  {
+    assert (ir_type_v<T> == c.get_type ());
+    return static_cast<match_cvref_t<U, T>> (*std::any_cast<T> (&c.m_data));
+  }
+
+  template <typename T>
+  [[nodiscard]] constexpr
+  optional_ref<T>
+  maybe_as (ir_constant& c) noexcept
+  {
+    assert (ir_type_v<T> == c.get_type ());
     return std::any_cast<T> (&c.m_data);
   }
 
   template <typename T>
   [[nodiscard]] constexpr
   optional_ref<const T>
-  maybe_as_type (const ir_constant& c) noexcept
+  maybe_as (const ir_constant& c) noexcept
   {
+    assert (ir_type_v<T> == c.get_type ());
     return std::any_cast<T> (&c.m_data);
-  }
-
-  template <typename T, typename U>
-  [[nodiscard]] constexpr
-  std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_constant>, match_cvref_t<U, T>>
-  cast (U&& c)
-  {
-    return static_cast<match_cvref_t<U, T>> (*std::any_cast<T> (&c.m_data));
   }
 
   std::ostream&

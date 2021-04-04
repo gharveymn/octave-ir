@@ -1,14 +1,14 @@
-/** ir-static-generator.cpp
+/** ir-static-unit-generator.cpp
  * Copyright © 2021 Gene Harvey
  *
  * This software may be modified and distributed under the terms
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "visitors/component/inspectors/ir-static-module-generator.hpp"
+#include "visitors/component/inspectors/ir-static-unit-generator.hpp"
 
 #include "gch/octave-ir-static-ir/ir-static-block.hpp"
-#include "gch/octave-ir-static-ir/ir-static-module.hpp"
+#include "gch/octave-ir-static-ir/ir-static-unit.hpp"
 #include "components/ir-all-components.hpp"
 
 #include "gch/octave-ir-utilities/ir-error.hpp"
@@ -702,6 +702,16 @@ namespace gch
     return determination_def_finder { start, det, block_manager } ();
   }
 
+  [[nodiscard]]
+  static
+  ir_static_operand
+  create_operand (ir_static_block_id id)
+  {
+    static_assert (is_ir_type_v<int>);
+    static_assert (! is_ir_type_v<std::string_view>);
+    return ir_static_operand { std::in_place_type<ir_static_block_id::value_type>, id };
+  }
+
   //
   // ir_def_reference
   //
@@ -1008,7 +1018,7 @@ namespace gch
 
   ir_static_block_id
   ir_determinator_injection::
-  get_continue_path_id (void) const noexcept
+  get_continue_block_id (void) const noexcept
   {
     assert (is_branch ());
     return m_args.branches.continue_path;
@@ -1016,7 +1026,7 @@ namespace gch
 
   ir_static_block_id
   ir_determinator_injection::
-  get_terminal_path_id (void) const noexcept
+  get_terminal_block_id (void) const noexcept
   {
     assert (is_branch ());
     return m_args.branches.terminal_path;
@@ -1030,12 +1040,16 @@ namespace gch
     {
       return { ir_metadata_v<ir_opcode::assign>,
                { var_map[get_variable ()], get_def_id () },
-               { ir_constant { get_assign_value () } } };
+               { ir_static_operand { get_assign_value () } } };
     }
-    return { ir_metadata_v<ir_opcode::cbranch>,
-             { ir_static_use { var_map[get_variable ()], get_def_id () },
-               ir_constant { get_continue_path_id () },
-               ir_constant { get_terminal_path_id () } } };
+    return {
+      ir_metadata_v<ir_opcode::cbranch>,
+      {
+        ir_static_operand { var_map[get_variable ()], get_def_id () },
+        create_operand (get_continue_block_id ()),
+        create_operand (get_terminal_block_id ())
+      }
+    };
   }
 
   //
@@ -1732,7 +1746,9 @@ namespace gch
             std::for_each (phi.begin (), phi.end (),
                            [&](ir_static_incoming_pair pair)
                            {
-                             args.emplace_back (ir_constant { pair.get_block_id () });
+                             args.emplace_back (std::in_place_type<ir_static_block_id::value_type>,
+                                                pair.get_block_id ());
+
                              args.emplace_back (svar, pair.get_def_id ());
                            });
 
@@ -1761,11 +1777,11 @@ namespace gch
             if (inj.is_branch ())
             {
               // generate terminator block
-              generate_determined_uninit_terminator (sblocks[inj.get_terminal_path_id ()],
+              generate_determined_uninit_terminator (sblocks[inj.get_terminal_block_id ()],
                                                      var_map[inj.get_variable ()]);
 
               // switch to continuing block
-              curr_sblock.emplace (sblocks[inj.get_continue_path_id ()]);
+              curr_sblock.emplace (sblocks[inj.get_continue_block_id ()]);
             }
             curr_first = inj.get_pos ();
           });
@@ -1779,8 +1795,10 @@ namespace gch
         else if (descriptor.num_successors () == 1)
         {
           // unconditional branch
-          curr_sblock->push_back ({ ir_metadata_v<ir_opcode::ucbranch>,
-                                    { ir_constant { descriptor.successors_front () } } });
+          curr_sblock->push_back ({
+            ir_metadata_v<ir_opcode::ucbranch>,
+            { create_operand (descriptor.successors_front ()) }
+          });
         }
         else
         {
@@ -1799,8 +1817,7 @@ namespace gch
           args.emplace_back (last_svar, last_def_id);
 
           std::transform (descriptor.successors_begin (), descriptor.successors_end (),
-                          std::back_inserter (args),
-                          [](ir_static_block_id id) { return ir_constant { id }; });
+                          std::back_inserter (args), create_operand);
 
           curr_sblock->push_back ({ ir_metadata_v<ir_opcode::cbranch>, std::exchange (args, { })});
         }
@@ -1809,8 +1826,8 @@ namespace gch
     return sblocks;
   }
 
-  ir_static_module
-  generate_static_module (const ir_component& c)
+  ir_static_unit
+  generate_static_unit (const ir_component& c)
   {
     ir_dynamic_block_manager block_manager { ir_dynamic_block_manager_builder { } (c) };
     set_successor_ids (block_manager);

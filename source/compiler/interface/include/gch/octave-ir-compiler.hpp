@@ -8,7 +8,7 @@
 #ifndef OCTAVE_IR_OCTAVE_IR_COMPILER_HPP
 #define OCTAVE_IR_OCTAVE_IR_COMPILER_HPP
 
-#include "gch/octave-ir-static-ir/ir-static-module.hpp"
+#include "gch/octave-ir-static-ir/ir-static-unit.hpp"
 
 #include <filesystem>
 
@@ -16,7 +16,7 @@ namespace gch
 {
 
   std::filesystem::path
-  compile (const ir_static_module& module);
+  compile (const ir_static_unit& unit);
 
 }
 

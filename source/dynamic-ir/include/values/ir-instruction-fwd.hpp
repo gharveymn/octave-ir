@@ -24,7 +24,6 @@ along with Octave; see the file COPYING.  If not, see
 #define ir_instruction_fwd_h 1
 
 #include "gch/octave-ir-utilities/ir-common.hpp"
-#include "gch/octave-ir-static-ir/ir-type-base.hpp"
 #include <list>
 
 namespace gch

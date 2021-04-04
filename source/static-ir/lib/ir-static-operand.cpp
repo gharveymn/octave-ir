@@ -108,6 +108,12 @@ namespace gch
       m_tag (tag::use)
   { }
 
+  ir_static_operand::
+  ir_static_operand (const ir_static_variable& var, ir_static_def_id id) noexcept
+    : m_use (var, id),
+      m_tag (tag::use)
+  { }
+
   bool
   ir_static_operand::
   is_constant (void) const noexcept
@@ -122,6 +128,40 @@ namespace gch
     return m_tag == tag::use;
   }
 
+  const ir_constant&
+  ir_static_operand::
+  as_constant (void) const noexcept
+  {
+    assert (is_constant ());
+    return m_constant;
+  }
+
+  const ir_static_use&
+  ir_static_operand::
+  as_use (void) const noexcept
+  {
+    assert (is_use ());
+    return m_use;
+  }
+
+  optional_cref<ir_constant>
+  ir_static_operand::
+  maybe_as_constant (void) const noexcept
+  {
+    if (is_constant ())
+      return optional_ref { as_constant () };
+    return nullopt;
+  }
+
+  optional_cref<ir_static_use>
+  ir_static_operand::
+  maybe_as_use (void) const noexcept
+  {
+    if (is_use ())
+      return optional_ref { as_use () };
+    return nullopt;
+  }
+
   ir_type
   ir_static_operand::
   get_type (void) const noexcept
@@ -131,34 +171,40 @@ namespace gch
     return m_use.get_type ();
   }
 
-  const ir_constant&
-  get_constant (const ir_static_operand& op) noexcept
+  bool
+  is_constant (const ir_static_operand& op) noexcept
   {
-    assert (op.is_constant ());
-    return op.m_constant;
+    return op.is_constant ();
+  }
+
+  bool
+  is_use (const ir_static_operand& op) noexcept
+  {
+    return op.is_use ();
+  }
+
+  const ir_constant&
+  as_constant (const ir_static_operand& op) noexcept
+  {
+    return op.as_constant ();
   }
 
   const ir_static_use&
-  get_use (const ir_static_operand& op) noexcept
+  as_use (const ir_static_operand& op) noexcept
   {
-    assert (op.is_use ());
-    return op.m_use;
+    return op.as_use ();
   }
 
   optional_cref<ir_constant>
-  maybe_get_constant (const ir_static_operand& op) noexcept
+  maybe_as_constant (const ir_static_operand& op) noexcept
   {
-    if (op.is_constant ())
-      return optional_ref { get_constant (op) };
-    return nullopt;
+    return op.maybe_as_constant ();
   }
 
   optional_cref<ir_static_use>
-  maybe_get_use (const ir_static_operand& op) noexcept
+  maybe_as_use (const ir_static_operand& op) noexcept
   {
-    if (op.is_use ())
-      return optional_ref { get_use (op) };
-    return nullopt;
+    return op.maybe_as_use ();
   }
 
   ir_type

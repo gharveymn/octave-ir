@@ -29,6 +29,14 @@ static_assert (sizeof (decltype (VAR)) == 0, "<- type");
 #  endif
 #endif
 
+#ifndef GCH_EXPORT
+#  ifdef _MSC_VER
+#    define GCH_EXPORT __declspec (dllexport)
+#  else
+#    define GCH_EXPORT
+#  endif
+#endif
+
 #ifndef GCH_CPP20_CONSTEXPR
 #  if defined (__cpp_constexpr) && __cpp_constexpr >= 201907L
 #    define GCH_CPP20_CONSTEXPR constexpr

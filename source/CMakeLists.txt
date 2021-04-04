@@ -8,6 +8,7 @@ IF (NOT CREATE_PACKAGE_VERSION VERSION_GREATER_EQUAL 0.0.5)
 ENDIF ()
 
 # Project-wide compile options
+SET (OCTAVE_IR_COMPILE_DEFS)
 SET (OCTAVE_IR_COMPILE_OPTS)
 SET (OCTAVE_IR_LINK_OPTS)
 SET (OCTAVE_IR_LINK_LIBS)
@@ -21,7 +22,8 @@ IF (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
                                -Wno-padded
                                -Wno-c++98-compat
                                -Wno-c++98-compat-pedantic
-                               -Wno-zero-as-null-pointer-constant)
+                               -Wno-zero-as-null-pointer-constant
+                               -Wno-exit-time-destructors)
 
     LIST (APPEND
           OCTAVE_IR_LINK_OPTS --coverage)

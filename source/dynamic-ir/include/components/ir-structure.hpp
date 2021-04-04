@@ -98,7 +98,7 @@ namespace gch
     mutate (ir_component_handle comp)
     {
       comp.get_storage () = allocate_subcomponent<T> (make_mover (comp));
-      return as_type<T> (comp);
+      return as_component<T> (comp);
     }
 
   protected:
