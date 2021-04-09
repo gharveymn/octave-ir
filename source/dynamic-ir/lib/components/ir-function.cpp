@@ -10,10 +10,10 @@
 
 #include "components/ir-block.hpp"
 #include "components/ir-component-sequence.hpp"
-
 #include "visitors/ir-all-component-visitors.hpp"
 #include "visitors/ir-all-structure-visitors.hpp"
 
+#include "gch/octave-ir-static-ir/ir-static-function.hpp"
 #include "gch/octave-ir-utilities/ir-error.hpp"
 
 #include <gch/nonnull_ptr.hpp>
@@ -51,7 +51,7 @@ namespace gch
 
   ir_variable&
   ir_function::
-  get_variable (const variable_key_type& identifier)
+  get_variable (const std::string& identifier)
   {
     auto [it, inserted] = m_variable_map.try_emplace (identifier, *this, identifier);
     return std::get<ir_variable> (*it);
@@ -59,7 +59,7 @@ namespace gch
 
   ir_variable&
   ir_function::
-  get_variable (variable_key_type&& identifier)
+  get_variable (std::string&& identifier)
   {
     auto [it, inserted] = m_variable_map.try_emplace (identifier, *this, std::move (identifier));
     return std::get<ir_variable> (*it);
@@ -67,10 +67,180 @@ namespace gch
 
   ir_variable&
   ir_function::
-  get_variable (const variable_identifier_char_type *identifier)
+  get_variable (std::string_view identifier)
   {
-    auto [it, inserted] = m_variable_map.try_emplace (identifier, *this, identifier);
-    return std::get<ir_variable> (*it);
+    auto [it, inserted] = m_variable_map.try_emplace (std::string (identifier), *this, identifier);
+    return it->second;
+  }
+
+  auto
+  ir_function::
+  args_begin (void) noexcept
+    -> args_iter
+  {
+    return m_args.begin ();
+  }
+
+  auto
+  ir_function::
+  args_begin (void) const noexcept
+    -> args_citer
+  {
+    return as_mutable (*this).args_begin ();
+  }
+
+  auto
+  ir_function::
+  args_cbegin (void) const noexcept
+    -> args_citer
+  {
+    return args_begin ();
+  }
+
+  auto
+  ir_function::
+  args_end (void) noexcept
+    -> args_iter
+  {
+    return m_args.end ();
+  }
+
+  auto
+  ir_function::
+  args_end (void) const noexcept
+    -> args_citer
+  {
+    return as_mutable (*this).args_end ();
+  }
+
+  auto
+  ir_function::
+  args_cend (void) const noexcept
+    -> args_citer
+  {
+    return args_end ();
+  }
+
+  auto
+  ir_function::
+  args_rbegin (void) noexcept
+    -> args_riter
+  {
+    return m_args.rbegin ();
+  }
+
+  auto
+  ir_function::
+  args_rbegin (void) const noexcept
+    -> args_criter
+  {
+    return as_mutable (*this).args_rbegin ();
+  }
+
+  auto
+  ir_function::
+  args_crbegin (void) const noexcept
+    -> args_criter
+  {
+    return args_rbegin ();
+  }
+
+  auto
+  ir_function::
+  args_rend (void) noexcept
+    -> args_riter
+  {
+    return m_args.rend ();
+  }
+
+  auto
+  ir_function::
+  args_rend (void) const noexcept
+    -> args_criter
+  {
+    return as_mutable (*this).args_rend ();
+  }
+
+  auto
+  ir_function::
+  args_crend (void) const noexcept
+    -> args_criter
+  {
+    return args_rend ();
+  }
+
+  auto
+  ir_function::
+  args_front (void)
+    -> args_ref
+  {
+    return *args_begin ();
+  }
+
+  auto
+  ir_function::
+  args_front (void) const
+    -> args_cref
+  {
+    return as_mutable (*this).args_front ();
+  }
+
+  auto
+  ir_function::
+  args_back (void)
+    -> args_ref
+  {
+    return *args_rbegin ();
+  }
+
+  auto
+  ir_function::
+  args_back (void) const
+    -> args_cref
+  {
+    return as_mutable (*this).args_back ();
+  }
+
+  auto
+  ir_function::
+  args_size (void) const noexcept
+    -> args_size_ty
+  {
+   return m_args.size ();
+  }
+
+  bool
+  ir_function::
+  args_empty (void) const noexcept
+  {
+    return m_args.empty ();
+  }
+
+  auto
+  ir_function::
+  num_args (void) const noexcept
+    -> args_size_ty
+  {
+   return args_size ();
+  }
+
+  bool
+  ir_function::
+  has_args (void) const noexcept
+  {
+    return ! args_empty ();
+  }
+
+  ir_block&
+  get_entry_block (ir_function& func)
+  {
+    return as_mutable (get_entry_block (std::as_const (func)));
+  }
+
+  const ir_block&
+  get_entry_block (const ir_function& func)
+  {
+    return get_entry_block (func.get_body ());
   }
 
 }

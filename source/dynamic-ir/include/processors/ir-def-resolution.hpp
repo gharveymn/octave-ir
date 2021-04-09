@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_DEF_RESOLUTION_HPP
-#define OCTAVE_IR_IR_DEF_RESOLUTION_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_DEF_RESOLUTION_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_DEF_RESOLUTION_HPP
 
 #include "gch/octave-ir-utilities/ir-link-set.hpp"
 
@@ -289,4 +289,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_DEF_RESOLUTION_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_DEF_RESOLUTION_HPP

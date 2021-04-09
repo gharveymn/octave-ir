@@ -5,13 +5,14 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_STRUCTURE_INSPECTORS_HPP
-#define OCTAVE_IR_IR_STRUCTURE_INSPECTORS_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_STRUCTURE_INSPECTORS_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_STRUCTURE_INSPECTORS_HPP
 
 #include "ir-entry-collector.hpp"
 #include "ir-leaf-inspector.hpp"
 #include "ir-predecessor-collector.hpp"
 #include "ir-successor-collector.hpp"
+#include "ir-abstract-structure-inspector.hpp"
 
 namespace gch
 {
@@ -43,4 +44,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_STRUCTURE_INSPECTORS_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_STRUCTURE_INSPECTORS_HPP

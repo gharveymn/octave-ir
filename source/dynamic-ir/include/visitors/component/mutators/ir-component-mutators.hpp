@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_COMPONENT_MUTATORS_HPP
-#define OCTAVE_IR_IR_COMPONENT_MUTATORS_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_COMPONENT_MUTATORS_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_COMPONENT_MUTATORS_HPP
 
 #include "ir-descending-def-propagator.hpp"
 #include "ir-descending-def-resolution-builder.hpp"
@@ -35,4 +35,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_COMPONENT_MUTATORS_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_COMPONENT_MUTATORS_HPP

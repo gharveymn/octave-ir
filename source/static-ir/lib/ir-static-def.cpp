@@ -48,6 +48,12 @@ namespace gch
     return get_variable ().get_type ();
   }
 
+  std::string
+  get_name (const ir_static_def& def)
+  {
+    return std::string (def.get_variable_name ()).append (std::to_string (def.get_id ()));
+  }
+
   bool
   operator== (const ir_static_def& lhs, const ir_static_def& rhs) noexcept
   {

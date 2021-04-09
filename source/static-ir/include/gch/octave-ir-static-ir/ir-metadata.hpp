@@ -5,11 +5,12 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_METADATA_HPP
-#define OCTAVE_IR_IR_METADATA_HPP
+#ifndef OCTAVE_IR_STATIC_IR_IR_METADATA_HPP
+#define OCTAVE_IR_STATIC_IR_IR_METADATA_HPP
 
 #include "gch/octave-ir-utilities/ir-common.hpp"
 #include "gch/octave-ir-utilities/ir-functional.hpp"
+#include "gch/octave-ir-utilities/ir-utility.hpp"
 
 #include <array>
 
@@ -18,51 +19,55 @@ namespace gch
 
   enum class ir_opcode : unsigned
   {
-    _size_     =  36,
+    phi       ,
+    assign    ,
+    call      ,
+    fetch     ,
+    convert   ,
 
-    phi        =  0,
-    assign     =  1,
-    call       =  2,
-    fetch      =  3,
-    convert    =  4,
+    branch    , // abstract
+    cbranch   ,
+    ucbranch  ,
 
-    branch     =  5, // abstract
-    cbranch    =  6,
-    ucbranch   =  7,
+    relation  , // abstract
+    eq        ,
+    ne        ,
+    lt        ,
+    le        ,
+    gt        ,
+    ge        ,
 
-    relation   =  8, // abstract
-    eq         =  9,
-    ne         = 10,
-    lt         = 11,
-    le         = 12,
-    gt         = 13,
-    ge         = 14,
+    arithmetic, // abstract
+    add       ,
+    sub       ,
+    mul       ,
+    div       ,
+    mod       ,
+    rem       ,
+    neg       ,
 
-    arithmetic = 15, // abstract
-    add        = 16,
-    sub        = 17,
-    mul        = 18,
-    div        = 19,
-    mod        = 20,
-    rem        = 21,
-    neg        = 22,
+    logical   , // abstract
+    land      ,
+    lor       ,
+    lnot      ,
 
-    logical    = 23, // abstract
-    land       = 24,
-    lor        = 25,
-    lnot       = 26,
+    bitwise   , // abstract
+    band      ,
+    bor       ,
+    bxor      ,
+    bshiftl   ,
+    bashiftr  ,
+    blshiftr  ,
+    bnot      ,
 
-    bitwise    = 27, // abstract
-    band       = 28,
-    bor        = 29,
-    bxor       = 30,
-    bshiftl    = 31,
-    bashiftr   = 32,
-    blshiftr   = 33,
-    bnot       = 34,
-
-    terminate  = 35,
+    terminate ,
   };
+
+  inline constexpr
+  std::size_t
+  num_ir_opcodes = static_cast<std::underlying_type_t<ir_opcode>> (ir_opcode::terminate) + 1;
+
+  static_assert (num_ir_opcodes == 36);
 
   class ir_metadata
   {
@@ -244,9 +249,15 @@ namespace gch
       return ir_metadata { instance<Op>::data };
     }
 
-    static constexpr
-    std::size_t
-    num_opcodes = static_cast<std::underlying_type_t<ir_opcode>> (ir_opcode::_size_);
+    using opcode_indices = std::make_index_sequence<num_ir_opcodes>;
+    using opcode_pack    = wrap_integer_sequence_t<opcode_indices, ir_opcode>;
+
+    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    std::underlying_type_t<ir_opcode>
+    get_index (void) const noexcept
+    {
+      return underlying_cast (get_opcode ());
+    }
 
   private:
     template <typename Value>
@@ -256,25 +267,25 @@ namespace gch
       const Value&
       operator[] (ir_opcode op) const noexcept
       {
-        return m_values[static_cast<std::underlying_type_t<ir_opcode>> (op)];
+        return data[static_cast<std::underlying_type_t<ir_opcode>> (op)];
       }
 
       constexpr
       const Value&
       operator[] (ir_metadata m) const noexcept
       {
-        return (*this)[m.get_opcode ()];
+        return data[m.get_index ()];
       }
 
       template <ir_opcode op>
-      constexpr
+      [[nodiscard]] constexpr
       const Value&
       get (void) const noexcept
       {
         return (*this)[op];
       }
 
-      std::array<Value, num_opcodes> m_values;
+      std::array<Value, num_ir_opcodes> data;
     };
 
     struct identity_projection
@@ -287,22 +298,30 @@ namespace gch
       }
     };
 
-    template <typename IndexSequence = std::make_index_sequence<num_opcodes>>
+    template <typename IndexSequence = opcode_indices>
     struct map_generator;
 
-    template <template <ir_opcode> typename MappedT,
-              typename IndexSequence = std::make_index_sequence<num_opcodes>>
-    struct common_mapping_result
+    template <template <ir_opcode> typename MapperT, typename IndexSequence = opcode_indices>
+    struct map_generator_template;
+
+    template <template <ir_opcode> typename MapperT, typename IndexSequence, typename ...Args>
+    struct common_mapping_result_impl
     { };
 
-    template <template <ir_opcode> typename MappedT, std::size_t ...Indices>
-    struct common_mapping_result<MappedT, std::index_sequence<Indices...>>
+    template <template <ir_opcode> typename MapperT, std::size_t ...Indices, typename ...Args>
+    struct common_mapping_result_impl<MapperT, std::index_sequence<Indices...>, Args...>
       : std::common_type<std::remove_reference_t<std::invoke_result_t<
-          MappedT<static_cast<ir_opcode> (Indices)>>>...>
+          MapperT<static_cast<ir_opcode> (Indices)>, Args...>>...>
     { };
 
-    template <template <ir_opcode> typename MappedT>
-    using common_mapping_result_t = typename common_mapping_result<MappedT>::type;
+    template <template <ir_opcode> typename MapperT, typename ...Args>
+    struct common_mapping_result
+      : common_mapping_result_impl<MapperT, opcode_indices, Args...>
+    { };
+
+    template <template <ir_opcode> typename MapperT, typename ...Args>
+    using common_mapping_result_t =
+      typename common_mapping_result<MapperT, Args...>::type;
 
   public:
     template <typename Projection = identity_projection>
@@ -311,11 +330,11 @@ namespace gch
     value_map<std::remove_reference_t<std::invoke_result_t<Projection, ir_metadata>>>
     generate_map (Projection proj = { }) noexcept;
 
-    template <template <ir_opcode> typename MappedT>
+    template <template <ir_opcode> typename MapperT, typename ...Args>
     [[nodiscard]]
     static GCH_CPP20_CONSTEVAL
-    value_map<common_mapping_result_t<MappedT>>
-    template_generate_map (void) noexcept;
+    value_map<common_mapping_result_t<MapperT, const Args&...>>
+    generate_map (const Args&... args) noexcept;
 
   private:
     [[nodiscard]]
@@ -376,7 +395,7 @@ namespace gch
   template <std::size_t ...Indices>
   struct ir_metadata::map_generator<std::index_sequence<Indices...>>
   {
-    static_assert (sizeof...(Indices) == num_opcodes);
+    static_assert (std::is_same_v<opcode_indices, std::index_sequence<Indices...>>);
 
     template <typename Projection>
     constexpr
@@ -385,15 +404,20 @@ namespace gch
     {
       return { gch::invoke (proj, get<static_cast<ir_opcode> (Indices)> ())... };
     }
+  };
 
-    template <template <ir_opcode> typename MapperT>
+  template <template <ir_opcode> typename MapperT, std::size_t ...Indices>
+  struct ir_metadata::map_generator_template<MapperT, std::index_sequence<Indices...>>
+  {
+    static_assert (std::is_same_v<opcode_indices, std::index_sequence<Indices...>>);
+
+    template <typename ...Args>
     constexpr
-    value_map<common_mapping_result_t<MapperT>>
-    map_template (void) const noexcept
+    value_map<common_mapping_result_t<MapperT, const Args&...>>
+    operator() (const Args&... args) const
     {
-      return { gch::invoke (MapperT<static_cast<ir_opcode> (Indices)> { })... };
+      return { gch::invoke (MapperT<static_cast<ir_opcode> (Indices)> { }, args...)... };
     }
-
   };
 
   template <typename Projection>
@@ -403,17 +427,17 @@ namespace gch
   generate_map (Projection proj) noexcept
     -> value_map<std::remove_reference_t<std::invoke_result_t<Projection, ir_metadata>>>
   {
-    return map_generator<> { } (proj);
+    return gch::invoke (map_generator<> { }, proj);
   }
 
-  template <template <ir_opcode> typename MapperT>
+  template <template <ir_opcode> typename MapperT, typename ...Args>
   GCH_CPP20_CONSTEVAL
   auto
   ir_metadata::
-  template_generate_map (void) noexcept
-    -> value_map<common_mapping_result_t<MapperT>>
+  generate_map (const Args&... args) noexcept
+    -> value_map<common_mapping_result_t<MapperT, const Args&...>>
   {
-    return map_generator<> { }.map_template<MapperT> ();
+    return gch::invoke (map_generator_template<MapperT> { }, args...);
   }
 
   [[nodiscard]] GCH_CPP20_CONSTEVAL
@@ -829,6 +853,21 @@ namespace gch
     return values[op];
   }
 
+  template <ir_opcode Op>
+  struct is_comparison_op
+    : std::bool_constant<Op == ir_opcode::eq
+                      || Op == ir_opcode::ne
+                      || Op == ir_opcode::lt
+                      || Op == ir_opcode::le
+                      || Op == ir_opcode::gt
+                      || Op == ir_opcode::ge>
+  { };
+
+  template <ir_opcode Op>
+  inline constexpr
+  bool
+  is_comparison_op_v = is_comparison_op<Op>::value;
+
   static_assert (ir_metadata_v<ir_opcode::ge> == get_metadata (ir_opcode::ge));
 
   template <ir_opcode Op>
@@ -876,4 +915,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_METADATA_HPP
+#endif // OCTAVE_IR_STATIC_IR_IR_METADATA_HPP

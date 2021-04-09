@@ -5,10 +5,10 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_STRUCTURE_VISITORS_HPP
-#define OCTAVE_IR_IR_STRUCTURE_VISITORS_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_STRUCTURE_VISITORS_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_STRUCTURE_VISITORS_HPP
 
 #include "inspectors/ir-structure-inspectors.hpp"
 #include "mutators/ir-structure-mutators.hpp"
 
-#endif // OCTAVE_IR_IR_STRUCTURE_VISITORS_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_STRUCTURE_VISITORS_HPP

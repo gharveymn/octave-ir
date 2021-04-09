@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_INDEX_SEQUENCE_MAP_HPP
-#define OCTAVE_IR_IR_INDEX_SEQUENCE_MAP_HPP
+#ifndef OCTAVE_IR_UTILITIES_IR_INDEX_SEQUENCE_MAP_HPP
+#define OCTAVE_IR_UTILITIES_IR_INDEX_SEQUENCE_MAP_HPP
 
 #include "gch/octave-ir-utilities/ir-utility.hpp"
 
@@ -118,4 +118,4 @@ namespace gch
 
 } // namespace gch
 
-#endif // OCTAVE_IR_IR_INDEX_SEQUENCE_MAP_HPP
+#endif // OCTAVE_IR_UTILITIES_IR_INDEX_SEQUENCE_MAP_HPP

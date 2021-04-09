@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_DEF_HPP
-#define OCTAVE_IR_IR_DEF_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_DEF_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_DEF_HPP
 
 #include <gch/nonnull_ptr.hpp>
 
@@ -84,4 +84,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_DEF_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_DEF_HPP

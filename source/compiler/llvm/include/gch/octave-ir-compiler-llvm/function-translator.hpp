@@ -5,7 +5,14 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_OCTAVE_IR_COMPILER_LLVM_HPP
-#define OCTAVE_IR_OCTAVE_IR_COMPILER_LLVM_HPP
+#ifndef OCTAVE_IR_COMPILER_LLVM_FUNCTION_TRANSLATOR_HPP
+#define OCTAVE_IR_COMPILER_LLVM_FUNCTION_TRANSLATOR_HPP
 
-#endif // OCTAVE_IR_OCTAVE_IR_COMPILER_LLVM_HPP
+namespace gch
+{
+
+
+
+}
+
+#endif // OCTAVE_IR_COMPILER_LLVM_FUNCTION_TRANSLATOR_HPP

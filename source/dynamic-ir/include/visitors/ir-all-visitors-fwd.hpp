@@ -5,12 +5,12 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_ALL_VISITORS_FWD_HPP
-#define OCTAVE_IR_IR_ALL_VISITORS_FWD_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_ALL_VISITORS_FWD_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_ALL_VISITORS_FWD_HPP
 
 #include "component/ir-component-visitors-fwd.hpp"
 #include "structure/ir-structure-visitors-fwd.hpp"
 #include "subcomponent/ir-subcomponent-visitors-fwd.hpp"
 #include "substructure/ir-substructure-visitors-fwd.hpp"
 
-#endif // OCTAVE_IR_IR_ALL_VISITORS_FWD_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_ALL_VISITORS_FWD_HPP

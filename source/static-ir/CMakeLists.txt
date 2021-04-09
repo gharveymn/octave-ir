@@ -6,7 +6,7 @@ CREATE_PACKAGE (AUTHOR       gharveymn
                 HEADERS      ir-constant.hpp
                              ir-metadata.hpp
                              ir-static-block.hpp
-                             ir-static-unit.hpp
+                             ir-static-function.hpp
                              ir-static-def.hpp
                              ir-static-instruction.hpp
                              ir-static-operand.hpp
@@ -18,7 +18,7 @@ CREATE_PACKAGE (AUTHOR       gharveymn
                 SOURCES      ir-constant.cpp
                              ir-metadata.cpp
                              ir-static-block.cpp
-                             ir-static-unit.cpp
+                             ir-static-function.cpp
                              ir-static-def.cpp
                              ir-static-instruction.cpp
                              ir-static-operand.cpp

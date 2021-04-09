@@ -1,4 +1,4 @@
-/** ir-static-unit.hpp
+/** ir-static-function.hpp
  * A container holding an unordered set of static blocks.
  *
  * Copyright © 2021 Gene Harvey
@@ -7,8 +7,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_STATIC_UNIT_HPP
-#define OCTAVE_IR_IR_STATIC_UNIT_HPP
+#ifndef OCTAVE_IR_STATIC_IR_IR_STATIC_FUNCTION_HPP
+#define OCTAVE_IR_STATIC_IR_IR_STATIC_FUNCTION_HPP
 
 #include "gch/octave-ir-utilities/ir-common.hpp"
 
@@ -42,7 +42,7 @@ namespace gch
     id_type m_id;
   };
 
-  class ir_static_unit
+  class ir_static_function
   {
   public:
     using container_type          = std::vector<ir_static_block>;
@@ -103,15 +103,15 @@ namespace gch
     using variables_riter   = variables_reverse_iterator;
     using variables_criter  = variables_const_reverse_iterator;
 
-    ir_static_unit            (void)                        = delete;
-    ir_static_unit            (const ir_static_unit&)     = default;
-    ir_static_unit            (ir_static_unit&&) noexcept = default;
-    ir_static_unit& operator= (const ir_static_unit&)     = default;
-    ir_static_unit& operator= (ir_static_unit&&) noexcept = default;
-    ~ir_static_unit           (void)                        = default;
+    ir_static_function (void)                        = delete;
+    ir_static_function (const ir_static_function&)     = default;
+    ir_static_function (ir_static_function&&) noexcept = default;
+    ir_static_function& operator= (const ir_static_function&)     = default;
+    ir_static_function& operator= (ir_static_function&&) noexcept = default;
+    ~ir_static_function (void)                        = default;
 
-    ir_static_unit (std::string_view name, ir_processed_id id, container_type&& blocks,
-                    std::vector<ir_static_variable>&& vars);
+    ir_static_function (std::string_view name, ir_processed_id id, container_type&& blocks,
+                        std::vector<ir_static_variable>&& vars);
 
     [[nodiscard]]
     const_iterator
@@ -181,8 +181,8 @@ namespace gch
   };
 
   std::ostream&
-  operator<< (std::ostream& out, const ir_static_unit& unit);
+  operator<< (std::ostream& out, const ir_static_function& func);
 
 }
 
-#endif // OCTAVE_IR_IR_STATIC_UNIT_HPP
+#endif // OCTAVE_IR_STATIC_IR_IR_STATIC_FUNCTION_HPP

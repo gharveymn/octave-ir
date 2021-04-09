@@ -5,11 +5,12 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_FUNCTIONAL_HPP
-#define OCTAVE_IR_IR_FUNCTIONAL_HPP
+#ifndef OCTAVE_IR_UTILITIES_IR_FUNCTIONAL_HPP
+#define OCTAVE_IR_UTILITIES_IR_FUNCTIONAL_HPP
 
 #include "gch/octave-ir-utilities/ir-type-traits.hpp"
 
+#include <array>
 #include <utility>
 #include <tuple>
 #include <type_traits>
@@ -166,6 +167,89 @@ namespace gch
   namespace detail
   {
 
+    struct bind_front_create_tag { };
+    static constexpr bind_front_create_tag bind_front_create { };
+
+    template <typename Functor, typename ...BoundArgs>
+    class bind_front_object
+    {
+      using functor_type  = Functor;
+      using bound_tuple   = std::tuple<BoundArgs...>;
+      using bound_indices = std::index_sequence_for<BoundArgs...>;
+
+    public:
+      struct create_tag { };
+      static constexpr create_tag create { };
+
+      bind_front_object            (void)                         = default;
+      bind_front_object            (const bind_front_object&)     = default;
+      bind_front_object            (bind_front_object&&) noexcept = default;
+      bind_front_object& operator= (const bind_front_object&)     = default;
+      bind_front_object& operator= (bind_front_object&&) noexcept = default;
+      ~bind_front_object           (void)                         = default;
+
+      template <typename FunctorIn, typename ...Ts>
+      constexpr explicit
+      bind_front_object (bind_front_create_tag, FunctorIn&& f, Ts&&... ts)
+        noexcept (std::is_nothrow_constructible_v<functor_type, FunctorIn>
+              &&  std::is_nothrow_constructible_v<bound_tuple, Ts...>)
+        : m_functor    (std::forward<FunctorIn> (f)),
+          m_bound_args (std::forward<Ts> (ts)...)
+      { }
+
+      template <typename ...Args>
+      constexpr
+      std::invoke_result_t<Functor&, BoundArgs&..., Args...>
+      operator() (Args&&... args) &
+        noexcept (std::is_nothrow_invocable_v<Functor&, BoundArgs&..., Args...>)
+      {
+        return invoke (bound_indices { }, m_functor, m_bound_args, std::forward<Args> (args)...);
+      }
+
+      template <typename ...Args>
+      constexpr
+      std::invoke_result_t<const Functor&, const BoundArgs&..., Args...>
+      operator() (Args&&... args) const &
+        noexcept (std::is_nothrow_invocable_v<const Functor&, const BoundArgs&..., Args...>)
+      {
+        return invoke (bound_indices { }, m_functor, m_bound_args, std::forward<Args> (args)...);
+      }
+
+      template <typename ...Args>
+      constexpr
+      std::invoke_result_t<Functor, BoundArgs..., Args...>
+      operator() (Args&&... args) &&
+        noexcept (std::is_nothrow_invocable_v<Functor, BoundArgs..., Args...>)
+      {
+        return invoke (bound_indices { }, std::move (m_functor), std::move (m_bound_args),
+                       std::forward<Args> (args)...);
+      }
+
+      template <typename ...Args>
+      constexpr
+      std::invoke_result_t<const Functor, const BoundArgs..., Args...>
+      operator() (Args&&... args) const &&
+        noexcept (std::is_nothrow_invocable_v<const Functor, const BoundArgs..., Args...>)
+      {
+        return invoke (bound_indices { }, std::move (m_functor), std::move (m_bound_args),
+                       std::forward<Args> (args)...);
+      }
+
+    private:
+      template <typename F, typename Tup, std::size_t ...Indices, typename ...Args>
+      static constexpr
+      decltype (auto)
+      invoke (std::index_sequence<Indices...>, F&& f, Tup&& bound_tup, Args&&... args)
+      {
+        return gch::invoke (std::forward<F> (f),
+                            std::get<Indices> (std::forward<Tup> (bound_tup))...,
+                            std::forward<Args> (args)...);
+      }
+
+      functor_type m_functor;
+      bound_tuple  m_bound_args;
+    };
+
     template <typename T, typename MemFn>
     class bound_mem_fn_object;
 
@@ -187,7 +271,7 @@ namespace gch
       operator() (Args&&... args) const
         noexcept (std::is_nothrow_invocable_v<MemFn, T&, Args...>)
       {
-        return invoke (m_mem_fn, *m_object_ptr, std::forward<Args> (args)...);
+        return gch::invoke (m_mem_fn, *m_object_ptr, std::forward<Args> (args)...);
       }
 
     private:
@@ -213,7 +297,7 @@ namespace gch
       operator() (Args&&... args) const
         noexcept (std::is_nothrow_invocable_v<MemFn, T&&, Args...>)
       {
-        return invoke (m_mem_fn, std::move (*m_object_ptr), std::forward<Args> (args)...);
+        return gch::invoke (m_mem_fn, std::move (*m_object_ptr), std::forward<Args> (args)...);
       }
 
     private:
@@ -227,6 +311,21 @@ namespace gch
     template <typename T, typename MemFn>
     bound_mem_fn_object (T&&, MemFn) -> bound_mem_fn_object<T&&, MemFn>;
 
+  } // namespace gch::detail
+
+  template <typename Functor, typename ...Args>
+  using bind_front_t = detail::bind_front_object<std::decay_t<Functor>, std::decay_t<Args>...>;
+
+  template <typename Functor, typename ...Args>
+  constexpr
+  bind_front_t<Functor, Args...>
+  bind_front (Functor&& f, Args&&... args)
+    noexcept (std::is_nothrow_constructible_v<detail::bind_front_create_tag,
+                                              bind_front_t<Functor, Args...>,
+                                              Functor, Args...>)
+  {
+    return bind_front_t<Functor, Args...> (detail::bind_front_create, std::forward<Functor> (f),
+                                           std::forward<Args> (args)...);
   }
 
   template <typename ...Args, typename T, typename Base, typename Return,
@@ -314,48 +413,52 @@ namespace gch
   template <typename T>
   value_projection (T) -> value_projection<T>;
 
-  template <typename Pack, template <typename> typename TransT, typename ...Args>
-  struct common_pack_transform_result
-  { };
+  template <template <typename ...> typename MapperT, typename Pack, typename ...Args>
+  struct common_map_pack_result
+  {
+    using type = void;
+  };
 
-  template <template <typename ...> typename PackT, template <typename> typename TransT,
+  template < template <typename ...> typename MapperT, template <typename ...> typename PackT,
             typename ...Ts, typename ...Args>
-  struct common_pack_transform_result<PackT<Ts...>, TransT, Args...>
-    : std::common_type<std::remove_reference_t<std::invoke_result_t<TransT<Ts>, Args...>>...>
+  struct common_map_pack_result<MapperT, PackT<Ts...>, Args...>
+    : std::common_type<std::remove_reference_t<std::invoke_result_t<MapperT<Ts>, Args...>>...>
   { };
 
-  template <typename Pack, template <typename> typename TransT, typename ...Args>
-  using common_pack_transform_result_t
-    = typename common_pack_transform_result<Pack, TransT, Args...>::type;
+  template <template <typename ...> typename MapperT, typename Pack, typename ...Args>
+  using common_map_pack_result_t
+    = typename common_map_pack_result<MapperT, Pack, Args...>::type;
 
   namespace detail
   {
 
-    template <typename Pack, template <typename> typename TransT>
-    struct pack_transform_impl
+    template <template <typename ...> typename MapperT, typename Pack>
+    struct map_pack_impl
     { };
 
-    template <template <typename ...> typename PackT, template <typename> typename TransT,
+    template <template <typename ...> typename MapperT, template <typename ...> typename PackT,
               typename ...Ts>
-    struct pack_transform_impl<PackT<Ts...>, TransT>
+    struct map_pack_impl<MapperT, PackT<Ts...>>
     {
-      static constexpr
-      std::array<common_pack_transform_result_t<PackT<Ts...>, TransT>, sizeof...(Ts)>
-      value { gch::invoke (TransT<Ts> { })... };
+      template <typename ...Args>
+      constexpr
+      std::array<common_map_pack_result_t<MapperT, PackT<Ts...>, const Args&...>, sizeof...(Ts)>
+      operator() (const Args&... args)
+      {
+        return { gch::invoke (MapperT<Ts> { }, args...)... };
+      }
     };
 
   } // namespace gch::detail
 
-  template <typename Pack, template <typename> typename TransT>
-  struct pack_transform
-    : detail::pack_transform_impl<Pack, TransT>
-  { };
-
-  template <typename Pack, template <typename> typename TransT>
-  inline constexpr
-  std::array<common_pack_transform_result_t<Pack, TransT>, pack_size_v<Pack>>
-  pack_transform_v = pack_transform<Pack, TransT>::value;
+  template <template <typename ...> typename MapperT, typename Pack, typename ...Args>
+  constexpr
+  std::array<common_map_pack_result_t<MapperT, Pack, const Args&...>, pack_size_v<Pack>>
+  map_pack (const Args&... args)
+  {
+    return gch::invoke (detail::map_pack_impl<MapperT, Pack> { }, args...);
+  }
 
 }
 
-#endif // OCTAVE_IR_IR_FUNCTIONAL_HPP
+#endif // OCTAVE_IR_UTILITIES_IR_FUNCTIONAL_HPP

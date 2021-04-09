@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_ABSTRACT_INSPECTOR_HPP
-#define OCTAVE_IR_IR_ABSTRACT_INSPECTOR_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_ABSTRACT_INSPECTOR_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_ABSTRACT_INSPECTOR_HPP
 
 namespace gch
 {
@@ -44,4 +44,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_ABSTRACT_INSPECTOR_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_ABSTRACT_INSPECTOR_HPP

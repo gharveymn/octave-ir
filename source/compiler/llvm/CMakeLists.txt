@@ -14,8 +14,22 @@ MACRO (CREATE_LLVM_COMPILER_PACKAGE target_name)
                   NAMESPACE    gch
                   NAME         ${target_name}
                   TYPE         SHARED
-                  HEADERS      octave-ir-compiler-llvm.hpp
-                  SOURCES      octave-ir-compiler-llvm.cpp
+
+                  HEADERS      function-translator.hpp
+                               instruction-translator.hpp
+                               llvm-common.hpp
+                               llvm-constant.hpp
+                               llvm-instruction-map.hpp
+                               llvm-interface.hpp
+                               llvm-type.hpp
+                               llvm-value-map.hpp
+                               llvm-version.hpp
+
+                  SOURCES      function-translator.cpp
+                               instruction-translator.cpp
+                               llvm-interface.cpp
+                               llvm-value-map.cpp
+
                   DEPENDENCIES octave-ir-compiler
                                octave-ir-static-ir)
 

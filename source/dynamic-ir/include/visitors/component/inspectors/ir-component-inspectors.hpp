@@ -5,11 +5,13 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_COMPONENT_INSPECTORS_HPP
-#define OCTAVE_IR_IR_COMPONENT_INSPECTORS_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_COMPONENT_INSPECTORS_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_COMPONENT_INSPECTORS_HPP
 
 #include "ir-block-counter.hpp"
 #include "ir-leaf-collector.hpp"
+#include "ir-abstract-component-inspector.hpp"
+#include "ir-static-function-generator.hpp"
 
 namespace gch
 {
@@ -40,4 +42,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_COMPONENT_INSPECTORS_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_COMPONENT_INSPECTORS_HPP

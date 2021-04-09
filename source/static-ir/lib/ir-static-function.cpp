@@ -5,7 +5,7 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "gch/octave-ir-static-ir/ir-static-unit.hpp"
+#include "gch/octave-ir-static-ir/ir-static-function.hpp"
 
 #include "gch/octave-ir-static-ir/ir-static-block.hpp"
 #include "gch/octave-ir-static-ir/ir-static-instruction.hpp"
@@ -17,9 +17,9 @@
 namespace gch
 {
 
-  ir_static_unit::
-  ir_static_unit (std::string_view name, ir_processed_id id, container_type&& blocks,
-                  std::vector<ir_static_variable>&& vars)
+  ir_static_function::
+  ir_static_function (std::string_view name, ir_processed_id id, container_type&& blocks,
+                      std::vector<ir_static_variable>&& vars)
     : m_name      (name),
       m_id        (id),
       m_blocks    (std::move (blocks)),
@@ -27,7 +27,7 @@ namespace gch
   { }
 
   auto
-  ir_static_unit::
+  ir_static_function::
   begin (void) const noexcept
     -> citer
   {
@@ -35,7 +35,7 @@ namespace gch
   }
 
   auto
-  ir_static_unit::
+  ir_static_function::
   end (void) const noexcept
     -> citer
   {
@@ -43,7 +43,7 @@ namespace gch
   }
 
   auto
-  ir_static_unit::
+  ir_static_function::
   rbegin (void) const noexcept
     -> criter
   {
@@ -51,7 +51,7 @@ namespace gch
   }
 
   auto
-  ir_static_unit::
+  ir_static_function::
   rend (void) const noexcept
     -> criter
   {
@@ -59,7 +59,7 @@ namespace gch
   }
 
   auto
-  ir_static_unit::
+  ir_static_function::
   front (void) const
     -> cref
   {
@@ -67,7 +67,7 @@ namespace gch
   }
 
   auto
-  ir_static_unit::
+  ir_static_function::
   back (void) const
     -> cref
   {
@@ -75,7 +75,7 @@ namespace gch
   }
 
   auto
-  ir_static_unit::
+  ir_static_function::
   size (void) const noexcept
     -> size_ty
   {
@@ -83,14 +83,14 @@ namespace gch
   }
 
   bool
-  ir_static_unit::
+  ir_static_function::
   empty (void) const noexcept
   {
     return m_blocks.empty ();
   }
 
   auto
-  ir_static_unit::
+  ir_static_function::
   num_blocks (void) const noexcept
     -> size_ty
   {
@@ -98,7 +98,7 @@ namespace gch
   }
 
   auto
-  ir_static_unit::
+  ir_static_function::
   operator[] (size_type pos) const
     -> const_reference
   {
@@ -106,7 +106,7 @@ namespace gch
   }
 
   auto
-  ir_static_unit::
+  ir_static_function::
   variables_begin (void) const noexcept
     -> variables_const_iterator
   {
@@ -114,7 +114,7 @@ namespace gch
   }
 
   auto
-  ir_static_unit::
+  ir_static_function::
   variables_end (void) const noexcept
     -> variables_const_iterator
   {
@@ -122,28 +122,28 @@ namespace gch
   }
 
   std::string_view
-  ir_static_unit::
+  ir_static_function::
   get_name (void) const noexcept
   {
     return m_name;
   }
 
   ir_processed_id
-  ir_static_unit::
+  ir_static_function::
   get_id (void) const noexcept
   {
     return m_id;
   }
 
   std::string
-  ir_static_unit::
+  ir_static_function::
   get_block_name (const ir_static_block& block) const
   {
     return std::to_string (std::distance (&m_blocks[0], &block));
   }
 
   std::ostream&
-  operator<< (std::ostream& out, const ir_static_unit& unit)
+  operator<< (std::ostream& out, const ir_static_function& unit)
   {
     class indenter
       : public std::streambuf

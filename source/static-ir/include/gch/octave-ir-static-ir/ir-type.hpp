@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_TYPE_HPP
-#define OCTAVE_IR_IR_TYPE_HPP
+#ifndef OCTAVE_IR_STATIC_IR_IR_TYPE_HPP
+#define OCTAVE_IR_STATIC_IR_IR_TYPE_HPP
 
 
 #if defined (__cpp_char8_t) && __cpp_char8_t >= 201811L
@@ -19,10 +19,11 @@
 #include "gch/octave-ir-utilities/ir-functional.hpp"
 
 #include <gch/nonnull_ptr.hpp>
+#include <gch/optional_ref.hpp>
 
 #include <array>
 #include <complex>
-#include <iosfwd>
+#include <optional>
 
 class octave_base_value;
 
@@ -31,10 +32,63 @@ namespace gch
 
   using any = octave_base_value *;
 
-  template <typename>
-  struct ir_printer;
-
   class ir_type;
+
+  using ir_type_pack = type_pack<
+    void,
+    any,
+
+    long double,
+    double,
+    single,
+    std::int64_t,
+    std::int32_t,
+    std::int16_t,
+    std::int8_t,
+    std::uint64_t,
+    std::uint32_t,
+    std::uint16_t,
+    std::uint8_t,
+    char,
+    wchar_t,
+    char32_t,
+    char16_t,
+#ifdef GCH_CHAR8_T
+    char8_t,
+#endif
+    bool,
+    std::complex<double>,
+    std::complex<single>,
+
+    long double *,
+    double *,
+    single *,
+    std::int64_t *,
+    std::int32_t *,
+    std::int16_t *,
+    std::int8_t *,
+    std::uint64_t *,
+    std::uint32_t *,
+    std::uint16_t *,
+    std::uint8_t *,
+    char *,
+    wchar_t *,
+    char32_t *,
+    char16_t *,
+#ifdef GCH_CHAR8_T
+    char8_t *,
+#endif
+    bool *,
+    std::complex<double> *,
+    std::complex<single> *
+  >;
+
+  static_assert (std::is_same_v<ir_type_pack, pack_unique_t<ir_type_pack>>,
+                 "Types are not unique.");
+
+  inline constexpr
+  unsigned
+  num_ir_types = pack_size_v<ir_type_pack>;
 
   class ir_type_array
   {
@@ -98,47 +152,28 @@ namespace gch
     std::size_t    m_numel;
   };
 
-  class ir_type
+  class ir_type_base
   {
-    struct impl
-    {
-      // A user readable type name (this is the base name if it is a pointer).
-      // This should not be used directly. Use ir_type_printer to print a name.
-      const char *  m_name_base;
-      const impl *  m_base_type;
-      const impl *  m_pointer_base_type;
-      std::size_t   m_rep_size;
-      ir_type_array m_members;
-      bool          m_is_integral;
-    };
+    struct impl;
 
     template <typename T>
     struct instance;
 
-    constexpr
-    ir_type (const impl& impl_ref) noexcept
+    constexpr explicit
+    ir_type_base (const impl& impl_ref) noexcept
       : m_ptr (impl_ref)
     { }
 
   public:
     friend struct std::hash<ir_type>;
+    friend class ir_type;
 
-    ir_type            (void)               = delete;
-    ir_type            (const ir_type&)     = default;
-    ir_type            (ir_type&&) noexcept = default;
-    ir_type& operator= (const ir_type&)     = default;
-    ir_type& operator= (ir_type&&) noexcept = default;
-    ~ir_type           (void)               = default;
-
-    [[nodiscard]] constexpr const char *  get_name_base    (void) const noexcept { return m_ptr->m_name_base;          }
-    [[nodiscard]] constexpr ir_type       get_base         (void) const noexcept { return *m_ptr->m_base_type;         }
-    [[nodiscard]] constexpr ir_type       get_pointer_base (void) const noexcept { return *m_ptr->m_pointer_base_type; }
-    [[nodiscard]] constexpr std::size_t   get_size         (void) const noexcept { return m_ptr->m_rep_size;           }
-    [[nodiscard]] constexpr bool          is_integral      (void) const noexcept { return m_ptr->m_is_integral;        }
-    [[nodiscard]] constexpr ir_type_array get_members      (void) const noexcept { return m_ptr->m_members;            }
-
-    [[nodiscard]] constexpr bool has_base         (void) const noexcept { return m_ptr->m_base_type         != nullptr; }
-    [[nodiscard]] constexpr bool has_pointer_base (void) const noexcept { return m_ptr->m_pointer_base_type != nullptr; }
+    ir_type_base            (void)                    = delete;
+    ir_type_base            (const ir_type_base&)     = default;
+    ir_type_base            (ir_type_base&&) noexcept = default;
+    ir_type_base& operator= (const ir_type_base&)     = default;
+    ir_type_base& operator= (ir_type_base&&) noexcept = default;
+    ~ir_type_base           (void)                    = default;
 
     template <typename T,
               std::enable_if_t<std::is_same_v<
@@ -146,45 +181,28 @@ namespace gch
                 decltype (instance<std::remove_cv_t<T>>::data)>
               > * = nullptr>
     static constexpr
-    ir_type
+    ir_type_base
     get (void) noexcept
     {
-      return { instance<std::remove_cv_t<T>>::data };
-    }
-
-    friend constexpr
-    bool
-    operator== (const ir_type& lhs, const ir_type& rhs) noexcept
-    {
-      return lhs.m_ptr == rhs.m_ptr;
+      return ir_type_base { instance<std::remove_cv_t<T>>::data };
     }
 
   private:
     template <typename T>
     static constexpr
     impl
-    create_type (const char *name, std::nullptr_t) noexcept
-    {
-      return { name, nullptr, nullptr, sizeof (T), { }, std::is_integral_v<T> };
-    }
+    create_type (const char *name, std::nullptr_t) noexcept;
 
     template <typename T>
     static constexpr
     impl
-    create_type (const char *name, ir_type base) noexcept
-    {
-      return { name, base.m_ptr, nullptr, sizeof (T), { }, std::is_integral_v<T> };
-    }
+    create_type (const char *name, ir_type base) noexcept;
 
     // shortcut for ir_type_impl::create_compound_type
     template <typename T, std::size_t N>
     static constexpr
     impl
-    create_compound_type (const char *name, const ir_type (&members)[N], ir_type base) noexcept
-    {
-      return { name, base.m_ptr, nullptr, sizeof (T), ir_type_array (members),
-               std::is_integral_v<T> };
-    }
+    create_compound_type (const char *name, const ir_type (&members)[N], ir_type base) noexcept;
 
     template <typename T>
     static constexpr
@@ -204,6 +222,195 @@ namespace gch
     nonnull_ptr<const impl> m_ptr;
   };
 
+  class ir_type
+  {
+  public:
+    ir_type            (void)               = delete;
+    ir_type            (const ir_type&)     = default;
+    ir_type            (ir_type&&) noexcept = default;
+    ir_type& operator= (const ir_type&)     = default;
+    ir_type& operator= (ir_type&&) noexcept = default;
+    ~ir_type           (void)               = default;
+
+    constexpr
+    ir_type (ir_type_base ty, unsigned idx) noexcept
+      : m_base (ty),
+        m_idx  (idx)
+    { }
+
+    [[nodiscard]] constexpr
+    const char *
+    get_name_base (void) const noexcept;
+
+    [[nodiscard]] constexpr
+    ir_type
+    get_base (void) const noexcept;
+
+    [[nodiscard]] constexpr
+    ir_type
+    get_pointer_base (void) const noexcept;
+
+    [[nodiscard]] constexpr
+    std::size_t
+    get_size  (void) const noexcept;
+
+    [[nodiscard]] constexpr
+    bool
+    is_integral (void) const noexcept;
+
+    [[nodiscard]] constexpr
+    ir_type_array
+    get_members (void) const noexcept;
+
+    [[nodiscard]] constexpr
+    bool
+    has_base (void) const noexcept;
+
+    [[nodiscard]] constexpr
+    bool
+    has_pointer_base (void) const noexcept;
+
+    friend constexpr
+    bool
+    operator== (const ir_type& lhs, const ir_type& rhs) noexcept
+    {
+      return lhs.m_idx == rhs.m_idx;
+    }
+
+    [[nodiscard]] constexpr
+    unsigned
+    get_index (void) const noexcept
+    {
+      return m_idx;
+    }
+
+  private:
+    [[nodiscard]] constexpr
+    const ir_type_base::impl&
+    get_impl (void) const noexcept
+    {
+      return *m_base.m_ptr;
+    }
+
+    ir_type_base m_base;
+    unsigned     m_idx;
+  };
+
+  struct ir_type_base::impl
+  {
+    // A user readable type name (this is the base name if it is a pointer).
+    // This should not be used directly. Use ir_type_printer to print a name.
+    const char * const           m_name_base;
+    const std::optional<ir_type> m_base_type;
+    const std::optional<ir_type> m_pointer_base_type;
+    const std::size_t            m_rep_size;
+    const ir_type_array          m_members;
+    const bool                   m_is_integral;
+  };
+
+  [[nodiscard]] constexpr
+  const char *
+  ir_type::
+  get_name_base (void) const noexcept
+  {
+    return get_impl ().m_name_base;
+  }
+
+  [[nodiscard]] constexpr
+  ir_type
+  ir_type::
+  get_base (void) const noexcept
+  {
+    return *get_impl ().m_base_type;
+  }
+
+  [[nodiscard]] constexpr
+  ir_type
+  ir_type::
+  get_pointer_base (void) const noexcept
+  {
+    return *get_impl ().m_pointer_base_type;
+  }
+
+  [[nodiscard]] constexpr
+  std::size_t
+  ir_type::
+  get_size  (void) const noexcept
+  {
+    return get_impl ().m_rep_size;
+  }
+
+  [[nodiscard]] constexpr
+  bool
+  ir_type::
+  is_integral (void) const noexcept
+  {
+    return get_impl ().m_is_integral;
+  }
+
+  [[nodiscard]] constexpr
+  ir_type_array
+  ir_type::
+  get_members (void) const noexcept
+  {
+    return get_impl ().m_members;
+  }
+
+  [[nodiscard]] constexpr
+  bool
+  ir_type::
+  has_base (void) const noexcept
+  {
+    return get_impl ().m_base_type.has_value ();
+  }
+
+  [[nodiscard]] constexpr
+  bool
+  ir_type::
+  has_pointer_base (void) const noexcept
+  {
+    return get_impl ().m_pointer_base_type.has_value ();
+  }
+
+  template <typename T>
+  constexpr
+  auto
+  ir_type_base::
+  create_type (const char *name, std::nullptr_t) noexcept
+    -> impl
+  {
+    return { name, std::nullopt, std::nullopt, sizeof (T), { }, std::is_integral_v<T> };
+  }
+
+  template <typename T>
+  constexpr
+  auto
+  ir_type_base::
+  create_type (const char *name, ir_type base) noexcept
+    -> impl
+  {
+    return { name, base, std::nullopt, sizeof (T), { }, std::is_integral_v<T> };
+  }
+
+  // shortcut for ir_type_impl::create_compound_type
+  template <typename T, std::size_t N>
+  constexpr
+  auto
+  ir_type_base::
+  create_compound_type (const char *name, const ir_type (&members)[N], ir_type base) noexcept
+    -> impl
+  {
+    return { name, base, std::nullopt, sizeof (T), ir_type_array (members),
+             std::is_integral_v<T> };
+  }
+
+  constexpr
+  bool
+  operator!= (ir_type lhs, ir_type rhs) noexcept
+  {
+    return ! (lhs == rhs);
+  }
+
   namespace detail
   {
 
@@ -213,12 +420,12 @@ namespace gch
 
     template <typename T>
     struct ir_type_value_impl<T, std::enable_if_t<std::is_convertible_v<
-                                   decltype (ir_type::get<T> ()),
-                                   ir_type>>>
+                                   decltype (ir_type_base::get<T> ()),
+                                   ir_type_base>>>
     {
       static constexpr
       ir_type
-      value = ir_type::get<T> ();
+      value = { ir_type_base::get<T> (), pack_index_v<ir_type_pack, T> };
     };
 
   }
@@ -260,29 +467,6 @@ namespace gch
   bool
   is_ir_type_v = is_ir_type<T>::value;
 
-  [[nodiscard]]
-  constexpr
-  std::size_t
-  depth (ir_type ty) noexcept
-  {
-    return ty.has_base () ? (1 + depth (ty.get_base ())) : 0;
-  }
-
-  [[nodiscard]]
-  constexpr
-  std::size_t
-  indirection_level (ir_type ty) noexcept
-  {
-    return ty.has_pointer_base () ? (1 + indirection_level (ty.get_pointer_base ())) : 0;
-  }
-
-  constexpr
-  bool
-  operator!= (ir_type lhs, ir_type rhs)  noexcept
-  {
-    return ! (lhs == rhs);
-  }
-
   constexpr
   ir_type_array::iterator
   ir_type_array::
@@ -316,37 +500,42 @@ namespace gch
   // operations which are not basic to octave_base_value.
 
   template <>
-  struct ir_type::instance<any>
+  struct ir_type_base::instance<any>
   {
     using type = any;
     static constexpr
     impl
-    data { create_type<any> ("any", nullptr) };
+    data = create_type<any> ("any", nullptr);
   };
 
   template <typename T>
   constexpr
-  ir_type::impl
-  ir_type::create_type (const char *name) noexcept
+  auto
+  ir_type_base::
+  create_type (const char *name) noexcept
+    -> impl
   {
     return create_type<T> (name, ir_type_v<any>);
   }
 
   template <typename T, std::size_t N>
   constexpr
-  ir_type::impl
-  ir_type::create_compound_type (const char *name, const ir_type (&members)[N]) noexcept
+  auto
+  ir_type_base::
+  create_compound_type (const char *name, const ir_type (&members)[N]) noexcept
+    -> impl
   {
     return create_compound_type<T, N> (name, members, ir_type_v<any>);
   }
 
   template <typename T>
   constexpr
-  ir_type::impl
-  ir_type::create_pointer (ir_type pointer_base) noexcept
+  auto
+  ir_type_base::
+  create_pointer (ir_type pointer_base) noexcept
+    -> impl
   {
-    return { pointer_base.get_name_base (), ir_type_v<any>.m_ptr, pointer_base.m_ptr, sizeof (T),
-             { }, false };
+    return { pointer_base.get_name_base (), ir_type_v<any>, pointer_base, sizeof (T), { }, false };
   }
 
   // template instantiations
@@ -363,12 +552,12 @@ namespace gch
   struct unit { };
 
   template <>
-  struct ir_type::instance<void>
+  struct ir_type_base::instance<void>
   {
     using type = unit;
     static constexpr
     impl
-    data { create_type<type> ("void", nullptr) };
+    data = create_type<type> ("void", nullptr);
   };
 
   /////////////////////////////////
@@ -376,44 +565,13 @@ namespace gch
   /////////////////////////////////
 
   template <typename T>
-  struct ir_type::instance<T *>
+  struct ir_type_base::instance<T *>
   {
     using type = T *;
     static constexpr
     impl
-    data { create_pointer<T *> (ir_type_v<T>) };
+    data = create_pointer<T *> (ir_type_v<T>);
   };
-
-  //! Compute the lowest common ancestor between the two types.
-  //!
-  //! @param lhs an ir_type
-  //! @param rhs another ir_type
-  //! @return the lowest common ancestor
-  GCH_CPP20_CONSTEVAL
-  ir_type
-  lca (ir_type lhs, ir_type rhs) noexcept
-  {
-    if (lhs == rhs)
-      return lhs;
-
-    if (depth (lhs) < depth (rhs) && rhs.has_base ())
-      return lca (lhs, rhs.get_base ());
-
-    if (depth (lhs) > depth (rhs) && lhs.has_base ())
-      return lca (lhs.get_base (), rhs);
-
-    if (! lhs.has_base () || ! rhs.has_base ())
-      return ir_type_v<void>;
-
-    return lca (lhs.get_base (), rhs.get_base ());
-  }
-
-  GCH_CPP20_CONSTEVAL
-  ir_type
-  operator^ (ir_type lhs, ir_type rhs) noexcept
-  {
-    return lca (lhs, rhs);
-  }
 
   //////////////////////////
   // floating point types //
@@ -421,30 +579,30 @@ namespace gch
 
   // maybe ifdef this
   template <>
-  struct ir_type::instance<long double>
+  struct ir_type_base::instance<long double>
   {
     using type = long double;
     static constexpr
     impl
-    data { create_type<type> ("ldouble") };
+    data = create_type<type> ("ldouble");
   };
 
   template <>
-  struct ir_type::instance<double>
+  struct ir_type_base::instance<double>
   {
     using type = double;
     static constexpr
     impl
-    data { create_type<type> ("double") };
+    data = create_type<type> ("double");
   };
 
   template <>
-  struct ir_type::instance<single>
+  struct ir_type_base::instance<single>
   {
     using type = single;
     static constexpr
     impl
-    data { create_type<type> ("single", ir_type_v<double>) };
+    data = create_type<type> ("single", ir_type_v<double>);
   };
 
   ///////////////////////
@@ -452,142 +610,133 @@ namespace gch
   ///////////////////////
 
   template <>
-  struct ir_type::instance<std::int64_t>
+  struct ir_type_base::instance<std::int64_t>
   {
     using type = std::int64_t;
     static constexpr
     impl
-    data { create_type<type> ("i64") };
+    data = create_type<type> ("i64");
   };
 
   template <>
-  struct ir_type::instance<std::int32_t>
+  struct ir_type_base::instance<std::int32_t>
   {
     using type = std::int32_t;
     static constexpr
     impl
-    data { create_type<type> ("i32", ir_type_v<std::int64_t>) };
+    data = create_type<type> ("i32", ir_type_v<std::int64_t>);
   };
 
   template <>
-  struct ir_type::instance<std::int16_t>
+  struct ir_type_base::instance<std::int16_t>
   {
     using type = std::int16_t;
     static constexpr
     impl
-    data { create_type<type> ("i16", ir_type_v<std::int32_t>) };
+    data = create_type<type> ("i16", ir_type_v<std::int32_t>);
   };
 
   template <>
-  struct ir_type::instance<int8_t>
+  struct ir_type_base::instance<int8_t>
   {
     using type = std::int8_t;
     static constexpr
     impl
-    data { create_type<type> ("i8", ir_type_v<std::int16_t>) };
+    data = create_type<type> ("i8", ir_type_v<std::int16_t>);
   };
 
   template <>
-  struct ir_type::instance<std::uint64_t>
+  struct ir_type_base::instance<std::uint64_t>
   {
     using type = std::uint64_t;
     static constexpr
     impl
-    data { create_type<type> ("ui64") };
+    data = create_type<type> ("ui64");
   };
 
   template <>
-  struct ir_type::instance<std::uint32_t>
+  struct ir_type_base::instance<std::uint32_t>
   {
     using type = std::uint32_t;
     static constexpr
     impl
-    data { create_type<type> ("ui32", ir_type_v<std::uint64_t>) };
+    data = create_type<type> ("ui32", ir_type_v<std::uint64_t>);
   };
 
   template <>
-  struct ir_type::instance<std::uint16_t>
+  struct ir_type_base::instance<std::uint16_t>
   {
     using type = std::uint16_t;
     static constexpr
     impl
-    data { create_type<type> ("ui16", ir_type_v<std::uint32_t>) };
+    data = create_type<type> ("ui16", ir_type_v<std::uint32_t>);
   };
 
   template <>
-  struct ir_type::instance<std::uint8_t>
+  struct ir_type_base::instance<std::uint8_t>
   {
     using type = std::uint8_t;
     static constexpr
     impl
-    data { create_type<type> ("ui8", ir_type_v<std::uint16_t>) };
+    data = create_type<type> ("ui8", ir_type_v<std::uint16_t>);
   };
 
   template <>
-  struct ir_type::instance<char>
+  struct ir_type_base::instance<char>
   {
     using type = char;
     static constexpr
     impl
-    data { create_type<type> ("char") };
+    data = create_type<type> ("char");
   };
 
   template <>
-  struct ir_type::instance<wchar_t>
+  struct ir_type_base::instance<wchar_t>
   {
     using type = wchar_t;
     static constexpr
     impl
-    data { create_type<type> ("wchar") };
+    data = create_type<type> ("wchar");
   };
 
   template <>
-  struct ir_type::instance<char32_t>
+  struct ir_type_base::instance<char32_t>
   {
     using type = char32_t;
     static constexpr
     impl
-    data { create_type<type> ("char32") };
+    data = create_type<type> ("char32");
   };
 
   template <>
-  struct ir_type::instance<char16_t>
+  struct ir_type_base::instance<char16_t>
   {
     using type = char16_t;
     static constexpr
     impl
-    data { create_type<type> ("char16") };
+    data = create_type<type> ("char16");
   };
 
 #ifdef GCH_CHAR8_T
 
   template <>
-  struct ir_type::instance<char8_t>
+  struct ir_type_base::instance<char8_t>
   {
     using type = char8_t;
     static constexpr
     impl
-    data { create_type<char8_t> ("char8") };
+    data = create_type<char8_t> ("char8");
   };
 
 #endif
 
   template <>
-  struct ir_type::instance<bool>
+  struct ir_type_base::instance<bool>
   {
     using type = bool;
     static constexpr
     impl
-    data { create_type<type> ("bool") };
-  };
-
-  template <>
-  struct ir_type::instance<ir_type>
-  {
-    using type = ir_type;
-    static constexpr
-    impl
-    data { create_type<type> ("ir_type") };
+    data = create_type<type> ("bool");
   };
 
   ///////////////////
@@ -595,7 +744,7 @@ namespace gch
   ///////////////////
 
   template <>
-  struct ir_type::instance<std::complex<double>>
+  struct ir_type_base::instance<std::complex<double>>
   {
     using type = std::complex<double>;
 
@@ -608,11 +757,11 @@ namespace gch
 
     static constexpr
     impl
-    data { create_compound_type<type> ("complex", m_members) };
+    data = create_compound_type<type> ("complex", m_members);
   };
 
   template <>
-  struct ir_type::instance<std::complex<single>>
+  struct ir_type_base::instance<std::complex<single>>
   {
     using type = std::complex<single>;
 
@@ -625,59 +774,8 @@ namespace gch
 
     static constexpr
     impl
-    data { create_compound_type<type> ("fcomplex", m_members) };
+    data = create_compound_type<type> ("fcomplex", m_members);
   };
-
-  using ir_type_pack = type_pack<
-    any,
-    void,
-
-    long double,
-    double,
-    single,
-    std::int64_t,
-    std::int32_t,
-    std::int16_t,
-    std::int8_t,
-    std::uint64_t,
-    std::uint32_t,
-    std::uint16_t,
-    std::uint8_t,
-    char,
-    wchar_t,
-    char32_t,
-    char16_t,
-#ifdef GCH_CHAR8_T
-    char8_t,
-#endif
-    bool,
-    ir_type,
-    std::complex<double>,
-    std::complex<single>,
-
-    long double *,
-    double *,
-    single *,
-    std::int64_t *,
-    std::int32_t *,
-    std::int16_t *,
-    std::int8_t *,
-    std::uint64_t *,
-    std::uint32_t *,
-    std::uint16_t *,
-    std::uint8_t *,
-    char *,
-    wchar_t *,
-    char32_t *,
-    char16_t *,
-#ifdef GCH_CHAR8_T
-    char8_t *,
-#endif
-    bool *,
-    ir_type *,
-    std::complex<double> *,
-    std::complex<single> *
-  >;
 
   template <typename T>
   struct ir_type_mapper
@@ -690,20 +788,6 @@ namespace gch
     }
   };
 
-  inline constexpr
-  auto
-  ir_type_list = pack_transform_v<ir_type_pack, ir_type_mapper>;
-
-  template <typename T>
-  inline constexpr
-  std::size_t
-  ir_type_index = std::distance (std::begin (ir_type_list),
-                                 std::find (std::begin (ir_type_list), std::end (ir_type_list),
-                                            ir_type_v<T>));
-  inline constexpr
-  auto
-  num_ir_types = pack_size_v<ir_type_pack>;
-
 }
 
 namespace std
@@ -715,10 +799,10 @@ namespace std
     std::size_t
     operator() (const gch::ir_type& ty) const noexcept
     {
-      return std::hash<gch::nonnull_ptr<const gch::ir_type::impl>> { } (ty.m_ptr);
+      return ty.get_index ();
     }
   };
 
 }
 
-#endif
+#endif // OCTAVE_IR_STATIC_IR_IR_TYPE_HPP

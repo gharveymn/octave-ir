@@ -21,7 +21,7 @@ namespace gch
     std::ostream&
     print (std::ostream& out, const ir_constant& c)
     {
-      return out << cast<T> (c);
+      return out << as<T> (c);
     }
   };
 
@@ -43,7 +43,7 @@ namespace gch
     std::ostream&
     print (std::ostream& out, const ir_constant& c)
     {
-      return out << static_cast<char> (cast<wchar_t> (c));
+      return out << static_cast<char> (as<wchar_t> (c));
     }
   };
 
@@ -54,7 +54,7 @@ namespace gch
     std::ostream&
     print (std::ostream& out, const ir_constant& c)
     {
-      return out << static_cast<char> (cast<char32_t> (c));
+      return out << static_cast<char> (as<char32_t> (c));
     }
   };
 
@@ -65,54 +65,29 @@ namespace gch
     std::ostream&
     print (std::ostream& out, const ir_constant& c)
     {
-      return out << static_cast<char> (cast<char16_t> (c));
+      return out << static_cast<char> (as<char16_t> (c));
     }
   };
 
-  class ir_constant_printer_map
+  template <typename T>
+  struct printer_mapper
   {
-  public:
-    using print_function_type = std::ostream& (*) (std::ostream&, const ir_constant&);
-
-  private:
-    template <typename T>
-    struct printer_mapper
+    constexpr
+    auto
+    operator() (void) const noexcept
     {
-      constexpr
-      print_function_type
-      operator() (void) const noexcept
-      {
-        return constant_printer<T>::print;
-      }
-    };
-
-  public:
-//  ir_constant_printer_map            (void)                               = impl;
-    ir_constant_printer_map            (const ir_constant_printer_map&)     = delete;
-    ir_constant_printer_map            (ir_constant_printer_map&&) noexcept = delete;
-    ir_constant_printer_map& operator= (const ir_constant_printer_map&)     = delete;
-    ir_constant_printer_map& operator= (ir_constant_printer_map&&) noexcept = delete;
-    ~ir_constant_printer_map           (void)                               = default;
-
-    ir_constant_printer_map (void)
-      : m_map (template_generate_ir_type_map<printer_mapper> ())
-    { }
-
-    print_function_type
-    operator[] (ir_type ty) const noexcept
-    {
-      return m_map[ty];
+      return constant_printer<T>::print;
     }
-
-  private:
-    ir_type_map<print_function_type> m_map;
   };
+
+  static constexpr
+  auto
+  ir_constant_printer_map = generate_ir_type_map<printer_mapper> ();
 
   std::ostream&
   operator<< (std::ostream& out, const ir_constant& c)
   {
-    static ir_constant_printer_map map;
-    return std::invoke (map[c.get_type ()], out, c);
+    return std::invoke (ir_constant_printer_map[c.get_type ()], out, c);
   }
 
 }

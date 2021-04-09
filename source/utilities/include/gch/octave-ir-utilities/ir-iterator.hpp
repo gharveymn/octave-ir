@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_ITERATOR_HPP
-#define OCTAVE_IR_IR_ITERATOR_HPP
+#ifndef OCTAVE_IR_UTILITIES_IR_ITERATOR_HPP
+#define OCTAVE_IR_UTILITIES_IR_ITERATOR_HPP
 
 #include "gch/octave-ir-utilities/ir-common.hpp"
 #include "gch/octave-ir-utilities/ir-functional.hpp"
@@ -874,4 +874,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_ITERATOR_HPP
+#endif // OCTAVE_IR_UTILITIES_IR_ITERATOR_HPP

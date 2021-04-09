@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_INCOMING_NODE_HPP
-#define OCTAVE_IR_IR_INCOMING_NODE_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_INCOMING_NODE_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_INCOMING_NODE_HPP
 
 #include "components/ir-block-common.hpp"
 #include "gch/octave-ir-utilities/ir-allocator-util.hpp"
@@ -84,4 +84,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_INCOMING_NODE_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_INCOMING_NODE_HPP

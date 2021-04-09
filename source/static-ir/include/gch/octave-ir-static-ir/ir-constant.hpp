@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_CONSTANT_HPP
-#define OCTAVE_IR_IR_CONSTANT_HPP
+#ifndef OCTAVE_IR_STATIC_IR_IR_CONSTANT_HPP
+#define OCTAVE_IR_STATIC_IR_IR_CONSTANT_HPP
 
 #include "ir-type.hpp"
 
@@ -41,7 +41,7 @@ namespace gch
     { }
 
     template <typename T,
-              std::enable_if_t<pack_contains_v<std::decay_t<T>, ir_type_pack>> * = nullptr>
+              std::enable_if_t<pack_contains_v<ir_type_pack, std::decay_t<T>>> * = nullptr>
     explicit
     ir_constant (T&& t)
       : ir_constant (std::in_place_type<std::decay_t<T>>, std::forward<T> (t))

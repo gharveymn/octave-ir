@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_STATIC_DEF_HPP
-#define OCTAVE_IR_IR_STATIC_DEF_HPP
+#ifndef OCTAVE_IR_STATIC_IR_IR_STATIC_DEF_HPP
+#define OCTAVE_IR_STATIC_IR_IR_STATIC_DEF_HPP
 
 #include "ir-type.hpp"
 
@@ -17,6 +17,7 @@
 
 #include <iosfwd>
 #include <string_view>
+#include <string>
 
 namespace gch
 {
@@ -81,6 +82,9 @@ namespace gch
     ir_static_def_id                 m_id;
   };
 
+  std::string
+  get_name (const ir_static_def& def);
+
   bool
   operator== (const ir_static_def& lhs, const ir_static_def& rhs) noexcept;
 
@@ -92,4 +96,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_STATIC_DEF_HPP
+#endif // OCTAVE_IR_STATIC_IR_IR_STATIC_DEF_HPP

@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_VISITOR_FWD_HPP
-#define OCTAVE_IR_IR_VISITOR_FWD_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_VISITOR_FWD_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_VISITOR_FWD_HPP
 
 #include "components/ir-component-fwd.hpp"
 #include "gch/octave-ir-utilities/ir-type-traits.hpp"
@@ -208,4 +208,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_VISITOR_FWD_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_VISITOR_FWD_HPP

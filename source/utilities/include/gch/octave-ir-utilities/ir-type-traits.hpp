@@ -5,11 +5,12 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_TYPE_TRAITS_HPP
-#define OCTAVE_IR_IR_TYPE_TRAITS_HPP
+#ifndef OCTAVE_IR_UTILITIES_IR_TYPE_TRAITS_HPP
+#define OCTAVE_IR_UTILITIES_IR_TYPE_TRAITS_HPP
 
 #include <iterator>
 #include <type_traits>
+#include <utility>
 
 namespace gch
 {
@@ -56,27 +57,27 @@ namespace gch
   template <typename Pack>
   inline constexpr bool pack_empty_v = pack_empty<Pack>::value;
 
-  template <std::size_t I, typename ...Ts>
+  template <typename Pack, std::size_t I>
   struct pack_select_type;
 
-  template <std::size_t I, typename ...Ts>
-  using pack_select_t = typename pack_select_type<I, Ts...>::type;
+  template <typename Pack, std::size_t I>
+  using pack_select_t = typename pack_select_type<Pack, I>::type;
 
-  template <typename T, typename Pack>
+  template <typename Pack, typename T>
   struct pack_index;
 
-  template <typename T, typename Pack>
+  template <typename Pack, typename T>
   inline constexpr
   std::size_t
-  pack_index_v = pack_index<T, Pack>::value;
+  pack_index_v = pack_index<Pack, T>::value;
 
-  template <typename T,  typename Pack>
+  template <typename Pack, typename T>
   struct pack_contains;
 
-  template <typename T, typename Pack>
+  template <typename Pack, typename T>
   inline constexpr
   bool
-  pack_contains_v = pack_contains<T, Pack>::value;
+  pack_contains_v = pack_contains<Pack, T>::value;
 
   template <typename ...Packs>
   struct pack_concatenate;
@@ -106,13 +107,23 @@ namespace gch
   struct pack_equivalent;
 
   template <typename ...Packs>
-  inline constexpr bool pack_equivalent_v = pack_equivalent<Packs...>::value;
+  inline constexpr
+  bool
+  pack_equivalent_v = pack_equivalent<Packs...>::value;
 
   template <typename Pack>
   struct pack_homogenenous;
 
   template <typename Pack>
-  inline constexpr bool pack_homogenenous_v = pack_homogenenous<Pack>::value;
+  inline constexpr
+  bool
+  pack_homogenenous_v = pack_homogenenous<Pack>::value;
+
+  template <typename Pack, template <typename ...> typename TT>
+  struct pack_apply;
+
+  template <typename Pack, template <typename ...> typename TT>
+  using pack_apply_t = typename pack_apply<Pack, TT>::type;
 
   namespace detail
   {
@@ -145,47 +156,45 @@ namespace gch
       : std::integral_constant<std::size_t, sizeof...(Vs)>
     { };
 
-    template <std::size_t I, typename Pack>
+    template <typename Pack, std::size_t I>
     struct pack_select_impl
     { };
 
     template <template <typename ...> typename PackT, typename Head, typename ...Tail>
-    struct pack_select_impl<0, PackT<Head, Tail...>>
+    struct pack_select_impl<PackT<Head, Tail...>, 0>
     {
       using type = Head;
     };
 
     template <std::size_t I,
               template <typename ...> typename PackT, typename Head, typename ...Tail>
-    struct pack_select_impl<I, PackT<Head, Tail...>>
-      : pack_select_impl<I - 1, PackT<Tail...>>
+    struct pack_select_impl<PackT<Head, Tail...>, I>
+      : pack_select_impl<PackT<Tail...>, I - 1>
     { };
 
-    template <typename T, typename Pack, std::size_t I = 0>
+    template <typename Pack, typename T, std::size_t I = 0>
     struct pack_index_impl
     { };
 
     template <typename T,
               template <typename ...> typename PackT, typename ...Rest,
               std::size_t I>
-    struct pack_index_impl<T, PackT<T, Rest...>, I>
+    struct pack_index_impl<PackT<T, Rest...>, T, I>
       : std::integral_constant<std::size_t, I>
     { };
 
-    template <typename T,
-              template <typename ...> typename PackT, typename Head, typename ...Tail,
-              std::size_t I>
-    struct pack_index_impl<T, PackT<Head, Tail...>, I>
-      : pack_index_impl<T, PackT<Tail...>, I + 1>
+    template <template <typename ...> typename PackT, typename Head, typename ...Tail, typename T, std::size_t I>
+    struct pack_index_impl<PackT<Head, Tail...>, T, I>
+      : pack_index_impl<PackT<Tail...>, T, I + 1>
     { };
 
-    template <typename T, typename Pack, typename = void>
+    template <typename Pack, typename T, typename Enable = void>
     struct pack_contains_impl
       : std::false_type
     { };
 
-    template <typename T, typename Pack>
-    struct pack_contains_impl<T, Pack, std::void_t<typename pack_index<T, Pack>::type>>
+    template <typename Pack, typename T>
+    struct pack_contains_impl<Pack, T, std::void_t<typename pack_index<Pack, T>::type>>
       : std::true_type
     { };
 
@@ -236,9 +245,9 @@ namespace gch
               typename ...OutTs>
     struct pack_unique_helper<PackT<InHead, InTail...>, PackT<OutTs...>>
       : pack_unique_helper<PackT<InTail...>,
-                           std::conditional_t<pack_contains_v<InHead, PackT<OutTs...>>,
+                           std::conditional_t<pack_contains_v<PackT<OutTs...>, InHead>,
                                               PackT<OutTs...>,
-                                              PackT<InHead, OutTs...>>>
+                                              PackT<OutTs..., InHead>>>
     { };
 
     template <typename Pack>
@@ -262,7 +271,7 @@ namespace gch
 
     template <template <typename ...> typename PackTLHS, typename ...TsLHS, typename PackRHS>
     struct pack_equivalent_impl<PackTLHS<TsLHS...>, PackRHS>
-      : std::conjunction<pack_contains<TsLHS, PackRHS>...>
+      : std::conjunction<pack_contains<PackRHS, TsLHS>...>
     { };
 
     template <typename PackLHS, typename ...Packs>
@@ -271,13 +280,23 @@ namespace gch
     { };
 
     template <typename Pack>
-    struct pack_homogeneous
+    struct pack_homogenenous_impl
       : std::false_type
     { };
 
     template <template <typename ...> typename PackT, typename Head, typename ...Tail>
-    struct pack_homogeneous<PackT<Head, Tail...>>
+    struct pack_homogenenous_impl<PackT<Head, Tail...>>
       : std::conjunction<std::is_same<Head, Tail>...>
+    { };
+
+    template <typename Pack, template <typename ...> typename TT>
+    struct pack_apply_impl
+    { };
+
+    template <template <typename ...> typename PackT, typename ...Ts,
+      template <typename ...> typename TT>
+    struct pack_apply_impl<PackT<Ts...>, TT>
+      : TT<Ts...>
     { };
 
   }
@@ -302,19 +321,19 @@ namespace gch
     : detail::is_type_pack_impl<Pack>
   { };
 
-  template <std::size_t I, typename ...Ts>
+  template <typename Pack, std::size_t I>
   struct pack_select_type
-    : detail::pack_select_impl<I, Ts...>
+    : detail::pack_select_impl<Pack, I>
   { };
 
-  template <typename T, typename Pack>
+  template <typename Pack, typename T>
   struct pack_index
-    : detail::pack_index_impl<T, Pack, 0>
+    : detail::pack_index_impl<Pack, T, 0>
   { };
 
-  template <typename T, typename Pack>
+  template <typename Pack, typename T>
   struct pack_contains
-    : detail::pack_contains_impl<T, Pack>
+    : detail::pack_contains_impl<Pack, T>
   { };
 
   template <typename ...Packs>
@@ -340,6 +359,16 @@ namespace gch
   template <typename ...Packs>
   struct pack_equivalent
     : detail::pack_equivalent_impl<Packs...>
+  { };
+
+  template <typename Pack>
+  struct pack_homogenenous
+    : detail::pack_homogenenous_impl<Pack>
+  { };
+
+  template <typename Pack, template <typename ...> typename TT>
+  struct pack_apply
+    : detail::pack_apply_impl<Pack, TT>
   { };
 
   namespace detail
@@ -614,19 +643,45 @@ namespace gch
   bool
   is_reference_wrapper_v = is_reference_wrapper<T>::value;
 
+  template <auto Constant>
+  using make_integral_constant = std::integral_constant<decltype (Constant), Constant>;
+
+  namespace detail
+  {
+
+    template <typename IntegerSequence, typename Wrapped>
+    struct wrap_integer_sequence_impl
+    { };
+
+    template <typename T, T ...Ints, typename Wrapped>
+    struct wrap_integer_sequence_impl<std::integer_sequence<T, Ints...>, Wrapped>
+    {
+      using type = type_pack<std::integral_constant<Wrapped, static_cast<Wrapped> (Ints)>...>;
+    };
+
+  }
+
+  template <typename IntegerSequence, typename Wrapped = typename IntegerSequence::value_type>
+  struct wrap_integer_sequence
+    : detail::wrap_integer_sequence_impl<IntegerSequence, Wrapped>
+  { };
+
+  template <typename IntegerSequence, typename Wrapped = typename IntegerSequence::value_type>
+  using wrap_integer_sequence_t = typename wrap_integer_sequence<IntegerSequence, Wrapped>::type;
+
   //
   // TESTS
   //
 
-  static_assert (0 == pack_index_v<int, type_pack<int>>);
-  static_assert (0 == pack_index_v<int, type_pack<int, long>>);
-  static_assert (1 == pack_index_v<long, type_pack<int, long>>);
+  static_assert (0 == pack_index_v<type_pack<int>, int>);
+  static_assert (0 == pack_index_v<type_pack<int, long>, int>);
+  static_assert (1 == pack_index_v<type_pack<int, long>, long>);
 
-  static_assert (! pack_contains_v<int, type_pack<>>);
-  static_assert (  pack_contains_v<int, type_pack<int>>);
-  static_assert (  pack_contains_v<int, type_pack<long, int>>);
-  static_assert (  pack_contains_v<int, type_pack<int, long>>);
-  static_assert (! pack_contains_v<int, type_pack<long>>);
+  static_assert (! pack_contains_v<type_pack<>, int>);
+  static_assert (  pack_contains_v<type_pack<int>, int>);
+  static_assert (  pack_contains_v<type_pack<long, int>, int>);
+  static_assert (  pack_contains_v<type_pack<int, long>, int>);
+  static_assert (! pack_contains_v<type_pack<long>, int>);
 
   static_assert (std::is_same_v<type_pack<int, long>,
                                 pack_concatenate_t<type_pack<int, long>>>);
@@ -684,4 +739,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_TYPE_TRAITS_HPP
+#endif // OCTAVE_IR_UTILITIES_IR_TYPE_TRAITS_HPP

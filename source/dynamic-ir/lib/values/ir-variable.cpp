@@ -7,6 +7,8 @@
 
 #include "values/ir-variable.hpp"
 
+#include "gch/octave-ir-static-ir/ir-type-util.hpp"
+
 namespace gch
 {
 

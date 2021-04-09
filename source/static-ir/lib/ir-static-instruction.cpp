@@ -252,7 +252,7 @@ namespace gch
 
   static constexpr
   auto
-  instruction_printer_map = ir_metadata::template_generate_map<instruction_printer_mapper> ();
+  instruction_printer_map = ir_metadata::generate_map<instruction_printer_mapper> ();
 
   std::ostream&
   operator<< (std::ostream& out, const ir_static_instruction& instr)

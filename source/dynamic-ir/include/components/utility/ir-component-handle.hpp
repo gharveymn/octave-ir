@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_COMPONENT_HANDLE_HPP
-#define OCTAVE_IR_IR_COMPONENT_HANDLE_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_COMPONENT_HANDLE_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_COMPONENT_HANDLE_HPP
 
 #if defined (__cpp_concepts) && __cpp_concepts >= 201907L
 #  ifndef GCH_CONCEPTS
@@ -652,4 +652,4 @@ namespace std
 
 }
 
-#endif // OCTAVE_IR_IR_COMPONENT_HANDLE_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_COMPONENT_HANDLE_HPP

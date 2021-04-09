@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_ALLOCATOR_UTIL_HPP
-#define OCTAVE_IR_IR_ALLOCATOR_UTIL_HPP
+#ifndef OCTAVE_IR_UTILITIES_IR_ALLOCATOR_UTIL_HPP
+#define OCTAVE_IR_UTILITIES_IR_ALLOCATOR_UTIL_HPP
 
 #include <gch/nonnull_ptr.hpp>
 
@@ -217,4 +217,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_ALLOCATOR_UTIL_HPP
+#endif // OCTAVE_IR_UTILITIES_IR_ALLOCATOR_UTIL_HPP

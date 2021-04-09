@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_ERROR_HPP
-#define OCTAVE_IR_IR_ERROR_HPP
+#ifndef OCTAVE_IR_UTILITIES_IR_ERROR_HPP
+#define OCTAVE_IR_UTILITIES_IR_ERROR_HPP
 
 #include <exception>
 #include <stdexcept>
@@ -64,4 +64,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_ERROR_HPP
+#endif // OCTAVE_IR_UTILITIES_IR_ERROR_HPP

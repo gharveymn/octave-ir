@@ -1,14 +1,14 @@
-/** ir-static-unit-generator.cpp
+/** ir-static-function-generator.cpp
  * Copyright © 2021 Gene Harvey
  *
  * This software may be modified and distributed under the terms
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "visitors/component/inspectors/ir-static-unit-generator.hpp"
+#include "visitors/component/inspectors/ir-static-function-generator.hpp"
 
 #include "gch/octave-ir-static-ir/ir-static-block.hpp"
-#include "gch/octave-ir-static-ir/ir-static-unit.hpp"
+#include "gch/octave-ir-static-ir/ir-static-function.hpp"
 #include "components/ir-all-components.hpp"
 
 #include "gch/octave-ir-utilities/ir-error.hpp"
@@ -606,22 +606,16 @@ namespace gch
       {
         case id::update:
         case id::body:
-        {
           if (check_block (loop.get_condition ()))
             return;
           [[fallthrough]];
-        }
         case id::condition:
-        {
           if (check_block (get_entry_block (loop.get_start ())))
             return;
           [[fallthrough]];
-        }
         case id::start:
-        {
           in_place_dispatch (loop);
-          break;
-        }
+          return;
         default:
           abort<reason::impossible> ();
       }
@@ -1826,8 +1820,8 @@ namespace gch
     return sblocks;
   }
 
-  ir_static_unit
-  generate_static_unit (const ir_component& c)
+  ir_static_function
+  generate_static_function (const ir_function& c)
   {
     ir_dynamic_block_manager block_manager { ir_dynamic_block_manager_builder { } (c) };
     set_successor_ids (block_manager);

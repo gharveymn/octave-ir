@@ -6,8 +6,8 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 //! this header forward-declares relevant classes and declares some typedefs
-#ifndef OCTAVE_IR_IR_COMMON_HPP
-#define OCTAVE_IR_IR_COMMON_HPP
+#ifndef OCTAVE_IR_UTILITIES_IR_COMMON_HPP
+#define OCTAVE_IR_UTILITIES_IR_COMMON_HPP
 
 #define GCH_PRINT_SIZE(TYPE)                \
 char (*__gch__fail) (void)[sizeof(TYPE)] = 1;

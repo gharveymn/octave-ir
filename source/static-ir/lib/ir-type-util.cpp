@@ -10,10 +10,16 @@
 namespace gch
 {
 
+  std::string
+  get_name (ir_type ty)
+  {
+    return std::string (ty.get_name_base ()).append (" ").append (indirection_level (ty), '*');
+  }
+
   std::ostream&
   operator<< (std::ostream& out, ir_type ty)
   {
-    return out << ty.get_name_base () << std::string (indirection_level (ty), '*');
+    return out << get_name (ty);
   }
 
 }

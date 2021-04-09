@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_USE_TIMELINE_HPP
-#define OCTAVE_IR_IR_USE_TIMELINE_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_USE_TIMELINE_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_USE_TIMELINE_HPP
 
 #include "gch/octave-ir-utilities/ir-common.hpp"
 #include "values/ir-instruction-fwd.hpp"
@@ -101,4 +101,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_USE_TIMELINE_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_USE_TIMELINE_HPP

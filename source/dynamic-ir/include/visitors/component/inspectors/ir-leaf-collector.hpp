@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_LEAF_COLLECTOR_HPP
-#define OCTAVE_IR_IR_LEAF_COLLECTOR_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_LEAF_COLLECTOR_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_LEAF_COLLECTOR_HPP
 
 #include "ir-component-inspectors-fwd.hpp"
 
@@ -114,4 +114,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_LEAF_COLLECTOR_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_LEAF_COLLECTOR_HPP

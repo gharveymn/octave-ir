@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_STRUCTURE_HPP
-#define OCTAVE_IR_IR_STRUCTURE_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_STRUCTURE_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_STRUCTURE_HPP
 
 #include "ir-component.hpp"
 

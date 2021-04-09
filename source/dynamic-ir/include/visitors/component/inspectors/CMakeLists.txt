@@ -4,5 +4,5 @@ OCTAVE_IR_ADD_HEADERS (
   ir-component-inspectors.hpp
   ir-component-inspectors-fwd.hpp
   ir-leaf-collector.hpp
-  ir-static-unit-generator.hpp
+  ir-static-function-generator.hpp
 )

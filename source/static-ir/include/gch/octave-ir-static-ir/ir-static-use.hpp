@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_STATIC_USE_HPP
-#define OCTAVE_IR_IR_STATIC_USE_HPP
+#ifndef OCTAVE_IR_STATIC_IR_IR_STATIC_USE_HPP
+#define OCTAVE_IR_STATIC_IR_IR_STATIC_USE_HPP
 
 #include "ir-static-def.hpp"
 #include "ir-type.hpp"
@@ -61,4 +61,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_STATIC_USE_HPP
+#endif // OCTAVE_IR_STATIC_IR_IR_STATIC_USE_HPP

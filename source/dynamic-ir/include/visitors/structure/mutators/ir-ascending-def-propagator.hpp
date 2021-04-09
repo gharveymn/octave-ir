@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_ASCENDING_DEF_PROPAGATOR_HPP
-#define OCTAVE_IR_IR_ASCENDING_DEF_PROPAGATOR_HPP
+#ifndef OCTAVE_IR_DYNAMIC_IR_IR_ASCENDING_DEF_PROPAGATOR_HPP
+#define OCTAVE_IR_DYNAMIC_IR_IR_ASCENDING_DEF_PROPAGATOR_HPP
 
 #include "ir-structure-mutators-fwd.hpp"
 #include "utility/ir-subcomponent-mutator.hpp"
@@ -81,4 +81,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_ASCENDING_DEF_PROPAGATOR_HPP
+#endif // OCTAVE_IR_DYNAMIC_IR_IR_ASCENDING_DEF_PROPAGATOR_HPP

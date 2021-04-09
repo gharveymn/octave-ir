@@ -5,8 +5,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_LINK_SET_HPP
-#define OCTAVE_IR_IR_LINK_SET_HPP
+#ifndef OCTAVE_IR_UTILITIES_IR_LINK_SET_HPP
+#define OCTAVE_IR_UTILITIES_IR_LINK_SET_HPP
 
 #include "gch/octave-ir-utilities/ir-type-traits.hpp"
 #include "gch/octave-ir-utilities/ir-iterator.hpp"
@@ -691,4 +691,4 @@ namespace gch
 
 }
 
-#endif // OCTAVE_IR_IR_LINK_SET_HPP
+#endif // OCTAVE_IR_UTILITIES_IR_LINK_SET_HPP

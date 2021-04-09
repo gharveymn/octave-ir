@@ -5,122 +5,187 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef OCTAVE_IR_IR_TYPE_UTIL_HPP
-#define OCTAVE_IR_IR_TYPE_UTIL_HPP
+#ifndef OCTAVE_IR_STATIC_IR_IR_TYPE_UTIL_HPP
+#define OCTAVE_IR_STATIC_IR_IR_TYPE_UTIL_HPP
 
 #include "ir-type.hpp"
 
 #include "gch/octave-ir-utilities/ir-common.hpp"
+#include "gch/octave-ir-utilities/ir-functional.hpp"
 
 #include <cassert>
-#include <unordered_map>
+#include <iosfwd>
+#include <string>
 
 namespace gch
 {
 
   template <typename Value>
-  class ir_type_map
+  struct ir_type_map
   {
-  public:
-    ir_type_map            (void)                   = delete;
-    ir_type_map            (const ir_type_map&)     = default;
-    ir_type_map            (ir_type_map&&) noexcept = default;
-    ir_type_map& operator= (const ir_type_map&)     = default;
-    ir_type_map& operator= (ir_type_map&&) noexcept = default;
-    ~ir_type_map           (void)                   = default;
-
-    ir_type_map (std::initializer_list<std::pair<const ir_type, Value>> pairs)
-      : m_map (pairs)
-    {
-      assert (m_map.size () == num_ir_types);
-    }
-
-    [[nodiscard]]
     constexpr
-    std::size_t
-    size (void) const noexcept
-    {
-      return num_ir_types;
-    }
-
     const Value&
     operator[] (ir_type ty) const noexcept
     {
-      return m_map.find (ty)->second;
+      return data[ty.get_index ()];
     }
 
-  private:
-    std::unordered_map<ir_type, Value> m_map;
+    template <typename T>
+    [[nodiscard]] constexpr
+    const Value&
+    get (void) const noexcept
+    {
+      return (*this)[pack_index_v<ir_type_pack, T>];
+    }
+
+    std::array<Value, num_ir_types> data;
   };
 
-  template <typename Value>
-  ir_type_map (const std::array<std::pair<const ir_type, Value>, std::size (ir_type_list)>&)
-    -> ir_type_map<Value>;
+  template <template <typename ...> typename MapperT, typename ...Args>
+  constexpr
+  ir_type_map<common_map_pack_result_t<MapperT, ir_type_pack, const Args&...>>
+  generate_ir_type_map (const Args&... args) noexcept
+  {
+    return { map_pack<MapperT, ir_type_pack> (args...) };
+  }
+
+  inline constexpr
+  auto
+  ir_type_list = generate_ir_type_map<ir_type_mapper> ();
 
   namespace detail
   {
 
-    template <typename Pack = ir_type_pack>
-    struct ir_type_map_generator;
-
-    template <template <typename ...> typename PackT, typename ...Ts>
-    struct ir_type_map_generator<PackT<Ts...>>
+    template <typename T>
+    struct ir_type_depth_mapper
     {
-      template <typename Projection>
-      constexpr
-      ir_type_map<std::remove_reference_t<std::invoke_result_t<Projection, ir_type>>>
-      operator() (Projection proj) const noexcept
+      [[nodiscard]] constexpr
+      unsigned
+      operator() (void) const noexcept
       {
-        using result_type = std::remove_reference_t<std::invoke_result_t<Projection, ir_type>>;
-        using pair_type   = std::pair<const ir_type, result_type>;
-        return { pair_type { ir_type_v<Ts>, gch::invoke (proj, ir_type_v<Ts>) }... };
+        unsigned res = 0;
+        for (ir_type ty = ir_type_v<T>; ty.has_base (); ty = ty.get_base ())
+          ++res;
+        return res;
       }
     };
 
-    template <template <typename> typename TransT, typename Pack = ir_type_pack>
-    struct ir_type_map_template_generator;
+    inline constexpr
+    auto
+    ir_type_depth_map = generate_ir_type_map<ir_type_depth_mapper> ();
 
-    template <template <typename> typename TransT,
-              template <typename ...> typename PackT, typename ...Ts>
-    struct ir_type_map_template_generator<TransT, PackT<Ts...>>
+    template <typename T>
+    struct ir_type_indirection_level_mapper
     {
-      template <typename ...Args>
-      constexpr
-      ir_type_map<common_pack_transform_result_t<ir_type_pack, TransT, Args...>>
-      operator() (Args&&... args) const noexcept
+      [[nodiscard]] constexpr
+      unsigned
+      operator() (void) const noexcept
       {
-        using result_type = common_pack_transform_result_t<ir_type_pack, TransT, Args...>;
-        using pair_type   = std::pair<const ir_type, result_type>;
-        return {
-          pair_type { ir_type_v<Ts>,
-                      gch::invoke (TransT<Ts> { }, std::forward<Args> (args)...)
-          }...
-        };
+        unsigned res = 0;
+        for (ir_type ty = ir_type_v<T>; ty.has_pointer_base (); ty = ty.get_pointer_base ())
+          ++res;
+        return res;
       }
     };
 
-  } // namespace gch::detail
+    inline constexpr
+    auto
+    ir_type_indirection_level_map = generate_ir_type_map<ir_type_indirection_level_mapper> ();
 
-  template <typename Projection>
-  inline
-  ir_type_map<std::remove_reference_t<std::invoke_result_t<Projection, ir_type>>>
-  generate_ir_type_map (Projection proj)
-  {
-    return gch::invoke (detail::ir_type_map_generator<> { }, proj);
   }
 
-  template <template <typename> typename TransT, typename ...Args>
-  inline
-  ir_type_map<common_pack_transform_result_t<ir_type_pack, TransT, Args...>>
-  template_generate_ir_type_map (Args&&... args)
+  [[nodiscard]] constexpr
+  unsigned
+  depth (ir_type ty) noexcept
   {
-    return gch::invoke (detail::ir_type_map_template_generator<TransT> { },
-                        std::forward<Args> (args)...);
+    return detail::ir_type_depth_map[ty];
   }
+
+  [[nodiscard]] constexpr
+  std::size_t
+  indirection_level (ir_type ty) noexcept
+  {
+    return detail::ir_type_indirection_level_map[ty];
+  }
+
+  namespace detail
+  {
+
+    constexpr
+    ir_type
+    lca_impl (ir_type lhs, ir_type rhs) noexcept
+    {
+      if (lhs == rhs)
+        return lhs;
+
+      if (depth (lhs) < depth (rhs) && rhs.has_base ())
+        return lca_impl (lhs, rhs.get_base ());
+
+      if (depth (lhs) > depth (rhs) && lhs.has_base ())
+        return lca_impl (lhs.get_base (), rhs);
+
+      if (! lhs.has_base () || ! rhs.has_base ())
+        return ir_type_v<void>;
+
+      return lca_impl (lhs.get_base (), rhs.get_base ());
+    }
+
+    template <typename T>
+    struct ir_type_lca_mapper
+    {
+      [[nodiscard]] constexpr
+      ir_type_map<ir_type>
+      operator() (void) const noexcept
+      {
+        return generate_ir_type_map<rhs_mapper> ();
+      }
+
+      template <typename U>
+      struct rhs_mapper
+      {
+        [[nodiscard]] constexpr
+        ir_type
+        operator() (void) const noexcept
+        {
+          return lca_impl (ir_type_v<T>, ir_type_v<U>);
+        }
+      };
+    };
+
+    inline constexpr
+    auto
+    ir_type_lca_map = generate_ir_type_map<ir_type_lca_mapper> ();
+
+  }
+
+  /**
+   * Compute the lowest common ancestor between the two types.
+   *
+   * @param lhs an ir_type
+   * @param rhs another ir_type
+   * @return the lowest common ancestor
+   */
+  constexpr
+  ir_type
+  lca (ir_type lhs, ir_type rhs) noexcept
+  {
+    constexpr auto lca_map = generate_ir_type_map<detail::ir_type_lca_mapper> ();
+    return lca_map[lhs][rhs];
+  }
+
+  constexpr
+  ir_type
+  operator^ (ir_type lhs, ir_type rhs) noexcept
+  {
+    return lca (lhs, rhs);
+  }
+
+  std::string
+  get_name (ir_type ty);
 
   std::ostream&
   operator<< (std::ostream& out, ir_type ty);
 
 }
 
-#endif // OCTAVE_IR_IR_TYPE_UTIL_HPP
+#endif // OCTAVE_IR_STATIC_IR_IR_TYPE_UTIL_HPP
