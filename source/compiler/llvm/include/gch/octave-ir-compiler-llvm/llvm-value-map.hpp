@@ -8,6 +8,7 @@
 #ifndef OCTAVE_IR_COMPILER_LLVM_LLVM_VALUE_MAP_HPP
 #define OCTAVE_IR_COMPILER_LLVM_LLVM_VALUE_MAP_HPP
 
+#include "llvm-common.hpp"
 #include "llvm-type.hpp"
 
 #include "gch/octave-ir-static-ir/ir-static-def.hpp"
@@ -16,16 +17,12 @@
 #include <gch/nonnull_ptr.hpp>
 #include <gch/optional_ref.hpp>
 
-#ifdef _MSC_VER
-#  pragma warning (push, 0)
-#endif
+GCH_DISABLE_WARNINGS_MSVC
 
 #include <llvm/IR/Instructions.h>
 #include <llvm/ExecutionEngine/Orc/ThreadSafeModule.h>
 
-#ifdef _MSC_VER
-#  pragma warning (pop)
-#endif
+GCH_ENABLE_WARNINGS_MSVC
 
 #include <unordered_map>
 

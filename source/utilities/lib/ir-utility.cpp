@@ -5,8 +5,9 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "gch/octave-ir-utilities/ir-utility.hpp"
 #include "gch/octave-ir-utilities/ir-error.hpp"
+#include "gch/octave-ir-utilities/ir-functional.hpp"
+#include "gch/octave-ir-utilities/ir-utility.hpp"
 
 #include <cstddef>
 #include <memory>

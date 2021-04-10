@@ -17,15 +17,11 @@
 #include "gch/octave-ir-static-ir/ir-static-def.hpp"
 #include "gch/octave-ir-static-ir/ir-static-instruction.hpp"
 
-#ifdef _MSC_VER
-#  pragma warning (push, 0)
-#endif
+GCH_DISABLE_WARNINGS_MSVC
 
 #include <llvm/IR/IRBuilder.h>
 
-#ifdef _MSC_VER
-#  pragma warning (pop)
-#endif
+GCH_ENABLE_WARNINGS_MSVC
 
 namespace gch
 {

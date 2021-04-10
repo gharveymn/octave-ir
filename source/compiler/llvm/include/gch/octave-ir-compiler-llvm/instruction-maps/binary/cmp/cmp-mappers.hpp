@@ -8,19 +8,15 @@
 #ifndef OCTAVE_IR_COMPILER_LLVM_CMP_MAPPERS_HPP
 #define OCTAVE_IR_COMPILER_LLVM_CMP_MAPPERS_HPP
 
+#include "gch/octave-ir-compiler-llvm/llvm-common.hpp"
+
 #include "gch/octave-ir-static-ir/ir-metadata.hpp"
 
-#ifdef _MSC_VER
-#  pragma warning (push, 0)
-#endif
+GCH_DISABLE_WARNINGS_MSVC
 
-#include <llvm/ADT/Twine.h>
 #include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/Value.h>
 
-#ifdef _MSC_VER
-#  pragma warning (pop)
-#endif
+GCH_ENABLE_WARNINGS_MSVC
 
 #include <functional>
 #include <stdexcept>

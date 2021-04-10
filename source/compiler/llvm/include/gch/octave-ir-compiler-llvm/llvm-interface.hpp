@@ -8,11 +8,10 @@
 #ifndef OCTAVE_IR_COMPILER_LLVM_LLVM_INTERFACE_HPP
 #define OCTAVE_IR_COMPILER_LLVM_LLVM_INTERFACE_HPP
 
+#include "llvm-common.hpp"
 #include "llvm-version.hpp"
 
-#ifdef _MSC_VER
-#  pragma warning (push, 0)
-#endif
+GCH_DISABLE_WARNINGS_MSVC
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
@@ -35,9 +34,7 @@
 #  include <llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h>
 #endif
 
-#ifdef _MSC_VER
-#  pragma warning (pop)
-#endif
+GCH_ENABLE_WARNINGS_MSVC
 
 namespace gch
 {

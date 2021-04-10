@@ -8,10 +8,8 @@
 #ifndef OCTAVE_IR_COMPILER_LLVM_BINARY_MAPS_HPP
 #define OCTAVE_IR_COMPILER_LLVM_BINARY_MAPS_HPP
 
-#include "binary-mappers.hpp"
-#include "cmp-maps.hpp"
-
-#include "gch/octave-ir-static-ir/ir-type-util.hpp"
+#include "arith/arith-maps.hpp"
+#include "cmp/cmp-maps.hpp"
 
 namespace gch
 {

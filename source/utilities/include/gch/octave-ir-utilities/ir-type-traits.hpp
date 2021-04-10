@@ -8,6 +8,9 @@
 #ifndef OCTAVE_IR_UTILITIES_IR_TYPE_TRAITS_HPP
 #define OCTAVE_IR_UTILITIES_IR_TYPE_TRAITS_HPP
 
+#include "ir-type-pack.hpp"
+#include "ir-function-traits.hpp"
+
 #include <iterator>
 #include <type_traits>
 #include <utility>
@@ -15,9 +18,7 @@
 namespace gch
 {
 
-  template <typename ...Ts>
-  struct type_pack
-  { };
+
 
   template <typename ...Ts>
   struct all_same;
@@ -35,341 +36,11 @@ namespace gch
   bool
   is_iterator_v = is_iterator<It>::value;
 
-  template <typename Pack>
-  struct is_type_pack;
-
-  template <typename Pack>
-  inline constexpr
-  bool
-  is_type_pack_v = is_type_pack<Pack>::value;
-
-  template <typename Pack>
-  struct pack_size;
-
-  template <typename Pack>
-  inline constexpr
-  std::size_t
-  pack_size_v = pack_size<Pack>::value;
-
-  template <typename Pack>
-  struct pack_empty;
-
-  template <typename Pack>
-  inline constexpr bool pack_empty_v = pack_empty<Pack>::value;
-
-  template <typename Pack, std::size_t I>
-  struct pack_select_type;
-
-  template <typename Pack, std::size_t I>
-  using pack_select_t = typename pack_select_type<Pack, I>::type;
-
-  template <typename Pack, typename T>
-  struct pack_index;
-
-  template <typename Pack, typename T>
-  inline constexpr
-  std::size_t
-  pack_index_v = pack_index<Pack, T>::value;
-
-  template <typename Pack, typename T>
-  struct pack_contains;
-
-  template <typename Pack, typename T>
-  inline constexpr
-  bool
-  pack_contains_v = pack_contains<Pack, T>::value;
-
-  template <typename ...Packs>
-  struct pack_concatenate;
-
-  template <typename ...Packs>
-  using pack_concatenate_t = typename pack_concatenate<Packs...>::type;
-
-  template <typename Pack>
-  struct pack_flatten;
-
-  template <typename Pack>
-  using pack_flatten_t = typename pack_flatten<Pack>::type;
-
-  template <typename Pack>
-  struct pack_unique;
-
-  template <typename Pack>
-  using pack_unique_t = typename pack_unique<Pack>::type;
-
-  template <typename ...Pack>
-  struct pack_union;
-
-  template <typename ...Pack>
-  using pack_union_t = typename pack_union<Pack...>::type;
-
-  template <typename ...Packs>
-  struct pack_equivalent;
-
-  template <typename ...Packs>
-  inline constexpr
-  bool
-  pack_equivalent_v = pack_equivalent<Packs...>::value;
-
-  template <typename Pack>
-  struct pack_homogenenous;
-
-  template <typename Pack>
-  inline constexpr
-  bool
-  pack_homogenenous_v = pack_homogenenous<Pack>::value;
-
-  template <typename Pack, template <typename ...> typename TT>
-  struct pack_apply;
-
-  template <typename Pack, template <typename ...> typename TT>
-  using pack_apply_t = typename pack_apply<Pack, TT>::type;
-
-  namespace detail
-  {
-
-    template <typename T, typename ...Ts>
-    struct all_same_impl : std::conjunction<std::is_same<T, Ts>...>
-    { };
-
-    template <typename Pack>
-    struct is_type_pack_impl
-      : std::false_type
-    { };
-
-    template <template <typename ...> typename PackT, typename ...Ts>
-    struct is_type_pack_impl<PackT<Ts...>>
-      : std::true_type
-    { };
-
-    template <typename Pack>
-    struct pack_size_impl
-    { };
-
-    template <template <typename ...> typename PackT, typename ...Ts>
-    struct pack_size_impl<PackT<Ts...>>
-      : std::integral_constant<std::size_t, sizeof...(Ts)>
-    { };
-
-    template <template <auto ...> typename PackT, auto ...Vs>
-    struct pack_size_impl<PackT<Vs...>>
-      : std::integral_constant<std::size_t, sizeof...(Vs)>
-    { };
-
-    template <typename Pack, std::size_t I>
-    struct pack_select_impl
-    { };
-
-    template <template <typename ...> typename PackT, typename Head, typename ...Tail>
-    struct pack_select_impl<PackT<Head, Tail...>, 0>
-    {
-      using type = Head;
-    };
-
-    template <std::size_t I,
-              template <typename ...> typename PackT, typename Head, typename ...Tail>
-    struct pack_select_impl<PackT<Head, Tail...>, I>
-      : pack_select_impl<PackT<Tail...>, I - 1>
-    { };
-
-    template <typename Pack, typename T, std::size_t I = 0>
-    struct pack_index_impl
-    { };
-
-    template <typename T,
-              template <typename ...> typename PackT, typename ...Rest,
-              std::size_t I>
-    struct pack_index_impl<PackT<T, Rest...>, T, I>
-      : std::integral_constant<std::size_t, I>
-    { };
-
-    template <template <typename ...> typename PackT, typename Head, typename ...Tail, typename T, std::size_t I>
-    struct pack_index_impl<PackT<Head, Tail...>, T, I>
-      : pack_index_impl<PackT<Tail...>, T, I + 1>
-    { };
-
-    template <typename Pack, typename T, typename Enable = void>
-    struct pack_contains_impl
-      : std::false_type
-    { };
-
-    template <typename Pack, typename T>
-    struct pack_contains_impl<Pack, T, std::void_t<typename pack_index<Pack, T>::type>>
-      : std::true_type
-    { };
-
-    template <typename ...Packs>
-    struct pack_concatenate_impl
-    { };
-
-    template <typename Pack>
-    struct pack_concatenate_impl<Pack>
-    {
-      using type = Pack;
-    };
-
-    template <template <typename ...> typename PackT,
-              typename ...LHS, typename ...RHS, typename ...Rest>
-    struct pack_concatenate_impl<PackT<LHS...>, PackT<RHS...>, Rest...>
-      : pack_concatenate_impl<PackT<LHS..., RHS...>, Rest...>
-    { };
-
-    template <typename Pack>
-    struct pack_flatten_impl
-    {
-      using type = Pack;
-    };
-
-    template <template <typename ...> typename PackT, typename Head, typename ...Tail>
-    struct pack_flatten_impl<PackT<Head, Tail...>>
-      : pack_concatenate<PackT<Head>, pack_flatten_t<PackT<Tail...>>>
-    { };
-
-    template <template <typename ...> typename PackT, typename... Ts, typename ...Tail>
-    struct pack_flatten_impl<PackT<PackT<Ts...>, Tail...>>
-      : pack_concatenate<pack_flatten_t<PackT<Ts>>..., pack_flatten_t<PackT<Tail...>>>
-    { };
-
-    template <typename PackIn, typename PackOut>
-    struct pack_unique_helper
-    { };
-
-    template <template <typename ...> typename PackT, typename ...OutTs>
-    struct pack_unique_helper<PackT<>, PackT<OutTs...>>
-    {
-      using type = PackT<OutTs...>;
-    };
-
-    template <template <typename ...> typename PackT,
-              typename InHead, typename ...InTail,
-              typename ...OutTs>
-    struct pack_unique_helper<PackT<InHead, InTail...>, PackT<OutTs...>>
-      : pack_unique_helper<PackT<InTail...>,
-                           std::conditional_t<pack_contains_v<PackT<OutTs...>, InHead>,
-                                              PackT<OutTs...>,
-                                              PackT<OutTs..., InHead>>>
-    { };
-
-    template <typename Pack>
-    struct pack_unique_impl
-    { };
-
-    template <template <typename ...> typename PackT, typename ...Ts>
-    struct pack_unique_impl<PackT<Ts...>>
-      : pack_unique_helper<PackT<Ts...>, PackT<>>
-    { };
-
-    template <typename ...Packs>
-    struct pack_equivalent_impl
-      : std::false_type
-    { };
-
-    template <template <typename ...> typename PackTLHS, typename PackRHS>
-    struct pack_equivalent_impl<PackTLHS<>, PackRHS>
-      : pack_empty<PackRHS>
-    { };
-
-    template <template <typename ...> typename PackTLHS, typename ...TsLHS, typename PackRHS>
-    struct pack_equivalent_impl<PackTLHS<TsLHS...>, PackRHS>
-      : std::conjunction<pack_contains<PackRHS, TsLHS>...>
-    { };
-
-    template <typename PackLHS, typename ...Packs>
-    struct pack_equivalent_impl<PackLHS, Packs...>
-      : std::conjunction<pack_equivalent_impl<PackLHS, Packs>...>
-    { };
-
-    template <typename Pack>
-    struct pack_homogenenous_impl
-      : std::false_type
-    { };
-
-    template <template <typename ...> typename PackT, typename Head, typename ...Tail>
-    struct pack_homogenenous_impl<PackT<Head, Tail...>>
-      : std::conjunction<std::is_same<Head, Tail>...>
-    { };
-
-    template <typename Pack, template <typename ...> typename TT>
-    struct pack_apply_impl
-    { };
-
-    template <template <typename ...> typename PackT, typename ...Ts,
-      template <typename ...> typename TT>
-    struct pack_apply_impl<PackT<Ts...>, TT>
-      : TT<Ts...>
-    { };
-
-  }
-
-  template <typename Pack>
-  struct pack_size
-    : detail::pack_size_impl<Pack>
-  { };
-
-  template <typename Pack>
-  struct pack_empty
-    : std::bool_constant<pack_size_v<Pack> == 0>
-  { };
-
-  template <typename ...Ts>
-  struct all_same
-    : detail::all_same_impl<Ts...>
-  { };
-
-  template <typename Pack>
-  struct is_type_pack
-    : detail::is_type_pack_impl<Pack>
-  { };
-
-  template <typename Pack, std::size_t I>
-  struct pack_select_type
-    : detail::pack_select_impl<Pack, I>
-  { };
-
-  template <typename Pack, typename T>
-  struct pack_index
-    : detail::pack_index_impl<Pack, T, 0>
-  { };
-
-  template <typename Pack, typename T>
-  struct pack_contains
-    : detail::pack_contains_impl<Pack, T>
-  { };
-
-  template <typename ...Packs>
-  struct pack_concatenate
-    : detail::pack_concatenate_impl<Packs...>
-  { };
-
-  template <typename Pack>
-  struct pack_flatten
-    : detail::pack_flatten_impl<Pack>
-  { };
-
-  template <typename ...Pack>
-  struct pack_union
-    : pack_unique<pack_concatenate_t<Pack...>>
-  { };
-
-  template <typename Pack>
-  struct pack_unique
-    : detail::pack_unique_impl<Pack>
-  { };
-
-  template <typename ...Packs>
-  struct pack_equivalent
-    : detail::pack_equivalent_impl<Packs...>
-  { };
-
-  template <typename Pack>
-  struct pack_homogenenous
-    : detail::pack_homogenenous_impl<Pack>
-  { };
-
-  template <typename Pack, template <typename ...> typename TT>
-  struct pack_apply
-    : detail::pack_apply_impl<Pack, TT>
-  { };
+  template <typename T>
+  struct remove_all_pointers;
+
+  template <typename T>
+  using remove_all_pointers_t = typename remove_all_pointers<T>::type;
 
   namespace detail
   {
@@ -384,37 +55,56 @@ namespace gch
       : std::true_type
     { };
 
-  } // namespace detail
+    template <typename T>
+    struct remove_all_pointers_impl
+    {
+      using type = T;
+    };
+
+    template <typename T>
+    struct remove_all_pointers_impl<T *>
+      : remove_all_pointers_impl<T>
+    { };
+
+  } // namespace gch::detail
+
+  template <typename ...Ts>
+  struct all_same
+    : pack_homogenenous<type_pack<Ts...>>
+  { };
 
   template <typename It>
   struct is_iterator
     : detail::is_iterator_impl<It>
   { };
 
+  template <typename T>
+  struct remove_all_pointers
+    : detail::remove_all_pointers_impl<T>
+  { };
+
   template <typename From, typename To>
   struct match_cv
-  {
-    using type = std::conditional_t<std::is_const_v<From>,
-                                    std::conditional_t<std::is_volatile_v<From>,
-                                                       std::add_cv_t<To>,
-                                                       std::add_const_t<To>>,
-                                    std::conditional_t<std::is_volatile_v<From>,
-                                                       std::add_volatile_t<To>,
-                                                       To>>;
-  };
+    : std::conditional<std::is_const_v<From>,
+                       std::conditional_t<std::is_volatile_v<From>,
+                                          std::add_cv_t<To>,
+                                          std::add_const_t<To>>,
+                       std::conditional_t<std::is_volatile_v<From>,
+                                          std::add_volatile_t<To>,
+                                          To>>
+  { };
 
   template <typename From, typename To>
   using match_cv_t = typename match_cv<From, To>::type;
 
   template <typename From, typename To>
   struct match_ref
-  {
-    using type = std::conditional_t<std::is_lvalue_reference_v<From>,
-                                    std::add_lvalue_reference_t<To>,
-                                    std::conditional_t<std::is_rvalue_reference_v<From>,
-                                                       std::add_rvalue_reference_t<To>,
-                                                       To>>;
-  };
+    : std::conditional<std::is_lvalue_reference_v<From>,
+                       std::add_lvalue_reference_t<To>,
+                       std::conditional_t<std::is_rvalue_reference_v<From>,
+                                          std::add_rvalue_reference_t<To>,
+                                          To>>
+  { };
 
   template <typename From, typename To>
   using match_ref_t = typename match_ref<From, To>::type;
@@ -736,6 +426,32 @@ namespace gch
   static_assert (std::is_same_v<match_cvref_t<const          int&&, long>, const          long&&>);
   static_assert (std::is_same_v<match_cvref_t<      volatile int&&, long>,       volatile long&&>);
   static_assert (std::is_same_v<match_cvref_t<const volatile int&&, long>, const volatile long&&>);
+
+  static_assert (std::is_same_v<type_pack<>,          pack_reverse_t<type_pack<>>>);
+  static_assert (std::is_same_v<type_pack<int>,       pack_reverse_t<type_pack<int>>>);
+  static_assert (std::is_same_v<type_pack<int, long>, pack_reverse_t<type_pack<long, int>>>);
+
+  static_assert (std::is_same_v<type_pack<>,            pack_remove_t<type_pack<int>, 0>>);
+  static_assert (std::is_same_v<type_pack<int,  short>, pack_remove_t<type_pack<long, int, short>, 0>>);
+  static_assert (std::is_same_v<type_pack<long, short>, pack_remove_t<type_pack<long, int, short>, 1>>);
+  static_assert (std::is_same_v<type_pack<long, int>,   pack_remove_t<type_pack<long, int, short>, 2>>);
+
+  static_assert (std::is_same_v<type_pack<>,           pack_pop_front_t<type_pack<int>>>);
+  static_assert (std::is_same_v<type_pack<int, short>, pack_pop_front_t<type_pack<long, int, short>>>);
+
+  static_assert (std::is_same_v<type_pack<>,          pack_pop_back_t<type_pack<int>>>);
+  static_assert (std::is_same_v<type_pack<long, int>, pack_pop_back_t<type_pack<long, int, short>>>);
+
+  static_assert (std::is_same_v<type_pack<int>,              pack_insert_t<type_pack<>, 0, int>>);
+  static_assert (std::is_same_v<type_pack<long, int, short>, pack_insert_t<type_pack<int,  short>, 0, long>>);
+  static_assert (std::is_same_v<type_pack<long, int, short>, pack_insert_t<type_pack<long, short>, 1, int>>);
+  static_assert (std::is_same_v<type_pack<long, int, short>, pack_insert_t<type_pack<long, int>,   2, short>>);
+
+  static_assert (std::is_same_v<type_pack<int>,              pack_push_front_t<type_pack<>, int>>);
+  static_assert (std::is_same_v<type_pack<long, int, short>, pack_push_front_t<type_pack<int, short>, long>>);
+
+  static_assert (std::is_same_v<type_pack<int>,              pack_push_back_t<type_pack<>, int>>);
+  static_assert (std::is_same_v<type_pack<long, int, short>, pack_push_back_t<type_pack<long, int>, short>>);
 
 }
 

@@ -8,20 +8,17 @@
 #ifndef OCTAVE_IR_COMPILER_LLVM_LLVM_CONSTANT_HPP
 #define OCTAVE_IR_COMPILER_LLVM_LLVM_CONSTANT_HPP
 
+#include "llvm-common.hpp"
 #include "llvm-value-map.hpp"
 
 #include "gch/octave-ir-static-ir/ir-constant.hpp"
 #include "gch/octave-ir-static-ir/ir-type-util.hpp"
 
-#ifdef _MSC_VER
-#  pragma warning (push, 0)
-#endif
+GCH_DISABLE_WARNINGS_MSVC
 
 #include <llvm/IR/Constants.h>
 
-#ifdef _MSC_VER
-#  pragma warning (pop)
-#endif
+GCH_ENABLE_WARNINGS_MSVC
 
 #include <string>
 

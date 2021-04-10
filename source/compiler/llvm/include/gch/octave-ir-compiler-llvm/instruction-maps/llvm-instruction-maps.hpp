@@ -9,7 +9,6 @@
 #define OCTAVE_IR_COMPILER_LLVM_LLVM_INSTRUCTION_MAPS_HPP
 
 #include "binary/binary-maps.hpp"
-#include "binary/cmp-maps.hpp"
 
 namespace gch
 {

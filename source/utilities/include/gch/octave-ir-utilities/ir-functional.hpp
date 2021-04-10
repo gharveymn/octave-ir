@@ -331,7 +331,7 @@ namespace gch
   template <typename ...Args, typename T, typename Base, typename Return,
             std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>> * = nullptr>
   constexpr
-  decltype (auto)
+  auto
   bound_mem_fn (T& object, Return (Base::* f) (Args...))
   {
     return detail::bound_mem_fn_object { object, f };
@@ -340,7 +340,7 @@ namespace gch
   template <typename ...Args, typename T, typename Base, typename Return,
             std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>> * = nullptr>
   constexpr
-  decltype (auto)
+  auto
   bound_mem_fn (T& object, Return (Base::* f) (Args...) &)
   {
     return detail::bound_mem_fn_object { object, f };
@@ -349,7 +349,7 @@ namespace gch
   template <typename ...Args, typename T, typename Base, typename Return,
             std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>> * = nullptr>
   constexpr
-  decltype (auto)
+  auto
   bound_mem_fn (const T& object, Return (Base::* f) (Args...) const)
   {
     return detail::bound_mem_fn_object { object, f };
@@ -358,7 +358,7 @@ namespace gch
   template <typename ...Args, typename T, typename Base, typename Return,
             std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>> * = nullptr>
   constexpr
-  decltype (auto)
+  auto
   bound_mem_fn (const T& object, Return (Base::* f) (Args...) const &)
   {
     return detail::bound_mem_fn_object { object, f };
@@ -367,7 +367,7 @@ namespace gch
   template <typename ...Args, typename T, typename Base, typename Return,
             std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>> * = nullptr>
   constexpr
-  decltype (auto)
+  auto
   bound_mem_fn (T&& object, Return (Base::* f) (Args...))
   {
     return detail::bound_mem_fn_object { std::move (object), f };
@@ -376,15 +376,16 @@ namespace gch
   template <typename ...Args, typename T, typename Base, typename Return,
             std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>> * = nullptr>
   constexpr
-  decltype (auto)
+  auto
   bound_mem_fn (T&& object, Return (Base::* f) (Args...) &&)
   {
     return detail::bound_mem_fn_object { std::move (object), f };
   }
 
   template <typename T, typename U>
+  constexpr
   void
-  bound_mem_fn (const T&&, U&&) = delete;
+  bound_mem_fn (const T&& object, U&&) = delete;
 
   template <typename T, typename Base, typename M,
             std::enable_if_t<std::is_base_of_v<Base, std::decay_t<T>>
@@ -394,6 +395,330 @@ namespace gch
   bound_mem_fn (T& object, M Base::* m)
   {
     return detail::bound_mem_fn_object { object, m };
+  }
+
+  namespace detail
+  {
+
+    template <typename FunctionType, FunctionType Function, typename Enable = void>
+    struct static_function_impl
+    {
+      static_function_impl (void) = delete;
+    };
+
+    template <typename FunctionType, FunctionType Function>
+    struct static_function_impl<FunctionType,
+                                Function,
+                                std::enable_if_t<std::is_function_v<FunctionType>>>
+      : std::integral_constant<FunctionType, Function>
+    { };
+
+    template <typename M, typename T, M T::* Function>
+    struct static_function_impl<M T::*,
+                                Function,
+                                std::enable_if_t<std::is_function_v<M>>>
+      : std::integral_constant<M T::*, Function>
+    { };
+
+  } // namespace gch::detail
+
+  template <auto Function>
+  struct static_function
+    : detail::static_function_impl<decltype (Function), Function>
+  { };
+
+  template <auto Function>
+  inline constexpr
+  auto
+  static_function_v = static_function<Function> { };
+
+  template <typename Function>
+  class unbound_function;
+
+  namespace detail
+  {
+
+    template <typename Function, typename ArgsPack>
+    struct unbound_function_base;
+
+    template <typename Function, typename ...Args>
+    struct unbound_function_base<Function, type_pack<Args...>>
+    {
+      using function_type  = Function;
+      using result_type    = function_result_t<Function>;
+      using args_pack_type = type_pack<Args...>;
+
+      static constexpr
+      bool
+      is_nothrow = std::is_nothrow_invocable_v<function_type, Args...>;
+
+      template <typename F>
+      struct is_compatible_function_type
+        : std::bool_constant<std::conditional_t<
+            is_nothrow,
+            std::is_nothrow_invocable_r<result_type, F, Args...>,
+            std::is_invocable_r<result_type, F, Args...>>::value>
+      { };
+
+      unbound_function_base            (void)                             = default;
+      unbound_function_base            (const unbound_function_base&)     = default;
+      unbound_function_base            (unbound_function_base&&) noexcept = default;
+      unbound_function_base& operator= (const unbound_function_base&)     = default;
+      unbound_function_base& operator= (unbound_function_base&&) noexcept = default;
+      ~unbound_function_base           (void)                             = default;
+
+      constexpr explicit
+      unbound_function_base (function_type *function) noexcept
+        : m_function (function)
+      { }
+
+      constexpr
+      unbound_function_base&
+      operator= (function_type *function) noexcept
+      {
+        m_function = function;
+        return *this;
+      }
+
+      constexpr
+      result_type
+      operator() (Args... args) const
+        noexcept (is_nothrow)
+      {
+        return gch::invoke (m_function, std::forward<Args> (args)...);
+      }
+
+      template <auto F,
+                std::enable_if_t<is_compatible_function_type<decltype (F)>::value> * = nullptr>
+      static constexpr
+      function_type *
+      create_invoker_impl (void) noexcept
+      {
+        return [](Args... args) noexcept (is_nothrow) -> result_type
+               {
+                 return gch::invoke (F, std::forward<Args> (args)...);
+               };
+      }
+
+      [[nodiscard]]
+      constexpr
+      function_type *
+      get_target (void) const noexcept
+      {
+        return m_function;
+      }
+
+      constexpr
+      void
+      swap_functions (unbound_function_base& other) noexcept
+      {
+        using std::swap;
+        swap (m_function, other.m_function);
+      }
+
+    private:
+      function_type *m_function;
+    };
+
+  } // namespace gch::detail
+
+  template <typename Function>
+  class unbound_function
+    : detail::unbound_function_base<Function, function_args_t<Function>>
+  {
+    using base = detail::unbound_function_base<Function, function_args_t<Function>>;
+
+  public:
+    using function_type  = typename base::function_type;
+    using result_type    = typename base::result_type;
+    using args_pack_type = typename base::args_pack_type;
+
+    template <auto F>
+    static constexpr
+    bool
+    is_compatible_function = base::template is_compatible_function_type<decltype (F)>::value;
+
+    using base::is_nothrow;
+    using base::operator();
+
+    unbound_function            (void)                        = default;
+    unbound_function            (const unbound_function&)     = default;
+    unbound_function            (unbound_function&&) noexcept = default;
+    unbound_function& operator= (const unbound_function&)     = default;
+    unbound_function& operator= (unbound_function&&) noexcept = default;
+    ~unbound_function           (void)                        = default;
+
+    constexpr
+    unbound_function (std::nullptr_t) noexcept
+      : base (nullptr)
+    { }
+
+    constexpr
+    unbound_function (function_type f) noexcept
+      : base (&f)
+    { }
+
+    template <auto F, std::enable_if_t<is_compatible_function<F>> * = nullptr>
+    constexpr
+    unbound_function (static_function<F>) noexcept
+      : base (create_invoker<F> ())
+    { }
+
+    constexpr
+    unbound_function&
+    operator= (std::nullptr_t) noexcept
+    {
+      base::operator= (nullptr);
+      return *this;
+    }
+
+    constexpr
+    unbound_function&
+    operator= (function_type f) noexcept
+    {
+      base::operator= (&f);
+      return *this;
+    }
+
+    constexpr
+    unbound_function&
+    operator= (std::reference_wrapper<function_type> ref) noexcept
+    {
+      base::operator= (&ref.get ());
+      return *this;
+    }
+
+    template <auto F, std::enable_if_t<is_compatible_function<F>> * = nullptr>
+    constexpr
+    unbound_function&
+    operator= (static_function<F>) noexcept
+    {
+      base::operator= (create_invoker<F> ());
+      return *this;
+    }
+
+    constexpr
+    void
+    assign (std::nullptr_t) noexcept
+    {
+      *this = nullptr;
+    }
+
+    constexpr
+    void
+    assign (function_type f) noexcept
+    {
+      *this = f;
+    }
+
+    template <auto F, std::enable_if_t<is_compatible_function<F>> * = nullptr>
+    constexpr
+    void
+    assign (void) noexcept
+    {
+      *this = (create_invoker<F> ());
+    }
+
+    constexpr
+    explicit
+    operator bool (void) const noexcept
+    {
+      return nullptr != target ();
+    }
+
+    [[nodiscard]]
+    const std::type_info&
+    target_type (void) const noexcept
+    {
+      return typeid (function_type *);
+    }
+
+    [[nodiscard]]
+    constexpr
+    function_type *
+    target (void) const noexcept
+    {
+      return base::get_target ();
+    }
+
+    constexpr
+    void
+    swap (unbound_function& other) noexcept
+    {
+      base::swap_functions (other);
+    }
+
+    template <auto F, std::enable_if_t<is_compatible_function<F>> * = nullptr>
+    static constexpr
+    function_type *
+    create_invoker (void) noexcept
+    {
+      return base::template create_invoker_impl<F> ();
+    }
+  };
+
+  template <typename Function>
+  constexpr
+  void
+  swap (unbound_function<Function>& lhs, unbound_function<Function>& rhs) noexcept
+  {
+    lhs.swap (rhs);
+  }
+
+  template <typename FunctionLHS, typename FunctionRHS>
+  constexpr
+  bool
+  operator== (unbound_function<FunctionLHS> lhs, unbound_function<FunctionRHS> rhs) noexcept
+  {
+    return lhs.target () == rhs.target ();
+  }
+
+  template <typename FunctionLHS, typename FunctionRHS>
+  constexpr
+  bool
+  operator!= (unbound_function<FunctionLHS> lhs, unbound_function<FunctionRHS> rhs) noexcept
+  {
+    return ! (lhs == rhs);
+  }
+
+  template <typename Function>
+  constexpr
+  bool
+  operator!= (unbound_function<Function> lhs, unbound_function<Function> rhs) noexcept
+  {
+    return ! (lhs == rhs);
+  }
+
+  template <typename Function>
+  constexpr
+  bool
+  operator== (unbound_function<Function> lhs, std::nullptr_t) noexcept
+  {
+    return ! lhs;
+  }
+
+  template <typename Function>
+  constexpr
+  bool
+  operator== (std::nullptr_t, unbound_function<Function> rhs) noexcept
+  {
+    return ! rhs;
+  }
+
+  template <typename Function>
+  constexpr
+  bool
+  operator!= (unbound_function<Function> lhs, std::nullptr_t) noexcept
+  {
+    return ! (lhs == nullptr);
+  }
+
+  template <typename Function>
+  constexpr
+  bool
+  operator!= (std::nullptr_t, unbound_function<Function> rhs) noexcept
+  {
+    return ! (nullptr == rhs);
   }
 
   template <typename T>
@@ -415,9 +740,7 @@ namespace gch
 
   template <template <typename ...> typename MapperT, typename Pack, typename ...Args>
   struct common_map_pack_result
-  {
-    using type = void;
-  };
+  { };
 
   template < template <typename ...> typename MapperT, template <typename ...> typename PackT,
             typename ...Ts, typename ...Args>

@@ -8,15 +8,27 @@
 #ifndef OCTAVE_IR_COMPILER_LLVM_LLVM_COMMON_HPP
 #define OCTAVE_IR_COMPILER_LLVM_LLVM_COMMON_HPP
 
-#ifdef _MSC_VER
-#  pragma warning (push, 0)
+#ifndef GCH_DISABLE_WARNINGS_MSVC
+#  ifdef _MSC_VER
+#    define GCH_DISABLE_WARNINGS_MSVC _Pragma ("warning (push, 0)")
+#  else
+#    define GCH_DISABLE_WARNINGS_MSVC
+#  endif
 #endif
+
+#ifndef GCH_ENABLE_WARNINGS_MSVC
+#  ifdef _MSC_VER
+#    define GCH_ENABLE_WARNINGS_MSVC _Pragma ("warning (pop)")
+#  else
+#    define GCH_ENABLE_WARNINGS_MSVC
+#  endif
+#endif
+
+GCH_DISABLE_WARNINGS_MSVC
 
 #include <llvm/ADT/Twine.h>
 
-#ifdef _MSC_VER
-#  pragma warning (pop)
-#endif
+GCH_ENABLE_WARNINGS_MSVC
 
 #include <string_view>
 

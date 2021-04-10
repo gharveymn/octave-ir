@@ -8,15 +8,13 @@
 #ifndef OCTAVE_IR_COMPILER_LLVM_LLVM_TYPE_HPP
 #define OCTAVE_IR_COMPILER_LLVM_LLVM_TYPE_HPP
 
-#ifdef _MSC_VER
-#  pragma warning (push, 0)
-#endif
+#include "llvm-common.hpp"
+
+GCH_DISABLE_WARNINGS_MSVC
 
 #include <llvm/IR/Type.h>
 
-#ifdef _MSC_VER
-#  pragma warning (pop)
-#endif
+GCH_ENABLE_WARNINGS_MSVC
 
 namespace gch
 {
