@@ -33,20 +33,30 @@ namespace gch
                                                                     const llvm::Twine&,
                                                                     llvm::MDNode *);
 
+  using unbound_cmp_creator = llvm::Value * (llvm::IRBuilderBase&,
+                                             llvm::Value *,
+                                             llvm::Value *,
+                                             const llvm::Twine&,
+                                             llvm::MDNode *);
+
   struct cmp_creator
+    : unbound_function<unbound_cmp_creator>
   {
+    using base = unbound_function<unbound_cmp_creator>;
+
+    using base::unbound_function;
+
+    constexpr
+    cmp_creator (unbound_function<unbound_cmp_creator> uf)
+      : base (uf)
+    { }
+
     llvm::Value *
     operator() (llvm::IRBuilderBase& builder, llvm::Value *lhs, llvm::Value *rhs,
-                const llvm::Twine& name = "", llvm::MDNode *fp_math = nullptr) const
+                const llvm::Twine& name = "") const
     {
-      return std::invoke (m_creator_function, builder, lhs, rhs, name, fp_math);
+      return this->call (builder, lhs, rhs, name, nullptr);
     }
-
-    llvm::Value * (*m_creator_function) (llvm::IRBuilderBase&,
-                                         llvm::Value *,
-                                         llvm::Value *,
-                                         const llvm::Twine&,
-                                         llvm::MDNode *);
   };
 
   template <typename          T,
@@ -57,15 +67,16 @@ namespace gch
   struct llvm_cmp_mapper_base
   {
     constexpr
-    cmp_creator
-    operator() (void) const
+    auto
+    operator() (void) const noexcept
     {
-      return { [](llvm::IRBuilderBase&, llvm::Value *, llvm::Value *,
-                  const llvm::Twine&, llvm::MDNode *)
-                 -> llvm::Value *
-               {
-                 throw std::logic_error { "No llvm function maps to these types." };
-               } };
+      return cmp_creator {
+        [](llvm::IRBuilderBase&, llvm::Value *, llvm::Value *, const llvm::Twine&, llvm::MDNode *)
+          -> llvm::Value *
+        {
+          throw std::logic_error { "No llvm function maps to these types." };
+        }
+      };
     }
   };
 
@@ -77,15 +88,17 @@ namespace gch
                               std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>>>
   {
     constexpr
-    cmp_creator
+    auto
     operator() (void) const noexcept
     {
-      return { [](llvm::IRBuilderBase& builder, llvm::Value *lhs, llvm::Value *rhs,
-                  const llvm::Twine& name, llvm::MDNode *)
-                  -> llvm::Value *
-               {
-                 return std::invoke (SignedCMP, builder, lhs, rhs, name);
-               } };
+      return cmp_creator {
+        [](llvm::IRBuilderBase& builder, llvm::Value *lhs, llvm::Value *rhs,
+           const llvm::Twine& name, llvm::MDNode *)
+          -> llvm::Value *
+        {
+          return std::invoke (SignedCMP, builder, lhs, rhs, name);
+        }
+      };
     }
   };
 
@@ -97,15 +110,17 @@ namespace gch
                               std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>>>
   {
     constexpr
-    cmp_creator
+    auto
     operator() (void) const noexcept
     {
-      return { [](llvm::IRBuilderBase& builder, llvm::Value *lhs, llvm::Value *rhs,
-                  const llvm::Twine& name, llvm::MDNode *)
-                  -> llvm::Value *
-               {
-                 return std::invoke (UnsignedCMP, builder, lhs, rhs, name);
-               } };
+      return cmp_creator {
+        [](llvm::IRBuilderBase& builder, llvm::Value *lhs, llvm::Value *rhs,
+           const llvm::Twine& name, llvm::MDNode *)
+          -> llvm::Value *
+        {
+          return std::invoke (UnsignedCMP, builder, lhs, rhs, name);
+        }
+      };
     }
   };
 
@@ -120,12 +135,7 @@ namespace gch
     cmp_creator
     operator() (void) const noexcept
     {
-      return { [](llvm::IRBuilderBase& builder, llvm::Value *lhs, llvm::Value *rhs,
-                  const llvm::Twine& name, llvm::MDNode *fp_tag)
-                  -> llvm::Value *
-               {
-                 return std::invoke (FloatCMP, builder, lhs, rhs, name, fp_tag);
-               } };
+      return static_unbound_function_v<FloatCMP>;
     }
   };
 

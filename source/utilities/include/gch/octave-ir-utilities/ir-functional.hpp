@@ -482,10 +482,18 @@ namespace gch
 
       constexpr
       result_type
-      operator() (Args... args) const
+      call (Args... args) const
         noexcept (is_nothrow)
       {
         return gch::invoke (m_function, std::forward<Args> (args)...);
+      }
+
+      constexpr
+      result_type
+      operator() (Args... args) const
+        noexcept (is_nothrow)
+      {
+        return call (std::forward<Args> (args)...);
       }
 
       template <auto F,
@@ -540,6 +548,7 @@ namespace gch
 
     using base::is_nothrow;
     using base::operator();
+    using base::call;
 
     unbound_function            (void)                        = default;
     unbound_function            (const unbound_function&)     = default;
@@ -555,7 +564,7 @@ namespace gch
 
     constexpr
     unbound_function (function_type f) noexcept
-      : base (&f)
+      : base (f)
     { }
 
     template <auto F, std::enable_if_t<is_compatible_function<F>> * = nullptr>
@@ -576,7 +585,7 @@ namespace gch
     unbound_function&
     operator= (function_type f) noexcept
     {
-      base::operator= (&f);
+      base::operator= (f);
       return *this;
     }
 
@@ -584,7 +593,7 @@ namespace gch
     unbound_function&
     operator= (std::reference_wrapper<function_type> ref) noexcept
     {
-      base::operator= (&ref.get ());
+      base::operator= (ref.get ());
       return *this;
     }
 
@@ -720,6 +729,22 @@ namespace gch
   {
     return ! (nullptr == rhs);
   }
+
+  template <auto F>
+  struct static_unbound_function
+  {
+    static constexpr
+    unbound_function<unified_equivalent_function_t<decltype (F)>>
+    value { static_function_v<F> };
+  };
+
+  template <auto F>
+  inline constexpr
+  auto
+  static_unbound_function_v = static_unbound_function<F>::value;
+
+  template <typename Function>
+  unbound_function (Function) -> unbound_function<Function>;
 
   template <typename T>
   struct value_projection

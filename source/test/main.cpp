@@ -18,6 +18,10 @@ struct test_struct
   f (void) &&
   { }
 
+  void
+  g (void) const volatile && noexcept
+  { }
+
   int x;
 };
 
@@ -68,6 +72,15 @@ main (void)
 
   static_assert (gch::is_rvref_qualified_v<decltype (&test_struct::f)>);
 
+  auto p = gch::static_unbound_function_v<&test_struct::g>;
+
+  static_assert (std::is_same_v<void (const volatile test_struct&&) noexcept,
+                                gch::unified_equivalent_function_t<decltype (&test_struct::g)>>);
+
+  static_assert (std::is_same_v<void (const volatile test_struct&&) noexcept,
+                                decltype (p)::function_type>);
+
+  gch::unbound_function<void (void)> uff ([] { });
   gch::unbound_function<void (test_struct&&)> uf (gch::static_function_v<&test_struct::f>);
   uf (test_struct { });
 
