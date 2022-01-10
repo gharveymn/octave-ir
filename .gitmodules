@@ -14,10 +14,6 @@
 	path = external/variant-iterator
 	url = git@github.com:gharveymn/variant-iterator.git
 	branch = master
-[submodule "external/create-package"]
-	path = external/create-package
-	url = git@github.com:gharveymn/create-package.git
-	branch = master
 [submodule "external/nonnull_ptr"]
 	path = external/nonnull_ptr
 	url = git@github.com:gharveymn/nonnull_ptr.git
@@ -34,7 +30,3 @@
 	path = external/small_vector
 	url = git@github.com:gharveymn/small_vector.git
 	branch = main
-[submodule "external/doctest"]
-	path = external/doctest
-	url = git@github.com:onqtam/doctest.git
-	branch = master

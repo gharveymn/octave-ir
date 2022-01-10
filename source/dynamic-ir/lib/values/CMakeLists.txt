@@ -1,4 +1,6 @@
-OCTAVE_IR_ADD_SOURCES (
+target_sources (
+  octave-ir-dynamic-ir
+  PRIVATE
   ir-def.cpp
   ir-instruction.cpp
   ir-operand.cpp

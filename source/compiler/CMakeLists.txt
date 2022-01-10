@@ -1,6 +1,5 @@
-ADD_SUBDIRECTORY (interface)
+add_subdirectory (interface)
 
-IF (OCTAVE_IR_BUILD_LLVM_COMPILER)
-  MESSAGE (STATUS "Generating build files for gch::octave-ir-compiler-llvm")
-  ADD_SUBDIRECTORY (llvm)
-ENDIF ()
+if (GCH_OCTAVE_IR_BUILD_LLVM_COMPILER)
+  add_subdirectory (llvm)
+endif ()

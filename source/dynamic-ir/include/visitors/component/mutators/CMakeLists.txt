@@ -1,4 +1,6 @@
-OCTAVE_IR_ADD_HEADERS (
+target_sources (
+  octave-ir-dynamic-ir
+  PRIVATE
   ir-abstract-component-mutator.hpp
   ir-component-mutators.hpp
   ir-component-mutators-fwd.hpp

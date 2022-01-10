@@ -1,34 +1,44 @@
-CREATE_PACKAGE (AUTHOR       gharveymn
-                NAMESPACE    gch
-                NAME         octave-ir-utilities
-                TYPE         STATIC
+set_property (GLOBAL APPEND PROPERTY OCTAVE_IR_LIBS octave-ir-utilities)
 
-                HEADERS      ir-allocator-util.hpp
-                             ir-common.hpp
-                             ir-error.hpp
-                             ir-functional.hpp
-                             ir-index-sequence-map.hpp
-                             ir-iterator.hpp
-                             ir-link-set.hpp
-                             ir-optional-util.hpp
-                             ir-type-traits.hpp
-                             ir-utility.hpp
+add_library (octave-ir-utilities OBJECT)
 
-                SOURCES      ir-error.cpp
-                             ir-link-set.cpp
-                             ir-utility.cpp
+octave_ir_target_headers (
+  octave-ir-utilities
+  PRIVATE
+    ir-allocator-util.hpp
+    ir-common.hpp
+    ir-error.hpp
+    ir-function-traits.hpp
+    ir-functional.hpp
+    ir-index-sequence-map.hpp
+    ir-iterator.hpp
+    ir-link-set.hpp
+    ir-optional-util.hpp
+    ir-type-pack.hpp
+    ir-type-traits.hpp
+    ir-utility.hpp
+)
 
-                DEPENDENCIES nonnull_ptr
-                             optional_ref
-                             small_vector)
+octave_ir_target_sources (
+  octave-ir-utilities
+  PRIVATE
+    ir-error.cpp
+    ir-link-set.cpp
+    ir-utility.cpp
+)
 
-TARGET_COMPILE_OPTIONS (octave-ir-utilities PRIVATE ${OCTAVE_IR_COMPILE_OPTS})
-TARGET_LINK_OPTIONS    (octave-ir-utilities PRIVATE ${OCTAVE_IR_LINK_OPTS})
-TARGET_LINK_LIBRARIES  (octave-ir-utilities PRIVATE ${OCTAVE_IR_LINK_LIBS})
+target_link_libraries (
+  octave-ir-utilities
+  PUBLIC
+    gch::octave-ir-common
+    gch::nonnull_ptr
+    gch::optional_ref
+    gch::small_vector
+)
+target_include_directories (
+  octave-ir-utilities
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+)
 
-SET_TARGET_PROPERTIES (octave-ir-utilities
-                       PROPERTIES CXX_STANDARD          17
-                                  CXX_STANDARD_REQUIRED NO
-                                  CXX_EXTENSIONS        NO)
-
-SET_PROPERTY (GLOBAL APPEND PROPERTY OCTAVE_IR_LIBS octave-ir-utilities)
+add_library (gch::octave-ir-utilities ALIAS octave-ir-utilities)

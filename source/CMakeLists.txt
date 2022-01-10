@@ -1,119 +1,115 @@
-IF (NOT CREATE_PACKAGE_VERSION VERSION_GREATER_EQUAL 0.0.5)
-  IF (NOT EXISTS "${PROJECT_SOURCE_DIR}/external/create-package/cmake/create-package.cmake")
-    MESSAGE (STATUS "Initializing create-package-0.0.5 in git submodule.")
-    EXECUTE_PROCESS (COMMAND git submodule --quiet update --init -- "${PROJECT_SOURCE_DIR}/external/create-package"
-                     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
-  ENDIF ()
-  INCLUDE ("${PROJECT_SOURCE_DIR}/external/create-package/cmake/create-package.cmake")
-ENDIF ()
+macro (octave_ir_target_headers target_name)
+  cmake_parse_arguments (oith "" "" "PRIVATE;INTERFACE;PUBLIC" "${ARGN}")
 
-# Project-wide compile options
-SET (OCTAVE_IR_COMPILE_DEFS)
-SET (OCTAVE_IR_COMPILE_OPTS)
-SET (OCTAVE_IR_LINK_OPTS)
-SET (OCTAVE_IR_LINK_LIBS)
+  foreach (scope PRIVATE INTERFACE PUBLIC)
+    list (TRANSFORM oith_${scope} PREPEND include/gch/${target_name}/)
+    target_sources (${target_name} ${scope} ${oith_${scope}})
+    set_source_files_properties (
+      ${oith_${scope}}
+      PROPERTIES
+      HEADER_FILE_ONLY
+        ON
+    )
+  endforeach ()
+endmacro ()
 
-IF (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+macro (octave_ir_target_sources target_name)
+  cmake_parse_arguments (oits "" "" "PRIVATE;INTERFACE;PUBLIC" "${ARGN}")
 
-  LIST (APPEND
-        OCTAVE_IR_COMPILE_OPTS -ftime-trace
-                               --coverage
-                               -Weverything
-                               -Wno-padded
-                               -Wno-c++98-compat
-                               -Wno-c++98-compat-pedantic
-                               -Wno-zero-as-null-pointer-constant
-                               -Wno-exit-time-destructors)
+  foreach (scope PRIVATE INTERFACE PUBLIC)
+    list (TRANSFORM oits_${scope} PREPEND lib/)
+    target_sources (${target_name} ${scope} ${oits_${scope}})
+  endforeach ()
+endmacro ()
 
-    LIST (APPEND
-          OCTAVE_IR_LINK_OPTS --coverage)
+add_library (octave-ir-common INTERFACE)
 
-  # Clang options
-  IF (GCH_USE_LIBCXX_WITH_CLANG)
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_compile_options (
+    octave-ir-common
+    INTERFACE
+      -ftime-trace
+      --coverage
+      -Weverything
+      -Wno-padded
+      -Wno-c++98-compat
+      -Wno-c++98-compat-pedantic
+      -Wno-zero-as-null-pointer-constant
+      -Wno-used-but-marked-unused
+      -Wno-exit-time-destructors
+  )
 
-    LIST (APPEND
-          OCTAVE_IR_COMPILE_OPTS -stdlib=libc++)
+  target_link_options (
+    octave-ir-common
+    INTERFACE
+      --coverage
+  )
 
-    LIST (APPEND
-          OCTAVE_IR_LINK_OPTS -Wl,--allow-multiple-definition)
+  if (GCH_USE_LIBCXX_WITH_CLANG)
+    target_compile_options (octave-ir-common INTERFACE -stdlib=libc++)
+    target_link_options (octave-ir-common INTERFACE LINKER:--allow-multiple-definition)
+    target_link_libraries (octave-ir-common INTERFACE c++ c++abi)
+  endif ()
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+  target_compile_options (
+    octave-ir-common
+    INTERFACE
+      -pedantic
+      -Wall
+      -Wextra
+      -Wcast-align
+      -Wcast-qual
+      -Wctor-dtor-privacy
+      -Wdisabled-optimization
+      -Wformat=2
+      -Winit-self
+      -Wlogical-op
+      -Wmissing-declarations
+      -Wmissing-include-dirs
+      -Wnoexcept
+      -Wold-style-cast
+      -Woverloaded-virtual
+      -Wredundant-decls
+      -Wshadow
+      -Wsign-conversion
+      -Wsign-promo
+      -Wstrict-null-sentinel
+      -Wstrict-overflow=5
+      -Wswitch-default
+      -Wundef
+      -Wno-unused
+  )
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  target_compile_options (
+    octave-ir-common
+    INTERFACE
+      /W4
+      /wd4250
+  )
+endif ()
 
-    LIST (APPEND
-          OCTAVE_IR_LINK_LIBS c++
-                              c++abi)
+if (UNIX)
+  target_compile_options (octave-ir-common INTERFACE $<$<CONFIG:Debug>:-fsanitize=address>)
+  target_link_options (octave-ir-common INTERFACE $<$<CONFIG:Debug>:-fsanitize=address>)
+endif ()
 
-    MESSAGE (STATUS "Linking with libc++")
-
-  ENDIF ()
-
-ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-
-  # GCC options
-
-  LIST (APPEND
-        OCTAVE_IR_COMPILE_OPTS -pedantic
-                               -Wall
-                               -Wextra
-                               -Wcast-align
-                               -Wcast-qual
-                               -Wctor-dtor-privacy
-                               -Wdisabled-optimization
-                               -Wformat=2
-                               -Winit-self
-                               -Wlogical-op
-                               -Wmissing-declarations
-                               -Wmissing-include-dirs
-                               -Wnoexcept
-                               -Wold-style-cast
-                               -Woverloaded-virtual
-                               -Wredundant-decls
-                               -Wshadow
-                               -Wsign-conversion
-                               -Wsign-promo
-                               -Wstrict-null-sentinel
-                               -Wstrict-overflow=5
-                               -Wswitch-default
-                               -Wundef
-                               -Wno-unused)
-
-ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-
-  # MSVC options
-
-  LIST (APPEND
-        OCTAVE_IR_COMPILE_OPTS /W4 /wd4250)
-
-ENDIF ()
-
-IF (UNIX
-    AND CMAKE_BUILD_TYPE STREQUAL "Debug")
-
-  LIST (APPEND
-        OCTAVE_IR_COMPILE_OPTS -fsanitize=address)
-
-  LIST (APPEND
-        OCTAVE_IR_LINK_OPTS    -fsanitize=address)
-
-ENDIF ()
+add_library (gch::octave-ir-common ALIAS octave-ir-common)
 
 # Always build octave-ir-utilities
-ADD_SUBDIRECTORY (utilities)
+add_subdirectory (utilities)
 
-IF (OCTAVE_IR_BUILD_STATIC_IR)
-  MESSAGE (STATUS "Generating build files for gch::octave-ir-static-ir")
-  ADD_SUBDIRECTORY (static-ir)
-ENDIF ()
+if (GCH_OCTAVE_IR_BUILD_STATIC_IR)
+  add_subdirectory (static-ir)
+endif ()
 
-IF (OCTAVE_IR_BUILD_DYNAMIC_IR)
-  MESSAGE (STATUS "Generating build files for gch::octave-ir-dynamic-ir")
-  ADD_SUBDIRECTORY (dynamic-ir)
-ENDIF ()
+if (GCH_OCTAVE_IR_BUILD_DYNAMIC_IR)
+  add_subdirectory (dynamic-ir)
+endif ()
 
-IF (OCTAVE_IR_BUILD_COMPILER)
-  MESSAGE (STATUS "Generating build files for gch::octave-ir-compiler")
-  ADD_SUBDIRECTORY (compiler)
-ENDIF ()
+if (GCH_OCTAVE_IR_BUILD_COMPILER)
+  add_subdirectory (compiler)
+endif ()
 
-IF (OCTAVE_IR_BUILD_TESTS)
-  MESSAGE (STATUS "Building tests for gch::octave-ir.")
-  ADD_SUBDIRECTORY (test)
-ENDIF ()
+if (GCH_OCTAVE_IR_BUILD_TESTS)
+  add_subdirectory (test)
+endif ()

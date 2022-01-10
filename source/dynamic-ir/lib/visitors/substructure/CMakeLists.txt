@@ -1,4 +1,6 @@
-OCTAVE_IR_ADD_SOURCES (
+target_sources (
+  octave-ir-dynamic-ir
+  PRIVATE
 )
 
 ADD_SUBDIRECTORY (inspectors)

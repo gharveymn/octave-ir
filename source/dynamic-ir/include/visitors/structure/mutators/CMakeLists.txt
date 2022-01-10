@@ -1,4 +1,6 @@
-OCTAVE_IR_ADD_HEADERS (
+target_sources (
+  octave-ir-dynamic-ir
+  PRIVATE
   ir-ascending-def-propagator.hpp
   ir-ascending-def-resolution-builder.hpp
   ir-ascending-forward-mutator.hpp

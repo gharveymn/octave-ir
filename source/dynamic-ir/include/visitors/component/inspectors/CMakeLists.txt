@@ -1,4 +1,6 @@
-OCTAVE_IR_ADD_HEADERS (
+target_sources (
+  octave-ir-dynamic-ir
+  PRIVATE
   ir-abstract-component-inspector.hpp
   ir-block-counter.hpp
   ir-component-inspectors.hpp

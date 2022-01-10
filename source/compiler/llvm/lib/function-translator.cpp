@@ -18,6 +18,12 @@
 #include "gch/octave-ir-static-ir/ir-static-variable.hpp"
 #include "gch/octave-ir-static-ir/ir-type-util.hpp"
 
+#include <iostream>
+#include <octave/oct.h>
+#include <octave/octave.h>
+#include <octave/parse.h>
+#include <octave/interpreter.h>
+
 #include <gch/nonnull_ptr.hpp>
 
 #include <unordered_map>
@@ -56,7 +62,7 @@ namespace gch
                                        module);
       });
 
-    llvm_value_map value_map { llvm_module, func, out_func };
+    llvm_value_map value_map { llvm_module, out_func, func };
     std::for_each (func.begin (), func.end (),
                    [&](const ir_static_block& block) { translate_block (block, value_map); });
 

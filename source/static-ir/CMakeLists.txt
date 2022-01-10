@@ -1,45 +1,58 @@
-CREATE_PACKAGE (AUTHOR       gharveymn
-                NAMESPACE    gch
-                NAME         octave-ir-static-ir
-                TYPE         SHARED
+set_property (GLOBAL APPEND PROPERTY OCTAVE_IR_LIBS octave-ir-static-ir)
 
-                HEADERS      ir-constant.hpp
-                             ir-metadata.hpp
-                             ir-static-block.hpp
-                             ir-static-function.hpp
-                             ir-static-def.hpp
-                             ir-static-instruction.hpp
-                             ir-static-operand.hpp
-                             ir-static-use.hpp
-                             ir-static-variable.hpp
-                             ir-type.hpp
-                             ir-type-util.hpp
+add_library (octave-ir-static-ir SHARED)
 
-                SOURCES      ir-constant.cpp
-                             ir-metadata.cpp
-                             ir-static-block.cpp
-                             ir-static-function.cpp
-                             ir-static-def.cpp
-                             ir-static-instruction.cpp
-                             ir-static-operand.cpp
-                             ir-static-use.cpp
-                             ir-static-variable.cpp
-                             ir-type.cpp
-                             ir-type-util.cpp
+octave_ir_target_headers (
+  octave-ir-static-ir
+  PRIVATE
+    ir-constant.hpp
+    ir-metadata.hpp
+    ir-static-block.hpp
+    ir-static-function.hpp
+    ir-static-def.hpp
+    ir-static-instruction.hpp
+    ir-static-operand.hpp
+    ir-static-use.hpp
+    ir-static-variable.hpp
+    ir-type.hpp
+    ir-type-util.hpp
+)
 
-                DEPENDENCIES nonnull_ptr
-                             octave-ir-utilities
-                             optional_ref
-                             small_vector)
+octave_ir_target_sources (
+  octave-ir-static-ir
+  PRIVATE
+    ir-constant.cpp
+    ir-metadata.cpp
+    ir-static-block.cpp
+    ir-static-function.cpp
+    ir-static-def.cpp
+    ir-static-instruction.cpp
+    ir-static-operand.cpp
+    ir-static-use.cpp
+    ir-static-variable.cpp
+    ir-type.cpp
+    ir-type-util.cpp
+)
 
-TARGET_COMPILE_OPTIONS (octave-ir-static-ir PRIVATE ${OCTAVE_IR_COMPILE_OPTS})
-TARGET_LINK_OPTIONS    (octave-ir-static-ir PRIVATE ${OCTAVE_IR_LINK_OPTS})
-TARGET_LINK_LIBRARIES  (octave-ir-static-ir PRIVATE ${OCTAVE_IR_LINK_LIBS})
+target_link_libraries (
+  octave-ir-static-ir
+  PUBLIC
+    gch::octave-ir-common
+    gch::nonnull_ptr
+    gch::optional_ref
+    gch::small_vector
+)
 
-SET_TARGET_PROPERTIES (octave-ir-static-ir
-                       PROPERTIES CXX_STANDARD               17
-                                  CXX_STANDARD_REQUIRED      NO
-                                  CXX_EXTENSIONS             NO
-                                  WINDOWS_EXPORT_ALL_SYMBOLS YES)
+target_link_libraries (
+  octave-ir-static-ir
+  PUBLIC
+    $<BUILD_INTERFACE:gch::octave-ir-utilities>
+)
 
-SET_PROPERTY (GLOBAL APPEND PROPERTY OCTAVE_IR_LIBS octave-ir-static-ir)
+target_include_directories (
+  octave-ir-static-ir
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+)
+
+add_library (gch::octave-ir-static-ir ALIAS octave-ir-static-ir)

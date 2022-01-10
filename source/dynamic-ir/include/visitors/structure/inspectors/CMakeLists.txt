@@ -1,4 +1,6 @@
-OCTAVE_IR_ADD_HEADERS (
+target_sources (
+  octave-ir-dynamic-ir
+  PRIVATE
   ir-entry-collector.hpp
   ir-leaf-inspector.hpp
   ir-predecessor-collector.hpp

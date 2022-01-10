@@ -1,4 +1,6 @@
-OCTAVE_IR_ADD_HEADERS (
+target_sources (
+  octave-ir-dynamic-ir
+  PRIVATE
   ir-substructure-visitors.hpp
   ir-substructure-visitors-fwd.hpp
 )

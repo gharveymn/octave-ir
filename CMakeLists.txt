@@ -1,36 +1,67 @@
-CMAKE_MINIMUM_REQUIRED (VERSION 3.13)
-PROJECT (octave-ir
-         VERSION 0.0.1
-         LANGUAGES CXX)
+cmake_minimum_required (VERSION 3.13)
+project (
+  octave-ir
+  VERSION
+    0.0.1
+  LANGUAGES
+    CXX
+)
 
-SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+string (COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _EXTRAS_DEFAULT)
 
-# For some reason CMP0092 which removes /W3 from CMAKE_CXX_FLAGS isn't active on my machine
-# even with CMake 3.20, so I guess I'll just do it manually here...
-IF (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  STRING (REGEX REPLACE "/W3" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-ENDIF ()
+option (
+  GCH_OCTAVE_IR_BUILD_TESTS
+  "Set to ON to build tests for gch::octave-ir."
+  ${_EXTRAS_DEFAULT}
+)
 
-# Options
-IF (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-  OPTION (OCTAVE_IR_BUILD_TESTS "Set to ON to build tests" ON)
-ELSE ()
-  OPTION (OCTAVE_IR_BUILD_TESTS "Set to ON to build tests" OFF)
-ENDIF ()
+include (CMakeDependentOption)
+cmake_dependent_option (
+  GCH_USE_LIBCXX_WITH_CLANG
+  "Set to ON to use libc++ when compiling with Clang."
+  OFF
+  "CMAKE_CXX_COMPILER_ID MATCHES Clang"
+  OFF
+)
 
-OPTION (GCH_USE_LIBCXX_WITH_CLANG     "Set to ON to use libc++ when compiling with Clang" OFF)
+option (GCH_OCTAVE_IR_BUILD_DYNAMIC_IR "Set to ON to build gch::octave-ir-dynamic-ir" ON)
+option (GCH_OCTAVE_IR_BUILD_COMPILER "Set to ON to build gch::octave-ir-compiler" ON)
 
-OPTION (OCTAVE_IR_BUILD_DYNAMIC_IR    "Set to ON to build gch::octave-ir-dynamic-ir"      ON)
-OPTION (OCTAVE_IR_BUILD_STATIC_IR     "Set to ON to build gch::octave-ir-static-ir"       ON)
-OPTION (OCTAVE_IR_BUILD_COMPILER      "Set to ON to build gch::octave-ir-compiler"        ON)
-OPTION (OCTAVE_IR_BUILD_LLVM_COMPILER "Set to ON to build gch::octave-ir-llvm-compiler"   ON)
+cmake_dependent_option (
+  GCH_OCTAVE_IR_BUILD_LLVM_COMPILER
+  "Set to ON to build gch::octave-ir-llvm-compiler."
+  ON
+  GCH_OCTAVE_IR_BUILD_COMPILER
+  OFF
+)
 
-IF (OCTAVE_IR_BUILD_DYNAMIC_IR OR OCTAVE_IR_BUILD_COMPILER)
-  SET (OCTAVE_IR_BUILD_STATIC_IR ON)
-ENDIF ()
+cmake_dependent_option (
+  GCH_OCTAVE_IR_BUILD_STATIC_IR
+  "Set to ON to build gch::octave-ir-static-ir."
+  ON
+  "NOT GCH_OCTAVE_IR_BUILD_DYNAMIC_IR AND NOT GCH_OCTAVE_IR_BUILD_COMPILER"
+  ON
+)
 
-IF (OCTAVE_IR_BUILD_LLVM_COMPILER)
-  SET (OCTAVE_IR_BUILD_COMPILER ON)
-ENDIF ()
+find_package (Git REQUIRED)
+execute_process (
+  COMMAND
+    ${GIT_EXECUTABLE} submodule --quiet update --init
+  WORKING_DIRECTORY
+    ${PROJECT_SOURCE_DIR}
+)
 
-ADD_SUBDIRECTORY (source)
+add_subdirectory (external/nonnull_ptr)
+add_subdirectory (external/optional_ref)
+add_subdirectory (external/partition)
+add_subdirectory (external/plf_list)
+add_subdirectory (external/select-iterator)
+add_subdirectory (external/small_vector)
+add_subdirectory (external/tracker)
+add_subdirectory (external/variant-iterator)
+
+if (GCH_OCTAVE_IR_BUILD_TESTS)
+  enable_testing ()
+endif ()
+
+add_subdirectory (source)

@@ -1,79 +1,99 @@
-OPTION (OCTAVE_IR_LLVM_USE_DEFAULT "Set to ON to link to the default LLVM installation" ON)
+option (OCTAVE_IR_LLVM_USE_DEFAULT "Set to ON to link to the default LLVM installation" ON)
 
-SET (OCTAVE_IR_LLVM_PATH        "" CACHE STRING "A user specified path to an LLVM installation")
-SET (OCTAVE_IR_LLVM_EXTRA_PATHS "" CACHE STRING "A list of paths to additional LLVM installations")
+set (OCTAVE_IR_LLVM_PATH "" CACHE STRING "A user specified path to an LLVM installation")
+set (OCTAVE_IR_LLVM_EXTRA_PATHS "" CACHE STRING "A list of paths to additional LLVM installations")
 
-IF (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  LIST (APPEND OCTAVE_IR_COMPILE_OPTS -Wno-undef)
-ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  LIST (APPEND OCTAVE_IR_COMPILE_DEFS -D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS)
-ENDIF ()
+# Find Octave.
+find_package (Octave REQUIRED)
 
-MACRO (CREATE_LLVM_COMPILER_PACKAGE target_name)
-  CREATE_PACKAGE (AUTHOR       gharveymn
-                  NAMESPACE    gch
-                  NAME         ${target_name}
-                  TYPE         SHARED
+macro (create_llvm_compiler_package target_name)
+  add_library (${target_name} SHARED)
 
-                  HEADERS      function-translator.hpp
-                               instruction-translator.hpp
-                               llvm-common.hpp
-                               llvm-constant.hpp
-                               llvm-instruction-map.hpp
-                               llvm-interface.hpp
-                               llvm-type.hpp
-                               llvm-value-map.hpp
-                               llvm-version.hpp
+  octave_ir_target_sources (
+    ${target_name}
+    PRIVATE
+      function-translator.cpp
+      instruction-translator.cpp
+      llvm-interface.cpp
+      llvm-value-map.cpp
+  )
 
-                  SOURCES      function-translator.cpp
-                               instruction-translator.cpp
-                               llvm-interface.cpp
-                               llvm-value-map.cpp
+  target_link_libraries (
+    ${target_name}
+    PRIVATE
+      gch::octave-ir-compiler
+      gch::octave-ir-static-ir
+      LLVMCore
+      LLVMSupport
+      LLVMOrcJIT
+      LLVMJITLink
+      LLVMTarget
+      LLVMX86AsmParser
+      LLVMX86Codegen
+      LLVMX86Desc
+      LLVMX86Info
+      Octave::libinterp
+  )
 
-                  DEPENDENCIES octave-ir-compiler
-                               octave-ir-static-ir)
+  target_compile_options (
+    ${target_name}
+    PRIVATE
+      $<$<COMPILE_LANG_AND_ID:CXX,GNU>:-Wno-undef>
+  )
 
-  TARGET_INCLUDE_DIRECTORIES (${target_name} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+  target_compile_definitions (
+    ${target_name}
+    PRIVATE
+      $<$<COMPILE_LANG_AND_ID:CXX,MSVC>:_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS>
+  )
 
-  LLVM_MAP_COMPONENTS_TO_LIBNAMES (LLVM_LIBS support
-                                             core
-                                             orcjit
-                                             jitlink
-                                             target
-                                             x86asmparser
-                                             x86codegen
-                                             x86desc
-                                             x86info)
+  target_include_directories (${target_name} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include)
+endmacro ()
 
-  TARGET_COMPILE_DEFINITIONS (${target_name} PRIVATE ${OCTAVE_IR_COMPILE_DEFS} ${LLVM_DEFINITIONS})
-  TARGET_COMPILE_OPTIONS     (${target_name} PRIVATE ${OCTAVE_IR_COMPILE_OPTS})
-  TARGET_LINK_OPTIONS        (${target_name} PRIVATE ${OCTAVE_IR_LINK_OPTS})
-  TARGET_LINK_LIBRARIES      (${target_name} PRIVATE ${OCTAVE_IR_LINK_LIBS} ${LLVM_LIBS})
+if (OCTAVE_IR_LLVM_USE_DEFAULT)
+  if (OCTAVE_IR_LLVM_PATH)
+    find_package (LLVM REQUIRED CONFIG PATHS "${OCTAVE_IR_LLVM_PATH}" NO_DEFAULT_PATH)
+  else ()
+    find_package (LLVM REQUIRED CONFIG)
+  endif ()
+  message (STATUS "Using default backend LLVM-${LLVM_PACKAGE_VERSION} (${LLVM_DIR})")
 
-  SET_TARGET_PROPERTIES (${target_name}
-                         PROPERTIES CXX_STANDARD               17
-                                    CXX_STANDARD_REQUIRED      NO
-                                    CXX_EXTENSIONS             NO
-                                    WINDOWS_EXPORT_ALL_SYMBOLS YES)
-ENDMACRO ()
+  create_llvm_compiler_package (octave-ir-compiler-llvm)
+endif ()
 
-IF (OCTAVE_IR_LLVM_USE_DEFAULT)
-  IF (OCTAVE_IR_LLVM_PATH)
-    FIND_PACKAGE (LLVM REQUIRED CONFIG PATHS "${OCTAVE_IR_LLVM_PATH}" NO_DEFAULT_PATH)
-  ELSE ()
-    FIND_PACKAGE (LLVM REQUIRED CONFIG)
-  ENDIF()
-  MESSAGE (STATUS "Using default backend LLVM-${LLVM_PACKAGE_VERSION} (${LLVM_DIR})")
+foreach (path ${OCTAVE_IR_LLVM_PATHS})
+  find_package (LLVM REQUIRED CONFIG PATHS "${path}" NO_DEFAULT_PATH)
+  message (STATUS "Found LLVM-${LLVM_PACKAGE_VERSION} at ${path}")
 
-  CREATE_LLVM_COMPILER_PACKAGE (octave-ir-compiler-llvm)
-ENDIF ()
+  create_llvm_compiler_package (octave-ir-compiler-llvm.LLVM-${LLVM_PACKAGE_VERSION})
+endforeach ()
 
-FOREACH (path ${OCTAVE_IR_LLVM_PATHS})
-  FIND_PACKAGE (LLVM REQUIRED CONFIG PATHS "${path}" NO_DEFAULT_PATH)
-  MESSAGE (STATUS "Found LLVM-${LLVM_PACKAGE_VERSION} at ${path}")
+#set_property (GLOBAL APPEND PROPERTY OCTAVE_IR_LIBS octave-ir-compiler-llvm)
 
-  CREATE_LLVM_COMPILER_PACKAGE (octave-ir-compiler-llvm.LLVM-${LLVM_PACKAGE_VERSION})
-ENDFOREACH ()
-
-#SET_PROPERTY (GLOBAL APPEND PROPERTY OCTAVE_IR_LIBS octave-ir-compiler-llvm)
-
+#  create_package (AUTHOR gharveymn
+#                  NAMESPACE gch
+#                  NAME ${target_name}
+#                  TYPE SHARED
+#
+#                  HEADERS instruction-maps/binary/arith/arith-mappers.hpp
+#                  instruction-maps/binary/arith/arith-maps.hpp
+#                  instruction-maps/binary/cmp/cmp-mappers.hpp
+#                  instruction-maps/binary/cmp/cmp-maps.hpp
+#                  instruction-maps/binary/binary-maps.hpp
+#                  instruction-maps/llvm-instruction-maps.hpp
+#                  function-translator.hpp
+#                  instruction-translator.hpp
+#                  llvm-common.hpp
+#                  llvm-constant.hpp
+#                  llvm-interface.hpp
+#                  llvm-type.hpp
+#                  llvm-value-map.hpp
+#                  llvm-version.hpp
+#
+#                  SOURCES function-translator.cpp
+#                  instruction-translator.cpp
+#                  llvm-interface.cpp
+#                  llvm-value-map.cpp
+#
+#                  DEPENDENCIES octave-ir-compiler
+#                  octave-ir-static-ir)

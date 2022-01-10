@@ -1,5 +1,2 @@
-OCTAVE_IR_ADD_SOURCES (
-)
-
-ADD_SUBDIRECTORY (inspectors)
-ADD_SUBDIRECTORY (mutators)
+add_subdirectory (inspectors)
+add_subdirectory (mutators)

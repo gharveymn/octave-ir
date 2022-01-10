@@ -1,3 +1,5 @@
-OCTAVE_IR_ADD_SOURCES (
+target_sources (
+  octave-ir-dynamic-ir
+  PRIVATE
   ir-subcomponent-mutator.cpp
 )
