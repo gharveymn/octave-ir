@@ -56,7 +56,7 @@ main (void)
 {
   test_struct ts;
   auto bf = gch::bind_front (&test_struct::f, ts);
-  auto bff = std::bind_front (&test_struct::f, ts);
+  auto bff = gch::bind_front (&test_struct::f, ts);
   // static_assert (std::is_same_v<void, decltype (bf)>);
   // static_assert (std::is_same_v<void, decltype (bff)>);
   std::invoke (std::move (bff));

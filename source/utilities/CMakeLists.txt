@@ -30,11 +30,12 @@ octave_ir_target_sources (
 target_link_libraries (
   octave-ir-utilities
   PUBLIC
-    gch::octave-ir-common
-    gch::nonnull_ptr
-    gch::optional_ref
-    gch::small_vector
+    $<BUILD_INTERFACE:gch::octave-ir-common>
+    $<BUILD_INTERFACE:gch::nonnull_ptr>
+    $<BUILD_INTERFACE:gch::optional_ref>
+    $<BUILD_INTERFACE:gch::small_vector>
 )
+
 target_include_directories (
   octave-ir-utilities
   PUBLIC

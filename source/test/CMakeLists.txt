@@ -76,7 +76,14 @@ endmacro ()
 foreach (version 17 20)
   add_test_executable (octave-ir.test.c++${version} main.cpp)
 
-  target_link_libraries (octave-ir.test.c++${version} PRIVATE ${OCTAVE_IR_LIBS})
+  target_link_libraries (
+    octave-ir.test.c++${version}
+    PRIVATE
+      octave-ir-utilities
+      octave-ir-static-ir
+      octave-ir-dynamic-ir
+      octave-ir-compiler
+  )
 
   set_target_properties (
     octave-ir.test.c++${version}

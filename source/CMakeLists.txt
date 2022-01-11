@@ -1,8 +1,10 @@
 macro (octave_ir_target_headers target_name)
   cmake_parse_arguments (oith "" "" "PRIVATE;INTERFACE;PUBLIC" "${ARGN}")
 
+  string (REPLACE "." "/" HEADER_PATH "${target_name}")
+
   foreach (scope PRIVATE INTERFACE PUBLIC)
-    list (TRANSFORM oith_${scope} PREPEND include/gch/${target_name}/)
+    list (TRANSFORM oith_${scope} PREPEND include/gch/${HEADER_PATH}/)
     target_sources (${target_name} ${scope} ${oith_${scope}})
     set_source_files_properties (
       ${oith_${scope}}
