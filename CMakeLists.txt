@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.13)
+cmake_minimum_required (VERSION 3.18)
 project (
   octave-ir
   VERSION
@@ -24,8 +24,8 @@ cmake_dependent_option (
   OFF
 )
 
-option (GCH_OCTAVE_IR_BUILD_DYNAMIC_IR "Set to ON to build gch::octave-ir-dynamic-ir" ON)
-option (GCH_OCTAVE_IR_BUILD_COMPILER "Set to ON to build gch::octave-ir-compiler" ON)
+option (GCH_OCTAVE_IR_BUILD_DYNAMIC_IR "Set to ON to build gch::octave-ir.dynamic-ir" ON)
+option (GCH_OCTAVE_IR_BUILD_COMPILER "Set to ON to build gch::octave-ir.compiler-interface" ON)
 
 cmake_dependent_option (
   GCH_OCTAVE_IR_BUILD_LLVM_COMPILER
@@ -37,7 +37,7 @@ cmake_dependent_option (
 
 cmake_dependent_option (
   GCH_OCTAVE_IR_BUILD_STATIC_IR
-  "Set to ON to build gch::octave-ir-static-ir."
+  "Set to ON to build gch::octave-ir.static-ir."
   ON
   "NOT GCH_OCTAVE_IR_BUILD_DYNAMIC_IR AND NOT GCH_OCTAVE_IR_BUILD_COMPILER"
   ON

@@ -1,34 +1,12 @@
-macro (octave_ir_target_headers target_name)
-  cmake_parse_arguments (oith "" "" "PRIVATE;INTERFACE;PUBLIC" "${ARGN}")
+set (CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-  string (REPLACE "." "/" HEADER_PATH "${target_name}")
+add_library (octave-ir.common INTERFACE)
 
-  foreach (scope PRIVATE INTERFACE PUBLIC)
-    list (TRANSFORM oith_${scope} PREPEND include/gch/${HEADER_PATH}/)
-    target_sources (${target_name} ${scope} ${oith_${scope}})
-    set_source_files_properties (
-      ${oith_${scope}}
-      PROPERTIES
-      HEADER_FILE_ONLY
-        ON
-    )
-  endforeach ()
-endmacro ()
-
-macro (octave_ir_target_sources target_name)
-  cmake_parse_arguments (oits "" "" "PRIVATE;INTERFACE;PUBLIC" "${ARGN}")
-
-  foreach (scope PRIVATE INTERFACE PUBLIC)
-    list (TRANSFORM oits_${scope} PREPEND lib/)
-    target_sources (${target_name} ${scope} ${oits_${scope}})
-  endforeach ()
-endmacro ()
-
-add_library (octave-ir-common INTERFACE)
+target_compile_features (octave-ir.common INTERFACE cxx_std_17)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options (
-    octave-ir-common
+    octave-ir.common
     INTERFACE
       -ftime-trace
       --coverage
@@ -42,19 +20,19 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   )
 
   target_link_options (
-    octave-ir-common
+    octave-ir.common
     INTERFACE
       --coverage
   )
 
   if (GCH_USE_LIBCXX_WITH_CLANG)
-    target_compile_options (octave-ir-common INTERFACE -stdlib=libc++)
-    target_link_options (octave-ir-common INTERFACE LINKER:--allow-multiple-definition)
-    target_link_libraries (octave-ir-common INTERFACE c++ c++abi)
+    target_compile_options (octave-ir.common INTERFACE -stdlib=libc++)
+    target_link_options (octave-ir.common INTERFACE LINKER:--allow-multiple-definition)
+    target_link_libraries (octave-ir.common INTERFACE c++ c++abi)
   endif ()
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   target_compile_options (
-    octave-ir-common
+    octave-ir.common
     INTERFACE
       -pedantic
       -Wall
@@ -68,7 +46,7 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
       -Wlogical-op
       -Wmissing-declarations
       -Wmissing-include-dirs
-      -Wnoexcept
+      -Wno-noexcept
       -Wold-style-cast
       -Woverloaded-virtual
       -Wredundant-decls
@@ -83,7 +61,7 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   )
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   target_compile_options (
-    octave-ir-common
+    octave-ir.common
     INTERFACE
       /W4
       /wd4250
@@ -91,13 +69,19 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 endif ()
 
 if (UNIX)
-  target_compile_options (octave-ir-common INTERFACE $<$<CONFIG:Debug>:-fsanitize=address>)
-  target_link_options (octave-ir-common INTERFACE $<$<CONFIG:Debug>:-fsanitize=address>)
+  target_compile_options (octave-ir.common INTERFACE $<$<CONFIG:Debug>:-fsanitize=address>)
+  target_link_options (octave-ir.common INTERFACE $<$<CONFIG:Debug>:-fsanitize=address>)
 endif ()
 
-add_library (gch::octave-ir-common ALIAS octave-ir-common)
+include (CheckLinkerFlag)
+check_linker_flag (CXX -fuse-ld=lld HAVE_lld_LINK_OPTION)
+if (HAVE_lld_LINK_OPTION AND NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  target_link_options (octave-ir.common INTERFACE -fuse-ld=lld)
+endif ()
 
-# Always build octave-ir-utilities
+add_library (gch::octave-ir.common ALIAS octave-ir.common)
+
+# Always build octave-ir.utilities
 add_subdirectory (utilities)
 
 if (GCH_OCTAVE_IR_BUILD_STATIC_IR)

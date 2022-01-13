@@ -79,10 +79,10 @@ foreach (version 17 20)
   target_link_libraries (
     octave-ir.test.c++${version}
     PRIVATE
-      octave-ir-utilities
-      octave-ir-static-ir
-      octave-ir-dynamic-ir
-      octave-ir-compiler
+      octave-ir.utilities
+      octave-ir.static-ir
+      octave-ir.dynamic-ir
+      octave-ir.compiler-interface
   )
 
   set_target_properties (

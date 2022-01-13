@@ -9,41 +9,13 @@ else ()
   find_package (LLVM REQUIRED CONFIG)
 endif ()
 
-add_library (octave-ir-compiler-llvm SHARED)
-
-octave_ir_target_headers (
-  octave-ir-compiler-llvm
-  PRIVATE
-    instruction-maps/binary/arith/arith-mappers.hpp
-    instruction-maps/binary/arith/arith-maps.hpp
-    instruction-maps/binary/cmp/cmp-mappers.hpp
-    instruction-maps/binary/cmp/cmp-maps.hpp
-    instruction-maps/binary/binary-maps.hpp
-    instruction-maps/llvm-instruction-maps.hpp
-    function-translator.hpp
-    instruction-translator.hpp
-    llvm-common.hpp
-    llvm-constant.hpp
-    llvm-interface.hpp
-    llvm-type.hpp
-    llvm-value-map.hpp
-    llvm-version.hpp
-)
-
-octave_ir_target_sources (
-  octave-ir-compiler-llvm
-  PRIVATE
-    function-translator.cpp
-    instruction-translator.cpp
-    llvm-interface.cpp
-    llvm-value-map.cpp
-)
+add_library (octave-ir.compiler-llvm SHARED)
 
 target_link_libraries (
-  octave-ir-compiler-llvm
+  octave-ir.compiler-llvm
   PRIVATE
-    gch::octave-ir-compiler
-    gch::octave-ir-static-ir
+    gch::octave-ir.compiler-interface
+    gch::octave-ir.static-ir
     LLVMCore
     LLVMSupport
     LLVMOrcJIT
@@ -57,19 +29,20 @@ target_link_libraries (
 )
 
 target_compile_options (
-  octave-ir-compiler-llvm
+  octave-ir.compiler-llvm
   PRIVATE
     $<$<COMPILE_LANG_AND_ID:CXX,GNU>:-Wno-undef>
 )
 
 target_compile_definitions (
-  octave-ir-compiler-llvm
+  octave-ir.compiler-llvm
   PRIVATE
     $<$<COMPILE_LANG_AND_ID:CXX,MSVC>:_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS>
 )
 
-target_include_directories (octave-ir-compiler-llvm PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include)
+target_include_directories (octave-ir.compiler-llvm PRIVATE ${CMAKE_CURRENT_LIST_DIR}/headers)
 
-add_library (gch::octave-ir-compiler-llvm ALIAS octave-ir-compiler-llvm)
+add_subdirectory (headers)
+add_subdirectory (sources)
 
-#set_property (GLOBAL APPEND PROPERTY OCTAVE_IR_LIBS octave-ir-compiler-llvm)
+add_library (gch::octave-ir.compiler-llvm ALIAS octave-ir.compiler-llvm)

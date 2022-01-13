@@ -7,8 +7,8 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "gch/octave-ir-compiler.hpp"
-#include "gch/octave-ir-utilities/ir-functional.hpp"
+#include "gch/octave-ir-compiler-interface.hpp"
+#include "ir-functional.hpp"
 #include <functional>
 #include <utility>
 

@@ -8,10 +8,10 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "components/utility/ir-component-handle.hpp"
-#include "gch/octave-ir-utilities/ir-utility.hpp"
-#include "gch/octave-ir-utilities/ir-optional-util.hpp"
-#include "gch/octave-ir-utilities/ir-link-set.hpp"
-#include "visitors/ir-visitor.hpp"
+#include "ir-utility.hpp"
+#include "ir-optional-util.hpp"
+#include "ir-link-set.hpp"
+#include "ir-visitor.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 #include <gch/optional_ref.hpp>

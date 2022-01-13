@@ -13,7 +13,7 @@ if (doctest_FOUND)
       PRIVATE
       doctest::doctest
       gch::nonnull_ptr
-      gch::octave-ir-utilities
+      gch::octave-ir.utilities
       gch::optional_ref
       gch::partition
       gch::small_vector
