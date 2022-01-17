@@ -24,20 +24,21 @@ GCH_ENABLE_WARNINGS_MSVC
 namespace gch
 {
 
-  using llvm_icmp_creator = llvm::Value * (llvm::IRBuilderBase::*) (llvm::Value *,
-                                                                    llvm::Value *,
-                                                                    const llvm::Twine&);
+  using llvm_icmp_creator =
+    llvm::Value * (llvm::IRBuilderBase::*) (llvm::Value *, llvm::Value *, const llvm::Twine&);
 
-  using llvm_fcmp_creator = llvm::Value * (llvm::IRBuilderBase::*) (llvm::Value *,
-                                                                    llvm::Value *,
-                                                                    const llvm::Twine&,
-                                                                    llvm::MDNode *);
+  using llvm_fcmp_creator =
+    llvm::Value * (llvm::IRBuilderBase::*) (llvm::Value *,
+                                            llvm::Value *,
+                                            const llvm::Twine&,
+                                            llvm::MDNode *);
 
-  using unbound_cmp_creator = llvm::Value * (llvm::IRBuilderBase&,
-                                             llvm::Value *,
-                                             llvm::Value *,
-                                             const llvm::Twine&,
-                                             llvm::MDNode *);
+  using unbound_cmp_creator =
+    llvm::Value * (llvm::IRBuilderBase&,
+                   llvm::Value *,
+                   llvm::Value *,
+                   const llvm::Twine&,
+                   llvm::MDNode *);
 
   struct cmp_creator
     : unbound_function<unbound_cmp_creator>
@@ -60,15 +61,15 @@ namespace gch
   };
 
   template <typename          T,
-            llvm_icmp_creator SignedCMP,
-            llvm_icmp_creator UnsignedCMP,
-            llvm_fcmp_creator FloatCMP,
+            llvm_icmp_creator SignedCmp,
+            llvm_icmp_creator UnsignedCmp,
+            llvm_fcmp_creator FloatCmp,
             typename          Enable = void>
   struct llvm_cmp_mapper_base
   {
     constexpr
     auto
-    operator() (void) const noexcept
+    operator() (void) const
     {
       return cmp_creator {
         [](llvm::IRBuilderBase&, llvm::Value *, llvm::Value *, const llvm::Twine&, llvm::MDNode *)
@@ -81,10 +82,10 @@ namespace gch
   };
 
   template <typename          T,
-            llvm_icmp_creator SignedCMP,
-            llvm_icmp_creator UnsignedCMP,
-            llvm_fcmp_creator FloatCMP>
-  struct llvm_cmp_mapper_base<T, SignedCMP, UnsignedCMP, FloatCMP,
+            llvm_icmp_creator SignedCmp,
+            llvm_icmp_creator UnsignedCmp,
+            llvm_fcmp_creator FloatCmp>
+  struct llvm_cmp_mapper_base<T, SignedCmp, UnsignedCmp, FloatCmp,
                               std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>>>
   {
     constexpr
@@ -96,17 +97,17 @@ namespace gch
            const llvm::Twine& name, llvm::MDNode *)
           -> llvm::Value *
         {
-          return std::invoke (SignedCMP, builder, lhs, rhs, name);
+          return std::invoke (SignedCmp, builder, lhs, rhs, name);
         }
       };
     }
   };
 
   template <typename          T,
-            llvm_icmp_creator SignedCMP,
-            llvm_icmp_creator UnsignedCMP,
-            llvm_fcmp_creator FloatCMP>
-  struct llvm_cmp_mapper_base<T, SignedCMP, UnsignedCMP, FloatCMP,
+            llvm_icmp_creator SignedCmp,
+            llvm_icmp_creator UnsignedCmp,
+            llvm_fcmp_creator FloatCmp>
+  struct llvm_cmp_mapper_base<T, SignedCmp, UnsignedCmp, FloatCmp,
                               std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>>>
   {
     constexpr
@@ -118,24 +119,24 @@ namespace gch
            const llvm::Twine& name, llvm::MDNode *)
           -> llvm::Value *
         {
-          return std::invoke (UnsignedCMP, builder, lhs, rhs, name);
+          return std::invoke (UnsignedCmp, builder, lhs, rhs, name);
         }
       };
     }
   };
 
   template <typename          T,
-            llvm_icmp_creator SignedCMP,
-            llvm_icmp_creator UnsignedCMP,
-            llvm_fcmp_creator FloatCMP>
-  struct llvm_cmp_mapper_base<T, SignedCMP, UnsignedCMP, FloatCMP,
+            llvm_icmp_creator SignedCmp,
+            llvm_icmp_creator UnsignedCmp,
+            llvm_fcmp_creator FloatCmp>
+  struct llvm_cmp_mapper_base<T, SignedCmp, UnsignedCmp, FloatCmp,
                               std::enable_if_t<std::is_floating_point_v<T>>>
   {
     constexpr
     cmp_creator
     operator() (void) const noexcept
     {
-      return static_unbound_function_v<FloatCMP>;
+      return static_unbound_function_v<FloatCmp>;
     }
   };
 

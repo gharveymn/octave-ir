@@ -1,10 +1,7 @@
 set (GCH_OCTAVE_IR_LLVM_PATH "" CACHE STRING "A user specified path to an LLVM installation")
 
-# Find Octave.
-find_package (Octave REQUIRED)
-
-if (OCTAVE_IR_LLVM_PATH)
-  find_package (LLVM REQUIRED CONFIG PATHS "${OCTAVE_IR_LLVM_PATH}" NO_DEFAULT_PATH)
+if (GCH_OCTAVE_IR_LLVM_PATH)
+  find_package (LLVM REQUIRED CONFIG PATHS "${GCH_OCTAVE_IR_LLVM_PATH}" NO_DEFAULT_PATH)
 else ()
   find_package (LLVM REQUIRED CONFIG)
 endif ()
@@ -14,18 +11,21 @@ add_library (octave-ir.compiler-llvm SHARED)
 target_link_libraries (
   octave-ir.compiler-llvm
   PRIVATE
-    gch::octave-ir.compiler-interface
     gch::octave-ir.static-ir
     LLVMCore
     LLVMSupport
+    LLVMExecutionEngine
     LLVMOrcJIT
+    LLVMInstCombine
     LLVMJITLink
+    LLVMScalarOpts
     LLVMTarget
     LLVMX86AsmParser
-    LLVMX86Codegen
+    LLVMX86CodeGen
     LLVMX86Desc
     LLVMX86Info
-    Octave::libinterp
+  PUBLIC
+    gch::octave-ir.compiler-interface
 )
 
 target_compile_options (
@@ -40,7 +40,27 @@ target_compile_definitions (
     $<$<COMPILE_LANG_AND_ID:CXX,MSVC>:_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS>
 )
 
-target_include_directories (octave-ir.compiler-llvm PRIVATE ${CMAKE_CURRENT_LIST_DIR}/headers)
+target_include_directories (
+  octave-ir.compiler-llvm
+  PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/headers
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/interface>
+)
+
+if (LLVM_INCLUDE_DIRS)
+  target_include_directories (
+    octave-ir.compiler-llvm
+    SYSTEM PRIVATE
+      ${LLVM_INCLUDE_DIRS}
+  )
+endif ()
+
+target_sources (
+  octave-ir.compiler-llvm
+  PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/interface/gch/octave-ir-compiler-llvm.hpp>
+)
 
 add_subdirectory (headers)
 add_subdirectory (sources)

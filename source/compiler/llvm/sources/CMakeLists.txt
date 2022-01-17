@@ -5,4 +5,5 @@ target_sources (
     instruction-translator.cpp
     llvm-interface.cpp
     llvm-value-map.cpp
+    octave-ir-compiler-llvm.cpp
 )

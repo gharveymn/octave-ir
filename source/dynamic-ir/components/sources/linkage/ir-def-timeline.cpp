@@ -581,9 +581,9 @@ namespace gch
   ir_def_timeline::
   instructions_end (ut_iter pos) const noexcept
   {
-    if (pos != local_end ())
-      return std::next (pos)->get_def_pos ();
-    return m_block->end<ir_block::range::body> ();
+    if (pos == local_end () || pos == std::prev (local_end ()))
+      return m_block->end<ir_block::range::body> ();
+    return std::next (pos)->get_def_pos ();
   }
 
   [[nodiscard]]
@@ -591,9 +591,7 @@ namespace gch
   ir_def_timeline::
   instructions_end (ut_citer pos) const noexcept
   {
-    if (pos != local_end ())
-      return std::next (pos)->get_def_pos ();
-    return m_block->cend<ir_block::range::body> ();
+    return as_mutable (*this).instructions_end (pos);
   }
 
   [[nodiscard]]

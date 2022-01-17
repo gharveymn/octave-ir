@@ -1,5 +1,11 @@
 set (CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
+set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY     ${CMAKE_BINARY_DIR}/build-output/lib)
+set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build-output/lib)
+set (CMAKE_LIBRARY_OUTPUT_DIRECTORY     ${CMAKE_BINARY_DIR}/build-output/lib)
+set (CMAKE_PDB_OUTPUT_DIRECTORY         ${CMAKE_BINARY_DIR}/build-output/bin)
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY     ${CMAKE_BINARY_DIR}/build-output/bin)
+
 add_library (octave-ir.common INTERFACE)
 
 target_compile_features (octave-ir.common INTERFACE cxx_std_17)

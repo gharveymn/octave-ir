@@ -14,7 +14,6 @@
 
 namespace gch
 {
-
   ir_static_instruction::
   ir_static_instruction (metadata_t m, ir_static_def def, args_container_type&& args)
     : m_metadata (m),

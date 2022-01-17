@@ -20,6 +20,8 @@
 GCH_DISABLE_WARNINGS_MSVC
 
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/NoFolder.h>
 #include <llvm/ExecutionEngine/Orc/ThreadSafeModule.h>
 
 GCH_ENABLE_WARNINGS_MSVC
@@ -28,6 +30,8 @@ GCH_ENABLE_WARNINGS_MSVC
 
 namespace gch
 {
+
+  using llvm_ir_builder_type = llvm::IRBuilder<llvm::NoFolder>;
 
   class ir_constant;
   class ir_static_block_id;
@@ -60,40 +64,88 @@ namespace gch
     std::vector<optional_ref<llvm::Value>> m_llvm_defs;
   };
 
-  class llvm_value_map
+  class llvm_module_interface
   {
   public:
-    using llvm_module_type  = llvm::orc::ThreadSafeModule;
+    using llvm_module_type = llvm::orc::ThreadSafeModule;
+    using type_map_type    = ir_type_map<llvm::Type *>;
 
-    using type_map_type     = ir_type_map<llvm::Type *>;
-    using block_vector_type = std::vector<llvm::BasicBlock *>;
-    using variable_map_type = std::unordered_map<nonnull_cptr<ir_static_variable>, llvm_def_map>;
+    llvm_module_interface (llvm_module_type& llvm_module);
+
+    llvm::Type&
+    operator[] (ir_type ty) const;
+
+    llvm_module_type&
+    get_module (void) noexcept;
+
+    const llvm_module_type&
+    get_module (void) const noexcept;
+
+    template <typename Functor>
+    decltype (auto)
+    invoke_with_module (Functor&& functor)
+    {
+      return get_module ().withModuleDo (std::forward<Functor> (functor));
+    }
+
+    template <typename Functor>
+    decltype (auto)
+    invoke_with_module (Functor&& functor) const
+    {
+      return get_module ().withModuleDo (std::forward<Functor> (functor));
+    }
 
     template <typename Functor, typename ...Args>
     decltype (auto)
     invoke_with_context (Functor&& functor, Args&&... args)
     {
-      return m_llvm_module.withModuleDo (
-        [&](llvm::Module& module) -> decltype (auto)
-        {
-          return std::invoke (std::forward<Functor> (functor),
-                              module.getContext (),
-                              std::forward<Args> (args)...);
-        });
+      return get_module ().withModuleDo ([&](llvm::Module& module) -> decltype (auto) {
+        return std::invoke (std::forward<Functor> (functor),
+                            module.getContext (),
+                            std::forward<Args> (args)...);
+      });
     }
 
     template <typename Functor, typename ...Args>
     decltype (auto)
     invoke_with_context (Functor&& functor, Args&&... args) const
     {
-      return m_llvm_module.withModuleDo (
-        [&](const llvm::Module& module) -> decltype (auto)
-        {
-          return std::invoke (std::forward<Functor> (functor),
-                              module.getContext (),
-                              std::forward<Args> (args)...);
-        });
+      return get_module ().withModuleDo ([&](const llvm::Module& module) -> decltype (auto) {
+        return std::invoke (std::forward<Functor> (functor),
+                            module.getContext (),
+                            std::forward<Args> (args)...);
+      });
     }
+
+    template <typename T>
+    llvm::Type *
+    get_llvm_type (void) const
+    {
+      return invoke_with_context (llvm_type_function_v<T>);
+    }
+
+  private:
+    template <typename T>
+    struct llvm_type_getter_map
+    {
+      constexpr
+      llvm::Type *
+      operator() (const llvm_module_interface& v) const noexcept
+      {
+        return v.get_llvm_type<T> ();
+      }
+    };
+
+    nonnull_ptr<llvm_module_type> m_llvm_module;
+    type_map_type                 m_type_map;
+  };
+
+  class llvm_value_map
+      : public llvm_module_interface
+  {
+  public:
+    using block_vector_type = std::vector<llvm::BasicBlock *>;
+    using variable_map_type = std::unordered_map<nonnull_cptr<ir_static_variable>, llvm_def_map>;
 
     llvm_value_map            (void)                      = delete;
     llvm_value_map            (const llvm_value_map&)     = delete;
@@ -102,11 +154,10 @@ namespace gch
     llvm_value_map& operator= (llvm_value_map&&) noexcept = delete;
     ~llvm_value_map           (void)                      = default;
 
-    llvm_value_map (llvm_module_type& llvm_module, llvm::Function& llvm_func,
+    llvm_value_map (llvm_module_interface module_interface, llvm::Function& llvm_func,
                     const ir_static_function& func);
 
-    llvm::Type&
-    operator[] (ir_type ty) const;
+    using llvm_module_interface::operator[];
 
     llvm::BasicBlock&
     operator[] (ir_static_block_id block_id) const;
@@ -129,29 +180,9 @@ namespace gch
     llvm::Value&
     register_def (ir_static_def def, llvm::Value& llvm_value);
 
-    template <typename T>
-    llvm::Type *
-    get_llvm_type (void) const
-    {
-      return llvm_type_function_v<T> (*m_llvm_module.getContext ().getContext ());
-    }
-
   private:
-    template <typename T>
-    struct llvm_type_getter_map
-    {
-      constexpr
-      llvm::Type *
-      operator() (const llvm_value_map& v) const noexcept
-      {
-        return v.get_llvm_type<T> ();
-      }
-    };
-
-    llvm_module_type&         m_llvm_module;
     llvm::Function&           m_llvm_function;
     const ir_static_function& m_function;
-    type_map_type             m_type_map;
     block_vector_type         m_blocks;
     variable_map_type         m_var_map;
   };

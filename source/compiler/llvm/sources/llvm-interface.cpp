@@ -6,39 +6,97 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "llvm-interface.hpp"
+#include "ir-static-function.hpp"
+
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Transforms/InstCombine/InstCombine.h>
+#include <llvm/Transforms/Scalar/GVN.h>
+#include <llvm/Transforms/Scalar.h>
+
+#include <iostream>
 
 namespace gch
 {
 
-  llvm_interface::
-  llvm_interface (void)
-    : llvm_interface (cantFail (llvm::orc::JITTargetMachineBuilder::detectHost ()),
-                      std::make_shared<llvm::orc::SymbolStringPool> ())
+  llvm_interface::ast_layer::materialization_unit::
+  materialization_unit (ast_layer& ast_layer, const ir_static_function& func)
+    : MaterializationUnit (ast_layer.get_interface (func), nullptr),
+      m_ast_layer (ast_layer),
+      m_function (func)
   { }
 
+  void
+  llvm_interface::ast_layer::materialization_unit::
+  materialize(std::unique_ptr<llvm::orc::MaterializationResponsibility> resp)
+  {
+    m_ast_layer.emit (std::move (resp), m_function);
+  }
+
+  llvm_interface::ast_layer::
+  ast_layer (llvm::orc::IRLayer& base_layer, const llvm::DataLayout& data_layout)
+    : m_base_layer (base_layer),
+      m_data_layout (data_layout)
+  { }
+
+  llvm::Error
+  llvm_interface::ast_layer::
+  add (llvm::orc::ResourceTrackerSP res_tracker, const ir_static_function& func)
+  {
+    return res_tracker->getJITDylib ().define (
+      std::make_unique<materialization_unit> (*this, func),
+      res_tracker);
+  }
+
+  void
+  llvm_interface::ast_layer::
+  emit (std::unique_ptr<llvm::orc::MaterializationResponsibility> resp,
+        const ir_static_function& func)
+  {
+    m_base_layer.emit (std::move (resp), create_llvm_module (m_data_layout, func, ""));
+  }
+
+  llvm::orc::SymbolFlagsMap
+  llvm_interface::ast_layer::
+  get_interface (const ir_static_function& func)
+  {
+    llvm::orc::MangleAndInterner mangler (m_base_layer.getExecutionSession (), m_data_layout);
+    llvm::orc::SymbolFlagsMap syms;
+    syms[mangler (func.get_name ())] = llvm::JITSymbolFlags (llvm::JITSymbolFlags::Exported
+                                                           | llvm::JITSymbolFlags::Callable);
+    return syms;
+  }
+
   llvm_interface::
-  llvm_interface (llvm::orc::JITTargetMachineBuilder&& jit_builder,
-                  std::shared_ptr<llvm::orc::SymbolStringPool>&& symbol_pool)
-    : m_execution_session (std::move (symbol_pool)),
-      m_target_machine    (llvm::cantFail (jit_builder.createTargetMachine ())),
-      m_data_layout       (m_target_machine->createDataLayout ()),
-      m_mangler           (m_execution_session, m_data_layout),
-      m_jit_dylib         (m_execution_session.createBareJITDylib ("<main>")),
-      m_object_layer      (m_execution_session, create_memory_manager),
-      m_compile_layer     (m_execution_session, m_object_layer,
-                           create_compiler (std::move (jit_builder)))
+  ~llvm_interface (void)
+  {
+    // FIXME: Is this out of order?
+    if (auto err = m_execution_session->endSession ())
+      m_execution_session->reportError (std::move(err));
+    if (auto err = m_epc_indirection_utils->cleanup ())
+      m_execution_session->reportError(std::move (err));
+  }
+
+  llvm_interface::
+  llvm_interface (std::unique_ptr<llvm::orc::ExecutionSession> execution_session,
+                  std::unique_ptr<llvm::orc::EPCIndirectionUtils> epc_indirection_utils,
+                  llvm::orc::JITTargetMachineBuilder&& jit_builder,
+                  const llvm::DataLayout& data_layout)
+    : m_execution_session     (std::move (execution_session)),
+      m_epc_indirection_utils (std::move (epc_indirection_utils)),
+      m_data_layout           (data_layout),
+      m_mangler               (*m_execution_session, m_data_layout),
+      m_object_layer          (*m_execution_session, create_memory_manager),
+      m_compile_layer         (*m_execution_session, m_object_layer,
+                               create_compiler (std::move (jit_builder))),
+      m_optimization_layer    (*m_execution_session, m_compile_layer, optimize_module),
+      m_ast_layer             (m_optimization_layer, m_data_layout),
+      m_jit_dylib             (m_execution_session->createBareJITDylib ("<main>"))
   {
     m_jit_dylib.addGenerator (llvm::cantFail (
       llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess (
         m_data_layout.getGlobalPrefix ()))
     );
-  }
-
-  llvm::TargetMachine&
-  llvm_interface::
-  get_target_machine (void) const
-  {
-    return *m_target_machine;
   }
 
   const llvm::DataLayout&
@@ -57,16 +115,75 @@ namespace gch
 
   llvm::Error
   llvm_interface::
-  add_module (llvm::orc::ThreadSafeModule&& module)
+  add_module (llvm::orc::ThreadSafeModule&& module, llvm::orc::ResourceTrackerSP res_tracker)
   {
-    return m_compile_layer.add (get_resource_tracker (), std::move (module));
+    if (! res_tracker)
+      res_tracker = m_jit_dylib.getDefaultResourceTracker ();
+
+    return m_optimization_layer.add(res_tracker, std::move (module));
+  }
+
+  llvm::Error
+  llvm_interface::
+  add_ast (const ir_static_function& func, llvm::orc::ResourceTrackerSP res_tracker)
+  {
+    if (! res_tracker)
+      res_tracker = m_jit_dylib.getDefaultResourceTracker ();
+
+    return m_ast_layer.add (res_tracker, func);
   }
 
   llvm::Expected<llvm::JITEvaluatedSymbol>
   llvm_interface::
   find_symbol (std::string_view name)
   {
-    return m_execution_session.lookup ({ &get_jit_dylib () }, m_mangler (name.data ()));
+    return m_execution_session->lookup ({ &get_jit_dylib () }, m_mangler (name.data ()));
+  }
+
+  llvm::Expected<std::unique_ptr<llvm_interface>>
+  llvm_interface::
+  create (void)
+  {
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeNativeTargetAsmParser();
+
+    auto executor_process_control = llvm::orc::SelfExecutorProcessControl::Create ();
+    if (! executor_process_control)
+      return executor_process_control.takeError ();
+
+    auto execution_session = std::make_unique<llvm::orc::ExecutionSession> (
+      std::move (*executor_process_control));
+
+    if (! execution_session)
+      return nullptr;
+
+    auto epc_indirection_utils = llvm::orc::EPCIndirectionUtils::Create (
+      execution_session->getExecutorProcessControl ());
+
+    if (! epc_indirection_utils)
+      return epc_indirection_utils.takeError();
+
+    (*epc_indirection_utils)->createLazyCallThroughManager(
+      *execution_session, llvm::pointerToJITTargetAddress (&handle_lazy_call_through_error));
+
+    if (llvm::Error err = setUpInProcessLCTMReentryViaEPCIU (**epc_indirection_utils))
+      return err;
+
+    llvm::orc::JITTargetMachineBuilder jit_builder (
+      execution_session->getExecutorProcessControl ().getTargetTriple ());
+
+    auto data_layout = jit_builder.getDefaultDataLayoutForTarget();
+    if (! data_layout)
+      return data_layout.takeError ();
+
+    auto interface = std::make_unique<llvm_interface> (
+      std::move (execution_session),
+      std::move (*epc_indirection_utils),
+      std::move (jit_builder),
+      *data_layout);
+
+    return interface;
   }
 
   std::unique_ptr<llvm::SectionMemoryManager>
@@ -83,12 +200,37 @@ namespace gch
     return std::make_unique<llvm::orc::ConcurrentIRCompiler> (std::move (jit_builder));
   }
 
-  auto
+  llvm::Expected<llvm::orc::ThreadSafeModule>
   llvm_interface::
-  get_resource_tracker (void)
-    -> resource_tracker_type&
+  optimize_module (llvm::orc::ThreadSafeModule module,
+                   const llvm::orc::MaterializationResponsibility& resp)
   {
-    return m_jit_dylib;
+    module.withModuleDo ([](llvm::Module& mod) {
+      // Create a function pass manager.
+      auto function_pass_manager = std::make_unique<llvm::legacy::FunctionPassManager> (&mod);
+
+      // Add some optimizations.
+      function_pass_manager->add (llvm::createInstructionCombiningPass ());
+      function_pass_manager->add (llvm::createReassociatePass ());
+      function_pass_manager->add (llvm::createGVNPass ());
+      function_pass_manager->add (llvm::createCFGSimplificationPass ());
+      function_pass_manager->doInitialization();
+
+      // Run the optimizations over all functions in the module being added to
+      // the JIT.
+      for (auto& func : mod)
+        function_pass_manager->run (func);
+    });
+
+    return module;
+  }
+
+  void
+  llvm_interface::
+  handle_lazy_call_through_error (void)
+  {
+    std::cerr << "LazyCallThrough error: Could not find function body" << std::endl;
+    exit (1);
   }
 
 }

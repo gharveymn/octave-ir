@@ -53,17 +53,45 @@ namespace gch
     return *m_llvm_defs[id];
   }
 
+  llvm_module_interface::
+  llvm_module_interface (llvm_module_type& llvm_module)
+    : m_llvm_module (llvm_module),
+      m_type_map    (generate_ir_type_map<llvm_type_getter_map> (*this))
+  { }
+
+  llvm::Type&
+  llvm_module_interface::
+  operator[] (ir_type ty) const
+  {
+    return *m_type_map[ty];
+  }
+
+  auto
+  llvm_module_interface::
+  get_module (void) noexcept
+    -> llvm_module_type&
+  {
+    return *m_llvm_module;
+  }
+
+  auto
+  llvm_module_interface::
+  get_module (void) const noexcept
+    -> const llvm_module_type&
+  {
+    return *m_llvm_module;
+  }
+
   //
   // llvm_value_map
   //
 
   llvm_value_map::
-  llvm_value_map (llvm_module_type& llvm_module, llvm::Function& llvm_func,
+  llvm_value_map (llvm_module_interface module_interface, llvm::Function& llvm_func,
                   const ir_static_function& func)
-      : m_llvm_module   (llvm_module),
+      : llvm_module_interface (module_interface),
         m_llvm_function (llvm_func),
-        m_function      (func),
-        m_type_map      (generate_ir_type_map<llvm_type_getter_map> (*this))
+        m_function      (func)
     {
       auto create_block =
         [&](std::string_view name)
@@ -75,8 +103,8 @@ namespace gch
             });
         };
 
-      llvm::IRBuilder<> builder { invoke_with_context (
-        [](auto& context) { return llvm::IRBuilder<> { context }; }) };
+      llvm_ir_builder_type builder { invoke_with_context (
+        [](auto& context) { return llvm_ir_builder_type { context }; }) };
 
       m_blocks.reserve (func.num_blocks ());
 
@@ -105,13 +133,6 @@ namespace gch
                       });
     }
 
-    llvm::Type&
-    llvm_value_map::
-    operator[] (ir_type ty) const
-    {
-      return *m_type_map[ty];
-    }
-
     llvm::BasicBlock&
     llvm_value_map::
     operator[] (ir_static_block_id block_id) const
@@ -130,7 +151,7 @@ namespace gch
       assert (0 <= off);
       assert (static_cast<std::size_t> (off) < (std::numeric_limits<size_ty>::max) ());
 
-      return (*this)[static_cast<ir_static_block_id> (off)];
+      return (*this)[ir_static_block_id (static_cast<size_ty> (off))];
     }
 
     llvm::AllocaInst&

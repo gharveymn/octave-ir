@@ -36,7 +36,7 @@ namespace gch
     ir_static_block_id&
     operator++ (void) noexcept
     {
-      return *this = ir_static_block_id { static_cast<value_type> (*this) + 1 };
+      return *this = ir_static_block_id { static_cast<value_type> (*this) + 1U };
     }
 
     ir_static_block_id

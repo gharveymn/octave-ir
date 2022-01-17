@@ -12,12 +12,17 @@
 
 GCH_DISABLE_WARNINGS_MSVC
 
+#include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Type.h>
 
 GCH_ENABLE_WARNINGS_MSVC
 
+#include <complex>
+
 namespace gch
 {
+
+  using single = float;
 
   template <typename T, typename Enable = void>
   struct llvm_type_function
@@ -25,7 +30,6 @@ namespace gch
     static constexpr
     auto
     value = [](llvm::LLVMContext&) { return nullptr; };
-
   };
 
   template <>
@@ -34,6 +38,14 @@ namespace gch
     static constexpr
     auto
     value = &llvm::Type::getVoidTy;
+  };
+
+  template <>
+  struct llvm_type_function<long double>
+  {
+    static constexpr
+    auto
+    value = &llvm::Type::getFP128Ty;
   };
 
   template <>
@@ -130,6 +142,26 @@ namespace gch
     static constexpr
     auto
     value = &llvm::Type::getInt1Ty;
+  };
+
+  template <>
+  struct llvm_type_function<std::complex<double>>
+  {
+    static constexpr
+    auto
+    value = [](llvm::LLVMContext& c) {
+      return llvm::ArrayType::get (llvm::Type::getDoubleTy (c), 2);
+    };
+  };
+
+  template <>
+  struct llvm_type_function<std::complex<single>>
+  {
+    static constexpr
+    auto
+    value = [](llvm::LLVMContext& c) {
+      return llvm::ArrayType::get (llvm::Type::getFloatTy (c), 2);
+    };
   };
 
   template <typename Scalar>

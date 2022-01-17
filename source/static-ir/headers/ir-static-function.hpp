@@ -103,12 +103,12 @@ namespace gch
     using variables_riter   = variables_reverse_iterator;
     using variables_criter  = variables_const_reverse_iterator;
 
-    ir_static_function (void)                        = delete;
-    ir_static_function (const ir_static_function&)     = default;
-    ir_static_function (ir_static_function&&) noexcept = default;
+    ir_static_function (void)                                     = delete;
+    ir_static_function (const ir_static_function&)                = default;
+    ir_static_function (ir_static_function&&) noexcept            = default;
     ir_static_function& operator= (const ir_static_function&)     = default;
     ir_static_function& operator= (ir_static_function&&) noexcept = default;
-    ~ir_static_function (void)                        = default;
+    ~ir_static_function (void);
 
     ir_static_function (std::string_view name, ir_processed_id id, container_type&& blocks,
                         std::vector<ir_static_variable>&& vars);

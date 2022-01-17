@@ -58,7 +58,7 @@ namespace gch
   get_name (const ir_component& c)
   {
     // FIXME: temporary
-    return "component " + std::to_string (reinterpret_cast<std::size_t> (&c));
+    return "component" + std::to_string (reinterpret_cast<std::size_t> (&c));
   }
 
   ir_link_set<ir_block>

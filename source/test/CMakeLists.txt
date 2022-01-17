@@ -82,7 +82,7 @@ foreach (version 17 20)
       octave-ir.utilities
       octave-ir.static-ir
       octave-ir.dynamic-ir
-      octave-ir.compiler-interface
+      octave-ir.compiler-llvm
   )
 
   set_target_properties (

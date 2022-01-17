@@ -10,13 +10,67 @@
 
 #include "ir-static-function.hpp"
 
-#include <filesystem>
+#include <memory>
 
 namespace gch
 {
+  class octave_jit_compiler_impl
+  {
+  public:
+    virtual
+    std::size_t
+    compile (const ir_static_function& func) = 0;
+  };
 
-  std::filesystem::path
-  compile (const ir_static_function& func);
+  class octave_jit_compiler
+  {
+    template <typename T>
+    struct type_tag
+    { };
+
+  public:
+    octave_jit_compiler            (void)                           = default;
+    octave_jit_compiler            (const octave_jit_compiler&)     = delete;
+    octave_jit_compiler            (octave_jit_compiler&&) noexcept = default;
+    octave_jit_compiler& operator= (const octave_jit_compiler&)     = delete;
+    octave_jit_compiler& operator= (octave_jit_compiler&&) noexcept = default;
+    virtual ~octave_jit_compiler   (void)                           = default;
+
+    std::size_t
+    compile (const ir_static_function& func)
+    {
+      return m_impl->compile (func);
+    }
+
+    template <typename T>
+    static
+    octave_jit_compiler
+    create (void)
+    {
+      return { type_tag<T> { } };
+    }
+
+    template <typename T, typename ...Args>
+    static
+    octave_jit_compiler
+    create (Args&&... args)
+    {
+      return { type_tag<T> { }, std::forward<Args...> (args...) };
+    }
+
+  private:
+    template <typename T>
+    octave_jit_compiler (type_tag<T>)
+      : m_impl (std::make_unique<T> ())
+    { }
+
+    template <typename T, typename ...Args>
+    octave_jit_compiler (type_tag<T>, Args&&... args)
+      : m_impl (std::make_unique<T> (std::forward<Args...> (args...)))
+    { }
+
+    std::unique_ptr<octave_jit_compiler_impl> m_impl;
+  };
 
 }
 

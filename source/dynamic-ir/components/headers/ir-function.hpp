@@ -78,9 +78,6 @@ namespace gch
     ir_variable&
     get_variable (std::string&& identifier);
 
-    ir_variable&
-    get_variable (std::string_view identifier);
-
     void
     set_args (args_container_type&& args);
 

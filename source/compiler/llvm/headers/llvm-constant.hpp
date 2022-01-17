@@ -272,7 +272,7 @@ namespace gch
     {
       return [](const llvm_value_map& map, const ir_constant& c)
       {
-        return llvm::ConstantInt::get (map.get_llvm_type<bool> (), as<bool> (c));
+        return llvm::ConstantInt::getBool (map.get_llvm_type<bool> (), as<bool> (c));
       };
     }
   };

@@ -65,14 +65,6 @@ namespace gch
     return std::get<ir_variable> (*it);
   }
 
-  ir_variable&
-  ir_function::
-  get_variable (std::string_view identifier)
-  {
-    auto [it, inserted] = m_variable_map.try_emplace (std::string (identifier), *this, identifier);
-    return it->second;
-  }
-
   auto
   ir_function::
   args_begin (void) noexcept

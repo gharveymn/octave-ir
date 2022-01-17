@@ -19,7 +19,6 @@ namespace gch
     using type = type_pack<Ts...>;
   };
 
-
   template <typename Pack>
   struct is_type_pack;
 

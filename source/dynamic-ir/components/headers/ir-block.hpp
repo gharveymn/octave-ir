@@ -513,12 +513,16 @@ namespace gch
     template <ir_opcode Op, typename ...Args,
               std::enable_if_t<ir_instruction_traits<Op>::has_def> * = nullptr>
     ir_instruction&
-    emplace_instruction (const citer pos, ir_variable& v, Args&&... args)
+    emplace_instruction (const citer pos, ir_variable& var, Args&&... args)
     {
-      iter it = emplace<range::body, Op> (v, prepare_operand (pos, std::forward<Args> (args))...);
+      iter it = emplace<range::body, Op> (
+        pos,
+        var,
+        prepare_operand (pos, std::forward<Args> (args))...);
+
       try
       {
-        track_def_at (it, v);
+        track_def_at (it, var);
       }
       catch (...)
       {
@@ -539,16 +543,16 @@ namespace gch
 
     template <ir_opcode Op, typename ...Args>
     ir_instruction&
-    append_instruction (ir_variable& v, Args&&... args)
+    append_instruction (Args&&... args)
     {
-      return emplace_instruction<Op> (end<range::body> (), v, std::forward<Args> (args)...);
+      return emplace_instruction<Op> (end<range::body> (), std::forward<Args> (args)...);
     }
 
     template <ir_opcode Op, typename ...Args>
     ir_instruction&
-    prepend_instruction (ir_variable& v, Args&&... args)
+    prepend_instruction (Args&&... args)
     {
-      return emplace_instruction<Op> (begin<range::body> (), v, std::forward<Args> (args)...);
+      return emplace_instruction<Op> (begin<range::body> (), std::forward<Args> (args)...);
     }
 
   private:

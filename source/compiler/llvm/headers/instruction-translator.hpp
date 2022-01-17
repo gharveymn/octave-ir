@@ -30,7 +30,7 @@ namespace gch
   {
     static
     llvm::Value *
-    translate (const ir_static_instruction&, llvm::IRBuilder<>&, llvm_value_map&)
+    translate (const ir_static_instruction&, llvm_ir_builder_type&, llvm_value_map&)
     {
       throw std::logic_error { std::string ("No mapping available for instruction of type ")
                                + ir_metadata_v<Op>.get_name () };
@@ -43,7 +43,7 @@ namespace gch
     static
     llvm::Value *
     translate (const ir_static_instruction& instr,
-               llvm::IRBuilder<>&           builder,
+               llvm_ir_builder_type&        builder,
                llvm_value_map&              value_map)
     {
       const ir_static_def& def           = instr.get_def ();
@@ -52,8 +52,57 @@ namespace gch
       llvm::Type& llvm_def_ty   = value_map[def.get_type ()];
       llvm::Twine llvm_def_name = create_twine (def.get_variable_name ());
 
-      llvm::PHINode& llvm_phi = *builder.CreatePHI (&llvm_def_ty, num_incoming, llvm_def_name);
-      return &llvm_phi;
+      return builder.CreatePHI (&llvm_def_ty, num_incoming, llvm_def_name);
+    }
+  };
+
+  template <>
+  struct instruction_translator<ir_opcode::assign>
+  {
+    static
+    llvm::Value *
+    translate (const ir_static_instruction& instr,
+               llvm_ir_builder_type&        builder,
+               llvm_value_map&              value_map)
+    {
+      const ir_static_def& def = instr.get_def ();
+      llvm::Value *var = &value_map[def.get_variable ()];
+
+      builder.CreateStore (&value_map[instr[0]], var);
+      llvm::Value* val = builder.CreateLoad (
+        &value_map[def.get_type ()],
+        var,
+        def.get_variable_name ());
+
+      value_map.register_def (def, *val);
+
+      return val;
+    }
+  };
+
+  template <>
+  struct instruction_translator<ir_opcode::ret>
+  {
+    static
+    llvm::Value *
+    translate (const ir_static_instruction& instr,
+               llvm_ir_builder_type&        builder,
+               llvm_value_map&              value_map)
+    {
+      return builder.CreateRet (&value_map[instr[0]]);
+    }
+  };
+
+  template <>
+  struct instruction_translator<ir_opcode::terminate>
+  {
+    static
+    llvm::Value *
+    translate (const ir_static_instruction&,
+               llvm_ir_builder_type& builder,
+               llvm_value_map&)
+    {
+      return builder.CreateRetVoid ();
     }
   };
 
@@ -63,7 +112,7 @@ namespace gch
     static
     llvm::Value *
     translate (const ir_static_instruction& instr,
-               llvm::IRBuilder<>&           builder,
+               llvm_ir_builder_type&        builder,
                llvm_value_map&              value_map)
     {
       const ir_static_def& def          = instr.get_def ();
@@ -73,6 +122,31 @@ namespace gch
                            &value_map[instr[0]],
                            &value_map[instr[1]],
                            create_twine (def.get_variable_name ()));
+    }
+  };
+
+  template <ir_opcode Op>
+  struct instruction_translator<
+    Op,
+    std::enable_if_t<ir_instruction_traits<Op>::is_arithmetic
+                 &&  ir_instruction_traits<Op>::is_binary>>
+  {
+    static
+    llvm::Value *
+    translate (const ir_static_instruction& instr,
+               llvm_ir_builder_type&        builder,
+               llvm_value_map&              value_map)
+    {
+      const ir_static_def& def          = instr.get_def ();
+      const ir_type        ty           = def.get_type ();
+      auto                 creator_func = llvm_arithmetic_creator_map<Op>[ty];
+      llvm::Value *val = creator_func (
+        builder,
+        &value_map[instr[0]],
+        &value_map[instr[1]],
+        create_twine (def.get_variable_name ()));
+      value_map.register_def (def, *val);
+      return val;
     }
   };
 

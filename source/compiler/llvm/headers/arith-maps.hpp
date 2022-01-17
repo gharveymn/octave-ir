@@ -8,4 +8,18 @@
 #ifndef OCTAVE_IR_COMPILER_LLVM_ARITH_MAPS_HPP
 #define OCTAVE_IR_COMPILER_LLVM_ARITH_MAPS_HPP
 
+#include "arith-mappers.hpp"
+
+#include "ir-type-util.hpp"
+
+namespace gch
+{
+
+  template <ir_opcode Op>
+  inline constexpr
+  auto
+  llvm_arithmetic_creator_map = generate_ir_type_map<llvm_arith_mapper<Op>::template mapper> ();
+
+}
+
 #endif // OCTAVE_IR_COMPILER_LLVM_ARITH_MAPS_HPP

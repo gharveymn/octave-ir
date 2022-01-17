@@ -17,6 +17,11 @@
 namespace gch
 {
 
+  ir_processed_id::
+  ir_processed_id (id_type id)
+    : m_id (id)
+  { }
+
   ir_static_function::
   ir_static_function (std::string_view name, ir_processed_id id, container_type&& blocks,
                       std::vector<ir_static_variable>&& vars)
@@ -25,6 +30,8 @@ namespace gch
       m_blocks    (std::move (blocks)),
       m_variables (std::move (vars))
   { }
+
+  ir_static_function::~ir_static_function (void) = default;
 
   auto
   ir_static_function::

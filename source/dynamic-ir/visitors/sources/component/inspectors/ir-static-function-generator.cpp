@@ -1247,7 +1247,7 @@ namespace gch
   ir_block_descriptor::
   has_successors () const noexcept
   {
-    return m_successors.empty ();
+    return ! m_successors.empty ();
   }
 
   void
@@ -1867,7 +1867,10 @@ namespace gch
         assert (args.empty ());
 
         if (! descriptor.has_successors ())
-          curr_sblock->push_back (ir_static_instruction { ir_metadata_v<ir_opcode::terminate> });
+        {
+          if (curr_sblock->empty () || ! is_a<ir_opcode::ret> (curr_sblock->back ()))
+            curr_sblock->push_back (ir_static_instruction { ir_metadata_v<ir_opcode::terminate> });
+        }
         else if (descriptor.num_successors () == 1)
         {
           // unconditional branch
@@ -1881,8 +1884,8 @@ namespace gch
           // conditional branch
           assert (! block->empty<ir_block::range::body> ());
 
-          assert ((maybe_get_def (block->back<ir_block::range::body> ()) >>=
-                     [](const ir_def& def) noexcept { return def.get_type () == ir_type_v<int>; }));
+          assert (maybe_get_def (block->back<ir_block::range::body> ()) >>=
+                    [](const ir_def& def) noexcept { return def.get_type () == ir_type_v<int>; });
 
           const ir_instruction& last_instr  = block->back<ir_block::range::body> ();
           const ir_def&         last_def    = get_def (last_instr);

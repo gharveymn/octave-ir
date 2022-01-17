@@ -60,6 +60,7 @@ namespace gch
     blshiftr  ,
     bnot      ,
 
+    ret       ,
     terminate ,
   };
 
@@ -67,7 +68,7 @@ namespace gch
   std::size_t
   num_ir_opcodes = static_cast<std::underlying_type_t<ir_opcode>> (ir_opcode::terminate) + 1;
 
-  static_assert (num_ir_opcodes == 36);
+  static_assert (num_ir_opcodes == 37);
 
   class ir_metadata
   {
@@ -341,52 +342,52 @@ namespace gch
     static GCH_CPP20_CONSTEVAL
     impl
     create_type (const char *      name,
-                 ir_opcode         Op,
+                 ir_opcode         op,
                  flag::has_def     def,
                  flag::arity       n,
                  flag::is_abstract abs) noexcept
     {
-      return { name, nullptr, Op, n, def, abs };
+      return { name, nullptr, op, n, def, abs };
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     impl
     derive (const char *      name,
-            ir_opcode         Op,
+            ir_opcode         op,
             flag::has_def     def,
             flag::is_abstract abs = flag::is_abstract::no) const noexcept
     {
-      return { name, m_ptr, Op, get_arity (), def, abs };
+      return { name, m_ptr, op, get_arity (), def, abs };
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     impl
     derive (const char *      name,
-            ir_opcode         Op,
+            ir_opcode         op,
             flag::has_def     def,
             flag::arity       n,
             flag::is_abstract abs = flag::is_abstract::no) const noexcept
     {
-      return { name, m_ptr, Op, n, def, abs };
+      return { name, m_ptr, op, n, def, abs };
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     impl
     derive (const char *      name,
-            ir_opcode         Op,
+            ir_opcode         op,
             flag::arity       n,
             flag::is_abstract abs = flag::is_abstract::no) const noexcept
     {
-      return { name, m_ptr, Op, n, m_ptr->m_has_def, abs };
+      return { name, m_ptr, op, n, m_ptr->m_has_def, abs };
     }
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     impl
     derive (const char *      name,
-            ir_opcode         Op,
+            ir_opcode         op,
             flag::is_abstract abs = flag::is_abstract::no) const noexcept
     {
-      return { name, m_ptr, Op, get_arity (), m_ptr->m_has_def, abs };
+      return { name, m_ptr, op, get_arity (), m_ptr->m_has_def, abs };
     }
 
     const impl *m_ptr;
@@ -447,7 +448,7 @@ namespace gch
   bool
   operator== (const ir_metadata& lhs, const ir_metadata& rhs) noexcept
   {
-    return lhs.m_ptr == rhs.m_ptr;
+    return lhs.m_ptr->m_opcode == rhs.m_ptr->m_opcode;
   }
 
   [[nodiscard]] GCH_CPP20_CONSTEVAL
@@ -575,6 +576,18 @@ namespace gch
                         flag::has_def::    yes,
                         flag::arity::      n_ary,
                         flag::is_abstract::yes);
+  };
+
+  template <>
+  struct ir_metadata::instance<ir_opcode::ret>
+  {
+    static constexpr
+    impl
+    data = create_type ("return",
+                        ir_opcode::        ret,
+                        flag::has_def::    no,
+                        flag::arity::      unary,
+                        flag::is_abstract::no);
   };
 
   template <>
@@ -879,7 +892,18 @@ namespace gch
     explicit
     ir_instruction_traits (void) = default;
 
-    static constexpr auto metadata    = ir_metadata_v<Op>;
+    static constexpr auto metadata = ir_metadata_v<Op>;
+
+    template <ir_opcode BaseOp>
+    static constexpr
+    bool
+    is_a = metadata.is_a (ir_metadata_v<BaseOp>);
+
+    template <ir_opcode OtherOp>
+    static constexpr
+    bool
+    is_base_of = metadata.is_base_of (ir_metadata_v<OtherOp>);
+
     static constexpr auto opcode      = metadata.get_opcode ();
     static constexpr auto name        = metadata.get_name ();
     static constexpr auto is_abstract = metadata.is_abstract ();
@@ -893,20 +917,16 @@ namespace gch
     static constexpr auto is_binary   = metadata.is_binary ();
     static constexpr auto is_ternary  = metadata.is_ternary ();
 
+    static constexpr auto is_arithmetic = is_a<ir_opcode::arithmetic>;
+    static constexpr auto is_bitwise    = is_a<ir_opcode::bitwise>;
+    static constexpr auto is_branch     = is_a<ir_opcode::branch>;
+    static constexpr auto is_logical    = is_a<ir_opcode::logical>;
+    static constexpr auto is_relation   = is_a<ir_opcode::relation>;
+
     template <bool HasBase = has_base, std::enable_if_t<HasBase> * = nullptr>
     static constexpr
     auto
     base = metadata.get_base ();
-
-    template <ir_opcode BaseOp>
-    static constexpr
-    bool
-    is_a = metadata.is_a (ir_metadata_v<BaseOp>);
-
-    template <ir_opcode OtherOp>
-    static constexpr
-    bool
-    is_base_of = metadata.is_base_of (ir_metadata_v<OtherOp>);
 
     template <std::size_t N>
     static constexpr
