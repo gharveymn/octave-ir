@@ -123,8 +123,16 @@ namespace gch
     get_metadata (void) const noexcept;
 
     [[nodiscard]]
+    bool
+    has_def (void) const noexcept;
+
+    [[nodiscard]]
     const ir_static_def&
-    get_def (void) const noexcept;
+    get_def (void) const;
+
+    [[nodiscard]]
+    const std::optional<ir_static_def>&
+    maybe_get_def (void) const noexcept;
 
   private:
     metadata_t                   m_metadata;

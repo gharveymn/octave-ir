@@ -96,10 +96,13 @@ namespace gch
   std::ostream&
   operator<< (std::ostream& out, const ir_static_block& block)
   {
-    out << block[0];
-    std::for_each (std::next (block.begin ()), block.end (),
-                   [&](const ir_static_instruction& instr) { out << '\n' << instr; });
-    return out;
+    if (block.empty ())
+      return out;
+
+    return std::accumulate (std::next (block.begin ()), block.end (), std::ref (out << block[0]),
+                            [&](std::ostream& o, const auto& instr) {
+                              return std::ref (o << '\n' << instr);
+                            });
   }
 
 }

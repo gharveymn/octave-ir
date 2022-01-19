@@ -181,7 +181,7 @@ namespace gch
     map_origin (const ir_use_timeline& ut, const std::optional<ir_def_reference>& origin);
 
     std::optional<ir_def_reference>&
-    map_origin (const ir_use_timeline& ut, const ir_def& d, bool is_indet);
+    map_origin (const ir_use_timeline& ut);
 
     ir_static_def_id
     def_id (const ir_def& d) const;
@@ -206,7 +206,7 @@ namespace gch
 
   private:
     map_type      m_origin_map;
-    ir_def_id_map m_id_map;
+    ir_def_id_map m_def_id_map;
   };
 
   class ir_static_incoming_pair
@@ -299,6 +299,7 @@ namespace gch
     {
       assign,
       branch,
+      terminate
     };
 
     ir_determinator_injection            (void)                                 = delete;
@@ -307,6 +308,8 @@ namespace gch
     ir_determinator_injection& operator= (const ir_determinator_injection&)     = delete;
     ir_determinator_injection& operator= (ir_determinator_injection&&) noexcept = default;
     ~ir_determinator_injection           (void)                                 = default;
+
+    ir_determinator_injection (ir_instruction_citer pos, const ir_variable& var);
 
     ir_determinator_injection (ir_instruction_citer pos,
                                const ir_variable&   var,
@@ -341,6 +344,10 @@ namespace gch
 
     [[nodiscard]]
     bool
+    is_terminate (void) const noexcept;
+
+    [[nodiscard]]
+    bool
     get_assign_value (void) const noexcept;
 
     [[nodiscard]]
@@ -352,8 +359,8 @@ namespace gch
     get_terminal_block_id (void) const noexcept;
 
     [[nodiscard]]
-    ir_static_instruction
-    generate_instruction (const ir_static_variable_map& var_map) const noexcept;
+    injection_type
+    get_injection_type (void) const noexcept;
 
   private:
     ir_instruction_citer      m_pos;
@@ -562,6 +569,11 @@ namespace gch
                     ir_static_block_id        continue_block_id,
                     ir_static_block_id        terminal_block_id);
 
+    injections_iterator
+    emplace_terminator (injections_const_iterator pos,
+                        ir_instruction_citer      instr_pos,
+                        const ir_variable&        var);
+
     ir_determinator_injection&
     prepend_determinator (const ir_block&    block,
                           const ir_variable& var,
@@ -650,6 +662,10 @@ namespace gch
     contains (const ir_block& block) const;
 
     [[nodiscard]]
+    ir_variable&
+    create_temp_variable (const ir_component& c, std::string_view name, ir_type ty);
+
+    [[nodiscard]]
     iterator
     begin (void) noexcept;
 
@@ -678,6 +694,7 @@ namespace gch
     find_or_emplace (const ir_block& block);
 
     std::unordered_map<nonnull_cptr<ir_block>, ir_block_descriptor> m_descriptor_map;
+    std::list<ir_variable>                                          m_temp_variables;
     std::size_t                                                     m_num_injected_blocks = 0;
   };
 

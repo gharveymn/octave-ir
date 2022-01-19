@@ -1,12 +1,9 @@
 target_sources (
   octave-ir.compiler-llvm
   PRIVATE
-    arith-mappers.hpp
-    arith-maps.hpp
-    cmp-mappers.hpp
-    cmp-maps.hpp
-    binary-maps.hpp
-    llvm-instruction-maps.hpp
+    mappers/arithmetic-mappers.hpp
+    mappers/bitwise-mappers.hpp
+    mappers/relation-mappers.hpp
     function-translator.hpp
     instruction-translator.hpp
     llvm-common.hpp

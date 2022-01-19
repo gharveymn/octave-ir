@@ -36,6 +36,11 @@ namespace gch
   template <typename T>
   using is_ir_component = std::is_base_of<ir_component, T>;
 
+  template <typename T>
+  inline constexpr
+  bool
+  is_ir_component_v = is_ir_component<T>::value;
+
   // abstract
   class ir_component
     : public abstract_visitable<exclusive_visitors_t<ir_component>>

@@ -165,7 +165,9 @@ namespace gch
   };
 
   template <typename Scalar>
-  struct llvm_type_function<Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>>>
+  struct llvm_type_function<
+    Scalar,
+    std::enable_if_t<std::is_arithmetic_v<Scalar> && ! std::is_const_v<Scalar>>>
   {
     static constexpr
     auto
@@ -173,7 +175,18 @@ namespace gch
   };
 
   template <typename T>
-  static constexpr
+  struct llvm_type_function<T *>
+  {
+    static constexpr
+    auto
+    value = [](llvm::LLVMContext& ctx) {
+      llvm::Type *type = llvm_type_function<T>::value (ctx);
+      return llvm::PointerType::getUnqual (llvm_type_function<char>::value (ctx));
+    };
+  };
+
+  template <typename T>
+  inline constexpr
   auto
   llvm_type_function_v = llvm_type_function<T>::value;
 

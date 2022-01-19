@@ -56,11 +56,9 @@ namespace gch
 
     // Note: In the case of loops we may be appending to an def-timeline which already exists.
 
-    std::for_each (incoming.begin (), incoming.end (),
-                   [&dt](const ir_def_resolution& r)
-                   {
-                     dt.append_incoming (r.get_leaf_block (), r.maybe_get_timeline ());
-                   });
+    std::for_each (incoming.begin (), incoming.end (), [&dt](const ir_def_resolution& r) {
+      dt.append_incoming (r.get_leaf_block (), r.maybe_get_timeline ());
+    });
 
     // Q: Do we need to re-point references to the found predecessor timelines
     //    in subsequent blocks?
@@ -363,8 +361,12 @@ namespace gch
   {
     assert (is_resolvable () && "stack should be resolvable");
 
-    if (const auto& res = maybe_get_block_resolution ()) // collapse the stack with the seed
-      return { { res->get_block (), res->get_resolution () } };
+    if (const auto& block_res = maybe_get_block_resolution ()) // collapse the stack with the seed
+    {
+      if (const auto& res = block_res->maybe_get_resolution ())
+        return { { block_res->get_block (), *res } };
+      return { { block_res->get_block (), { } } };
+    }
     else if (! m_stack.empty ()) // collapse the stack
     {
       optional_ref<ir_def_timeline> curr_result = m_stack.top ().join ();
@@ -384,8 +386,12 @@ namespace gch
   ir_def_resolution_stack::
   resolve_with (optional_ref<ir_def_timeline> dt)
   {
-    if (const auto& res = maybe_get_block_resolution ())
-      return { { res->get_block (), dt } };
+    if (const auto& block_res = maybe_get_block_resolution ())
+    {
+      if (const auto& res = block_res->maybe_get_resolution ())
+        return { { block_res->get_block (), *res } };
+      return { { block_res->get_block (), { } } };
+    }
 
     while (! m_stack.empty ())
     {
@@ -471,7 +477,9 @@ namespace gch
     auto res { build_def_resolution_stack (dt.get_block (), dt.get_variable ()) };
     res.resolve_with ({ });
 
-    assert (dt.has_incoming_timeline ());
+    // If no incoming timeline was found, we will generate an orphaned use-timeline.
+    if (! dt.has_incoming_timeline ())
+      return dt.create_orphaned_incoming_timeline ();
     return dt.get_incoming_timeline ();
   }
 

@@ -166,6 +166,14 @@ namespace gch
   const ir_subcomponent&
   get_entry_component (const ir_structure& s);
 
+  template <typename T, typename std::enable_if_t<std::is_base_of_v<ir_structure, T>> * = nullptr>
+  inline
+  ir_block&
+  get_entry_block (T& s)
+  {
+    return get_entry_block (static_cast<ir_structure&> (s));
+  }
+
 }
 
 #endif

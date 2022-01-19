@@ -95,6 +95,7 @@ namespace gch
 
     // else we need to join
     join_at (dt);
+
     assert (dt.has_incoming_timeline ());
     return dt.get_incoming_timeline_iter ();
   }

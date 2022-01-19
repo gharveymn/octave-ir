@@ -105,12 +105,10 @@ namespace gch
     {
       m_leaf_cache.clear ();
 
-      maybe_cast<ir_subcomponent> (this)
-        >>= [](ir_subcomponent& sub)
-            {
-              if (is_leaf (sub))
-                sub.get_parent ().invalidate_leaf_cache ();
-            };
+      maybe_cast<ir_subcomponent> (this) >>= [](ir_subcomponent& sub) {
+        if (is_leaf (sub))
+          sub.get_parent ().invalidate_leaf_cache ();
+      };
     }
   }
 

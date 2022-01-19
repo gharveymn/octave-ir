@@ -34,9 +34,10 @@ namespace gch
   }
 
   llvm_interface::ast_layer::
-  ast_layer (llvm::orc::IRLayer& base_layer, const llvm::DataLayout& data_layout)
+  ast_layer (llvm::orc::IRLayer& base_layer, const llvm::DataLayout& data_layout, bool printing)
     : m_base_layer (base_layer),
-      m_data_layout (data_layout)
+      m_data_layout (data_layout),
+      m_printing_enabled (printing)
   { }
 
   llvm::Error
@@ -53,7 +54,15 @@ namespace gch
   emit (std::unique_ptr<llvm::orc::MaterializationResponsibility> resp,
         const ir_static_function& func)
   {
-    m_base_layer.emit (std::move (resp), create_llvm_module (m_data_layout, func, ""));
+    llvm::orc::ThreadSafeModule tsm = create_llvm_module (m_data_layout, func);
+    if (m_printing_enabled)
+    {
+      tsm.withModuleDo ([&](llvm::Module& module) {
+        module.print (llvm::outs (), nullptr);
+      });
+      std::cout << std::endl;
+    }
+    m_base_layer.emit (std::move (resp), std::move (tsm));
   }
 
   llvm::orc::SymbolFlagsMap
@@ -67,14 +76,11 @@ namespace gch
     return syms;
   }
 
-  llvm_interface::
-  ~llvm_interface (void)
+  void
+  llvm_interface::ast_layer::
+  enable_printing (bool printing)
   {
-    // FIXME: Is this out of order?
-    if (auto err = m_execution_session->endSession ())
-      m_execution_session->reportError (std::move(err));
-    if (auto err = m_epc_indirection_utils->cleanup ())
-      m_execution_session->reportError(std::move (err));
+    m_printing_enabled = printing;
   }
 
   llvm_interface::
@@ -97,6 +103,16 @@ namespace gch
       llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess (
         m_data_layout.getGlobalPrefix ()))
     );
+  }
+
+  llvm_interface::
+  ~llvm_interface (void)
+  {
+    // FIXME: Is this out of order?
+    if (auto err = m_execution_session->endSession ())
+      m_execution_session->reportError (std::move(err));
+    if (auto err = m_epc_indirection_utils->cleanup ())
+      m_execution_session->reportError(std::move (err));
   }
 
   const llvm::DataLayout&
@@ -231,6 +247,13 @@ namespace gch
   {
     std::cerr << "LazyCallThrough error: Could not find function body" << std::endl;
     exit (1);
+  }
+
+  void
+  llvm_interface::
+  enable_printing (bool printing)
+  {
+    m_ast_layer.enable_printing (printing);
   }
 
 }

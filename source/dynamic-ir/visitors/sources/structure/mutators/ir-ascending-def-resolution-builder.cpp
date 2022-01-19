@@ -199,7 +199,6 @@ namespace gch
     -> result_type
   {
     const ir_component_sequence::riter rpos { seq.find (get_subcomponent ()) };
-    assert (rpos != seq.rend ());
 
     ir_def_resolution_stack stack         { get_variable () };
     bool                    needs_join    { false           };

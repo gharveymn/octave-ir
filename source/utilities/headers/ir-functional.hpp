@@ -151,13 +151,12 @@ namespace gch
   auto
   operator| (applied<FunctorLHS> lhs, FunctorRHS rhs)
   {
-    return applied
-           {
-             [=](auto&&... ts)
-             {
-               return applied { rhs } (lhs.m_func (std::forward<decltype (ts)> (ts)...));
-             }
-           };
+    return applied {
+      [=](auto&&... ts)
+      {
+        return applied { rhs } (lhs.m_func (std::forward<decltype (ts)> (ts)...));
+      }
+    };
   }
 
   inline constexpr applied<void> applied_v { };

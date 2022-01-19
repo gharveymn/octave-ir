@@ -28,7 +28,7 @@ namespace gch
     if (optional_ref s { maybe_cast<ir_structure> (c) })
       return get_entry_block (*s);
     assert (is_a<ir_block> (c));
-    return get_entry_block (static_cast<ir_block&> (c));
+    return static_cast<ir_block&> (c);
   }
 
   const ir_block&

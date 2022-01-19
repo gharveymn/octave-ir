@@ -46,8 +46,7 @@ namespace gch
   class llvm_interface;
 
   llvm::orc::ThreadSafeModule
-  create_llvm_module (const llvm::DataLayout& data_layout, const ir_static_function& func,
-                      const std::string& suffix);
+  create_llvm_module (const llvm::DataLayout& data_layout, const ir_static_function& func);
 
   class llvm_interface
   {
@@ -82,7 +81,8 @@ namespace gch
       };
 
     public:
-      ast_layer (llvm::orc::IRLayer& base_layer, const llvm::DataLayout& data_layout);
+      ast_layer (llvm::orc::IRLayer& base_layer, const llvm::DataLayout& data_layout,
+                 bool printing = false);
 
       llvm::Error
       add (llvm::orc::ResourceTrackerSP res_tracker, const ir_static_function& func);
@@ -94,9 +94,13 @@ namespace gch
       llvm::orc::SymbolFlagsMap
       get_interface (const ir_static_function& func);
 
+      void
+      enable_printing (bool printing);
+
     private:
       llvm::orc::IRLayer&     m_base_layer;
       const llvm::DataLayout& m_data_layout;
+      bool                    m_printing_enabled;
     };
 
   public:
@@ -134,6 +138,9 @@ namespace gch
     static
     llvm::Expected<std::unique_ptr<llvm_interface>>
     create (void);
+
+    void
+    enable_printing (bool printing = true);
 
   private:
     static

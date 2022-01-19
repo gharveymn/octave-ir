@@ -3,6 +3,7 @@ target_sources (
   PRIVATE
     function-translator.cpp
     instruction-translator.cpp
+    llvm-constant.cpp
     llvm-interface.cpp
     llvm-value-map.cpp
     octave-ir-compiler-llvm.cpp

@@ -84,23 +84,39 @@ namespace gch
 
   bool
   ir_incoming_node::
-  has_incoming_timeline (void) const noexcept
+  has_incoming_def_timeline (void) const noexcept
   {
     return base::has_remote ();
   }
 
   ir_def_timeline&
   ir_incoming_node::
-  get_incoming_timeline (void) noexcept
+  get_incoming_def_timeline (void) noexcept
   {
     return base::get_remote ();
   }
 
   const ir_def_timeline&
   ir_incoming_node::
-  get_incoming_timeline (void) const noexcept
+  get_incoming_def_timeline (void) const noexcept
   {
-    return base::get_remote ();
+    return as_mutable (*this).get_incoming_def_timeline ();
+  }
+
+  optional_ref<ir_def_timeline>
+  ir_incoming_node::
+  maybe_get_incoming_def_timeline (void) noexcept
+  {
+    if (has_incoming_def_timeline ())
+      return optional_ref { get_incoming_def_timeline () };
+    return nullopt;
+  }
+
+  optional_cref<ir_def_timeline>
+  ir_incoming_node::
+  maybe_get_incoming_def_timeline (void) const noexcept
+  {
+    return as_mutable (*this).maybe_get_incoming_def_timeline ();
   }
 
   void

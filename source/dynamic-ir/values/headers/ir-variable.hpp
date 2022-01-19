@@ -54,6 +54,13 @@ namespace gch
     void
     set_type (ir_type ty);
 
+    template <typename T>
+    void
+    set_type (void)
+    {
+      set_type (ir_type_v<T>);
+    }
+
     id_type
     create_id (void) noexcept;
 

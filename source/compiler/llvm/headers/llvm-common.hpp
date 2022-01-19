@@ -39,6 +39,8 @@ namespace gch
   llvm::Twine
   create_twine (std::string_view view)
   {
+    if (view.empty ())
+      return { };
     return { view.data () };
   }
 

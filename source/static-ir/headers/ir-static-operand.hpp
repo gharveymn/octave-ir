@@ -60,7 +60,7 @@ namespace gch
     as_constant (void) const noexcept;
 
     [[nodiscard]]
-    const ir_static_use&
+    ir_static_use
     as_use (void) const noexcept;
 
     [[nodiscard]]
@@ -68,7 +68,7 @@ namespace gch
     maybe_as_constant (void) const noexcept;
 
     [[nodiscard]]
-    optional_ref<const ir_static_use>
+    std::optional<ir_static_use>
     maybe_as_use (void) const noexcept;
 
     [[nodiscard]]
@@ -105,8 +105,16 @@ namespace gch
   const ir_constant&
   as_constant (const ir_static_operand& op) noexcept;
 
+  template <typename T>
   [[nodiscard]]
-  const ir_static_use&
+  const T&
+  as_constant (const ir_static_operand& op) noexcept
+  {
+    return as<T> (as_constant (op));
+  }
+
+  [[nodiscard]]
+  ir_static_use
   as_use (const ir_static_operand& op) noexcept;
 
   [[nodiscard]]
@@ -114,7 +122,7 @@ namespace gch
   maybe_as_constant (const ir_static_operand& op) noexcept;
 
   [[nodiscard]]
-  optional_cref<ir_static_use>
+  std::optional<ir_static_use>
   maybe_as_use (const ir_static_operand& op) noexcept;
 
   [[nodiscard]]

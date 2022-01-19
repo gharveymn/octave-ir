@@ -20,6 +20,11 @@ namespace gch
     virtual
     std::size_t
     compile (const ir_static_function& func) = 0;
+
+    virtual
+    void
+    enable_printing (bool printing = true)
+    { }
   };
 
   class octave_jit_compiler
@@ -56,6 +61,12 @@ namespace gch
     create (Args&&... args)
     {
       return { type_tag<T> { }, std::forward<Args...> (args...) };
+    }
+
+    void
+    enable_printing (bool printing = true)
+    {
+      m_impl->enable_printing (printing);
     }
 
   private:

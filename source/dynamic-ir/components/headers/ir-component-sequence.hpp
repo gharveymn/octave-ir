@@ -298,7 +298,7 @@ namespace gch
     }
 
     template <typename Component, typename ...Args,
-              typename = std::enable_if_t<is_ir_component<Component>::value>>
+              typename = std::enable_if_t<is_ir_component_v<Component>>>
     citer
     emplace_at (citer pos, Args&&... args)
     {
@@ -311,7 +311,7 @@ namespace gch
     }
 
     template <typename Component, typename ...Args,
-              typename = std::enable_if_t<is_ir_component<Component>::value>>
+              typename = std::enable_if_t<is_ir_component_v<Component>>>
     Component&
     emplace_back (Args&&... args)
     {

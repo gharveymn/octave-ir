@@ -622,6 +622,9 @@ namespace gch
                   use_timelines_const_iterator first, use_timelines_const_iterator last);
 
     use_timelines_iterator
+    emplace_local (use_timelines_const_iterator pos);
+
+    use_timelines_iterator
     emplace_local (use_timelines_const_iterator pos, ir_instruction_iter instr_pos);
 
     ir_use_timeline&
@@ -681,9 +684,9 @@ namespace gch
       try
       {
         auto [pos, inserted] = m_incoming.emplace (
-                                 std::piecewise_construct,
-                                 std::forward_as_tuple (incoming_block),
-                                 std::forward_as_tuple (std::forward<Args> (args)...));
+          std::piecewise_construct,
+          std::forward_as_tuple (incoming_block),
+          std::forward_as_tuple (std::forward<Args> (args)...));
 
         assert (inserted && "tried to emplace an incoming node for a key which already exists");
         return std::get<ir_incoming_node> (*pos);
@@ -711,6 +714,9 @@ namespace gch
     [[nodiscard]]
     incoming_const_iterator
     find_incoming (const ir_block& block) const noexcept;
+
+    ir_use_timeline&
+    create_orphaned_incoming_timeline (void);
 
     ir_use_timeline&
     create_incoming_timeline (void);

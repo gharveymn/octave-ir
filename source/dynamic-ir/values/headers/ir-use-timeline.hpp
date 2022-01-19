@@ -11,8 +11,11 @@
 #include "ir-common.hpp"
 #include "ir-instruction-fwd.hpp"
 
+#include <gch/nonnull_ptr.hpp>
 #include <gch/optional_ref.hpp>
 #include <gch/tracker/tracker.hpp>
+
+#include <optional>
 
 namespace gch
 {
@@ -35,52 +38,78 @@ namespace gch
 
     template <typename ...TrackerArgs>
     GCH_IMPLICIT_CONVERSION
-    ir_use_timeline (ir_instruction_iter origin_pos, TrackerArgs&&... args)
+    ir_use_timeline (ir_variable& var, TrackerArgs&&... args)
       : use_tracker (std::forward<TrackerArgs> (args)...),
+        m_variable (var),
+        m_instruction_pos (std::nullopt)
+    { }
+
+    template <typename ...TrackerArgs>
+    GCH_IMPLICIT_CONVERSION
+    ir_use_timeline (ir_variable& var, ir_instruction_iter origin_pos, TrackerArgs&&... args)
+      : use_tracker (std::forward<TrackerArgs> (args)...),
+        m_variable (var),
         m_instruction_pos (origin_pos)
     { }
 
     [[nodiscard]]
+    bool
+    has_def (void) const noexcept;
+
+    [[nodiscard]]
     ir_def&
-    get_def (void) noexcept;
+    get_def (void);
 
     [[nodiscard]]
     const ir_def&
-    get_def (void) const noexcept;
+    get_def (void) const;
+
+    [[nodiscard]]
+    optional_ref<ir_def>
+    maybe_get_def (void);
+
+    [[nodiscard]]
+    optional_cref<ir_def>
+    maybe_get_def (void) const;
 
     [[nodiscard]]
     ir_instruction_iter
-    get_def_pos (void) noexcept;
+    get_def_pos (void);
 
     [[nodiscard]]
     ir_instruction_citer
-    get_def_pos (void) const noexcept;
+    get_def_pos (void) const;
+
+    [[nodiscard]]
+    const std::optional<ir_instruction_iter>&
+    maybe_get_def_pos (void) const noexcept;
 
     [[nodiscard]]
     ir_instruction&
-    get_def_instruction (void) noexcept;
+    get_def_instruction (void);
 
     [[nodiscard]]
     const ir_instruction&
-    get_def_instruction (void) const noexcept;
+    get_def_instruction (void) const;
 
     [[nodiscard]]
     ir_variable&
-    get_variable (void) noexcept;
+    get_variable (void);
 
     [[nodiscard]]
     const ir_variable&
-    get_variable (void) const noexcept;
+    get_variable (void) const;
 
     void
-    set_instruction_pos (ir_instruction_iter instr) noexcept;
+    set_def_pos (ir_instruction_iter instr) noexcept;
 
     [[nodiscard]]
     bool
     has_uses (void) const noexcept;
 
   private:
-    ir_instruction_iter m_instruction_pos;
+    nonnull_ptr<ir_variable>           m_variable;
+    std::optional<ir_instruction_iter> m_instruction_pos;
   };
 
   [[nodiscard]]

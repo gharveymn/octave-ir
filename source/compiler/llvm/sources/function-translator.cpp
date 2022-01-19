@@ -37,11 +37,9 @@ namespace gch
     std::for_each (block.begin (), block.end (), [&](const ir_static_instruction& instr) {
       try
       {
-        translator_map[instr.get_metadata ()] (instr, block_builder, value_map);
-        // value_map.invoke_with_module ([&](llvm::Module& module){
-        //   module.print (llvm::outs (), nullptr);
-        // });
-        // std::cout << std::endl;
+        llvm::Value *val = translator_map[instr.get_metadata ()] (instr, block_builder, value_map);
+        if (instr.has_def ())
+          value_map.register_def (instr.get_def (), *val);
       }
       catch (std::exception& e)
       {
@@ -60,7 +58,7 @@ namespace gch
     llvm_module_interface module_interface (llvm_tsm);
 
     llvm::FunctionType *llvm_function_ty = llvm::FunctionType::get (
-      module_interface.get_llvm_type<int> (),
+      &module_interface.get_llvm_type<bool> (),
       false);
 
     llvm::Function& out_func = *module_interface.invoke_with_module ([&](llvm::Module& module) {
@@ -72,11 +70,6 @@ namespace gch
     });
 
     llvm_value_map value_map { module_interface, out_func, func };
-
-    // value_map.invoke_with_module ([&](llvm::Module& module){
-    //   module.print (llvm::outs (), nullptr);
-    // });
-    // std::cout << std::endl;
 
     std::for_each (func.begin (), func.end (), [&](const ir_static_block& block) {
       translate_block (block, value_map);
@@ -92,16 +85,16 @@ namespace gch
           assert (is_a<ir_opcode::phi> (*instr_it));
           assert (instr_it->num_args () % 2 == 0);
 
-          for (auto op_it = instr_it->begin (); op_it != instr_it->end ();)
+          for (auto op_it = instr_it->begin (); op_it != instr_it->end (); ++op_it)
           {
-            const ir_static_operand& value_op = *op_it++;
             const ir_static_operand& block_op = *op_it++;
-
-            assert (is_use (value_op));
-            const ir_static_use& value = as_use (value_op);
+            const ir_static_operand& value_op = *op_it;
 
             assert (is_constant (block_op));
             const ir_constant& block_id_c = as_constant (block_op);
+
+            assert (is_use (value_op));
+            const ir_static_use& value = as_use (value_op);
 
             assert (is_a<ir_static_block_id::value_type> (block_id_c));
             ir_static_block_id block_id { as<ir_static_block_id::value_type> (block_id_c) };
@@ -115,20 +108,13 @@ namespace gch
   }
 
   llvm::orc::ThreadSafeModule
-  create_llvm_module (const llvm::DataLayout& data_layout, const ir_static_function& func,
-                      const std::string& suffix)
+  create_llvm_module (const llvm::DataLayout& data_layout, const ir_static_function& func)
   {
     auto llvm_context = std::make_unique<llvm::LLVMContext> ();
     auto llvm_module  = std::make_unique<llvm::Module> ("my jit", *llvm_context);
     llvm_module->setDataLayout (data_layout);
     llvm::orc::ThreadSafeModule llvm_tsm (std::move (llvm_module), std::move (llvm_context));
     translate_function (func, llvm_tsm);
-
-    llvm_tsm.withModuleDo ([&](llvm::Module& module){
-      module.print (llvm::outs (), nullptr);
-    });
-    std::cout << std::endl;
-
     return llvm_tsm;
   }
 

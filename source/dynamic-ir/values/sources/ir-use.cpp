@@ -13,6 +13,7 @@
 #include "ir-type.hpp"
 #include "ir-utility.hpp"
 
+#include "ir-variable.hpp"
 
 namespace gch
 {
@@ -50,7 +51,7 @@ namespace gch
   ir_use::
   get_def (void) noexcept
   {
-    return get_remote ().get_def ();
+    return get_timeline ().get_def ();
   }
 
   const ir_def&
@@ -64,7 +65,7 @@ namespace gch
   ir_use::
   get_variable (void) noexcept
   {
-    return get_def ().get_variable ();
+    return get_timeline ().get_variable ();
   }
 
   const ir_variable&
@@ -92,7 +93,7 @@ namespace gch
   ir_use::
   get_variable_name (void) const
   {
-    return get_def ().get_variable_name ();
+    return get_variable ().get_name ();
   }
 
   [[nodiscard]]

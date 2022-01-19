@@ -142,7 +142,7 @@ namespace gch
         m_def      (std::nullopt)
     {
       assert_not_abstract<Op> ();
-      assert_no_def<Op> ();
+      // assert_no_def<Op> ();
 
       initialize_with_pack<Op> (std::move (op), std::forward<Args> (args)...);
     }
@@ -153,7 +153,7 @@ namespace gch
         m_def      (std::nullopt)
     {
       assert_not_abstract<Op> ();
-      assert_no_def<Op> ();
+      // assert_no_def<Op> ();
 
       initialize_with_pack<Op> (std::move (c), std::forward<Args> (args)...);
     }
@@ -177,7 +177,7 @@ namespace gch
         m_def (std::nullopt)
     {
       assert_not_abstract<Op> ();
-      assert_no_def<Op> ();
+      // assert_no_def<Op> ();
 
       initialize_with_array<Op> (std::move (args));
     }
@@ -189,7 +189,7 @@ namespace gch
         m_def (std::nullopt)
     {
       assert_not_abstract<Op> ();
-      assert_no_def<Op> ();
+      // assert_no_def<Op> ();
       assert_no_args<Op> ();
     }
 

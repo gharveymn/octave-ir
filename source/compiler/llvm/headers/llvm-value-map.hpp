@@ -72,37 +72,58 @@ namespace gch
 
     llvm_module_interface (llvm_module_type& llvm_module);
 
+    [[nodiscard]]
     llvm::Type&
-    operator[] (ir_type ty) const;
+    get_llvm_type (ir_type ty) const;
 
+    [[nodiscard]]
     llvm_module_type&
     get_module (void) noexcept;
 
+    [[nodiscard]]
     const llvm_module_type&
     get_module (void) const noexcept;
 
-    template <typename Functor>
-    decltype (auto)
-    invoke_with_module (Functor&& functor)
-    {
-      return get_module ().withModuleDo (std::forward<Functor> (functor));
-    }
+    template <bool B>
+    [[nodiscard]]
+    llvm::ConstantInt&
+    get_bool_constant (void);
 
-    template <typename Functor>
+    [[nodiscard]]
+    llvm::ConstantInt&
+    get_bool_constant (bool b);
+
+    optional_ref<llvm::Function>
+    get_function (std::string_view name);
+
+    template <typename Functor, typename ...Args>
     decltype (auto)
-    invoke_with_module (Functor&& functor) const
+    invoke_with_module (Functor&& functor, Args&&... args)
     {
-      return get_module ().withModuleDo (std::forward<Functor> (functor));
+      return get_module ().withModuleDo ([&](llvm::Module& module) -> decltype (auto) {
+        return std::invoke (std::forward<Functor> (functor),
+                            module,
+                            std::forward<Args> (args)...);
+      });
     }
 
     template <typename Functor, typename ...Args>
     decltype (auto)
-    invoke_with_context (Functor&& functor, Args&&... args)
+    invoke_with_module (Functor&& functor, Args&&... args) const
     {
-      return get_module ().withModuleDo ([&](llvm::Module& module) -> decltype (auto) {
+      return get_module ().withModuleDo ([&](const llvm::Module& module) -> decltype (auto) {
         return std::invoke (std::forward<Functor> (functor),
-                            module.getContext (),
+                            module,
                             std::forward<Args> (args)...);
+      });
+    }
+
+    template <typename Return, typename ...Args>
+    decltype (auto)
+    invoke_with_context (Return (* f) (llvm::LLVMContext&, Args&&...), Args&&... args) const
+    {
+      return get_module ().withModuleDo ([&](const llvm::Module& module) -> decltype (auto) {
+        return std::invoke (f, module.getContext (), std::forward<Args> (args)...);
       });
     }
 
@@ -118,10 +139,11 @@ namespace gch
     }
 
     template <typename T>
-    llvm::Type *
+    [[nodiscard]]
+    llvm::Type&
     get_llvm_type (void) const
     {
-      return invoke_with_context (llvm_type_function_v<T>);
+      return get_llvm_type (ir_type_v<T>);
     }
 
   private:
@@ -132,12 +154,14 @@ namespace gch
       llvm::Type *
       operator() (const llvm_module_interface& v) const noexcept
       {
-        return v.get_llvm_type<T> ();
+        return v.invoke_with_context (llvm_type_function_v<T>);
       }
     };
 
-    nonnull_ptr<llvm_module_type> m_llvm_module;
-    type_map_type                 m_type_map;
+    nonnull_ptr<llvm_module_type>  m_llvm_module;
+    type_map_type                  m_type_map;
+    nonnull_ptr<llvm::ConstantInt> m_true_value;
+    nonnull_ptr<llvm::ConstantInt> m_false_value;
   };
 
   class llvm_value_map
@@ -157,8 +181,6 @@ namespace gch
     llvm_value_map (llvm_module_interface module_interface, llvm::Function& llvm_func,
                     const ir_static_function& func);
 
-    using llvm_module_interface::operator[];
-
     llvm::BasicBlock&
     operator[] (ir_static_block_id block_id) const;
 
@@ -169,16 +191,22 @@ namespace gch
     operator[] (const ir_static_variable& var) const;
 
     llvm::Value&
-    operator[] (const ir_constant& c) const;
+    operator[] (ir_static_use use);
 
     llvm::Value&
     operator[] (ir_static_use use) const;
 
     llvm::Value&
-    operator[] (const ir_static_operand& op) const;
+    operator[] (const ir_static_operand& op);
 
     llvm::Value&
     register_def (ir_static_def def, llvm::Value& llvm_value);
+
+    llvm::BasicBlock&
+    create_block_before (std::string_view name, llvm::BasicBlock *pos);
+
+    llvm::BasicBlock&
+    create_block (std::string_view name = "");
 
   private:
     llvm::Function&           m_llvm_function;

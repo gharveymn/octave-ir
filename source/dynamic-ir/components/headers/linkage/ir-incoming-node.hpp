@@ -62,15 +62,23 @@ namespace gch
 
     [[nodiscard]]
     bool
-    has_incoming_timeline (void) const noexcept;
+    has_incoming_def_timeline (void) const noexcept;
 
     [[nodiscard]]
     ir_def_timeline&
-    get_incoming_timeline (void) noexcept;
+    get_incoming_def_timeline (void) noexcept;
 
     [[nodiscard]]
     const ir_def_timeline&
-    get_incoming_timeline (void) const noexcept;
+    get_incoming_def_timeline (void) const noexcept;
+
+    [[nodiscard]]
+    optional_ref<ir_def_timeline>
+    maybe_get_incoming_def_timeline (void) noexcept;
+
+    [[nodiscard]]
+    optional_cref<ir_def_timeline>
+    maybe_get_incoming_def_timeline (void) const noexcept;
 
     void
     swap (ir_incoming_node& other) noexcept;

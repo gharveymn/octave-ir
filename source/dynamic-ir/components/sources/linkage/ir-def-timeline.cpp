@@ -591,7 +591,9 @@ namespace gch
   ir_def_timeline::
   instructions_end (ut_citer pos) const noexcept
   {
-    return as_mutable (*this).instructions_end (pos);
+    if (pos == local_end () || pos == std::prev (local_end ()))
+      return m_block->end<ir_block::range::body> ();
+    return std::next (pos)->get_def_pos ();
   }
 
   [[nodiscard]]
@@ -845,7 +847,7 @@ namespace gch
   ir_def_timeline::
   maybe_get_outgoing_def (void) noexcept
   {
-    return maybe_get_outgoing_timeline () >>= &ir_use_timeline::get_def;
+    return maybe_get_outgoing_timeline () >>= &ir_use_timeline::maybe_get_def;
   }
 
   optional_cref<ir_def>
@@ -873,17 +875,25 @@ namespace gch
 
   auto
   ir_def_timeline::
+  emplace_local (const ut_citer pos)
+    -> ut_iter
+  {
+    return get_use_timelines<range::local> ().emplace (pos, get_variable ());
+  }
+
+  auto
+  ir_def_timeline::
   emplace_local (const ut_citer pos, const ir_instruction_iter instr_pos)
     -> ut_iter
   {
-    return get_use_timelines<range::local> ().emplace (pos, instr_pos);
+    return get_use_timelines<range::local> ().emplace (pos, get_variable (), instr_pos);
   }
 
   ir_use_timeline&
   ir_def_timeline::
-  emplace_back_local (const ir_instruction_iter instructions_pos)
+  emplace_back_local (const ir_instruction_iter instr_pos)
   {
-    return get_use_timelines<range::local> ().emplace_back (instructions_pos);
+    return get_use_timelines<range::local> ().emplace_back (get_variable (), instr_pos);
   }
 
   auto
@@ -1023,13 +1033,21 @@ namespace gch
 
   ir_use_timeline&
   ir_def_timeline::
+  create_orphaned_incoming_timeline (void)
+  {
+    assert (! has_incoming_timeline ());
+    return get_use_timelines<range::incoming> ().emplace_front (get_variable ());
+  }
+
+  ir_use_timeline&
+  ir_def_timeline::
   create_incoming_timeline (void)
   {
     assert (! has_incoming_timeline ());
-    ir_instruction_iter phi_it = m_block->create_phi (*m_var);
+    ir_instruction_iter phi_it = m_block->create_phi (get_variable ());
     try
     {
-      return get_use_timelines<range::incoming> ().emplace_front (phi_it);
+      return get_use_timelines<range::incoming> ().emplace_front (get_variable (), phi_it);
     }
     catch (...)
     {
@@ -1044,9 +1062,8 @@ namespace gch
   {
     assert (has_incoming_timeline ());
 
-    ir_instruction_iter phi_it = get_incoming_timeline ().get_def_pos ();
-
+    if (const auto& phi_it = get_incoming_timeline ().maybe_get_def_pos ())
+      m_block->erase_phi (*phi_it);
     get_use_timelines<range::incoming> ().clear ();
-    m_block->erase_phi (phi_it);
   }
 }

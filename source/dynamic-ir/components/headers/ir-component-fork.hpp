@@ -195,6 +195,16 @@ namespace gch
       return find_case (as_mutable (c));
     }
 
+    template <typename Component, typename ...Args,
+              typename = std::enable_if_t<is_ir_component_v<Component>>>
+    Component&
+    add_case (Args&&... args)
+    {
+      m_cases.push_back (allocate_subcomponent<Component> (std::forward<Args> (args)...));
+      invalidate_leaf_cache ();
+      return as_component<Component> (std::prev (cases_end ()));
+    }
+
   private:
     ir_block        m_condition;
     cases_container m_cases;

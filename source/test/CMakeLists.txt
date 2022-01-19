@@ -74,7 +74,7 @@ macro (add_test_executable target_name)
 endmacro ()
 
 foreach (version 17 20)
-  add_test_executable (octave-ir.test.c++${version} main.cpp)
+  add_test_executable (octave-ir.test.c++${version} main.cpp test-extern.cpp)
 
   target_link_libraries (
     octave-ir.test.c++${version}

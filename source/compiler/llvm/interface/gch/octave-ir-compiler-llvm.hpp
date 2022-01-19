@@ -30,6 +30,9 @@ namespace gch
     std::size_t
     compile (const ir_static_function& func) override;
 
+    void
+    enable_printing (bool printing = true) override;
+
   private:
     std::unique_ptr<llvm_interface> m_interface;
   };

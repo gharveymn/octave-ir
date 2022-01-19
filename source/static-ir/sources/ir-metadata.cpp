@@ -10,7 +10,4 @@
 namespace gch
 {
 
-  inline constexpr auto x = get_metadata (ir_opcode::band);
-  inline constexpr auto y = ir_metadata_v<ir_opcode::band>;
-
 }

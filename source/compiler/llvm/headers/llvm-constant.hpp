@@ -1,4 +1,4 @@
-/** llvm-constant.hpp.h
+/** llvm-constant.hpp
  * Copyright © 2021 Gene Harvey
  *
  * This software may be modified and distributed under the terms
@@ -24,6 +24,59 @@ GCH_ENABLE_WARNINGS_MSVC
 
 namespace gch
 {
+  template <typename T, std::enable_if_t<std::is_object_v<T>> * = nullptr>
+  llvm::Value&
+  get_constant (llvm_module_interface& module, const T& val)
+  {
+    llvm::Type& type = module.get_llvm_type<T> ();
+    if constexpr (std::is_floating_point_v<T>)
+      return *llvm::ConstantFP::get (&type, val);
+    else if constexpr (std::is_integral_v<T>)
+    {
+      if constexpr (std::is_signed_v<T>)
+        return *llvm::ConstantInt::getSigned (&type, val);
+      else
+        return *llvm::ConstantInt::get (&type, val);
+    }
+    else if constexpr (std::is_same_v<T, std::complex<double>>)
+    {
+      llvm::ArrayRef<uint64_t> a (reinterpret_cast<const uint64_t (&)[2]> (val));
+      return *llvm::ConstantDataArray::getFP (&type, a);
+    }
+    else if constexpr (std::is_same_v<T, std::complex<single>>)
+    {
+      llvm::ArrayRef<uint32_t> a (reinterpret_cast<const uint32_t (&)[2]> (val));
+      return *llvm::ConstantDataArray::getFP (&type, a);
+    }
+    else if constexpr (std::is_convertible_v<const char *, T>)
+    {
+      return *module.invoke_with_module ([&](llvm::Module& m) {
+        llvm::LLVMContext& ctx = m.getContext ();
+        llvm::Constant *c = llvm::ConstantDataArray::getString (ctx, val);
+        auto *global_var = new llvm::GlobalVariable (
+          m,
+          c->getType (),
+          true,
+          llvm::GlobalValue::PrivateLinkage,
+          c);
+        global_var->setUnnamedAddr (llvm::GlobalValue::UnnamedAddr::Global);
+        global_var->setAlignment(llvm::Align(1));
+
+        llvm::Constant *zero = llvm::ConstantInt::get (llvm::Type::getInt32Ty (ctx), 0);
+        llvm::ArrayRef<llvm::Constant *> indices { zero, zero };
+        return llvm::ConstantExpr::getInBoundsGetElementPtr (
+          global_var->getValueType (),
+          global_var,
+          indices);
+      });
+    }
+    else
+    {
+      throw std::logic_error {
+        "Cannot create constant of type `" + get_name (ir_type_v<T>) + "`."
+      };
+    }
+  }
 
   template <typename T>
   struct llvm_constant_mapper
@@ -32,286 +85,21 @@ namespace gch
     auto
     operator() (void) const
     {
-      return [](const llvm_value_map&, const ir_constant& c) -> llvm::Constant *
-             {
-               throw std::logic_error { "Cannot create constant of type `"
-                                        + get_name (c.get_type ())
-                                        + "`." };
-             };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<double>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-             {
-               return llvm::ConstantFP::get (map.get_llvm_type<double> (), as<double> (c));
-             };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<float>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-             {
-               return llvm::ConstantFP::get (map.get_llvm_type<float> (), as<float> (c));
-             };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<std::int64_t>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-             {
-               return llvm::ConstantInt::getSigned (map.get_llvm_type<std::int64_t> (),
-                                                    as<std::int64_t> (c));
-             };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<std::int32_t>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-             {
-               return llvm::ConstantInt::getSigned (map.get_llvm_type<std::int32_t> (),
-                                                    as<std::int32_t> (c));
-             };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<std::int16_t>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-             {
-               return llvm::ConstantInt::getSigned (map.get_llvm_type<std::int16_t> (),
-                                                    as<std::int16_t> (c));
-             };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<std::int8_t>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-             {
-               return llvm::ConstantInt::getSigned (map.get_llvm_type<std::int8_t> (),
-                                                    as<std::int8_t> (c));
-             };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<std::uint64_t>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-             {
-               return llvm::ConstantInt::get (map.get_llvm_type<std::uint64_t> (),
-                                              as<std::uint64_t> (c));
-             };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<std::uint32_t>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-             {
-               return llvm::ConstantInt::get (map.get_llvm_type<std::uint32_t> (),
-                                              as<std::uint32_t> (c));
-             };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<std::uint16_t>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-             {
-               return llvm::ConstantInt::get (map.get_llvm_type<std::uint16_t> (),
-                                              as<std::uint16_t> (c));
-             };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<std::uint8_t>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-             {
-               return llvm::ConstantInt::get (map.get_llvm_type<std::uint8_t> (),
-                                              as<std::uint8_t> (c));
-             };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<char>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-      {
-        return llvm::ConstantInt::getSigned (map.get_llvm_type<char> (), as<char> (c));
+      return [](llvm_module_interface& module, const ir_constant& c) -> llvm::Value& {
+        if constexpr (std::is_object_v<T>)
+          return get_constant (module, as<T> (c));
+        else
+        {
+          throw std::logic_error {
+            "Cannot create constant of non-object type `" + get_name (c.get_type ()) + "`."
+          };
+        }
       };
     }
   };
 
-  template <>
-  struct llvm_constant_mapper<wchar_t>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-      {
-        return llvm::ConstantInt::getSigned (map.get_llvm_type<wchar_t> (), as<wchar_t> (c));
-      };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<char32_t>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-      {
-        return llvm::ConstantInt::getSigned (map.get_llvm_type<char32_t> (), as<char32_t> (c));
-      };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<char16_t>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-      {
-        return llvm::ConstantInt::getSigned (map.get_llvm_type<char16_t> (), as<char16_t> (c));
-      };
-    }
-  };
-
-#ifdef GCH_CHAR8_T
-
-  template <>
-  struct llvm_constant_mapper<char8_t>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-      {
-        return llvm::ConstantInt::getSigned (map.get_llvm_type<char8_t> (), as<char8_t> (c));
-      };
-    }
-  };
-
-#endif
-
-  template <>
-  struct llvm_constant_mapper<bool>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-      {
-        return llvm::ConstantInt::getBool (map.get_llvm_type<bool> (), as<bool> (c));
-      };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<std::complex<double>>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-      {
-        const auto& z = as<std::complex<double>> (c);
-        llvm::ArrayRef<uint64_t> a (reinterpret_cast<const uint64_t (&)[2]>(z));
-        return llvm::ConstantDataArray::getFP (map.get_llvm_type<double> (), a);
-      };
-    }
-  };
-
-  template <>
-  struct llvm_constant_mapper<std::complex<single>>
-  {
-    constexpr
-    auto
-    operator() (void) const
-    {
-      return [](const llvm_value_map& map, const ir_constant& c)
-      {
-        const auto& z = as<std::complex<single>> (c);
-        llvm::ArrayRef<uint32_t> a (reinterpret_cast<const uint32_t (&)[2]>(z));
-        return llvm::ConstantDataArray::getFP (map.get_llvm_type<single> (), a);
-      };
-    }
-  };
-
-  inline constexpr
-  auto
-  llvm_constant_map = generate_ir_type_map<llvm_constant_mapper> ();
+  llvm::Value&
+  get_constant (llvm_module_interface& module, const ir_constant& c);
 
 } // namespace gch
 

@@ -165,13 +165,13 @@ namespace gch
       int
       overflow (int c) override
       {
-        if (c != '\n' && m_needs_indent)
+        if (c == '\n')
+          m_needs_indent = true;
+        else if (m_needs_indent)
         {
           m_buf->sputn ("  ", 2);
           m_needs_indent = false;
         }
-        else
-          m_needs_indent = true;
 
         return m_buf->sputc (static_cast<char> (c));
       }
@@ -181,20 +181,17 @@ namespace gch
       bool            m_needs_indent = true;
     };
 
-    auto print_block = [&unit](std::ostream& o, const ir_static_block& block)
-                       {
-                         o << unit.get_block_name (block) << ":\n";
+    auto print_block = [&unit](std::ostream& o, const ir_static_block& block) {
+      o << unit.get_block_name (block) << ":\n";
 
-                         indenter indented_buffer { o };
-                         std::ostream { &indented_buffer } << block;
+      indenter indented_buffer { o };
+      std::ostream { &indented_buffer } << block;
 
-                         return std::ref (o);
-                       };
+      return std::ref (o);
+    };
 
-    return std::accumulate (std::next (unit.begin ()), unit.end (),
-                            print_block (out, unit[0]),
-                            [&](std::ostream& o, const auto& block)
-                            {
+    return std::accumulate (std::next (unit.begin ()), unit.end (), print_block (out, unit[0]),
+                            [&](std::ostream& o, const auto& block) {
                               return print_block (o << "\n\n", block);
                             });
   }

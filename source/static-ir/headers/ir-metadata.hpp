@@ -611,7 +611,7 @@ namespace gch
     impl
     data = get<ir_opcode::branch> ().derive ("br",
                                              ir_opcode::  cbranch,
-                                             flag::arity::binary);
+                                             flag::arity::ternary);
   };
 
   template <>

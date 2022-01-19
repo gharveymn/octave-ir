@@ -136,7 +136,7 @@ namespace gch
     return m_constant;
   }
 
-  const ir_static_use&
+  ir_static_use
   ir_static_operand::
   as_use (void) const noexcept
   {
@@ -153,13 +153,13 @@ namespace gch
     return nullopt;
   }
 
-  optional_cref<ir_static_use>
+  std::optional<ir_static_use>
   ir_static_operand::
   maybe_as_use (void) const noexcept
   {
     if (is_use ())
-      return optional_ref { as_use () };
-    return nullopt;
+      return { as_use () };
+    return std::nullopt;
   }
 
   ir_type
@@ -189,7 +189,7 @@ namespace gch
     return op.as_constant ();
   }
 
-  const ir_static_use&
+  ir_static_use
   as_use (const ir_static_operand& op) noexcept
   {
     return op.as_use ();
@@ -201,7 +201,7 @@ namespace gch
     return op.maybe_as_constant ();
   }
 
-  optional_cref<ir_static_use>
+  std::optional<ir_static_use>
   maybe_as_use (const ir_static_operand& op) noexcept
   {
     return op.maybe_as_use ();

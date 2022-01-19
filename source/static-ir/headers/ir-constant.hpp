@@ -11,6 +11,7 @@
 #include "ir-type.hpp"
 
 #include "ir-common.hpp"
+#include "ir-utility.hpp"
 #include "ir-type-traits.hpp"
 
 #include <gch/optional_ref.hpp>
@@ -105,7 +106,6 @@ namespace gch
   optional_ref<T>
   maybe_as (ir_constant& c) noexcept
   {
-    assert (ir_type_v<T> == c.get_type ());
     return std::any_cast<T> (&c.m_data);
   }
 
@@ -114,8 +114,7 @@ namespace gch
   optional_ref<const T>
   maybe_as (const ir_constant& c) noexcept
   {
-    assert (ir_type_v<T> == c.get_type ());
-    return std::any_cast<T> (&c.m_data);
+    return maybe_as<T> (as_mutable (c));
   }
 
   std::ostream&

@@ -31,6 +31,7 @@ namespace gch
 {
 
   using any = octave_base_value *;
+  class ir_block;
 
   class ir_type;
 
@@ -80,7 +81,11 @@ namespace gch
 #endif
     bool *,
     std::complex<double> *,
-    std::complex<single> *
+    std::complex<single> *,
+
+    const char *,
+    void *,
+    ir_block *
   >;
 
   static_assert (std::is_same_v<ir_type_pack, pack_unique_t<ir_type_pack>>,
@@ -191,28 +196,13 @@ namespace gch
     template <typename T>
     static constexpr
     impl
-    create_type (const char *name, std::nullptr_t) noexcept;
-
-    template <typename T>
-    static constexpr
-    impl
-    create_type (const char *name, ir_type base) noexcept;
+    create_type (const char *name, std::optional<ir_type> base) noexcept;
 
     // shortcut for ir_type_impl::create_compound_type
     template <typename T, std::size_t N>
     static constexpr
     impl
     create_compound_type (const char *name, const ir_type (&members)[N], ir_type base) noexcept;
-
-    template <typename T>
-    static constexpr
-    impl
-    create_type (const char *name) noexcept;
-
-    template <typename T, std::size_t N>
-    static constexpr
-    impl
-    create_compound_type (const char *name, const ir_type (&members)[N]) noexcept;
 
     template <typename T>
     static constexpr
@@ -376,20 +366,17 @@ namespace gch
   constexpr
   auto
   ir_type_base::
-  create_type (const char *name, std::nullptr_t) noexcept
+  create_type (const char *name, std::optional<ir_type> base) noexcept
     -> impl
   {
-    return { name, std::nullopt, std::nullopt, sizeof (T), { }, std::is_integral_v<T> };
-  }
-
-  template <typename T>
-  constexpr
-  auto
-  ir_type_base::
-  create_type (const char *name, ir_type base) noexcept
-    -> impl
-  {
-    return { name, base, std::nullopt, sizeof (T), { }, std::is_integral_v<T> };
+    return {
+      name,
+      base,
+      std::nullopt,
+      sizeof (T),
+      { },
+      std::is_integral_v<T>
+    };
   }
 
   // shortcut for ir_type_impl::create_compound_type
@@ -400,8 +387,14 @@ namespace gch
   create_compound_type (const char *name, const ir_type (&members)[N], ir_type base) noexcept
     -> impl
   {
-    return { name, base, std::nullopt, sizeof (T), ir_type_array (members),
-             std::is_integral_v<T> };
+    return {
+      name,
+      base,
+      std::nullopt,
+      sizeof (T),
+      ir_type_array (members),
+      std::is_integral_v<T>
+    };
   }
 
   constexpr
@@ -505,28 +498,8 @@ namespace gch
     using type = any;
     static constexpr
     impl
-    data = create_type<any> ("any", nullptr);
+    data = create_type<any> ("any", std::nullopt);
   };
-
-  template <typename T>
-  constexpr
-  auto
-  ir_type_base::
-  create_type (const char *name) noexcept
-    -> impl
-  {
-    return create_type<T> (name, ir_type_v<any>);
-  }
-
-  template <typename T, std::size_t N>
-  constexpr
-  auto
-  ir_type_base::
-  create_compound_type (const char *name, const ir_type (&members)[N]) noexcept
-    -> impl
-  {
-    return create_compound_type<T, N> (name, members, ir_type_v<any>);
-  }
 
   template <typename T>
   constexpr
@@ -535,7 +508,14 @@ namespace gch
   create_pointer (ir_type pointer_base) noexcept
     -> impl
   {
-    return { pointer_base.get_name_base (), ir_type_v<any>, pointer_base, sizeof (T), { }, false };
+    return {
+      pointer_base.get_name_base (),
+      ir_type_v<any>,
+      pointer_base,
+      sizeof (T),
+      { },
+      false
+    };
   }
 
   // template instantiations
@@ -547,17 +527,21 @@ namespace gch
   //////////
   // void //
   //////////
-  // This is the unit type; the only type which is not a descendant of 'any'.
-
-  struct unit { };
 
   template <>
   struct ir_type_base::instance<void>
   {
-    using type = unit;
+    using type = void;
     static constexpr
     impl
-    data = create_type<type> ("void", nullptr);
+    data = {
+      "void",
+      std::nullopt,
+      std::nullopt,
+      0,
+      { },
+      false
+    };
   };
 
   /////////////////////////////////
@@ -573,6 +557,15 @@ namespace gch
     data = create_pointer<T *> (ir_type_v<T>);
   };
 
+  template <typename T>
+  struct ir_type_base::instance<const T *>
+  {
+    using type = const T *;
+    static constexpr
+    impl
+    data = create_pointer<const T *> (ir_type_v<T>);
+  };
+
   //////////////////////////
   // floating point types //
   //////////////////////////
@@ -584,7 +577,7 @@ namespace gch
     using type = long double;
     static constexpr
     impl
-    data = create_type<type> ("ldouble");
+    data = create_type<type> ("ldouble", ir_type_v<any>);
   };
 
   template <>
@@ -593,7 +586,7 @@ namespace gch
     using type = double;
     static constexpr
     impl
-    data = create_type<type> ("double");
+    data = create_type<type> ("double", ir_type_v<any>);
   };
 
   template <>
@@ -615,7 +608,7 @@ namespace gch
     using type = std::int64_t;
     static constexpr
     impl
-    data = create_type<type> ("i64");
+    data = create_type<type> ("i64", ir_type_v<any>);
   };
 
   template <>
@@ -651,7 +644,7 @@ namespace gch
     using type = std::uint64_t;
     static constexpr
     impl
-    data = create_type<type> ("ui64");
+    data = create_type<type> ("ui64", ir_type_v<any>);
   };
 
   template <>
@@ -687,7 +680,7 @@ namespace gch
     using type = char;
     static constexpr
     impl
-    data = create_type<type> ("char");
+    data = create_type<type> ("char", ir_type_v<any>);
   };
 
   template <>
@@ -696,7 +689,7 @@ namespace gch
     using type = wchar_t;
     static constexpr
     impl
-    data = create_type<type> ("wchar");
+    data = create_type<type> ("wchar", ir_type_v<any>);
   };
 
   template <>
@@ -705,7 +698,7 @@ namespace gch
     using type = char32_t;
     static constexpr
     impl
-    data = create_type<type> ("char32");
+    data = create_type<type> ("char32", ir_type_v<any>);
   };
 
   template <>
@@ -714,7 +707,7 @@ namespace gch
     using type = char16_t;
     static constexpr
     impl
-    data = create_type<type> ("char16");
+    data = create_type<type> ("char16", ir_type_v<any>);
   };
 
 #ifdef GCH_CHAR8_T
@@ -736,7 +729,7 @@ namespace gch
     using type = bool;
     static constexpr
     impl
-    data = create_type<type> ("bool");
+    data = create_type<type> ("bool", ir_type_v<any>);
   };
 
   ///////////////////
@@ -757,7 +750,7 @@ namespace gch
 
     static constexpr
     impl
-    data = create_compound_type<type> ("complex", m_members);
+    data = create_compound_type<type> ("complex", m_members, ir_type_v<any>);
   };
 
   template <>
@@ -774,7 +767,16 @@ namespace gch
 
     static constexpr
     impl
-    data = create_compound_type<type> ("fcomplex", m_members);
+    data = create_compound_type<type> ("fcomplex", m_members, ir_type_v<any>);
+  };
+
+  template <>
+  struct ir_type_base::instance<ir_block *>
+  {
+    using type = void;
+    static constexpr
+    impl
+    data = create_type<ir_block *> ("ir_block *", std::nullopt);
   };
 
   template <typename T>

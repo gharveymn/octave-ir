@@ -533,8 +533,7 @@ namespace gch
     }
 
     // no return (places instruction immediately before `pos`)
-    template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<! ir_instruction_traits<Op>::has_def> * = nullptr>
+    template <ir_opcode Op, typename ...Args>
     ir_instruction&
     emplace_instruction (const citer pos, Args&&... args)
     {

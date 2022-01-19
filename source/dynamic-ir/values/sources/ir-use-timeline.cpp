@@ -14,65 +14,95 @@
 namespace gch
 {
 
+  bool
+  ir_use_timeline::
+  has_def (void) const noexcept
+  {
+    return m_instruction_pos.has_value ();
+  }
+
   ir_def&
   ir_use_timeline::
-  get_def (void) noexcept
+  get_def (void)
   {
     return get_def_instruction ().get_def ();
   }
 
   const ir_def&
   ir_use_timeline::
-  get_def (void) const noexcept
+  get_def (void) const
   {
     return as_mutable (*this).get_def ();
   }
 
+  optional_ref<ir_def>
+  ir_use_timeline::
+  maybe_get_def (void)
+  {
+    if (has_def ())
+      return optional_ref { get_def () };
+    return nullopt;
+  }
+
+  optional_cref<ir_def>
+  ir_use_timeline::
+  maybe_get_def (void) const
+  {
+    return as_mutable (*this).maybe_get_def ();
+  }
+
   ir_instruction_iter
   ir_use_timeline::
-  get_def_pos (void) noexcept
+  get_def_pos (void)
   {
-    return m_instruction_pos;
+    return *m_instruction_pos;
   }
 
   ir_instruction_citer
   ir_use_timeline::
-  get_def_pos (void) const noexcept
+  get_def_pos (void) const
   {
     return as_mutable (*this).get_def_pos ();
   }
 
+  const std::optional<ir_instruction_iter>&
+  ir_use_timeline::
+  maybe_get_def_pos (void) const noexcept
+  {
+    return m_instruction_pos;
+  }
+
   ir_instruction&
   ir_use_timeline::
-  get_def_instruction (void) noexcept
+  get_def_instruction (void)
   {
     return *get_def_pos ();
   }
 
   const ir_instruction&
   ir_use_timeline::
-  get_def_instruction (void) const noexcept
+  get_def_instruction (void) const
   {
     return as_mutable (*this).get_def_instruction ();
   }
 
   ir_variable&
   ir_use_timeline::
-  get_variable (void) noexcept
+  get_variable (void)
   {
-    return get_def ().get_variable ();
+    return *m_variable;
   }
 
   const ir_variable&
   ir_use_timeline::
-  get_variable (void) const noexcept
+  get_variable (void) const
   {
     return as_mutable (*this).get_variable ();
   }
 
   void
   ir_use_timeline::
-  set_instruction_pos (const ir_instruction_iter instr) noexcept
+  set_def_pos (const ir_instruction_iter instr) noexcept
   {
     m_instruction_pos = instr;
   }
