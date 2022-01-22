@@ -30,8 +30,6 @@ namespace gch
   class ir_static_instruction
   {
   public:
-    using metadata_t = ir_metadata;
-
     using args_container_type     = small_vector<ir_static_operand, 2>;
     using value_type              = args_container_type::value_type;
     using allocator_type          = args_container_type::allocator_type;
@@ -68,11 +66,16 @@ namespace gch
     ir_static_instruction& operator= (ir_static_instruction&&) noexcept = default;
     ~ir_static_instruction           (void)                             = default;
 
-    ir_static_instruction (metadata_t m, ir_static_def def, args_container_type&& args);
+    ir_static_instruction (ir_metadata m, ir_static_def def, args_container_type&& args);
 
-    ir_static_instruction (metadata_t m, args_container_type&& args);
+    ir_static_instruction (ir_metadata m, args_container_type&& args);
 
-    ir_static_instruction (metadata_t m);
+    ir_static_instruction (ir_metadata m);
+
+    template <typename ...Args>
+    ir_static_instruction (ir_opcode op, Args&&... args)
+      : ir_static_instruction (ir_metadata::get (op), std::forward<Args> (args)...)
+    { }
 
     [[nodiscard]]
     const_iterator
@@ -119,7 +122,7 @@ namespace gch
     operator[] (size_type n) const;
 
     [[nodiscard]]
-    metadata_t
+    ir_metadata
     get_metadata (void) const noexcept;
 
     [[nodiscard]]
@@ -135,7 +138,7 @@ namespace gch
     maybe_get_def (void) const noexcept;
 
   private:
-    metadata_t                   m_metadata;
+    ir_metadata                  m_metadata;
     std::optional<ir_static_def> m_def;
     args_container_type          m_args;
   };

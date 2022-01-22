@@ -7,9 +7,6 @@
 
 #include "ir-error.hpp"
 
-#include <cstring>
-#include <iostream>
-
 namespace gch
 {
 

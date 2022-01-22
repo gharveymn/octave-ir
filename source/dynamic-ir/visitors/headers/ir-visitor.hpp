@@ -70,7 +70,7 @@ namespace gch
   template <typename Mutator>
   inline
   abstract_acceptor<mutator_type<Mutator>>::
-  ~abstract_acceptor (void) = default;
+  ~abstract_acceptor (void) { };
 
   template <>
   class abstract_acceptor<void>

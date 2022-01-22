@@ -13,7 +13,8 @@
 #include "ir-common.hpp"
 #include "ir-functional.hpp"
 
-#include <cassert>
+#include <array>
+#include <cstddef>
 #include <iosfwd>
 #include <string>
 

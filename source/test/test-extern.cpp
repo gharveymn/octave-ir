@@ -6,6 +6,7 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <cstdio>
+#include <stdexcept>
 
 #ifdef _WIN32
 #define DLLEXPORT __declspec(dllexport)
@@ -21,5 +22,5 @@ extern "C"
 void
 print_error (const char *s)
 {
-  fprintf (stdout, "Hello: %s\n", s);
+  throw std::logic_error (s);
 }

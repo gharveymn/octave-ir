@@ -116,6 +116,9 @@ namespace gch
 
     explicit
     ir_block (ir_structure& parent);
+
+    ir_block (ir_structure& parent, ir_variable& condition_var) noexcept;
+
     ir_block (ir_structure& parent, ir_block&& other) noexcept;
 
     using range = ir_instruction_range;
@@ -289,6 +292,8 @@ namespace gch
       return get<R> ().empty ();
     }
 
+    friend class ir_def_timeline;
+
   private:
     template <range R, ir_opcode Op, typename ...Args>
     decltype (auto)
@@ -389,7 +394,6 @@ namespace gch
     ir_use_timeline&
     track_def_at (iter pos, ir_variable& var);
 
-  public:
     iter
     create_phi (ir_variable& var);
 
@@ -400,6 +404,7 @@ namespace gch
     iter
     erase_phi (ir_variable& var);
 
+  public:
     [[nodiscard]]
     ir_def_timeline::use_timelines_reverse_iterator
     find_latest_use_timeline_before (const_iterator pos, ir_def_timeline& dt,
@@ -480,20 +485,27 @@ namespace gch
     dt_map_const_iterator
     find_def_timeline (const ir_variable& var) const;
 
+    dt_map_emplace_return_type
+    try_emplace_def_timeline (ir_variable& var);
+
     [[nodiscard]]
     bool
     has_def_timeline (const ir_variable& var) const;
 
-    dt_map_emplace_return_type
-    try_emplace_def_timeline (ir_variable& var);
-
+    [[nodiscard]]
     ir_def_timeline&
     get_def_timeline (ir_variable& var);
 
+    [[nodiscard]]
+    const ir_def_timeline&
+    get_def_timeline (const ir_variable& var) const;
+
+    [[nodiscard]]
     optional_ref<ir_def_timeline>
     maybe_get_def_timeline (const ir_variable& var);
 
-    optional_ref<const ir_def_timeline>
+    [[nodiscard]]
+    optional_cref<ir_def_timeline>
     maybe_get_def_timeline (const ir_variable& var) const;
 
     dt_map_iterator
@@ -504,6 +516,24 @@ namespace gch
 
     bool
     remove_def_timeline (const ir_variable& var);
+
+    void
+    set_condition_variable (ir_variable& var);
+
+    bool
+    has_condition_variable (void) const noexcept;
+
+    ir_variable&
+    get_condition_variable (void) noexcept;
+
+    const ir_variable&
+    get_condition_variable (void) const noexcept;
+
+    optional_ref<ir_variable>
+    maybe_get_condition_variable (void) noexcept;
+
+    optional_cref<ir_variable>
+    maybe_get_condition_variable (void) const noexcept;
 
     //
     // templated functions
@@ -555,8 +585,9 @@ namespace gch
     }
 
   private:
-    instruction_container m_instr_partition;
-    dt_map_type           m_def_timelines_map;
+    instruction_container     m_instr_partition;
+    dt_map_type               m_def_timelines_map;
+    optional_ref<ir_variable> m_condition_var;
   };
 
   template <typename RandomIt,

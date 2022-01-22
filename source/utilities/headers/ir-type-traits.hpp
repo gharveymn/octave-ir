@@ -11,6 +11,7 @@
 #include "ir-type-pack.hpp"
 #include "ir-function-traits.hpp"
 
+#include <complex>
 #include <iterator>
 #include <type_traits>
 #include <utility>
@@ -35,6 +36,22 @@ namespace gch
   bool
   all_same_v = all_same<Ts...>::value;
 
+  template <typename T>
+  struct is_complete;
+
+  template <typename T>
+  inline constexpr
+  bool
+  is_complete_v = is_complete<T>::value;
+
+  template <typename T>
+  struct is_complex;
+
+  template <typename T>
+  inline constexpr
+  bool
+  is_complex_v = is_complex<T>::value;
+
   template <typename It>
   struct is_iterator;
 
@@ -49,8 +66,52 @@ namespace gch
   template <typename T>
   using remove_all_pointers_t = typename remove_all_pointers<T>::type;
 
+  template <typename T>
+  struct remove_all_const;
+
+  template <typename T>
+  using remove_all_const_t = typename remove_all_const<T>::type;
+
+  template <typename T>
+  struct remove_all_volatile;
+
+  template <typename T>
+  using remove_all_volatile_t = typename remove_all_volatile<T>::type;
+
+  template <typename T>
+  struct remove_all_cv;
+
+  template <typename T>
+  using remove_all_cv_t = typename remove_all_cv<T>::type;
+
+  template <typename T>
+  struct make_all_levels_const;
+
+  template <typename T>
+  using make_all_levels_const_t = typename make_all_levels_const<T>::type;
+
   namespace detail
   {
+
+    template <typename, typename Enable = void>
+    struct is_complete_impl
+      : std::false_type
+    { };
+
+    template <typename U>
+    struct is_complete_impl<U, decltype (static_cast<void> (sizeof (U)))>
+      : std::true_type
+    { };
+
+    template <typename T>
+    struct is_complex_impl
+      : std::false_type
+    { };
+
+    template <typename T>
+    struct is_complex_impl<std::complex<T>>
+      : std::true_type
+    { };
 
     template <typename It, typename = void>
     struct is_iterator_impl
@@ -73,11 +134,244 @@ namespace gch
       : remove_all_pointers_impl<T>
     { };
 
+    template <typename T>
+    struct remove_all_const_impl
+    {
+      using type = T;
+    };
+
+    template <typename T>
+    struct remove_all_const_impl<const T>
+      : remove_all_const_impl<T>
+    { };
+
+    template <typename T>
+    struct remove_all_const_impl<T *>
+    {
+      using type = remove_all_const_t<T> *;
+    };
+
+    template <typename T>
+    struct remove_all_const_impl<T&>
+    {
+      using type = remove_all_const_t<T>&;
+    };
+
+    template <typename T>
+    struct remove_all_const_impl<T&&>
+    {
+      using type = remove_all_const_t<T>&&;
+    };
+
+    template <typename T>
+    struct remove_all_const_impl<T[]>
+    {
+      using type = remove_all_const_t<T>[];
+    };
+
+    template <typename T>
+    struct remove_all_const_impl<const T[]>
+    {
+      using type = remove_all_const_t<T>[];
+    };
+
+    template <typename T, std::size_t N>
+    struct remove_all_const_impl<T[N]>
+    {
+      using type = remove_all_const_t<T>[N];
+    };
+
+    template <typename T, std::size_t N>
+    struct remove_all_const_impl<const T[N]>
+    {
+      using type = remove_all_const_t<T>[N];
+    };
+
+    template <typename T>
+    struct remove_all_volatile_impl
+    {
+      using type = T;
+    };
+
+    template <typename T>
+    struct remove_all_volatile_impl<volatile T>
+      : remove_all_volatile_impl<T>
+    { };
+
+    template <typename T>
+    struct remove_all_volatile_impl<T *>
+    {
+      using type = remove_all_volatile_t<T> *;
+    };
+
+    template <typename T>
+    struct remove_all_volatile_impl<T&>
+    {
+      using type = remove_all_volatile_t<T>&;
+    };
+
+    template <typename T>
+    struct remove_all_volatile_impl<T&&>
+    {
+      using type = remove_all_volatile_t<T>&&;
+    };
+
+    template <typename T>
+    struct remove_all_volatile_impl<T[]>
+    {
+      using type = remove_all_volatile_t<T>[];
+    };
+
+    template <typename T>
+    struct remove_all_volatile_impl<volatile T[]>
+    {
+      using type = remove_all_volatile_t<T>[];
+    };
+
+    template <typename T, std::size_t N>
+    struct remove_all_volatile_impl<T[N]>
+    {
+      using type = remove_all_volatile_t<T>[N];
+    };
+
+    template <typename T, std::size_t N>
+    struct remove_all_volatile_impl<volatile T[N]>
+    {
+      using type = remove_all_volatile_t<T>[N];
+    };
+
+    template <typename T>
+    struct remove_all_cv_impl
+    {
+      using type = T;
+    };
+
+    template <typename T>
+    struct remove_all_cv_impl<const T>
+      : remove_all_cv_impl<T>
+    { };
+
+    template <typename T>
+    struct remove_all_cv_impl<volatile T>
+      : remove_all_cv_impl<T>
+    { };
+
+    template <typename T>
+    struct remove_all_cv_impl<const volatile T>
+      : remove_all_cv_impl<T>
+    { };
+
+    template <typename T>
+    struct remove_all_cv_impl<T *>
+    {
+      using type = remove_all_cv_t<T> *;
+    };
+
+    template <typename T>
+    struct remove_all_cv_impl<T&>
+    {
+      using type = remove_all_cv_t<T>&;
+    };
+
+    template <typename T>
+    struct remove_all_cv_impl<T&&>
+    {
+      using type = remove_all_cv_t<T>&&;
+    };
+
+    template <typename T>
+    struct remove_all_cv_impl<T[]>
+    {
+      using type = remove_all_cv_t<T>[];
+    };
+
+    template <typename T>
+    struct remove_all_cv_impl<const T[]>
+    {
+      using type = remove_all_cv_t<T>[];
+    };
+
+    template <typename T>
+    struct remove_all_cv_impl<volatile T[]>
+    {
+      using type = remove_all_cv_t<T>[];
+    };
+
+    template <typename T>
+    struct remove_all_cv_impl<const volatile T[]>
+    {
+      using type = remove_all_cv_t<T>[];
+    };
+
+    template <typename T, std::size_t N>
+    struct remove_all_cv_impl<T[N]>
+    {
+      using type = remove_all_cv_t<T>[N];
+    };
+
+    template <typename T, std::size_t N>
+    struct remove_all_cv_impl<const T[N]>
+    {
+      using type = remove_all_cv_t<T>[N];
+    };
+
+    template <typename T, std::size_t N>
+    struct remove_all_cv_impl<volatile T[N]>
+    {
+      using type = remove_all_cv_t<T>[N];
+    };
+
+    template <typename T, std::size_t N>
+    struct remove_all_cv_impl<const volatile T[N]>
+    {
+      using type = remove_all_cv_t<T>[N];
+    };
+
+    template <typename T>
+    struct make_all_levels_const_impl
+    {
+      using type = const T;
+    };
+
+    template <typename T>
+    struct make_all_levels_const_impl<const T>
+    {
+      using type = const make_all_levels_const_t<T>;
+    };
+
+    template <typename T>
+    struct make_all_levels_const_impl<T *>
+    {
+      using type = make_all_levels_const_t<T> * const;
+    };
+
+    template <typename T>
+    struct make_all_levels_const_impl<T&>
+    {
+      using type = make_all_levels_const_t<T>&;
+    };
+
+    template <typename T>
+    struct make_all_levels_const_impl<T&&>
+    {
+      using type = make_all_levels_const_t<T>&&;
+    };
+
   } // namespace gch::detail
 
   template <typename ...Ts>
   struct all_same
     : pack_homogenenous<type_pack<Ts...>>
+  { };
+
+  template <typename T>
+  struct is_complete
+    : detail::is_complete_impl<T>
+  { };
+
+  template <typename T>
+  struct is_complex
+    : detail::is_complex_impl<T>
   { };
 
   template <typename It>
@@ -88,6 +382,26 @@ namespace gch
   template <typename T>
   struct remove_all_pointers
     : detail::remove_all_pointers_impl<T>
+  { };
+
+  template <typename T>
+  struct remove_all_const
+    : detail::remove_all_const_impl<T>
+  { };
+
+  template <typename T>
+  struct remove_all_volatile
+    : detail::remove_all_volatile_impl<T>
+  { };
+
+  template <typename T>
+  struct remove_all_cv
+    : detail::remove_all_cv_impl<T>
+  { };
+
+  template <typename T>
+  struct make_all_levels_const
+    : detail::make_all_levels_const_impl<T>
   { };
 
   template <typename From, typename To>
@@ -365,100 +679,6 @@ namespace gch
 
   template <typename IntegerSequence, typename Wrapped = typename IntegerSequence::value_type>
   using wrap_integer_sequence_t = typename wrap_integer_sequence<IntegerSequence, Wrapped>::type;
-
-  //
-  // TESTS
-  //
-
-  static_assert (0 == pack_index_v<type_pack<int>, int>);
-  static_assert (0 == pack_index_v<type_pack<int, long>, int>);
-  static_assert (1 == pack_index_v<type_pack<int, long>, long>);
-
-  static_assert (! pack_contains_v<type_pack<>, int>);
-  static_assert (  pack_contains_v<type_pack<int>, int>);
-  static_assert (  pack_contains_v<type_pack<long, int>, int>);
-  static_assert (  pack_contains_v<type_pack<int, long>, int>);
-  static_assert (! pack_contains_v<type_pack<long>, int>);
-
-  static_assert (std::is_same_v<type_pack<int, long>,
-                                pack_concatenate_t<type_pack<int, long>>>);
-
-  static_assert (std::is_same_v<type_pack<int, long, char, short>,
-                                pack_concatenate_t<type_pack<int, long>,
-                                                          type_pack<char, short>>>);
-
-  static_assert (std::is_same_v<type_pack<int, long, char, short, bool, int>,
-                                pack_concatenate_t<type_pack<int, long>,
-                                                          type_pack<char, short>,
-                                                          type_pack<bool, int>>>);
-
-  static_assert (std::is_same_v<type_pack<int, long, void>,
-                                pack_flatten_t<type_pack<int, type_pack<long, void>>>>);
-
-  static_assert (std::is_same_v<type_pack<int, long, char, short>,
-                                pack_flatten_t<type_pack<type_pack<int, long>, char, short>>>);
-
-  static_assert (std::is_same_v<type_pack<int, long, char, short>,
-                                pack_flatten_t<
-                                  type_pack<type_pack<int, type_pack<long>, type_pack<>>,
-                                             type_pack<type_pack<type_pack<char>>>,
-                                             short>>>);
-
-  static_assert (std::is_same_v<type_pack<int>, pack_unique_t<type_pack<int>>>);
-  static_assert (std::is_same_v<type_pack<int>, pack_unique_t<type_pack<int, int>>>);
-  static_assert (pack_equivalent_v<type_pack<int, long>, pack_unique_t<type_pack<int, long, int>>>);
-
-  static_assert (  pack_equivalent_v<type_pack<>, type_pack<>>);
-  static_assert (! pack_equivalent_v<type_pack<>, type_pack<int>>);
-  static_assert (! pack_equivalent_v<type_pack<int>, type_pack<>>);
-  static_assert (  pack_equivalent_v<type_pack<int>, type_pack<int>>);
-  static_assert (! pack_equivalent_v<type_pack<int>, type_pack<long>>);
-  static_assert (  pack_equivalent_v<type_pack<int, long>, type_pack<int, long>>);
-  static_assert (  pack_equivalent_v<type_pack<long, int>, type_pack<int, long>>);
-  static_assert (! pack_equivalent_v<type_pack<int, char>, type_pack<int, long>>);
-  static_assert (! pack_equivalent_v<type_pack<char, int>, type_pack<int, long>>);
-  static_assert (! pack_equivalent_v<type_pack<int, long, char>, type_pack<int, long>>);
-
-  static_assert (std::is_same_v<match_cvref_t<               int, long>,                long>);
-  static_assert (std::is_same_v<match_cvref_t<const          int, long>, const          long>);
-  static_assert (std::is_same_v<match_cvref_t<      volatile int, long>,       volatile long>);
-  static_assert (std::is_same_v<match_cvref_t<const volatile int, long>, const volatile long>);
-
-  static_assert (std::is_same_v<match_cvref_t<               int&, long>,                long&>);
-  static_assert (std::is_same_v<match_cvref_t<const          int&, long>, const          long&>);
-  static_assert (std::is_same_v<match_cvref_t<      volatile int&, long>,       volatile long&>);
-  static_assert (std::is_same_v<match_cvref_t<const volatile int&, long>, const volatile long&>);
-
-  static_assert (std::is_same_v<match_cvref_t<               int&&, long>,                long&&>);
-  static_assert (std::is_same_v<match_cvref_t<const          int&&, long>, const          long&&>);
-  static_assert (std::is_same_v<match_cvref_t<      volatile int&&, long>,       volatile long&&>);
-  static_assert (std::is_same_v<match_cvref_t<const volatile int&&, long>, const volatile long&&>);
-
-  static_assert (std::is_same_v<type_pack<>,          pack_reverse_t<type_pack<>>>);
-  static_assert (std::is_same_v<type_pack<int>,       pack_reverse_t<type_pack<int>>>);
-  static_assert (std::is_same_v<type_pack<int, long>, pack_reverse_t<type_pack<long, int>>>);
-
-  static_assert (std::is_same_v<type_pack<>,            pack_remove_t<type_pack<int>, 0>>);
-  static_assert (std::is_same_v<type_pack<int,  short>, pack_remove_t<type_pack<long, int, short>, 0>>);
-  static_assert (std::is_same_v<type_pack<long, short>, pack_remove_t<type_pack<long, int, short>, 1>>);
-  static_assert (std::is_same_v<type_pack<long, int>,   pack_remove_t<type_pack<long, int, short>, 2>>);
-
-  static_assert (std::is_same_v<type_pack<>,           pack_pop_front_t<type_pack<int>>>);
-  static_assert (std::is_same_v<type_pack<int, short>, pack_pop_front_t<type_pack<long, int, short>>>);
-
-  static_assert (std::is_same_v<type_pack<>,          pack_pop_back_t<type_pack<int>>>);
-  static_assert (std::is_same_v<type_pack<long, int>, pack_pop_back_t<type_pack<long, int, short>>>);
-
-  static_assert (std::is_same_v<type_pack<int>,              pack_insert_t<type_pack<>, 0, int>>);
-  static_assert (std::is_same_v<type_pack<long, int, short>, pack_insert_t<type_pack<int,  short>, 0, long>>);
-  static_assert (std::is_same_v<type_pack<long, int, short>, pack_insert_t<type_pack<long, short>, 1, int>>);
-  static_assert (std::is_same_v<type_pack<long, int, short>, pack_insert_t<type_pack<long, int>,   2, short>>);
-
-  static_assert (std::is_same_v<type_pack<int>,              pack_push_front_t<type_pack<>, int>>);
-  static_assert (std::is_same_v<type_pack<long, int, short>, pack_push_front_t<type_pack<int, short>, long>>);
-
-  static_assert (std::is_same_v<type_pack<int>,              pack_push_back_t<type_pack<>, int>>);
-  static_assert (std::is_same_v<type_pack<long, int, short>, pack_push_back_t<type_pack<long, int>, short>>);
 
 }
 

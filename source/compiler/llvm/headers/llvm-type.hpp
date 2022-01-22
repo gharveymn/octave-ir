@@ -9,6 +9,7 @@
 #define OCTAVE_IR_COMPILER_LLVM_LLVM_TYPE_HPP
 
 #include "llvm-common.hpp"
+#include "ir-type-traits.hpp"
 
 GCH_DISABLE_WARNINGS_MSVC
 
@@ -18,10 +19,14 @@ GCH_DISABLE_WARNINGS_MSVC
 GCH_ENABLE_WARNINGS_MSVC
 
 #include <complex>
+#include <iostream>
 
 namespace gch
 {
+  class octave_base_value;
+  class ir_block;
 
+  using any = octave_base_value *;
   using single = float;
 
   template <typename T, typename Enable = void>
@@ -29,8 +34,21 @@ namespace gch
   {
     static constexpr
     auto
-    value = [](llvm::LLVMContext&) { return nullptr; };
+    value = [](llvm::LLVMContext&) -> llvm::Type * {
+      if constexpr (is_complete_v<T>)
+      {
+        std::cerr << "LLVM type not mapped for type `" << typeid (T).name () << "`." << std::endl;
+      }
+      else
+        std::cerr << "LLVM type not mapped for incomplete type." << std::endl;
+      return nullptr;
+    };
   };
+
+  template <typename T>
+  inline constexpr
+  auto
+  llvm_type_function_v = llvm_type_function<T>::value;
 
   template <>
   struct llvm_type_function<void>
@@ -175,20 +193,55 @@ namespace gch
   };
 
   template <typename T>
-  struct llvm_type_function<T *>
+  struct llvm_type_function<const T>
+  {
+    // FIXME: Not working.
+    static constexpr
+    auto
+    value = llvm_type_function<T>::value;
+  };
+
+  template <>
+  struct llvm_type_function<any>
+  {
+    // FIXME: Not working.
+    static constexpr
+    auto
+    value = [](llvm::LLVMContext&) -> llvm::Type * {
+      std::cerr << "Not implemented yet for `any`." << std::endl;
+      return nullptr;
+    };
+  };
+
+  template <>
+  struct llvm_type_function<ir_block *>
   {
     static constexpr
     auto
-    value = [](llvm::LLVMContext& ctx) {
-      llvm::Type *type = llvm_type_function<T>::value (ctx);
-      return llvm::PointerType::getUnqual (llvm_type_function<char>::value (ctx));
+    value = [](llvm::LLVMContext&) -> llvm::Type * {
+      // This should never be used.
+      return nullptr;
     };
   };
 
   template <typename T>
-  inline constexpr
-  auto
-  llvm_type_function_v = llvm_type_function<T>::value;
+  struct llvm_type_function<T *>
+  {
+    // FIXME: Not working.
+    static constexpr
+    auto
+    value = [](llvm::LLVMContext& ctx) -> llvm::Type * {
+      return llvm::PointerType::getUnqual (llvm_type_function_v<T> (ctx));
+    };
+  };
+
+  template <typename CharT>
+  struct llvm_type_function<std::basic_string<CharT>>
+  {
+    static constexpr
+    auto
+    value = llvm_type_function_v<CharT *>;
+  };
 
 } // namespace gch
 

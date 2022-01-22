@@ -213,10 +213,9 @@ namespace gch
       maybe_get<ir_use> (arg) >>= [&](ir_use& use) noexcept { use.set_instruction (*this); };
   }
 
-  auto
+  ir_metadata
   ir_instruction::
   get_metadata (void) const noexcept
-    -> metadata_t
   {
     return m_metadata;
   }

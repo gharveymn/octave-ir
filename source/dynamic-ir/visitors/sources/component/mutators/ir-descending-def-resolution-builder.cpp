@@ -97,6 +97,7 @@ namespace gch
   {
     if (optional_ref dt { block.maybe_get_def_timeline (get_variable ()) })
     {
+
       if (dt->has_outgoing_timeline ())
       {
         return { { get_variable (), block, { nonnull_ptr { *dt } } },

@@ -34,18 +34,18 @@ namespace gch
     ~ir_constant           (void)                   = default;
 
     template <typename T, typename ...Args,
-              std::enable_if_t<is_ir_type_v<T>> * = nullptr>
+              std::enable_if_t<is_ir_type_v<std::decay_t<T>>> * = nullptr>
     explicit
     ir_constant (std::in_place_type_t<T>, Args&&... args)
-      : m_type (ir_type_v<T>),
-        m_data (std::in_place_type<T>, std::forward<Args> (args)...)
+      : m_type (ir_type_v<std::decay_t<T>>),
+        m_data (std::in_place_type<make_all_levels_const_t<T>>, std::forward<Args> (args)...)
     { }
 
     template <typename T,
-              std::enable_if_t<pack_contains_v<ir_type_pack, std::decay_t<T>>> * = nullptr>
+              std::enable_if_t<is_ir_type_v<std::decay_t<T>>> * = nullptr>
     explicit
     ir_constant (T&& t)
-      : ir_constant (std::in_place_type<std::decay_t<T>>, std::forward<T> (t))
+      : ir_constant (std::in_place_type<T>, std::forward<T&&> (t))
     { }
 
     [[nodiscard]] constexpr
@@ -66,18 +66,13 @@ namespace gch
 
     template <typename T>
     friend constexpr
-    optional_ref<T>
-    maybe_as (ir_constant& c) noexcept;
+    optional_ref<make_all_levels_const_t<T>>
+    maybe_as (const ir_constant& c) noexcept;
 
     template <typename T>
     friend constexpr
-    optional_ref<const T>
-    maybe_as (const ir_constant& c) noexcept;
-
-    template <typename T, typename U>
-    friend constexpr
-    std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_constant>, match_cvref_t<U, T>>
-    as (U&&);
+    make_all_levels_const_t<T>&
+    as (const ir_constant& c);
 
   private:
     ir_type  m_type = ir_type_v<void>;
@@ -92,29 +87,21 @@ namespace gch
     return ir_type_v<T> == c.get_type ();
   }
 
-  template <typename T, typename U>
-  [[nodiscard]] constexpr
-  std::enable_if_t<std::is_same_v<std::decay_t<U>, ir_constant>, match_cvref_t<U, T>>
-  as (U&& c)
-  {
-    assert (ir_type_v<T> == c.get_type ());
-    return static_cast<match_cvref_t<U, T>> (*std::any_cast<T> (&c.m_data));
-  }
-
   template <typename T>
   [[nodiscard]] constexpr
-  optional_ref<T>
-  maybe_as (ir_constant& c) noexcept
-  {
-    return std::any_cast<T> (&c.m_data);
-  }
-
-  template <typename T>
-  [[nodiscard]] constexpr
-  optional_ref<const T>
+  optional_ref<make_all_levels_const_t<T>>
   maybe_as (const ir_constant& c) noexcept
   {
-    return maybe_as<T> (as_mutable (c));
+    return std::any_cast<make_all_levels_const_t<T>> (&c.m_data);
+  }
+
+  template <typename T>
+  [[nodiscard]] constexpr
+  make_all_levels_const_t<T>&
+  as (const ir_constant& c)
+  {
+    assert (ir_type_v<T> == c.get_type ());
+    return *maybe_as<T> (c);
   }
 
   std::ostream&

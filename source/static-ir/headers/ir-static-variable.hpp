@@ -31,7 +31,7 @@ namespace gch
     ir_static_variable& operator= (ir_static_variable&&) noexcept = delete;
     ~ir_static_variable           (void)                          = default;
 
-    ir_static_variable (std::string_view name, ir_type type, std::size_t num_defs);
+    ir_static_variable (std::string_view name, ir_type type);
 
     [[nodiscard]]
     std::string_view
@@ -42,13 +42,17 @@ namespace gch
     get_type (void) const noexcept;
 
     [[nodiscard]]
+    ir_static_def_id
+    create_id (void) noexcept;
+
+    [[nodiscard]]
     std::size_t
     get_num_defs (void) const noexcept;
 
   private:
     const std::string m_name;
     const ir_type     m_type;
-    const std::size_t m_num_defs;
+    std::size_t       m_num_defs;
   };
 
 }

@@ -8,13 +8,14 @@
 #ifndef OCTAVE_IR_DYNAMIC_IR_IR_STATIC_FUNCTION_GENERATOR_HPP
 #define OCTAVE_IR_DYNAMIC_IR_IR_STATIC_FUNCTION_GENERATOR_HPP
 
-#include "ir-static-block.hpp"
-#include "ir-static-function.hpp"
-#include "ir-index-sequence-map.hpp"
-#include "ir-static-def.hpp"
-#include "ir-static-variable.hpp"
-#include "ir-instruction.hpp"
 #include "ir-abstract-component-inspector.hpp"
+#include "ir-index-sequence-map.hpp"
+#include "ir-instruction.hpp"
+#include "ir-static-block.hpp"
+#include "ir-static-def.hpp"
+#include "ir-static-function.hpp"
+#include "ir-static-instruction.hpp"
+#include "ir-static-variable.hpp"
 #include "ir-visitor.hpp"
 
 #include <gch/nonnull_ptr.hpp>
@@ -68,123 +69,36 @@ namespace gch
     bool                 m_is_indeterminate;
   };
 
-  // injective
-  class ir_def_id_map
+  class ir_static_variable_map
   {
+    using static_variable_map = std::unordered_map<nonnull_cptr<ir_variable>,
+                                                   nonnull_cptr<ir_static_variable>>;
+
   public:
-    using count_map_type            = std::unordered_map<nonnull_cptr<ir_variable>, std::size_t>;
-    using count_map_value_type      = count_map_type::value_type;
-    using count_map_allocator_type  = count_map_type::allocator_type;
-    using count_map_size_type       = count_map_type::size_type;
-    using count_map_difference_type = count_map_type::difference_type;
-    using count_map_reference       = count_map_type::reference;
-    using count_map_const_reference = count_map_type::const_reference;
-    using count_map_pointer         = count_map_type::pointer;
-    using count_map_const_pointer   = count_map_type::const_pointer;
+    ir_static_variable_map            (void)                              = delete;
+    ir_static_variable_map            (const ir_static_variable_map&)     = default;
+    ir_static_variable_map            (ir_static_variable_map&&) noexcept = default;
+    ir_static_variable_map& operator= (const ir_static_variable_map&)     = delete;
+    ir_static_variable_map& operator= (ir_static_variable_map&&) noexcept = delete;
+    ~ir_static_variable_map           (void)                              = default;
 
-    using count_map_iterator        = count_map_type::iterator;
-    using count_map_const_iterator  = count_map_type::const_iterator;
+    explicit
+    ir_static_variable_map (const ir_function& func);
 
-    using count_map_val_t   = count_map_value_type;
-    using count_map_alloc_t = count_map_allocator_type;
-    using count_map_size_ty = count_map_size_type;
-    using count_map_diff_ty = count_map_difference_type;
-    using count_map_ref     = count_map_reference;
-    using count_map_cref    = count_map_const_reference;
-    using count_map_ptr     = count_map_pointer;
-    using count_map_cptr    = count_map_const_pointer;
+    const ir_static_variable&
+    operator[] (const ir_variable& var) const;
 
-    using count_map_iter    = count_map_iterator;
-    using count_map_citer   = count_map_const_iterator;
+    ir_static_def
+    create_static_def (const ir_def& def) const;
+
+    ir_static_use
+    create_static_use (const ir_use& use) const;
 
     ir_static_def_id
-    register_def (const ir_def& d);
+    get_def_id (const ir_def& def) const;
 
     ir_static_def_id
-    operator[] (const ir_def& d) const;
-
-    std::size_t
-    num_defs (const ir_variable& v) const;
-
-    bool
-    contains (const ir_def& d) const;
-
-    std::size_t
-    increment (const ir_variable& var);
-
-    [[nodiscard]]
-    count_map_size_type
-    num_variables (void) const noexcept;
-
-    [[nodiscard]]
-    count_map_iterator
-    count_map_begin (void) noexcept;
-
-    [[nodiscard]]
-    count_map_const_iterator
-    count_map_begin (void) const noexcept;
-
-    [[nodiscard]]
-    count_map_const_iterator
-    count_map_cbegin (void) const noexcept;
-
-    [[nodiscard]]
-    count_map_iterator
-    count_map_end (void) noexcept;
-
-    [[nodiscard]]
-    count_map_const_iterator
-    count_map_end (void) const noexcept;
-
-    [[nodiscard]]
-    count_map_const_iterator
-    count_map_cend (void) const noexcept;
-
-  private:
-    std::unordered_map<nonnull_cptr<ir_def>,      ir_static_def_id> m_id_map;
-    std::unordered_map<nonnull_cptr<ir_variable>, std::size_t>      m_def_count_map;
-  };
-
-  // surjective
-  class ir_timeline_origin_map
-  {
-  public:
-    using key_type    = nonnull_cptr<ir_use_timeline>;
-    using mapped_type = std::optional<ir_def_reference>;
-
-    using map_type        = std::unordered_map<key_type, mapped_type>;
-    using value_type      = map_type::value_type;
-    using allocator_type  = map_type::allocator_type;
-    using size_type       = map_type::size_type;
-    using difference_type = map_type::difference_type;
-    using reference       = map_type::reference;
-    using const_reference = map_type::const_reference;
-    using pointer         = map_type::pointer;
-    using const_pointer   = map_type::const_pointer;
-
-    using iterator        = map_type::iterator;
-    using const_iterator  = map_type::const_iterator;
-
-    using val_t   = value_type;
-    using alloc_t = allocator_type;
-    using size_ty = size_type;
-    using diff_ty = difference_type;
-    using ref     = reference;
-    using cref    = const_reference;
-    using ptr     = pointer;
-    using cptr    = const_pointer;
-
-    using iter    = iterator;
-    using citer   = const_iterator;
-
-    std::optional<ir_def_reference>&
-    map_origin (const ir_use_timeline& ut, const std::optional<ir_def_reference>& origin);
-
-    std::optional<ir_def_reference>&
-    map_origin (const ir_use_timeline& ut);
-
-    ir_static_def_id
-    def_id (const ir_def& d) const;
+    get_def_id (const ir_def_reference& dr) const;
 
     ir_static_def_id
     origin_id (const ir_use_timeline& ut) const;
@@ -192,11 +106,11 @@ namespace gch
     ir_static_def_id
     origin_id (const ir_use& use) const;
 
-    const ir_def_id_map&
-    get_id_map (void) const noexcept;
+    std::optional<ir_def_reference>&
+    map_origin (const ir_use_timeline& ut, const std::optional<ir_def_reference>& origin);
 
-    ir_def_id_map&&
-    release_id_map (void) noexcept;
+    std::optional<ir_def_reference>&
+    map_origin (const ir_use_timeline& ut);
 
     optional_ref<std::optional<ir_def_reference>>
     maybe_get (const ir_use_timeline& ut);
@@ -205,8 +119,13 @@ namespace gch
     maybe_get (const ir_use_timeline& ut) const;
 
   private:
-    map_type      m_origin_map;
-    ir_def_id_map m_def_id_map;
+    ir_static_def_id
+    register_def (const ir_def& d);
+
+    std::unordered_map<nonnull_cptr<ir_use_timeline>,
+                       std::optional<ir_def_reference>>               m_origin_map;
+    std::unordered_map<nonnull_cptr<ir_variable>, ir_static_variable> m_variable_map;
+    std::unordered_map<nonnull_cptr<ir_def>,      ir_static_def_id>   m_id_map;
   };
 
   class ir_static_incoming_pair
@@ -292,92 +211,177 @@ namespace gch
     incoming_container_type m_incoming;
   };
 
-  class ir_determinator_injection
+  class ir_injection
   {
   public:
-    enum class injection_type
+    class assign
     {
-      assign,
-      branch,
-      terminate
+    public:
+      assign (const ir_variable& assign_var, ir_static_def_id assign_def_id, bool assign_value);
+
+      [[nodiscard]]
+      const ir_variable&
+      get_assign_variable (void) const noexcept;
+
+      [[nodiscard]]
+      ir_static_def_id
+      get_assign_def_id (void) const noexcept;
+
+      [[nodiscard]]
+      bool
+      get_assign_value (void) const noexcept;
+
+    private:
+      nonnull_cptr<ir_variable> m_assign_var;
+      ir_static_def_id          m_assign_def_id;
+      bool                      m_assign_value;
     };
 
-    ir_determinator_injection            (void)                                 = delete;
-    ir_determinator_injection            (const ir_determinator_injection&)     = delete;
-    ir_determinator_injection            (ir_determinator_injection&&) noexcept = default;
-    ir_determinator_injection& operator= (const ir_determinator_injection&)     = delete;
-    ir_determinator_injection& operator= (ir_determinator_injection&&) noexcept = default;
-    ~ir_determinator_injection           (void)                                 = default;
+    class terminator
+    {
+    public:
+      terminator (const ir_variable& uninit_var);
 
-    ir_determinator_injection (ir_instruction_citer pos, const ir_variable& var);
+      [[nodiscard]]
+      const ir_variable&
+      get_uninit_variable (void) const noexcept;
 
-    ir_determinator_injection (ir_instruction_citer pos,
-                               const ir_variable&   var,
-                               ir_static_def_id     def_id,
-                               bool                 assign_value);
+    private:
+      nonnull_cptr<ir_variable> m_uninit_variable;
+    };
 
-    ir_determinator_injection (ir_instruction_citer pos,
-                               const ir_variable&   var,
-                               ir_static_def_id     def_id,
-                               ir_static_block_id   continue_block_id,
-                               ir_static_block_id   terminal_block_id);
+    class branch : public terminator
+    {
+    public:
+      branch (const ir_variable& uninit_var,
+              const ir_variable& determinator_var,
+              ir_static_def_id   determinator_def_id,
+              ir_static_block_id continue_block_id,
+              ir_static_block_id terminal_block_id);
+
+      [[nodiscard]]
+      const ir_variable&
+      get_determinator_variable (void) const noexcept;
+
+      [[nodiscard]]
+      ir_static_def_id
+      get_determinator_def_id (void) const noexcept;
+
+      [[nodiscard]]
+      ir_static_block_id
+      get_continue_block_id (void) const noexcept;
+
+      [[nodiscard]]
+      ir_static_block_id
+      get_terminal_block_id (void) const noexcept;
+
+    private:
+      nonnull_cptr<ir_variable> m_determinator_var;
+      ir_static_def_id          m_determinator_def_id;
+      ir_static_block_id        m_continue_block_id;
+      ir_static_block_id        m_terminal_block_id;
+    };
+
+    ir_injection            (void)                    = delete;
+    ir_injection            (const ir_injection&)     = delete;
+    ir_injection            (ir_injection&&) noexcept = default;
+    ir_injection& operator= (const ir_injection&)     = delete;
+    ir_injection& operator= (ir_injection&&) noexcept = default;
+    ~ir_injection           (void)                    = default;
+
+    template <typename T, typename ...Args>
+    ir_injection (std::in_place_type_t<T>, ir_instruction_citer pos, Args&&... args)
+      : m_pos (pos),
+        m_data (std::in_place_type<T>, std::forward<Args> (args)...)
+    { }
+
+    template <typename Visitor>
+    friend constexpr
+    auto
+    visit (Visitor&& visitor, const ir_injection& det)
+    {
+      return std::visit (std::forward<Visitor> (visitor), det.m_data);
+    }
+
+    template <typename Alt, typename Visitor>
+    friend constexpr
+    auto
+    visit_alternative (Visitor&& visitor, const ir_injection& det)
+    {
+      return std::visit ([&](auto&& val) {
+        if constexpr (std::is_same_v<Alt, remove_cvref_t<decltype (val)>>)
+          return std::invoke (std::forward<Visitor> (visitor), *std::get_if<Alt> (&det.m_data));
+        else
+          return std::invoke_result_t<Visitor, const Alt&> ();
+      }, det.m_data);
+    }
+
+    template <typename T>
+    friend constexpr
+    bool
+    is_a (const ir_injection& inj) noexcept
+    {
+      return std::holds_alternative<T> (inj.m_data);
+    }
+
+    template <typename T>
+    friend constexpr
+    optional_cref<T>
+    maybe_as (const ir_injection& inj) noexcept
+    {
+      return std::get_if<T> (&inj.m_data);
+    }
 
     [[nodiscard]]
     ir_instruction_citer
-    get_pos (void) const noexcept;
-
-    [[nodiscard]]
-    const ir_variable&
-    get_variable (void) const noexcept;
-
-    [[nodiscard]]
-    ir_static_def_id
-    get_def_id (void) const noexcept;
-
-    [[nodiscard]]
-    bool
-    is_assign (void) const noexcept;
-
-    [[nodiscard]]
-    bool
-    is_branch (void) const noexcept;
-
-    [[nodiscard]]
-    bool
-    is_terminate (void) const noexcept;
-
-    [[nodiscard]]
-    bool
-    get_assign_value (void) const noexcept;
-
-    [[nodiscard]]
-    ir_static_block_id
-    get_continue_block_id (void) const noexcept;
-
-    [[nodiscard]]
-    ir_static_block_id
-    get_terminal_block_id (void) const noexcept;
-
-    [[nodiscard]]
-    injection_type
-    get_injection_type (void) const noexcept;
+    get_injection_pos (void) const noexcept;
 
   private:
-    ir_instruction_citer      m_pos;
-    nonnull_cptr<ir_variable> m_variable;
-    ir_static_def_id          m_def_id;
-    injection_type            m_type;
-
-    union
-    {
-      bool assign_value;
-      struct
-      {
-        ir_static_block_id continue_path;
-        ir_static_block_id terminal_path;
-      } branches;
-    } m_args;
+    ir_instruction_citer                     m_pos;
+    std::variant<assign, terminator, branch> m_data;
   };
+
+  constexpr
+  optional_cref<ir_injection::assign>
+  maybe_as_assign (const ir_injection& inj) noexcept
+  {
+    return maybe_as<ir_injection::assign> (inj);
+  }
+
+  constexpr
+  const ir_injection::assign&
+  as_assign (const ir_injection& inj) noexcept
+  {
+    return *maybe_as_assign (inj);
+  }
+
+  constexpr
+  optional_cref<ir_injection::terminator>
+  maybe_as_terminator (const ir_injection& inj) noexcept
+  {
+    return maybe_as<ir_injection::terminator> (inj);
+  }
+
+  constexpr
+  const ir_injection::terminator&
+  as_terminator (const ir_injection& inj) noexcept
+  {
+    return *maybe_as_terminator (inj);
+  }
+
+  constexpr
+  optional_cref<ir_injection::branch>
+  maybe_as_branch (const ir_injection& inj) noexcept
+  {
+    return maybe_as<ir_injection::branch> (inj);
+  }
+
+  constexpr
+  const ir_injection::branch&
+  as_branch (const ir_injection& inj) noexcept
+  {
+    return *maybe_as_branch (inj);
+  }
 
   class ir_block_descriptor
   {
@@ -408,7 +412,7 @@ namespace gch
     using phi_map_iter    = phi_map_iterator;
     using phi_map_citer   = phi_map_const_iterator;
 
-    using injections_container_type          = std::vector<ir_determinator_injection>;
+    using injections_container_type          = std::vector<ir_injection>;
     using injections_value_type              = injections_container_type::value_type;
     using injections_allocator_type          = injections_container_type::allocator_type;
     using injections_size_type               = injections_container_type::size_type;
@@ -555,39 +559,62 @@ namespace gch
                   small_vector<ir_static_incoming_pair>&& incoming);
 
     injections_iterator
-    emplace_determinator (injections_const_iterator pos,
-                          ir_instruction_citer      instr_pos,
-                          const ir_variable&        var,
-                          ir_static_def_id          def_id,
-                          bool                      assign_value);
+    emplace_assign_injection (injections_const_iterator pos,
+                                 ir_instruction_citer      instr_pos,
+                                 const ir_variable&        det_var,
+                                 ir_static_def_id          def_id,
+                                 bool                      assign_value);
 
     injections_iterator
-    emplace_branch (injections_const_iterator pos,
-                    ir_instruction_citer      instr_pos,
-                    const ir_variable&        var,
-                    ir_static_def_id          def_id,
-                    ir_static_block_id        continue_block_id,
-                    ir_static_block_id        terminal_block_id);
+    emplace_terminator_injection (injections_const_iterator pos,
+                                     ir_instruction_citer      instr_pos,
+                                     const ir_variable&        uninit_var);
 
     injections_iterator
-    emplace_terminator (injections_const_iterator pos,
-                        ir_instruction_citer      instr_pos,
-                        const ir_variable&        var);
+    emplace_branch_injection (injections_const_iterator pos,
+                              ir_instruction_citer      instr_pos,
+                              const ir_variable&        det_var,
+                              const ir_variable&        uninit_var,
+                              ir_static_def_id          def_id,
+                              ir_static_block_id        continue_block_id,
+                              ir_static_block_id        terminal_block_id);
 
-    ir_determinator_injection&
-    prepend_determinator (const ir_block&    block,
-                          const ir_variable& var,
-                          ir_static_def_id   def_id,
-                          bool               assign_value);
+    ir_injection&
+    prepend_assign_injection (const ir_block&    block,
+                              const ir_variable& det_var,
+                              ir_static_def_id   def_id,
+                              bool               assign_value);
 
     optional_cref<ir_resolved_phi_node>
     maybe_get_phi (const ir_variable& var) const;
 
+    template <typename ...Args>
+    const ir_static_instruction&
+    emplace_terminal_instruction (Args&&... args)
+    {
+      return m_terminal_instr.emplace (std::forward<Args> (args)...);
+    }
+
+    const ir_static_instruction&
+    emplace_terminal_instruction (ir_opcode op,
+                                  ir_static_def def,
+                                  std::initializer_list<ir_static_operand> init);
+
+    const ir_static_instruction&
+    emplace_terminal_instruction (ir_opcode op, std::initializer_list<ir_static_operand> init);
+
+    bool
+    has_terminal_instruction (void) const noexcept;
+
+    const ir_static_instruction&
+    get_terminal_instruction (void) const noexcept;
+
   private:
-    ir_static_block_id        m_id;
-    phi_map_type              m_phi_nodes;
-    injections_container_type m_injections;
-    successors_container_type m_successors;
+    ir_static_block_id                   m_id;
+    phi_map_type                         m_phi_nodes;
+    injections_container_type            m_injections;
+    successors_container_type            m_successors;
+    std::optional<ir_static_instruction> m_terminal_instr;
   };
 
   class ir_dynamic_block_manager
@@ -620,12 +647,15 @@ namespace gch
     using iter    = iterator;
     using citer   = const_iterator;
 
-    ir_dynamic_block_manager            (void)                                = default;
+    ir_dynamic_block_manager            (void)                                = delete;
     ir_dynamic_block_manager            (const ir_dynamic_block_manager&)     = delete;
     ir_dynamic_block_manager            (ir_dynamic_block_manager&&) noexcept = default;
     ir_dynamic_block_manager& operator= (const ir_dynamic_block_manager&)     = delete;
     ir_dynamic_block_manager& operator= (ir_dynamic_block_manager&&) noexcept = delete;
     ~ir_dynamic_block_manager           (void)                                = default;
+
+    explicit
+    ir_dynamic_block_manager (const ir_function& func);
 
     ir_block_descriptor&
     register_block (const ir_block& block);
@@ -689,57 +719,29 @@ namespace gch
     const_iterator
     cend (void) const noexcept;
 
+    const ir_function&
+    get_function (void) const noexcept;
+
   private:
     ir_block_descriptor&
     find_or_emplace (const ir_block& block);
 
+    nonnull_cptr<ir_function>                                       m_function;
     std::unordered_map<nonnull_cptr<ir_block>, ir_block_descriptor> m_descriptor_map;
     std::list<ir_variable>                                          m_temp_variables;
     std::size_t                                                     m_num_injected_blocks = 0;
   };
 
-  class ir_static_variable_map
-  {
-    using static_variable_map = std::unordered_map<nonnull_cptr<ir_variable>,
-                                                   nonnull_cptr<ir_static_variable>>;
 
-  public:
-    ir_static_variable_map            (void)                              = delete;
-    ir_static_variable_map            (const ir_static_variable_map&)     = default;
-    ir_static_variable_map            (ir_static_variable_map&&) noexcept = default;
-    ir_static_variable_map& operator= (const ir_static_variable_map&)     = delete;
-    ir_static_variable_map& operator= (ir_static_variable_map&&) noexcept = delete;
-    ~ir_static_variable_map           (void)                              = default;
-
-    ir_static_variable_map (const determinator_manager& dm, ir_timeline_origin_map&& origin_map);
-
-    std::vector<ir_static_variable>&&
-    release_variables (void) noexcept;
-
-    const ir_static_variable&
-    operator[] (const ir_variable& var) const;
-
-    ir_static_def
-    create_static_def (const ir_def& def) const;
-
-    ir_static_use
-    create_static_use (const ir_use& use) const;
-
-    ir_static_def_id
-    get_def_id (const ir_def& def) const;
-
-  private:
-    std::vector<ir_static_variable> m_variables;
-    static_variable_map             m_variable_map;
-    ir_timeline_origin_map          m_origin_map;
-  };
 
   class ir_dynamic_block_manager_builder final
     : public ir_abstract_component_inspector
   {
   public:
+    ir_dynamic_block_manager_builder (const ir_function& func);
+
     ir_dynamic_block_manager
-    operator() (const ir_component& c);
+    operator() (void);
 
     void
     visit (const ir_block& block) override;

@@ -989,33 +989,6 @@ namespace gch
     return std::forward<Optional> (opt) >>= [](auto&& o) { return flatten_optional (o); };
   }
 
-  static constexpr int zint = 6;
-
-  constexpr inline
-  void
-  ffff (void)
-  {
-    constexpr std::optional<int> x { 4 };
-    constexpr std::optional<long> y { 5 };
-    static_assert (*(x + y) == 9);
-
-    constexpr std::optional<short> n { std::nullopt };
-    static_assert (! (x + n));
-    static_assert (! (n + x));
-    static_assert (! (n + n));
-
-    static_assert (*(-x) == -4);
-    static_assert (*(+(-x)) == -4);
-
-    constexpr const std::optional<const optional_ref<const int>> z { std::in_place, zint };
-
-    static_assert (std::is_same_v<const optional_ref<const int>, flattened_optional_t<decltype (z)>>);
-    static_assert (std::is_same_v<const optional_ref<const int>, decltype (flatten_optional (z))>);
-    static_assert (flatten_optional (z).has_value ());
-    static_assert (flatten_optional (z) == zint);
-
-  }
-
 }
 
 #endif // OCTAVE_IR_UTILITIES_IR_OPTIONAL_UTIL_HPP

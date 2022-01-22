@@ -146,7 +146,7 @@ namespace gch
   ir_static_function::
   get_block_name (const ir_static_block& block) const
   {
-    return std::to_string (std::distance (&m_blocks[0], &block));
+    return std::string ("Block").append (std::to_string (std::distance (&m_blocks[0], &block)));
   }
 
   std::ostream&

@@ -41,8 +41,6 @@ namespace gch
     template <ir_opcode Op>
     static constexpr tag_t<Op> tag { };
 
-    using metadata_t = ir_metadata;
-
     using args_container_type     = small_vector<ir_operand, 2>;
     using value_type              = args_container_type::value_type;
     using allocator_type          = args_container_type::allocator_type;
@@ -314,7 +312,7 @@ namespace gch
     }
 
     [[nodiscard]]
-    metadata_t
+    ir_metadata
     get_metadata (void) const noexcept;
 
     [[nodiscard]]
@@ -338,7 +336,7 @@ namespace gch
     maybe_get_def (void) const noexcept;
 
   private:
-    metadata_t            m_metadata;
+    ir_metadata           m_metadata;
     std::optional<ir_def> m_def;
     args_container_type   m_args;
   };

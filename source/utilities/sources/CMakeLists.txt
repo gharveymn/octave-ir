@@ -4,4 +4,5 @@ target_sources (
     ir-error.cpp
     ir-link-set.cpp
     ir-utility.cpp
+    static-checks.cpp
 )

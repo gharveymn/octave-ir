@@ -9,6 +9,8 @@
 
 namespace gch
 {
+
   abstract_acceptor<void>::
   ~abstract_acceptor (void) = default;
+
 }

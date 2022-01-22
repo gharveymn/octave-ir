@@ -24,6 +24,7 @@
 #include <array>
 #include <complex>
 #include <optional>
+#include <string>
 
 class octave_base_value;
 
@@ -60,6 +61,7 @@ namespace gch
     bool,
     std::complex<double>,
     std::complex<single>,
+    std::string,
 
     long double *,
     double *,
@@ -83,13 +85,12 @@ namespace gch
     std::complex<double> *,
     std::complex<single> *,
 
-    const char *,
     void *,
     ir_block *
   >;
 
   static_assert (std::is_same_v<ir_type_pack, pack_unique_t<ir_type_pack>>,
-                 "Types are not unique.");
+                 "IR types are not unique.");
 
   inline constexpr
   unsigned
@@ -183,13 +184,13 @@ namespace gch
     template <typename T,
               std::enable_if_t<std::is_same_v<
                 const impl,
-                decltype (instance<std::remove_cv_t<T>>::data)>
+                decltype (instance<remove_all_cv_t<T>>::data)>
               > * = nullptr>
     static constexpr
     ir_type_base
     get (void) noexcept
     {
-      return ir_type_base { instance<std::remove_cv_t<T>>::data };
+      return ir_type_base { instance<remove_all_cv_t<T>>::data };
     }
 
   private:
@@ -412,13 +413,13 @@ namespace gch
     { };
 
     template <typename T>
-    struct ir_type_value_impl<T, std::enable_if_t<std::is_convertible_v<
-                                   decltype (ir_type_base::get<T> ()),
-                                   ir_type_base>>>
+    struct ir_type_value_impl<
+      T,
+      std::enable_if_t<std::is_convertible_v<decltype (ir_type_base::get<T> ()), ir_type_base>>>
     {
       static constexpr
       ir_type
-      value = { ir_type_base::get<T> (), pack_index_v<ir_type_pack, T> };
+      value = { ir_type_base::get<T> (), pack_index_v<ir_type_pack, remove_all_cv_t<T>> };
     };
 
   }
@@ -442,9 +443,8 @@ namespace gch
     { };
 
     template <typename T>
-    struct is_ir_type_impl<T, std::enable_if_t<std::is_convertible_v<
-                                decltype (ir_type_value<T>::value),
-                                ir_type>>>
+    struct is_ir_type_impl<
+      T, std::enable_if_t<std::is_convertible_v<decltype (ir_type_value<T>::value), ir_type>>>
       : std::true_type
     { };
 
@@ -555,15 +555,6 @@ namespace gch
     static constexpr
     impl
     data = create_pointer<T *> (ir_type_v<T>);
-  };
-
-  template <typename T>
-  struct ir_type_base::instance<const T *>
-  {
-    using type = const T *;
-    static constexpr
-    impl
-    data = create_pointer<const T *> (ir_type_v<T>);
   };
 
   //////////////////////////
@@ -768,6 +759,15 @@ namespace gch
     static constexpr
     impl
     data = create_compound_type<type> ("fcomplex", m_members, ir_type_v<any>);
+  };
+
+  template <>
+  struct ir_type_base::instance<std::string>
+  {
+    using type = std::string;
+    static constexpr
+    impl
+    data = create_type<std::string> ("std::string", ir_type_v<any>);
   };
 
   template <>

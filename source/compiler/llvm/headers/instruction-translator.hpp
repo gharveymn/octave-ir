@@ -132,15 +132,15 @@ namespace gch
   };
 
   template <>
-  struct instruction_translator<ir_opcode::ret>
+  struct instruction_translator<ir_opcode::unreachable>
   {
     static
     llvm::Value *
-    translate (const ir_static_instruction& instr,
-               llvm_ir_builder_type&        builder,
-               llvm_value_map&              value_map)
+    translate (const ir_static_instruction&,
+               llvm_ir_builder_type& builder,
+               llvm_value_map&)
     {
-      return builder.CreateRet (&value_map[instr[0]]);
+      return builder.CreateUnreachable ();
     }
   };
 
@@ -154,6 +154,19 @@ namespace gch
                llvm_value_map&)
     {
       return builder.CreateRetVoid ();
+    }
+  };
+
+  template <>
+  struct instruction_translator<ir_opcode::ret>
+  {
+    static
+    llvm::Value *
+    translate (const ir_static_instruction& instr,
+               llvm_ir_builder_type&        builder,
+               llvm_value_map&              value_map)
+    {
+      return builder.CreateRet (&value_map[instr[0]]);
     }
   };
 

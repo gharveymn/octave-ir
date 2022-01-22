@@ -8,10 +8,10 @@
 #ifndef OCTAVE_IR_UTILITIES_IR_ERROR_HPP
 #define OCTAVE_IR_UTILITIES_IR_ERROR_HPP
 
-#include <exception>
-#include <stdexcept>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 
 namespace gch
 {

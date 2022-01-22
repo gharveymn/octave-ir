@@ -5,10 +5,9 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include "llvm-common.hpp"
 #include "llvm-constant.hpp"
 #include "llvm-value-map.hpp"
-
-#include "llvm-interface.hpp"
 
 #include "ir-static-block.hpp"
 #include "ir-static-def.hpp"
@@ -16,6 +15,42 @@
 #include "ir-static-operand.hpp"
 #include "ir-static-use.hpp"
 #include "ir-static-variable.hpp"
+#include "ir-type-util.hpp"
+#include "ir-type.hpp"
+
+#include <gch/nonnull_ptr.hpp>
+#include <gch/optional_ref.hpp>
+
+GCH_DISABLE_WARNINGS_MSVC
+
+#include <llvm/ADT/Twine.h>
+#include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/Module.h>
+
+GCH_ENABLE_WARNINGS_MSVC
+
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <iterator>
+#include <limits>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+namespace llvm
+{
+  class AllocaInst;
+  class Function;
+  class LLVMContext;
+  class Type;
+  class Value;
+}
 
 namespace gch
 {
@@ -83,22 +118,6 @@ namespace gch
     -> const llvm_module_type&
   {
     return *m_llvm_module;
-  }
-
-  template <>
-  llvm::ConstantInt&
-  llvm_module_interface::
-  get_bool_constant<true> (void)
-  {
-    return *m_true_value;
-  }
-
-  template <>
-  llvm::ConstantInt&
-  llvm_module_interface::
-  get_bool_constant<false> (void)
-  {
-    return *m_false_value;
   }
 
   llvm::ConstantInt&
@@ -187,6 +206,14 @@ namespace gch
   llvm_value_map::
   operator[] (ir_static_use use)
   {
+    return std::as_const (*this).operator[] (use);
+  }
+
+  llvm::Value&
+  llvm_value_map::
+  operator[] (ir_static_use use) const
+  {
+
     auto found = m_var_map.find (nonnull_ptr { use.get_variable () });
     assert (found != m_var_map.end ());
 
@@ -195,13 +222,6 @@ namespace gch
       return *llvm::UndefValue::get (&get_llvm_type (found->first->get_type ()));
 
     return found->second[id];
-  }
-
-  llvm::Value&
-  llvm_value_map::
-  operator[] (ir_static_use use) const
-  {
-    return as_mutable (*this).operator[] (use);
   }
 
   llvm::Value&

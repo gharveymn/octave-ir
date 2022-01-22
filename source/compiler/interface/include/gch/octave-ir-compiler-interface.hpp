@@ -17,6 +17,8 @@ namespace gch
   class octave_jit_compiler_impl
   {
   public:
+    virtual ~octave_jit_compiler_impl (void) = default;
+
     virtual
     std::size_t
     compile (const ir_static_function& func) = 0;

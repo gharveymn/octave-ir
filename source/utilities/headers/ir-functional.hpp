@@ -766,7 +766,7 @@ namespace gch
   struct common_map_pack_result
   { };
 
-  template < template <typename ...> typename MapperT, template <typename ...> typename PackT,
+  template <template <typename ...> typename MapperT, template <typename ...> typename PackT,
             typename ...Ts, typename ...Args>
   struct common_map_pack_result<MapperT, PackT<Ts...>, Args...>
     : std::common_type<std::remove_reference_t<std::invoke_result_t<MapperT<Ts>, Args...>>...>

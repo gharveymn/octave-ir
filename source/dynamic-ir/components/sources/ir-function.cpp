@@ -20,9 +20,32 @@
 
 namespace gch
 {
+
   ir_function::
-  ir_function (void)
-    : m_body (allocate_subcomponent<ir_component_sequence> (ir_subcomponent_type<ir_block>))
+  ir_function (std::string_view name)
+    : ir_structure (),
+      m_name (name),
+      m_body (allocate_subcomponent<ir_component_sequence> (ir_subcomponent_type<ir_block>))
+  { }
+
+  ir_function::
+  ir_function (std::initializer_list<std::string_view> ret_names,
+               std::initializer_list<std::string_view> arg_names,
+               std::string_view name)
+    : ir_function (ret_names.begin (), ret_names.end (), arg_names.begin (), arg_names.end (),
+                   name)
+  { }
+
+  ir_function::
+  ir_function (std::string_view ret_name,
+               std::initializer_list<std::string_view> arg_names,
+               std::string_view name)
+    : ir_function ({ ret_name }, arg_names, name)
+  { }
+
+  ir_function::
+  ir_function (std::initializer_list<std::string_view> arg_names, std::string_view name)
+    : ir_function ({ }, arg_names, name)
   { }
 
   ir_function::
@@ -63,6 +86,101 @@ namespace gch
   {
     auto [it, inserted] = m_variable_map.try_emplace (identifier, *this, std::move (identifier));
     return std::get<ir_variable> (*it);
+  }
+
+  auto
+  ir_function::
+  variables_begin (void) noexcept
+    -> variables_iter
+  {
+    return m_variable_map.begin ();
+  }
+
+  auto
+  ir_function::
+  variables_begin (void) const noexcept
+    -> variables_citer
+  {
+    return as_mutable (*this).variables_begin ();
+  }
+
+  auto
+  ir_function::
+  variables_cbegin (void) const noexcept
+    -> variables_citer
+  {
+    return variables_begin ();
+  }
+
+  auto
+  ir_function::
+  variables_end (void) noexcept
+    -> variables_iter
+  {
+    return m_variable_map.end ();
+  }
+
+  auto
+  ir_function::
+  variables_end (void) const noexcept
+    -> variables_citer
+  {
+    return as_mutable (*this).variables_end ();
+  }
+
+  auto
+  ir_function::
+  variables_cend (void) const noexcept
+    -> variables_citer
+  {
+    return variables_end ();
+  }
+
+  auto
+  ir_function::
+  variables_front (void)
+    -> variables_ref
+  {
+    return *variables_begin ();
+  }
+
+  auto
+  ir_function::
+  variables_front (void) const
+    -> variables_cref
+  {
+    return as_mutable (*this).variables_front ();
+  }
+
+  auto
+  ir_function::
+  variables_back (void)
+    -> variables_ref
+  {
+    return *std::prev (variables_end ());
+  }
+
+  auto
+  ir_function::
+  variables_back (void) const
+    -> variables_cref
+  {
+    return as_mutable (*this).variables_back ();
+  }
+
+  auto
+  ir_function::
+  num_variables (void) const noexcept
+    -> variables_size_ty
+  {
+    return m_variable_map.size ();
+  }
+
+  bool
+  ir_function::
+  has_variables (void) const noexcept
+  {
+    return m_variable_map.empty ();
   }
 
   auto
@@ -210,17 +328,154 @@ namespace gch
 
   auto
   ir_function::
-  num_args (void) const noexcept
-    -> args_size_ty
+  returns_begin (void) noexcept
+    -> returns_iter
   {
-   return args_size ();
+    return m_ret.begin ();
+  }
+
+  auto
+  ir_function::
+  returns_begin (void) const noexcept
+    -> returns_citer
+  {
+    return as_mutable (*this).returns_begin ();
+  }
+
+  auto
+  ir_function::
+  returns_cbegin (void) const noexcept
+    -> returns_citer
+  {
+    return returns_begin ();
+  }
+
+  auto
+  ir_function::
+  returns_end (void) noexcept
+    -> returns_iter
+  {
+    return m_ret.end ();
+  }
+
+  auto
+  ir_function::
+  returns_end (void) const noexcept
+    -> returns_citer
+  {
+    return as_mutable (*this).returns_end ();
+  }
+
+  auto
+  ir_function::
+  returns_cend (void) const noexcept
+    -> returns_citer
+  {
+    return returns_end ();
+  }
+
+  auto
+  ir_function::
+  returns_rbegin (void) noexcept
+    -> returns_riter
+  {
+    return m_ret.rbegin ();
+  }
+
+  auto
+  ir_function::
+  returns_rbegin (void) const noexcept
+    -> returns_criter
+  {
+    return as_mutable (*this).returns_rbegin ();
+  }
+
+  auto
+  ir_function::
+  returns_crbegin (void) const noexcept
+    -> returns_criter
+  {
+    return returns_rbegin ();
+  }
+
+  auto
+  ir_function::
+  returns_rend (void) noexcept
+    -> returns_riter
+  {
+    return m_ret.rend ();
+  }
+
+  auto
+  ir_function::
+  returns_rend (void) const noexcept
+    -> returns_criter
+  {
+    return as_mutable (*this).returns_rend ();
+  }
+
+  auto
+  ir_function::
+  returns_crend (void) const noexcept
+    -> returns_criter
+  {
+    return returns_rend ();
+  }
+
+  auto
+  ir_function::
+  returns_front (void)
+    -> returns_ref
+  {
+    return *returns_begin ();
+  }
+
+  auto
+  ir_function::
+  returns_front (void) const
+    -> returns_cref
+  {
+    return as_mutable (*this).returns_front ();
+  }
+
+  auto
+  ir_function::
+  returns_back (void)
+    -> returns_ref
+  {
+    return *returns_rbegin ();
+  }
+
+  auto
+  ir_function::
+  returns_back (void) const
+    -> returns_cref
+  {
+    return as_mutable (*this).returns_back ();
+  }
+
+  auto
+  ir_function::
+  num_returns (void) const noexcept
+    -> returns_size_ty
+  {
+    return m_ret.size ();
   }
 
   bool
   ir_function::
-  has_args (void) const noexcept
+  has_returns (void) const noexcept
   {
-    return ! args_empty ();
+    return ! m_ret.empty ();
+  }
+
+  std::string
+  ir_function::
+  get_name (void) const noexcept
+  {
+    if (m_name.empty ())
+      return "function@" + std::to_string (reinterpret_cast<std::size_t> (this));
+    return m_name;
   }
 
   ir_block&

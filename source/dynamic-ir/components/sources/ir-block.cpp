@@ -21,6 +21,21 @@
 namespace gch
 {
 
+  ir_block&
+  ir_block::
+  operator= (ir_block&& other) noexcept
+  {
+    m_instr_partition   = std::move (other.m_instr_partition);
+    m_def_timelines_map = std::move (other.m_def_timelines_map);
+    m_condition_var     = other.m_condition_var;
+
+    std::for_each (selected<ir_def_timeline> (m_def_timelines_map.begin ()),
+                   selected<ir_def_timeline> (m_def_timelines_map.end ()),
+                   [this](ir_def_timeline& dt) { dt.set_block (*this); });
+
+    return *this;
+  }
+
   ir_block::
   ~ir_block (void) = default;
 
@@ -30,28 +45,21 @@ namespace gch
   { }
 
   ir_block::
+  ir_block (ir_structure& parent, ir_variable& condition_var) noexcept
+    : ir_subcomponent (parent),
+      m_condition_var (condition_var)
+  { }
+
+  ir_block::
   ir_block (ir_structure& parent, ir_block&& other) noexcept
     : ir_subcomponent     (parent),
       m_instr_partition   (std::move (other.m_instr_partition)),
-      m_def_timelines_map (std::move (other.m_def_timelines_map))
+      m_def_timelines_map (std::move (other.m_def_timelines_map)),
+      m_condition_var     (other.m_condition_var)
   {
     std::for_each (selected<ir_def_timeline> (m_def_timelines_map.begin ()),
                    selected<ir_def_timeline> (m_def_timelines_map.end ()),
                    [this](ir_def_timeline& dt) { dt.set_block (*this); });
-  }
-
-  ir_block&
-  ir_block::
-  operator= (ir_block&& other) noexcept
-  {
-    m_instr_partition   = std::move (other.m_instr_partition);
-    m_def_timelines_map = std::move (other.m_def_timelines_map);
-
-    std::for_each (selected<ir_def_timeline> (m_def_timelines_map.begin ()),
-                   selected<ir_def_timeline> (m_def_timelines_map.end ()),
-                   [this](ir_def_timeline& dt) { dt.set_block (*this); });
-
-    return *this;
   }
 
   ir_def_timeline::ut_riter
@@ -220,52 +228,48 @@ namespace gch
   remove_range (const citer first, const citer last) noexcept
   {
     ir_link_set<const ir_variable> unlinked_vars;
-    std::for_each (criter { last }, criter { first },
-                   [&](const ir_instruction& instr)
-                   {
-                     if (! has_def (instr))
-                       return;
+    std::for_each (criter { last }, criter { first }, [&](const ir_instruction& instr) {
+      if (!has_def (instr))
+        return;
 
-                     const ir_def&      def = instr.get_def ();
-                     const ir_variable& var = def.get_variable ();
+      const ir_def& def = instr.get_def ();
+      const ir_variable& var = def.get_variable ();
 
-                     if (! unlinked_vars.contains (var))
-                     {
-                       assert (has_def_timeline (var));
-                       auto& dt = std::get<ir_def_timeline> (*find_def_timeline (var));
+      if (!unlinked_vars.contains (var))
+      {
+        assert (has_def_timeline (var));
+        auto& dt = std::get<ir_def_timeline> (*find_def_timeline (var));
 
-                       auto ut_rit = std::find_if (dt.local_rbegin (),
-                                                   dt.local_rend (),
-                                                   [&](const ir_use_timeline& tl)
-                                                   {
-                                                     return &instr == &tl.get_def_instruction ();
-                                                   });
+        auto ut_rit = std::find_if (dt.local_rbegin (), dt.local_rend (),
+                                    [&](const ir_use_timeline& tl) {
+                                      return &instr == &tl.get_def_instruction ();
+                                    });
 
-                       assert (ut_rit != dt.local_rend ()
-                           &&  "could not find the use-timeline for the instruction");
+        assert (ut_rit != dt.local_rend ()
+                  && "could not find the use-timeline for the instruction");
 
-                       if (std::next (ut_rit) == dt.use_timelines_rend ())
-                       {
-                         // then local_rend == use_timelines_rend
-                         //   => no incoming-timeline (need to join)
+        if (std::next (ut_rit) == dt.use_timelines_rend ())
+        {
+          // then local_rend == use_timelines_rend
+          //   => no incoming-timeline (need to join)
 
-                         join_at (dt);
-                         assert (dt.has_incoming_timeline ());
+          join_at (dt);
+          assert (dt.has_incoming_timeline ());
 
-                         ir_use_timeline& incoming_tl = dt.get_incoming_timeline ();
-                         incoming_tl.splice_back (*ut_rit);
-                       }
-                       else
-                       {
-                         auto& ut = *get_latest_use_timeline_before (first, dt, std::next (ut_rit));
-                         ut.splice_back (*ut_rit);
-                       }
+          ir_use_timeline& incoming_tl = dt.get_incoming_timeline ();
+          incoming_tl.splice_back (*ut_rit);
+        }
+        else
+        {
+          auto& ut = *get_latest_use_timeline_before (first, dt, std::next (ut_rit));
+          ut.splice_back (*ut_rit);
+        }
 
-                       dt.erase_local (std::next (ut_rit).base ());
+        dt.erase_local (std::next (ut_rit).base ());
 
-                       unlinked_vars.emplace (var);
-                     }
-                   });
+        unlinked_vars.emplace (var);
+      }
+    });
 
     return erase<range::body> (first, last);
   }
@@ -293,8 +297,7 @@ namespace gch
     -> iter
   {
     auto pos = std::find_if (begin<range::phi> (), end<range::phi> (),
-                             [&var] (const ir_instruction& instr)
-                             {
+                             [&var](const ir_instruction& instr) {
                                return &instr.get_def ().get_variable () == &var;
                              });
 
@@ -381,13 +384,6 @@ namespace gch
     return as_mutable (*this).find_def_timeline (var);
   }
 
-  bool
-  ir_block::
-  has_def_timeline (const ir_variable& var) const
-  {
-    return find_def_timeline (var) != dt_map_end ();
-  }
-
   auto
   ir_block::
   try_emplace_def_timeline (ir_variable& var)
@@ -397,11 +393,25 @@ namespace gch
     return { std::get<dt_map_iter> (res), std::get<bool> (res) };
   }
 
+  bool
+  ir_block::
+  has_def_timeline (const ir_variable& var) const
+  {
+    return find_def_timeline (var) != dt_map_end ();
+  }
+
   ir_def_timeline&
   ir_block::
   get_def_timeline (ir_variable& var)
   {
     return std::get<ir_def_timeline> (*try_emplace_def_timeline (var).position);
+  }
+
+  const ir_def_timeline&
+  ir_block::
+  get_def_timeline (const ir_variable& var) const
+  {
+    return std::get<ir_def_timeline> (*find_def_timeline (var));
   }
 
   optional_ref<ir_def_timeline>
@@ -413,7 +423,7 @@ namespace gch
     return nullopt;
   }
 
-  optional_ref<const ir_def_timeline>
+  optional_cref<ir_def_timeline>
   ir_block::
   maybe_get_def_timeline (const ir_variable& var) const
   {
@@ -441,6 +451,51 @@ namespace gch
   remove_def_timeline (const ir_variable& var)
   {
     return m_def_timelines_map.erase (nonnull_ptr { var }) != 0;
+  }
+
+  void
+  ir_block::
+  set_condition_variable (ir_variable& var)
+  {
+    m_condition_var.emplace (var);
+
+    // Create a phi node which may or may not actually be useful. We just need an accessible def.
+    get_def_timeline (var).create_incoming_timeline ();
+  }
+
+  bool
+  ir_block::
+  has_condition_variable (void) const noexcept
+  {
+    return m_condition_var.has_value ();
+  }
+
+  ir_variable&
+  ir_block::
+  get_condition_variable (void) noexcept
+  {
+    return *m_condition_var;
+  }
+
+  const ir_variable&
+  ir_block::
+  get_condition_variable (void) const noexcept
+  {
+    return *m_condition_var;
+  }
+
+  optional_ref<ir_variable>
+  ir_block::
+  maybe_get_condition_variable (void) noexcept
+  {
+    return m_condition_var;
+  }
+
+  optional_cref<ir_variable>
+  ir_block::
+  maybe_get_condition_variable (void) const noexcept
+  {
+    return m_condition_var;
   }
 
 }

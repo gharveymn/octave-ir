@@ -54,13 +54,6 @@ namespace gch
     return get_function (as_mutable (sub));
   }
 
-  std::string
-  get_name (const ir_component& c)
-  {
-    // FIXME: temporary
-    return "component" + std::to_string (reinterpret_cast<std::size_t> (&c));
-  }
-
   ir_link_set<ir_block>
   get_predecessors (const ir_subcomponent& sub)
   {

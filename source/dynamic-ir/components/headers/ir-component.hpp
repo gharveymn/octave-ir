@@ -115,10 +115,6 @@ namespace gch
   const ir_function&
   get_function (const ir_subcomponent& sub);
 
-  [[nodiscard]]
-  std::string
-  get_name (const ir_component& c);
-
   ir_link_set<ir_block>
   get_predecessors (const ir_subcomponent& sub);
 

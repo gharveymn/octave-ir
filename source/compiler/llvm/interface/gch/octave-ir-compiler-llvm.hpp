@@ -25,7 +25,7 @@ namespace gch
     octave_jit_compiler_llvm            (octave_jit_compiler_llvm&&) noexcept = default;
     octave_jit_compiler_llvm& operator= (const octave_jit_compiler_llvm&)     = delete;
     octave_jit_compiler_llvm& operator= (octave_jit_compiler_llvm&&) noexcept = default;
-    ~octave_jit_compiler_llvm           (void);
+    ~octave_jit_compiler_llvm           (void) override;
 
     std::size_t
     compile (const ir_static_function& func) override;

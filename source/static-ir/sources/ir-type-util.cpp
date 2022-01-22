@@ -13,7 +13,10 @@ namespace gch
   std::string
   get_name (ir_type ty)
   {
-    return std::string (ty.get_name_base ()).append (" ").append (indirection_level (ty), '*');
+    std::string ret (ty.get_name_base ());
+    if (std::size_t lvl = indirection_level (ty))
+      ret.append (" ").append (lvl, '*');
+    return ret;
   }
 
   std::ostream&

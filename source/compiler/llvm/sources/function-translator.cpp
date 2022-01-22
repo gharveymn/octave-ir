@@ -10,18 +10,15 @@
 #include "instruction-translator.hpp"
 #include "llvm-interface.hpp"
 #include "llvm-value-map.hpp"
-#include "llvm-version.hpp"
 
 #include "gch/octave-ir-compiler-interface.hpp"
 #include "ir-static-block.hpp"
 #include "ir-static-instruction.hpp"
 #include "ir-static-variable.hpp"
-#include "ir-type-util.hpp"
-
-#include <iostream>
 
 #include <gch/nonnull_ptr.hpp>
 
+#include <iostream>
 #include <vector>
 
 namespace gch

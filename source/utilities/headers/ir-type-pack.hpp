@@ -217,7 +217,9 @@ namespace gch
       : std::integral_constant<std::size_t, I>
     { };
 
-    template <template <typename ...> typename PackT, typename Head, typename ...Tail, typename T, std::size_t I>
+    template <template <typename ...> typename PackT, typename Head, typename ...Tail,
+              typename T,
+              std::size_t I>
     struct pack_index_impl<PackT<Head, Tail...>, T, I>
       : pack_index_impl<PackT<Tail...>, T, I + 1>
     { };

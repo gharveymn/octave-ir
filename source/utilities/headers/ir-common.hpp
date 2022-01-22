@@ -9,16 +9,16 @@
 #ifndef OCTAVE_IR_UTILITIES_IR_COMMON_HPP
 #define OCTAVE_IR_UTILITIES_IR_COMMON_HPP
 
-#define GCH_PRINT_SIZE(TYPE)                \
+#define GCH_PRINT_SIZE(TYPE)                 \
 char (*__gch__fail) (void)[sizeof(TYPE)] = 1;
 
 #define GCH_STRCAT_(x, y) x ## y
 #define GCH_STRCAT(x, y) GCH_STRCAT_(x, y)
-#define GCH_PRINT_VALUE(x) \
-template <auto> struct GCH_STRCAT(GCH_STRCAT(value_of_, x), _is); \
+#define GCH_PRINT_VALUE(x)                                                    \
+template <auto> struct GCH_STRCAT(GCH_STRCAT(value_of_, x), _is);             \
 static_assert (GCH_STRCAT (GCH_STRCAT (value_of_, x), _is)<x>::x, "<- value");
 
-#define GCH_PRINT_TYPE(VAR)                \
+#define GCH_PRINT_TYPE(VAR)                             \
 static_assert (sizeof (decltype (VAR)) == 0, "<- type");
 
 #ifndef GCH_ACCUMULATE_REF

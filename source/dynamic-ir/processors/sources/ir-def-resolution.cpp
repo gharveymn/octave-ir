@@ -30,8 +30,11 @@ namespace gch
   {
     ir_link_set<ir_block> lhs = get_predecessors (join_block);
     ir_link_set<ir_block> rhs;
-    std::for_each (c.begin (), c.end (), [&rhs](const ir_def_resolution& r)
-                                         { rhs.emplace (r.get_leaf_block ()); });
+
+    std::for_each (c.begin (), c.end (), [&rhs](const ir_def_resolution& r) {
+      rhs.emplace (r.get_leaf_block ());
+    });
+
     return lhs == rhs;
   }
 
@@ -51,10 +54,10 @@ namespace gch
     if (incoming.empty ())
       return { };
 
-    // create an incoming-timeline at the join-block
+    // create a def-timeline at the join-block
     ir_def_timeline& dt = join_block.get_def_timeline (var);
 
-    // Note: In the case of loops we may be appending to an def-timeline which already exists.
+    // Note: In the case of loops we may be appending to a def-timeline which already exists.
 
     std::for_each (incoming.begin (), incoming.end (), [&dt](const ir_def_resolution& r) {
       dt.append_incoming (r.get_leaf_block (), r.maybe_get_timeline ());
@@ -390,7 +393,7 @@ namespace gch
     {
       if (const auto& res = block_res->maybe_get_resolution ())
         return { { block_res->get_block (), *res } };
-      return { { block_res->get_block (), { } } };
+      return { { block_res->get_block (), dt } };
     }
 
     while (! m_stack.empty ())
@@ -400,8 +403,9 @@ namespace gch
     }
 
     small_vector<ir_def_resolution> ret;
-    std::for_each (m_leaves.begin (), m_leaves.end (),
-                   [&](auto& leaf_stack) { ret.append (leaf_stack.resolve_with (dt)); });
+    std::for_each (m_leaves.begin (), m_leaves.end (), [&](auto& leaf_stack) {
+      ret.append (leaf_stack.resolve_with (dt));
+    });
 
     return ret;
   }

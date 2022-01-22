@@ -1,4 +1,4 @@
-/** llvm-value-map.hpp.h
+/** llvm-value-map.hpp
  * Copyright © 2021 Gene Harvey
  *
  * This software may be modified and distributed under the terms
@@ -10,8 +10,6 @@
 
 #include "llvm-common.hpp"
 #include "llvm-type.hpp"
-
-#include "ir-static-def.hpp"
 #include "ir-type-util.hpp"
 
 #include <gch/nonnull_ptr.hpp>
@@ -19,28 +17,45 @@
 
 GCH_DISABLE_WARNINGS_MSVC
 
-#include <llvm/IR/Instructions.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/NoFolder.h>
 #include <llvm/ExecutionEngine/Orc/ThreadSafeModule.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/NoFolder.h>
 
 GCH_ENABLE_WARNINGS_MSVC
 
+#include <string_view>
 #include <unordered_map>
+#include <utility>
+#include <vector>
+
+namespace llvm
+{
+
+  class AllocaInst;
+  class BasicBlock;
+  class ConstantInt;
+  class Function;
+  class LLVMContext;
+  class NoFolder;
+  class Type;
+  class Value;
+
+}
 
 namespace gch
 {
 
   using llvm_ir_builder_type = llvm::IRBuilder<llvm::NoFolder>;
 
-  class ir_constant;
-  class ir_static_block_id;
   class ir_static_block;
+  class ir_static_block_id;
   class ir_static_def;
   class ir_static_def_id;
   class ir_static_function;
   class ir_static_operand;
   class ir_static_use;
+  class ir_static_variable;
 
   class llvm_def_map
   {
@@ -68,7 +83,6 @@ namespace gch
   {
   public:
     using llvm_module_type = llvm::orc::ThreadSafeModule;
-    using type_map_type    = ir_type_map<llvm::Type *>;
 
     llvm_module_interface (llvm_module_type& llvm_module);
 
@@ -87,7 +101,13 @@ namespace gch
     template <bool B>
     [[nodiscard]]
     llvm::ConstantInt&
-    get_bool_constant (void);
+    get_bool_constant (void)
+    {
+      if constexpr (B)
+        return *m_true_value;
+      else
+        return *m_false_value;
+    }
 
     [[nodiscard]]
     llvm::ConstantInt&
@@ -159,7 +179,7 @@ namespace gch
     };
 
     nonnull_ptr<llvm_module_type>  m_llvm_module;
-    type_map_type                  m_type_map;
+    ir_type_map<llvm::Type *>      m_type_map;
     nonnull_ptr<llvm::ConstantInt> m_true_value;
     nonnull_ptr<llvm::ConstantInt> m_false_value;
   };

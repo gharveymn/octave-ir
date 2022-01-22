@@ -10,69 +10,78 @@
 
 #include "ir-common.hpp"
 #include "ir-functional.hpp"
+#include "ir-type-traits.hpp"
 #include "ir-utility.hpp"
 
 #include <array>
+#include <cstddef>
+#include <type_traits>
+#include <utility>
 
 namespace gch
 {
 
   enum class ir_opcode : unsigned
   {
-    phi       ,
-    assign    ,
-    call      ,
-    fetch     ,
-    convert   ,
+    phi        ,
+    assign     ,
+    call       ,
+    fetch      ,
+    convert    ,
 
-    branch    , // abstract
-    cbranch   ,
-    ucbranch  ,
+    branch     , // abstract
+    cbranch    ,
+    ucbranch   ,
 
-    relation  , // abstract
-    eq        ,
-    ne        ,
-    lt        ,
-    le        ,
-    gt        ,
-    ge        ,
+    relation   , // abstract
+    eq         ,
+    ne         ,
+    lt         ,
+    le         ,
+    gt         ,
+    ge         ,
 
-    arithmetic, // abstract
-    add       ,
-    sub       ,
-    mul       ,
-    div       ,
-    mod       ,
-    rem       ,
-    neg       ,
+    arithmetic , // abstract
+    add        ,
+    sub        ,
+    mul        ,
+    div        ,
+    mod        ,
+    rem        ,
+    neg        ,
 
-    logical   , // abstract
-    land      ,
-    lor       ,
-    lnot      ,
+    logical    , // abstract
+    land       ,
+    lor        ,
+    lnot       ,
 
-    bitwise   , // abstract
-    band      ,
-    bor       ,
-    bxor      ,
-    bshiftl   ,
-    bashiftr  ,
-    blshiftr  ,
-    bnot      ,
+    bitwise    , // abstract
+    band       ,
+    bor        ,
+    bxor       ,
+    bshiftl    ,
+    bashiftr   ,
+    blshiftr   ,
+    bnot       ,
 
-    ret       ,
-    terminate ,
+    terminal   , // abstract
+    unreachable,
+    terminate  ,
+    ret        ,
   };
 
   inline constexpr
   std::size_t
-  num_ir_opcodes = static_cast<std::underlying_type_t<ir_opcode>> (ir_opcode::terminate) + 1;
+  num_ir_opcodes = static_cast<std::underlying_type_t<ir_opcode>> (ir_opcode::ret) + 1;
 
-  static_assert (num_ir_opcodes == 37);
+  static_assert (num_ir_opcodes == 39);
 
   class ir_metadata
   {
   public:
+
+    using opcode_indices = std::make_index_sequence<num_ir_opcodes>;
+    using opcode_pack    = wrap_integer_sequence_t<opcode_indices, ir_opcode>;
 
     struct flag
     {
@@ -250,8 +259,10 @@ namespace gch
       return ir_metadata { instance<Op>::data };
     }
 
-    using opcode_indices = std::make_index_sequence<num_ir_opcodes>;
-    using opcode_pack    = wrap_integer_sequence_t<opcode_indices, ir_opcode>;
+    [[nodiscard]]
+    static GCH_CPP20_CONSTEVAL
+    ir_metadata
+    get (ir_opcode op) noexcept;
 
     [[nodiscard]] GCH_CPP20_CONSTEVAL
     std::underlying_type_t<ir_opcode>
@@ -579,15 +590,25 @@ namespace gch
   };
 
   template <>
-  struct ir_metadata::instance<ir_opcode::ret>
+  struct ir_metadata::instance<ir_opcode::terminal>
   {
     static constexpr
     impl
-    data = create_type ("return",
-                        ir_opcode::        ret,
+    data = create_type ("terminate",
+                        ir_opcode::        terminal,
                         flag::has_def::    no,
-                        flag::arity::      unary,
-                        flag::is_abstract::no);
+                        flag::arity::      n_ary,
+                        flag::is_abstract::yes);
+  };
+
+  template <>
+  struct ir_metadata::instance<ir_opcode::unreachable>
+  {
+    static constexpr
+    impl
+    data = get<ir_opcode::terminal> ().derive ("unreachable",
+                                               ir_opcode::  unreachable,
+                                               flag::arity::nullary);
   };
 
   template <>
@@ -595,11 +616,19 @@ namespace gch
   {
     static constexpr
     impl
-    data = create_type ("terminate",
-                        ir_opcode::        terminate,
-                        flag::has_def::    no,
-                        flag::arity::      nullary,
-                        flag::is_abstract::no);
+    data = get<ir_opcode::terminal> ().derive ("terminate",
+                                               ir_opcode::  terminate,
+                                               flag::arity::nullary);
+  };
+
+  template <>
+  struct ir_metadata::instance<ir_opcode::ret>
+  {
+    static constexpr
+    impl
+    data = get<ir_opcode::terminal> ().derive ("return",
+                                               ir_opcode::  ret,
+                                               flag::arity::unary);
   };
 
   /* branch */
@@ -861,12 +890,13 @@ namespace gch
   ir_metadata
   ir_metadata_v = ir_metadata::get<Op> ();
 
-  constexpr
+  GCH_CPP20_CONSTEVAL
   ir_metadata
-  get_metadata (ir_opcode op)
+  ir_metadata::
+  get (ir_opcode op) noexcept
   {
-    constexpr auto values = ir_metadata::generate_map ();
-    return values[op];
+    constexpr auto map = generate_map ();
+    return map[op];
   }
 
   template <ir_opcode Op>
@@ -883,8 +913,6 @@ namespace gch
   inline constexpr
   bool
   is_comparison_op_v = is_comparison_op<Op>::value;
-
-  static_assert (ir_metadata_v<ir_opcode::ge> == get_metadata (ir_opcode::ge));
 
   template <ir_opcode Op>
   struct ir_instruction_traits
@@ -933,8 +961,6 @@ namespace gch
     bool
     is_valid_num_args = is_n_ary || (static_cast<std::size_t> (arity) == N);
   };
-
-  static_assert (ir_instruction_traits<ir_opcode::band>::is_a<ir_opcode::bitwise>);
 
 }
 

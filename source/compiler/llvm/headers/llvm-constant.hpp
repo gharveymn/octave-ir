@@ -11,19 +11,41 @@
 #include "llvm-common.hpp"
 #include "llvm-value-map.hpp"
 
+#include "ir-common.hpp"
 #include "ir-constant.hpp"
 #include "ir-type-util.hpp"
 
 GCH_DISABLE_WARNINGS_MSVC
 
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/StringRef.h>
+#include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/GlobalValue.h>
+#include <llvm/IR/GlobalVariable.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Type.h>
+#include <llvm/Support/Alignment.h>
 
 GCH_ENABLE_WARNINGS_MSVC
 
+#include <complex>
+#include <cstdint>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
+
+namespace llvm
+{
+
+  class LLVMContext;
+  class Value;
+
+}
 
 namespace gch
 {
+
   template <typename T, std::enable_if_t<std::is_object_v<T>> * = nullptr>
   llvm::Value&
   get_constant (llvm_module_interface& module, const T& val)
@@ -48,19 +70,19 @@ namespace gch
       llvm::ArrayRef<uint32_t> a (reinterpret_cast<const uint32_t (&)[2]> (val));
       return *llvm::ConstantDataArray::getFP (&type, a);
     }
-    else if constexpr (std::is_convertible_v<const char *, T>)
+    else if constexpr (std::is_constructible_v<llvm::StringRef, T>)
     {
-      return *module.invoke_with_module ([&](llvm::Module& m) {
-        llvm::LLVMContext& ctx = m.getContext ();
-        llvm::Constant *c = llvm::ConstantDataArray::getString (ctx, val);
+      return *module.invoke_with_module ([&](llvm::Module& mod) {
+        llvm::LLVMContext& ctx = mod.getContext ();
+        llvm::Constant *c = llvm::ConstantDataArray::getString (ctx, llvm::StringRef (val));
         auto *global_var = new llvm::GlobalVariable (
-          m,
+          mod,
           c->getType (),
           true,
           llvm::GlobalValue::PrivateLinkage,
           c);
         global_var->setUnnamedAddr (llvm::GlobalValue::UnnamedAddr::Global);
-        global_var->setAlignment(llvm::Align(1));
+        global_var->setAlignment (llvm::Align (1));
 
         llvm::Constant *zero = llvm::ConstantInt::get (llvm::Type::getInt32Ty (ctx), 0);
         llvm::ArrayRef<llvm::Constant *> indices { zero, zero };

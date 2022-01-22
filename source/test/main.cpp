@@ -162,7 +162,7 @@ static
 void
 test_if (void)
 {
-  ir_function my_func;
+  ir_function my_func ("y", { }, "myfunc");
   ir_variable& var_x = my_func.get_variable ("x");
   var_x.set_type<int> ();
 

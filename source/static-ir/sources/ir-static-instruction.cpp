@@ -15,7 +15,7 @@
 namespace gch
 {
   ir_static_instruction::
-  ir_static_instruction (metadata_t m, ir_static_def def, args_container_type&& args)
+  ir_static_instruction (ir_metadata m, ir_static_def def, args_container_type&& args)
     : m_metadata (m),
       m_def (def),
       m_args (std::move (args))
@@ -24,7 +24,7 @@ namespace gch
   }
 
   ir_static_instruction::
-  ir_static_instruction (metadata_t m, args_container_type&& args)
+  ir_static_instruction (ir_metadata m, args_container_type&& args)
     : m_metadata (m),
       m_args (std::move (args))
   {
@@ -32,7 +32,7 @@ namespace gch
   }
 
   ir_static_instruction::
-  ir_static_instruction (metadata_t m)
+  ir_static_instruction (ir_metadata m)
     : ir_static_instruction (m, { })
   { }
 
@@ -122,10 +122,9 @@ namespace gch
     return m_args[n];
   }
 
-  auto
+  ir_metadata
   ir_static_instruction::
   get_metadata (void) const noexcept
-  -> metadata_t
   {
     return m_metadata;
   }
@@ -233,7 +232,7 @@ namespace gch
       if (instr.has_args ())
       {
         out << instr[1]
-            << " : bl"
+            << " : Block"
             << instr[0];
 
         for (auto it = std::next (instr.begin (), 2); it != instr.end (); ++it)
@@ -241,7 +240,7 @@ namespace gch
           auto block_it = it++;
           out << " | "
               << *it
-              << " : bl"
+              << " : Block"
               << *block_it;
         }
       }

@@ -23,6 +23,9 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       -Wno-zero-as-null-pointer-constant
       -Wno-used-but-marked-unused
       -Wno-exit-time-destructors
+      -Wno-documentation
+      -Wno-weak-vtables
+      -Wno-weak-template-vtables
   )
 
   target_link_options (

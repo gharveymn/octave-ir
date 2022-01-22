@@ -677,7 +677,7 @@ namespace gch
     ir_incoming_node&
     append_incoming (ir_block& incoming_block, Args&&... args)
     {
-      // if we don't have any incoming yet we need to start up the use-timeline
+      // If we don't have any incoming yet, we need to start up the use-timeline.
       if (! has_incoming_timeline ())
         create_incoming_timeline ();
 

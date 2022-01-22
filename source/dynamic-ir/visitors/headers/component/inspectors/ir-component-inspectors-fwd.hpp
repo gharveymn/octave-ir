@@ -34,6 +34,22 @@ namespace gch
   class ir_link_set;
 
   template <>
+  struct visitor_traits<ir_abstract_component_inspector>
+    : acceptor_trait<ir_abstract_component_inspector>
+  {
+    using result_type      = void;
+    using visitor_category = inspector_tag;
+  };
+
+  template <>
+  struct visitor_traits<ir_block_counter>
+    : acceptor_trait<ir_block_counter>
+  {
+    using result_type      = std::size_t;
+    using visitor_category = const_inspector_tag;
+  };
+
+  template <>
   struct visitor_traits<ir_leaf_collector>
     : acceptor_trait<ir_leaf_collector>
   {
@@ -47,22 +63,6 @@ namespace gch
   {
     using result_type      = ir_link_set<const ir_block>;
     using visitor_category = const_inspector_tag;
-  };
-
-  template <>
-  struct visitor_traits<ir_block_counter>
-    : acceptor_trait<ir_block_counter>
-  {
-    using result_type      = std::size_t;
-    using visitor_category = const_inspector_tag;
-  };
-
-  template <>
-  struct visitor_traits<ir_abstract_component_inspector>
-    : acceptor_trait<ir_abstract_component_inspector>
-  {
-    using result_type      = void;
-    using visitor_category = inspector_tag;
   };
 
 }
