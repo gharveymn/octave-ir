@@ -533,7 +533,7 @@ namespace gch
   {
     auto stack { ir_ascending_def_resolution_builder { block, var } ().release_stack () };
 
-    assert (! stack.has_leaves ());
+    // assert (! stack.has_leaves ());
     stack.add_leaf (block);
 
     return stack;
@@ -655,11 +655,14 @@ namespace gch
   {
     assert (! dt.has_incoming_timeline ());
 
-    ir_def_resolution_stack res {
+    ir_def_resolution_stack stack {
       build_def_resolution_stack (dt.get_block (), dt.get_variable ())
     };
 
-    resolve_with (res, { });
+    small_vector<ir_def_resolution> res = resolve_with (stack, { });
+    
+    // FIXME: Results in self reference.
+    join_at (dt.get_block (), dt.get_variable (), res);
 
     // If no incoming timeline was found, we will generate an orphaned use-timeline.
     if (! dt.has_incoming_timeline ())

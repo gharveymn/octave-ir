@@ -97,17 +97,11 @@ namespace gch
   {
     if (optional_ref dt { block.maybe_get_def_timeline (get_variable ()) })
     {
-
       if (dt->has_outgoing_timeline ())
       {
         return { { get_variable (), block, { nonnull_ptr { *dt } } },
                  result_type::join::yes,
                  result_type::resolvable::yes };
-      }
-      else
-      {
-        // FIXME: This shouldn't occur here, but I can't find a more convenient place for it.
-        const_cast<ir_block&> (block).remove_def_timeline (get_variable ());
       }
     }
 

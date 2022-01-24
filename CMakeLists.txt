@@ -43,6 +43,14 @@ cmake_dependent_option (
   ON
 )
 
+cmake_dependent_option (
+  GCH_OCTAVE_IR_ENABLE_ASAN
+  "Set to ON to build with address sanitizer."
+  OFF
+  "CMAKE_SYSTEM_NAME MATCHES Linux"
+  OFF
+)
+
 find_package (Git REQUIRED)
 execute_process (
   COMMAND

@@ -67,9 +67,9 @@ macro (add_test_executable target_name)
     )
   endif ()
 
-  if (UNIX)
-    target_compile_options (${target_name} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
-    target_link_options (${target_name} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
+  if (GCH_OCTAVE_IR_ENABLE_ASAN)
+    target_compile_options (${target_name} PRIVATE -fsanitize=address)
+    target_link_options (${target_name} PRIVATE -fsanitize=address)
   endif ()
 endmacro ()
 

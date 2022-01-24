@@ -129,7 +129,7 @@ namespace gch
     auto
     get_data_view (void) const noexcept
     {
-      return m_instr_partition.data_view ();
+      return m_instr_partition.get_data_view ();
     }
 
     template <range R>

@@ -77,10 +77,17 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   )
 endif ()
 
-if (UNIX)
-  target_compile_options (octave-ir.common INTERFACE $<$<CONFIG:Debug>:-fsanitize=address>)
-  target_link_options (octave-ir.common INTERFACE $<$<CONFIG:Debug>:-fsanitize=address>)
+if (GCH_OCTAVE_IR_ENABLE_ASAN)
+  target_compile_options (octave-ir.common INTERFACE -fsanitize=address)
+  target_link_options (octave-ir.common INTERFACE -fsanitize=address)
 endif ()
+
+set_target_properties (
+  octave-ir.common
+  PROPERTIES
+  INTERFACE_POSITION_INDEPENDENT_CODE
+    ON
+)
 
 include (CheckLinkerFlag)
 check_linker_flag (CXX -fuse-ld=lld HAVE_lld_LINK_OPTION)

@@ -61,7 +61,7 @@ namespace gch
   bool
   operator== (const ir_def_reference& lhs, const ir_def_reference& rhs)
   {
-    assert (&*lhs != &*rhs || lhs.is_indeterminate () == rhs.is_indeterminate ());
+    // assert (&*lhs != &*rhs || lhs.is_indeterminate () == rhs.is_indeterminate ());
     return &*lhs == &*rhs;
   }
 

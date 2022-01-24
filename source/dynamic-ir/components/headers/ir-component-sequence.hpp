@@ -307,7 +307,14 @@ namespace gch
         emplace_back (std::forward<Args> (args)...);
         return last ();
       }
-      return m_body.emplace (pos, allocate_subcomponent<Component> (std::forward<Args> (args)...));
+
+      iter ret = m_body.emplace (
+        pos,
+        allocate_subcomponent<Component> (std::forward<Args> (args)...));
+
+      m_find_cache.emplace (make_handle (ret));
+
+      return ret;
     }
 
     template <typename Component, typename ...Args,
@@ -317,6 +324,7 @@ namespace gch
     {
       m_body.push_back (allocate_subcomponent<Component> (std::forward<Args> (args)...));
       invalidate_leaf_cache ();
+      m_find_cache.emplace (make_handle (std::prev (end ())));
       return back<Component> ();
     }
 

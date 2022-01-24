@@ -251,7 +251,7 @@ namespace gch
 
     ir_def_resolution_stack stack { ascent_res.release_stack () };
 
-    assert (! stack.has_leaves ());
+    // assert (! stack.has_leaves ());
     stack.add_leaf (sub_result.release_stack ());
 
     return { std::move (stack),
