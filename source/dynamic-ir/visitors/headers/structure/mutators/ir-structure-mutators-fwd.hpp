@@ -14,7 +14,6 @@ namespace gch
 {
 
   class ir_structure_flattener;
-  class ir_ascending_def_resolution_builder;
   class ir_ascending_forward_mutator;
   class ir_ascending_def_propagator;
 
@@ -22,7 +21,6 @@ namespace gch
   struct exclusive_mutators<ir_structure>
   {
     using type = visitor_types<ir_ascending_def_propagator,
-                               ir_ascending_def_resolution_builder,
                                ir_ascending_forward_mutator,
                                ir_structure_flattener>;
   };
@@ -34,14 +32,6 @@ namespace gch
     : acceptor_trait<ir_ascending_def_propagator>
   {
     using result_type      = void;
-    using visitor_category = const_mutator_tag;
-  };
-
-  template <>
-  struct visitor_traits<ir_ascending_def_resolution_builder>
-    : acceptor_trait<ir_ascending_def_resolution_builder>
-  {
-    using result_type      = ir_def_resolution_build_result;
     using visitor_category = const_mutator_tag;
   };
 

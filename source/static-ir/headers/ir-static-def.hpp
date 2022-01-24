@@ -1,4 +1,4 @@
-/** ir-static-def.hpp.h
+/** ir-static-def.hpp
  * Copyright © 2021 Gene Harvey
  *
  * This software may be modified and distributed under the terms
@@ -8,46 +8,12 @@
 #ifndef OCTAVE_IR_STATIC_IR_IR_STATIC_DEF_HPP
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_DEF_HPP
 
-#include "ir-type.hpp"
-
-#include "ir-common.hpp"
-#include "ir-utility.hpp"
-
-#include <gch/nonnull_ptr.hpp>
+#include "ir-static-id.hpp"
 
 #include <iosfwd>
-#include <string_view>
-#include <string>
 
 namespace gch
 {
-
-  class ir_static_variable;
-
-  class ir_static_def_id
-    : public named_type<std::size_t>
-  {
-  public:
-    using named_type<std::size_t>::named_type;
-
-    ir_static_def_id&
-    operator++ (void) noexcept
-    {
-      return *this = ir_static_def_id { static_cast<value_type> (*this) + 1 };
-    }
-
-    ir_static_def_id
-    operator++ (int) noexcept
-    {
-      ir_static_def_id ret { *this };
-      ++(*this);
-      return ret;
-    }
-  };
-
-  inline constexpr
-  ir_static_def_id
-  ir_undefined_def_id { static_cast<std::size_t> (-1) };
 
   class ir_static_def
   {
@@ -59,40 +25,46 @@ namespace gch
     ir_static_def& operator= (ir_static_def&&) noexcept = default;
     ~ir_static_def           (void)                     = default;
 
-    ir_static_def (const ir_static_variable& var, ir_static_def_id id);
+    constexpr
+    ir_static_def (ir_static_variable_id var_id, ir_static_def_id id)
+      : m_var_id (var_id),
+        m_id     (id)
+    { }
 
     [[nodiscard]]
-    const ir_static_variable&
-    get_variable (void) const noexcept;
+    constexpr
+    ir_static_variable_id
+    get_variable_id (void) const noexcept
+    {
+      return m_var_id;
+    }
 
     [[nodiscard]]
+    constexpr
     ir_static_def_id
-    get_id (void) const noexcept;
-
-    [[nodiscard]]
-    std::string_view
-    get_variable_name (void) const noexcept;
-
-    [[nodiscard]]
-    ir_type
-    get_type (void) const noexcept;
+    get_id (void) const noexcept
+    {
+      return m_id;
+    }
 
   private:
-    nonnull_cptr<ir_static_variable> m_variable;
-    ir_static_def_id                 m_id;
+    ir_static_variable_id m_var_id;
+    ir_static_def_id      m_id;
   };
 
-  std::string
-  get_name (const ir_static_def& def);
-
+  constexpr
   bool
-  operator== (const ir_static_def& lhs, const ir_static_def& rhs) noexcept;
+  operator== (const ir_static_def& lhs, const ir_static_def& rhs) noexcept
+  {
+    return (lhs.get_variable_id () == rhs.get_variable_id ()) && (lhs.get_id () == rhs.get_id ());
+  }
 
+  constexpr
   bool
-  operator!= (const ir_static_def& lhs, const ir_static_def& rhs) noexcept;
-
-  std::ostream&
-  operator<< (std::ostream& out, const ir_static_def& def);
+  operator!= (const ir_static_def& lhs, const ir_static_def& rhs) noexcept
+  {
+    return ! (lhs == rhs);
+  }
 
 }
 

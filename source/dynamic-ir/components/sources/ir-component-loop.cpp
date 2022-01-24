@@ -15,12 +15,12 @@ namespace gch
 {
 
   ir_component_loop::
-  ir_component_loop (ir_structure& parent)
+  ir_component_loop (ir_structure& parent, ir_variable& condition_var)
     : ir_substructure (parent),
-      m_start  { allocate_subcomponent<ir_block> () },
-      m_condition (*this),
-      m_body   { allocate_subcomponent<ir_component_sequence> (ir_subcomponent_type<ir_block>) },
-      m_update { allocate_subcomponent<ir_block> () }
+      m_start     { allocate_subcomponent<ir_block> () },
+      m_condition (*this, condition_var),
+      m_body      { allocate_subcomponent<ir_component_sequence> (ir_subcomponent_type<ir_block>) },
+      m_update    { allocate_subcomponent<ir_block> () }
   { }
 
   ir_component_loop::

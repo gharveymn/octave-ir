@@ -21,6 +21,8 @@
 #include "ir-static-use.hpp"
 #include "ir-static-variable.hpp"
 
+#include "ir-def-resolution.hpp"
+
 #include "structure/inspectors/utility/ir-subcomponent-inspector.hpp"
 #include "structure/inspectors/ir-abstract-structure-inspector.hpp"
 
@@ -36,6 +38,24 @@
 
 namespace gch
 {
+
+  template <typename Container>
+  static
+  void
+  append_determined_uninit_terminator (Container& container, const ir_static_variable& var)
+  {
+    std::string err;
+    err.append ("The variable `")
+       .append (var.get_name ())
+       .append ("` was uninitialized at this time.");
+
+    container.template emplace_back<ir_opcode::call> (
+      ir_constant ("print_error"),
+      ir_constant (std::move (err))
+    );
+
+    container.template emplace_back<ir_opcode::unreachable> ();
+  }
 
   static
   bool
@@ -141,44 +161,6 @@ namespace gch
                                          instrs_rfirst);
   }
 
-  class determinator
-  {
-  public:
-    determinator            (void)                    = delete;
-    determinator            (const determinator&)     = delete;
-    determinator            (determinator&&) noexcept = delete;
-    determinator& operator= (const determinator&)     = delete;
-    determinator& operator= (determinator&&) noexcept = delete;
-    ~determinator           (void)                    = default;
-
-    determinator (const ir_variable& var)
-      : m_variable (var),
-        m_curr_id  ()
-    { }
-
-    const ir_variable&
-    get_variable (void) const noexcept
-    {
-      return *m_variable;
-    }
-
-    ir_static_def_id
-    create_id (void) noexcept
-    {
-      return m_curr_id++;
-    }
-
-    std::size_t
-    get_count (void) const noexcept
-    {
-      return m_curr_id;
-    }
-
-  private:
-    nonnull_cptr<ir_variable> m_variable;
-    ir_static_def_id          m_curr_id;
-  };
-
   class determinator_propagator final
     : public ir_abstract_component_inspector
   {
@@ -195,11 +177,15 @@ namespace gch
       bool                        stopped;
     };
 
-    determinator_propagator (ir_dynamic_block_manager& block_manager, const ir_variable& var,
-                             determinator& det, ir_static_def_id dominator)
+    determinator_propagator (ir_dynamic_block_manager& block_manager,
+                             const ir_variable& var,
+                             ir_static_variable& det_var,
+                             ir_static_variable_id det_var_id,
+                             ir_static_def_id dominator)
       : m_block_manager (block_manager),
         m_variable      (var),
-        m_determinator  (det),
+        m_det_var       (det_var),
+        m_det_var_id    (det_var_id),
         m_dominator     (dominator),
         m_result        { { }, false }
     { }
@@ -222,11 +208,16 @@ namespace gch
           ir_instruction_citer instr_pos = std::next (dt->local_front ().get_def_pos ());
           ir_instruction_citer first     = block.begin<ir_block::range::body> ();
 
-          auto                 pos       = find_first_injection_after (*instr_pos, desc, first);
-          const ir_variable&   var       = m_determinator.get_variable ();
-          ir_static_def_id     det_id    = m_determinator.create_id ();
+          auto pos = find_first_injection_after (*instr_pos, desc, first);
+          ir_static_def_id det_id = m_det_var.create_id ();
 
-          desc.emplace_assign_injection (pos, instr_pos, var, det_id, true);
+          desc.emplace_injection (
+            pos,
+            instr_pos,
+            ir_static_instruction::create<ir_opcode::assign> (
+              { m_det_var_id, det_id },
+              ir_static_operand { 1 }
+            ));
 
           m_dominator      = det_id;
           m_result.stopped = true;
@@ -331,7 +322,13 @@ namespace gch
     result_type
     dispatch_with (const ir_subcomponent& c, ir_static_def_id dominator)
     {
-      return determinator_propagator { m_block_manager, m_variable, m_determinator, dominator } (c);
+      return determinator_propagator {
+        m_block_manager,
+        m_variable,
+        m_det_var,
+        m_det_var_id,
+        dominator
+      } (c);
     }
 
     result_type
@@ -358,16 +355,23 @@ namespace gch
     ir_static_def_id
     create_phi (const ir_block& block, const small_vector<incoming_pair>& pairs)
     {
-      ir_block_descriptor& descriptor = m_block_manager[block];
+      ir_block_descriptor& desc = m_block_manager[block];
 
-      small_vector<ir_static_incoming_pair> static_pairs;
-      std::transform (pairs.begin (), pairs.end (), std::back_inserter (static_pairs),
-                      [&](incoming_pair p) -> ir_static_incoming_pair {
-        return { m_block_manager[*p.block].get_id (), p.def_id };
+      small_vector<ir_static_operand, 2> phi_args;
+      std::for_each (pairs.begin (), pairs.end (), [&](incoming_pair p){
+        phi_args.emplace_back (std::in_place_type<ir_static_block_id::value_type>,
+                               m_block_manager[*p.block].get_id ());
+        phi_args.emplace_back (m_det_var_id, p.def_id);
       });
 
-      ir_static_def_id phi_id { m_determinator.create_id () };
-      descriptor.add_phi_node (m_determinator.get_variable (), phi_id, std::move (static_pairs));
+      ir_static_def_id phi_id { m_det_var.create_id () };
+      desc.emplace_front_injection (
+        block.end<ir_block::range::phi> (),
+        ir_static_instruction::create<ir_opcode::phi> (
+          { m_det_var_id, phi_id },
+          std::move (phi_args)
+        ));
+
       return phi_id;
     }
 
@@ -379,8 +383,7 @@ namespace gch
       {
         small_vector<incoming_pair> pairs;
         std::transform (s->leaves_begin (), s->leaves_end (), std::back_inserter (pairs),
-                        [dom](nonnull_cptr<ir_block> block) -> incoming_pair
-                        {
+                        [dom](nonnull_cptr<ir_block> block) -> incoming_pair {
                           return { block, dom };
                         });
         return pairs;
@@ -393,7 +396,8 @@ namespace gch
 
     ir_dynamic_block_manager& m_block_manager;
     const ir_variable&        m_variable;
-    determinator&             m_determinator;
+    ir_static_variable&       m_det_var;
+    ir_static_variable_id     m_det_var_id;
     ir_static_def_id          m_dominator;
     result_type               m_result;
   };
@@ -401,10 +405,7 @@ namespace gch
   class determinator_manager
   {
   public:
-    using key_type    = nonnull_cptr<ir_variable>;
-    using mapped_type = determinator;
-
-    using map_type        = std::unordered_map<key_type, mapped_type>;
+    using map_type        = std::unordered_map<nonnull_cptr<ir_variable>, ir_static_variable_id>;
     using value_type      = map_type::value_type;
     using allocator_type  = map_type::allocator_type;
     using size_type       = map_type::size_type;
@@ -442,79 +443,33 @@ namespace gch
         m_block_manager    (block_manager)
     { }
 
-    determinator&
-    register_var (const ir_variable& var)
+    ir_static_variable&
+    get_determinator (const ir_variable& var, ir_static_variable_map& var_map)
     {
       nonnull_ptr var_ptr { var };
-      if (auto found = m_determinator_map.find (var_ptr) ; found != m_determinator_map.end ())
-        return found->second;
-
-      auto [it, inserted] = m_determinator_map.try_emplace (
-        var_ptr,
-        m_block_manager.create_temp_variable (m_super_component, create_name (var),ir_type_v<bool>));
-      assert (inserted);
-
-      return propagate (it->second, var);
-    }
-
-    [[nodiscard]]
-    iter
-    begin (void) noexcept
-    {
-      return m_determinator_map.begin ();
-    }
-
-    [[nodiscard]]
-    citer
-    begin (void) const noexcept
-    {
-      return as_mutable (*this).begin ();
-    }
-
-    [[nodiscard]]
-    citer
-    cbegin (void) const noexcept
-    {
-      return begin ();
-    }
-
-    [[nodiscard]]
-    iter
-    end (void) noexcept
-    {
-      return m_determinator_map.end ();
-    }
-
-    [[nodiscard]]
-    citer
-    end (void) const noexcept
-    {
-      return as_mutable (*this).end ();
-    }
-
-    [[nodiscard]]
-    citer
-    cend (void) const noexcept
-    {
-      return end ();
-    }
-
-    [[nodiscard]]
-    size_ty
-    num_determinators (void) const noexcept
-    {
-      return m_determinator_map.size ();
+      if (auto found = m_det_map.find (nonnull_ptr { var }) ; found != m_det_map.end ())
+        return var_map[found->second];
+      auto [det, id] = var_map.add_orphaned_static_variable (create_name (var), ir_type_v<bool>);
+      m_det_map.try_emplace (nonnull_ptr { var }, id);
+      return propagate (var, *det, id);
     }
 
   private:
-    determinator&
-    propagate (determinator& det, const ir_variable& var)
+    ir_static_variable&
+    propagate (const ir_variable& var, ir_static_variable& det, ir_static_variable_id det_var_id)
     {
       const ir_block&  entry = get_entry_block (m_super_component);
-      ir_static_def_id dom   = det.create_id ();
+      ir_static_def_id dom_id   = det.create_id ();
 
-      m_entry_block_desc.prepend_assign_injection (entry, det.get_variable (), dom, false);
-      determinator_propagator { m_block_manager, var, det, dom } (m_super_component);
+      m_entry_block_desc.emplace_front_injection (
+        entry.begin<ir_block::range::body> (),
+        ir_static_instruction::create<ir_opcode::assign> (
+          { det_var_id, dom_id },
+          ir_static_operand { false }
+        ));
+
+      determinator_propagator { m_block_manager, var, det, det_var_id, dom_id } (m_super_component);
+
       return det;
     }
 
@@ -528,53 +483,61 @@ namespace gch
     const ir_component&       m_super_component;
     ir_block_descriptor&      m_entry_block_desc;
     ir_dynamic_block_manager& m_block_manager;
-    map_type                  m_determinator_map;
+    map_type                  m_det_map;
   };
 
+  template <typename It>
   [[nodiscard]]
   static
   std::optional<ir_static_def_id>
-  find_determinator_phi_def (const determinator& det, const ir_block_descriptor& desc)
+  find_determinator_phi_def (It first, const It last, ir_static_variable_id det_id)
   {
-    return desc.maybe_get_phi (det.get_variable ()) >>= maybe { &ir_resolved_phi_node::get_id };
+    for (; first != last; ++first)
+    {
+      const ir_injection& inj = *first;
+      if (1 != inj.size ())
+        continue;
+
+      const ir_static_instruction& instr = inj.front ();
+      if (! is_a<ir_opcode::phi> (instr) || ! instr.has_def ())
+        continue;
+
+      const ir_static_def& def = instr.get_def ();
+      if (det_id == def.get_variable_id ())
+        return def.get_id ();
+    }
+
+    return std::nullopt;
   }
 
   [[nodiscard]]
   static
   std::optional<ir_static_def_id>
-  find_determinator_def_in_block_before (const determinator& det, const ir_block_descriptor& desc,
-                                         const ir_block& block, const ir_instruction& instr)
+  find_determinator_phi_def (ir_static_variable_id det_id, const ir_block_descriptor& desc)
   {
-    // find in local defs
+    return find_determinator_phi_def (desc.injections_begin (), desc.injections_end (), det_id);
+  }
+
+  [[nodiscard]]
+  static
+  std::optional<ir_static_def_id>
+  find_determinator_def_in_block_before (ir_static_variable_id det_id,
+                                         const ir_block_descriptor& desc,
+                                         const ir_block& block,
+                                         const ir_instruction& instr)
+  {
     auto rfirst = find_latest_injection_before (instr, desc, block.rbegin<ir_block::range::all> ());
-
-    ir_static_def_id res;
-    auto found = std::find_if (rfirst, desc.injections_rend (), [&](const auto& inj) {
-      if (optional_ref assign_inj { maybe_as_assign (inj) })
-      {
-        if (&det.get_variable () == &assign_inj->get_assign_variable ())
-        {
-          res = assign_inj->get_assign_def_id ();
-          return true;
-        }
-      }
-      return false;
-    });
-
-    if (found != desc.injections_rend ())
-      return { res };
-
-    // find in phi nodes
-    return find_determinator_phi_def (det, desc);
+    return find_determinator_phi_def (rfirst, desc.injections_rend (), det_id);
   }
 
   [[nodiscard]]
   static
   std::optional<ir_static_def_id>
-  find_determinator_def_in_block (const determinator& det, const ir_block_descriptor& desc,
+  find_determinator_def_in_block (ir_static_variable_id det_id,
+                                  const ir_block_descriptor& desc,
                                   const ir_block& block)
   {
-    return find_determinator_def_in_block_before (det, desc, block,
+    return find_determinator_def_in_block_before (det_id, desc, block,
                                                   block.back<ir_block::range::body> ());
   }
 
@@ -589,11 +552,12 @@ namespace gch
     determination_def_finder& operator= (determination_def_finder&&) noexcept = delete;
     ~determination_def_finder           (void) override                       = default;
 
-    determination_def_finder (const ir_subcomponent& sub, const determinator& det,
-                              const ir_dynamic_block_manager& bm)
+    determination_def_finder (const ir_subcomponent& sub,
+                              const ir_dynamic_block_manager& bm,
+                              ir_static_variable_id det_id)
       : m_subcomponent  (sub),
-        m_determinator  (det),
-        m_block_manager (bm)
+        m_block_manager (bm),
+        m_det_id        (det_id)
     { }
 
     ir_static_def_id
@@ -642,8 +606,7 @@ namespace gch
       assert (pos != seq.end ());
 
       if (std::none_of (std::make_reverse_iterator (pos), seq.rend (),
-                        [&](const ir_subcomponent& sub)
-                        {
+                        [&](const ir_subcomponent& sub) {
                           return check_block (get_entry_block (sub));
                         }))
       {
@@ -662,14 +625,7 @@ namespace gch
     check_block (const ir_block& b)
     {
       const ir_block_descriptor& desc = m_block_manager[b];
-      return bool (m_result = find_determinator_def_in_block (m_determinator, desc, b));
-    }
-
-    [[nodiscard]]
-    const ir_variable&
-    get_variable (void) const noexcept
-    {
-      return m_determinator.get_variable ();
+      return bool (m_result = find_determinator_def_in_block (m_det_id, desc, b));
     }
 
     [[nodiscard]]
@@ -693,21 +649,23 @@ namespace gch
     }
 
     nonnull_cptr<ir_subcomponent>   m_subcomponent;
-    const determinator&             m_determinator;
     const ir_dynamic_block_manager& m_block_manager;
+    ir_static_variable_id           m_det_id;
     std::optional<ir_static_def_id> m_result;
   };
 
   [[nodiscard]]
   static
   ir_static_def_id
-  find_determinator_def (const determinator& det, const ir_block_descriptor& descriptor,
-                         const ir_block& start, const ir_instruction& instr,
+  find_determinator_def (ir_static_variable_id det_id,
+                         const ir_block_descriptor& descriptor,
+                         const ir_block& start,
+                         const ir_instruction& instr,
                          const ir_dynamic_block_manager& block_manager)
   {
-    if (auto found { find_determinator_def_in_block_before (det, descriptor, start, instr) })
+    if (auto found { find_determinator_def_in_block_before (det_id, descriptor, start, instr) })
       return *found;
-    return determination_def_finder { start, det, block_manager } ();
+    return determination_def_finder { start, block_manager, det_id } ();
   }
 
   [[nodiscard]]
@@ -772,12 +730,130 @@ namespace gch
   ir_static_variable_map::
   ir_static_variable_map (const ir_function& func)
   {
+    auto num_variables = func.num_variables ();
+    m_variables.reserve (num_variables);
+    m_var_id_map.reserve (num_variables);
+
     std::for_each (func.variables_begin (), func.variables_end (), applied {
       [&](const std::string& name, const ir_variable& var)
       {
-        m_variable_map.try_emplace (nonnull_ptr { var }, name, var.get_type ());
+        m_var_id_map.try_emplace (nonnull_ptr { var }, m_variables.size ());
+        m_variables.emplace_back (name, var.get_type ());
       }
     });
+  }
+
+  ir_static_variable&
+  ir_static_variable_map::
+  operator[] (ir_static_variable_id var_id)
+  {
+    return m_variables[var_id];
+  }
+
+  const ir_static_variable&
+  ir_static_variable_map::
+  operator[] (ir_static_variable_id var_id) const
+  {
+    return as_mutable (*this).operator[] (var_id);
+  }
+
+  ir_static_variable&
+  ir_static_variable_map::
+  operator[] (const ir_variable& var)
+  {
+    return operator[] (get_variable_id (var));
+  }
+
+  const ir_static_variable&
+  ir_static_variable_map::
+  operator[] (const ir_variable& var) const
+  {
+    return as_mutable (*this).operator[] (var);
+  }
+
+  ir_static_def
+  ir_static_variable_map::
+  create_static_def (const ir_def& def) const
+  {
+    return { get_variable_id (def.get_variable ()), get_def_id (def) };
+  }
+
+  ir_static_use
+  ir_static_variable_map::
+  create_static_use (const ir_use& use) const
+  {
+    return { get_variable_id (use.get_variable ()), origin_id (use) };
+  }
+
+  ir_static_variable_id
+  ir_static_variable_map::
+  get_variable_id (const ir_variable& var) const
+  {
+    auto found = m_var_id_map.find (nonnull_ptr { var });
+    assert (found != m_var_id_map.end ());
+    return found->second;
+  }
+
+  ir_static_variable_id
+  ir_static_variable_map::
+  get_variable_id (const ir_static_variable& svar) const
+  {
+    auto idx = std::distance (&m_variables.front (), &svar);
+    return ir_static_variable_id { static_cast<ir_static_variable_id::value_type> (idx) };
+  }
+
+  ir_static_def_id
+  ir_static_variable_map::
+  get_def_id (const ir_def& def) const
+  {
+    auto found = m_def_id_map.find (nonnull_ptr { def });
+    assert (found != m_def_id_map.end ());
+    return found->second;
+  }
+
+  ir_static_def_id
+  ir_static_variable_map::
+  get_def_id (const ir_def_reference& dr) const
+  {
+    return get_def_id (*dr);
+  }
+
+  std::optional<ir_static_def_id>
+  ir_static_variable_map::
+  origin_id (const ir_use_timeline& ut) const
+  {
+    auto found = m_origin_map.find (nonnull_ptr { ut });
+    assert (found != m_origin_map.end ());
+    if (found->second)
+      return get_def_id (**found->second);
+    return std::nullopt;
+  }
+
+  std::optional<ir_static_def_id>
+  ir_static_variable_map::
+  origin_id (const ir_use& use) const
+  {
+    return origin_id (use.get_timeline ());
+  }
+
+  std::optional<ir_static_def_id>
+  ir_static_variable_map::
+  origin_id (optional_cref<ir_use_timeline> use) const
+  {
+    return use >>= [&](const ir_use_timeline& ut) { return origin_id (ut); };
+  }
+
+  ir_static_def_id
+  ir_static_variable_map::
+  register_def (const ir_def& d)
+  {
+    auto found = m_def_id_map.find (nonnull_ptr { d });
+    if (found == m_def_id_map.end ())
+    {
+      ir_static_def_id id { operator[] (d.get_variable ()).create_id () };
+      found = m_def_id_map.try_emplace (nonnull_ptr { d }, id).first;
+    }
+    return found->second;
   }
 
   std::optional<ir_def_reference>&
@@ -822,72 +898,20 @@ namespace gch
     return nullopt;
   }
 
-  const ir_static_variable&
+  std::vector<ir_static_variable>&&
   ir_static_variable_map::
-  operator[] (const ir_variable& var) const
+  release_variables (void) noexcept
   {
-    return m_variable_map.find (nonnull_ptr { var })->second;
+    return std::move (m_variables);
   }
 
-  ir_static_def
+  std::pair<nonnull_ptr<ir_static_variable>, ir_static_variable_id>
   ir_static_variable_map::
-  create_static_def (const ir_def& def) const
+  add_orphaned_static_variable (const std::string& name, ir_type type)
   {
-    return { operator[] (def.get_variable ()), get_def_id (def) };
-  }
-
-  ir_static_use
-  ir_static_variable_map::
-  create_static_use (const ir_use& use) const
-  {
-    return { operator[] (use.get_variable ()), origin_id (use) };
-  }
-
-  ir_static_def_id
-  ir_static_variable_map::
-  get_def_id (const ir_def& def) const
-  {
-    auto found = m_id_map.find (nonnull_ptr { def });
-    assert (found != m_id_map.end ());
-    return found->second;
-  }
-
-  ir_static_def_id
-  ir_static_variable_map::
-  get_def_id (const ir_def_reference& dr) const
-  {
-    return get_def_id (*dr);
-  }
-
-  ir_static_def_id
-  ir_static_variable_map::
-  origin_id (const ir_use_timeline& ut) const
-  {
-    auto found = m_origin_map.find (nonnull_ptr { ut });
-    assert (found != m_origin_map.end ());
-    if (found->second)
-      return get_def_id (**found->second);
-    return ir_undefined_def_id;
-  }
-
-  ir_static_def_id
-  ir_static_variable_map::
-  origin_id (const ir_use& use) const
-  {
-    return origin_id (use.get_timeline ());
-  }
-
-  ir_static_def_id
-  ir_static_variable_map::
-  register_def (const ir_def& d)
-  {
-    auto found = m_id_map.find (nonnull_ptr { d });
-    if (found == m_id_map.end ())
-    {
-      ir_static_def_id id { m_variable_map[nonnull_ptr { d.get_variable () }].create_id () };
-      found = m_id_map.try_emplace (nonnull_ptr { d }, id).first;
-    }
-    return found->second;
+    ir_static_variable_id var_id { m_variables.size () };
+    ir_static_variable& var = m_variables.emplace_back (name, type);
+    return { nonnull_ptr { var }, var_id };
   }
 
   //
@@ -895,7 +919,8 @@ namespace gch
   //
 
   ir_static_incoming_pair::
-  ir_static_incoming_pair (ir_static_block_id block_id, ir_static_def_id def_id) noexcept
+  ir_static_incoming_pair (ir_static_block_id block_id,
+                           std::optional<ir_static_def_id> def_id) noexcept
     : m_block_id (block_id),
       m_def_id   (def_id)
   { }
@@ -907,9 +932,23 @@ namespace gch
     return m_block_id;
   }
 
+  bool
+  ir_static_incoming_pair::
+  has_def_id () const noexcept
+  {
+    return m_def_id.has_value ();
+  }
+
   ir_static_def_id
   ir_static_incoming_pair::
-  get_def_id () const noexcept
+  get_def_id () const
+  {
+    return *m_def_id;
+  }
+
+  std::optional<ir_static_def_id>
+  ir_static_incoming_pair::
+  maybe_get_def_id () const noexcept
   {
     return m_def_id;
   }
@@ -951,92 +990,195 @@ namespace gch
   // ir_injection
   //
 
-  ir_injection::assign::
-  assign (const ir_variable& assign_var, ir_static_def_id assign_def_id, bool assign_value)
-    : m_assign_var    (assign_var),
-      m_assign_def_id (assign_def_id),
-      m_assign_value  (assign_value)
-  { }
-
-  const ir_variable&
-  ir_injection::assign::
-  get_assign_variable (void) const noexcept
-  {
-    return *m_assign_var;
-  }
-
-  ir_static_def_id
-  ir_injection::assign::
-  get_assign_def_id (void) const noexcept
-  {
-    return m_assign_def_id;
-  }
-
-  bool
-  ir_injection::assign::
-  get_assign_value (void) const noexcept
-  {
-    return m_assign_value;
-  }
-
-  ir_injection::terminator::
-  terminator (const ir_variable& uninit_variable)
-    : m_uninit_variable (uninit_variable)
-  { }
-
-  const ir_variable&
-  ir_injection::terminator::
-  get_uninit_variable (void) const noexcept
-  {
-    return *m_uninit_variable;
-  }
-
-  ir_injection::branch::
-  branch (const ir_variable& uninit_variable,
-          const ir_variable& determinator_var,
-          ir_static_def_id   determinator_def_id,
-          ir_static_block_id continue_block_id,
-          ir_static_block_id terminal_block_id)
-    : terminator (uninit_variable),
-      m_determinator_var    (determinator_var),
-      m_determinator_def_id (determinator_def_id),
-      m_continue_block_id   (continue_block_id),
-      m_terminal_block_id   (terminal_block_id)
-  { }
-
-  const ir_variable&
-  ir_injection::branch::
-  get_determinator_variable (void) const noexcept
-  {
-    return *m_determinator_var;
-  }
-
-  ir_static_def_id
-  ir_injection::branch::
-  get_determinator_def_id (void) const noexcept
-  {
-    return m_determinator_def_id;
-  }
-
-  ir_static_block_id
-  ir_injection::branch::
-  get_continue_block_id (void) const noexcept
-  {
-    return m_continue_block_id;
-  }
-
-  ir_static_block_id
-  ir_injection::branch::
-  get_terminal_block_id (void) const noexcept
-  {
-    return m_terminal_block_id;
-  }
-
   ir_instruction_citer
   ir_injection::
   get_injection_pos (void) const noexcept
   {
     return m_pos;
+  }
+
+  bool
+  ir_injection::
+  has_injection_function (void) const noexcept
+  {
+    return bool (m_inj_func);
+  }
+
+  ir_static_block&
+  ir_injection::
+  invoke (ir_static_block& block,
+          std::vector<ir_static_block>& sblocks,
+          const ir_static_variable_map& var_map) const
+  {
+    return m_inj_func (block, sblocks, var_map);
+  }
+
+  optional_ref<ir_static_block>
+  ir_injection::
+  maybe_invoke (ir_static_block& block,
+                std::vector<ir_static_block>& sblocks,
+                const ir_static_variable_map& var_map) const
+  {
+    if (has_injection_function ())
+      return optional_ref { m_inj_func (block, sblocks, var_map) };
+    return nullopt;
+  }
+
+  auto
+  ir_injection::
+  begin (void) noexcept
+    -> iter
+  {
+    return m_instructions.begin ();
+  }
+
+  auto
+  ir_injection::
+  begin (void) const noexcept
+    -> citer
+  {
+    return as_mutable (*this).begin ();
+  }
+
+  auto
+  ir_injection::
+  cbegin (void) const noexcept
+    -> citer
+  {
+    return begin ();
+  }
+
+  auto
+  ir_injection::
+  end (void) noexcept
+    -> iter
+  {
+    return m_instructions.end ();
+  }
+
+  auto
+  ir_injection::
+  end (void) const noexcept
+    -> citer
+  {
+    return as_mutable (*this).end ();
+  }
+
+  auto
+  ir_injection::
+  cend (void) const noexcept
+    -> citer
+  {
+    return end ();
+  }
+
+  auto
+  ir_injection::
+  rbegin (void) noexcept
+    -> riter
+  {
+    return m_instructions.rbegin ();
+  }
+
+  auto
+  ir_injection::
+  rbegin (void) const noexcept
+    -> criter
+  {
+    return as_mutable (*this).rbegin ();
+  }
+
+  auto
+  ir_injection::
+  crbegin (void) const noexcept
+    -> criter
+  {
+    return rbegin ();
+  }
+
+  auto
+  ir_injection::
+  rend (void) noexcept
+    -> riter
+  {
+    return m_instructions.rend ();
+  }
+
+  auto
+  ir_injection::
+  rend (void) const noexcept
+    -> criter
+  {
+    return as_mutable (*this).rend ();
+  }
+
+  auto
+  ir_injection::
+  crend (void) const noexcept
+    -> criter
+  {
+    return rend ();
+  }
+
+  auto
+  ir_injection::
+  front (void)
+    -> ref
+  {
+    return *begin ();
+  }
+
+  auto
+  ir_injection::
+  front (void) const
+    -> cref
+  {
+    return as_mutable (*this).front ();
+  }
+
+  auto
+  ir_injection::
+  back (void)
+    -> ref
+  {
+    return *rbegin ();
+  }
+
+  auto
+  ir_injection::
+  back (void) const
+    -> cref
+  {
+    return as_mutable (*this).back ();
+  }
+
+  auto
+  ir_injection::
+  size (void) const noexcept
+    -> size_ty
+  {
+    return m_instructions.size ();
+  }
+
+  bool
+  ir_injection::
+  empty (void) const noexcept
+  {
+    return m_instructions.empty ();
+  }
+
+  void
+  ir_injection::
+  push_back (const ir_static_instruction& instr)
+  {
+    m_instructions.push_back (instr);
+  }
+
+  void
+  ir_injection::
+  push_back (ir_static_instruction&& instr)
+  {
+    m_instructions.push_back (std::move (instr));
   }
 
   //
@@ -1049,8 +1191,7 @@ namespace gch
   { }
 
   ir_block_descriptor::
-  ir_block_descriptor (ir_static_block_id id,
-                       small_vector<ir_static_block_id>&& successor_ids) noexcept
+  ir_block_descriptor (ir_static_block_id id, successors_container_type&& successor_ids) noexcept
     : m_id (id),
       m_successors (std::move (successor_ids))
   { }
@@ -1202,71 +1343,6 @@ namespace gch
     m_phi_nodes.try_emplace (nonnull_ptr { var }, id, std::move (incoming));
   }
 
-  auto
-  ir_block_descriptor::
-  emplace_assign_injection (injections_const_iterator pos,
-                            ir_instruction_citer      instr_pos,
-                            const ir_variable&        det_var,
-                            ir_static_def_id          def_id,
-                            bool                      assign_value)
-    -> injections_iter
-  {
-    return m_injections.emplace (pos,
-                                 std::in_place_type<ir_injection::assign>,
-                                 instr_pos,
-                                 det_var,
-                                 def_id,
-                                 assign_value);
-  }
-
-  auto
-  ir_block_descriptor::
-  emplace_terminator_injection (injections_const_iterator pos,
-                                ir_instruction_citer      instr_pos,
-                                const ir_variable&        uninit_var)
-    -> injections_iter
-  {
-    return m_injections.emplace (pos,
-                                 std::in_place_type<ir_injection::terminator>,
-                                 instr_pos,
-                                 uninit_var);
-  }
-
-  auto
-  ir_block_descriptor::
-  emplace_branch_injection (injections_const_iterator pos,
-                            ir_instruction_citer      instr_pos,
-                            const ir_variable&        uninit_var,
-                            const ir_variable&        det_var,
-                            ir_static_def_id          def_id,
-                            ir_static_block_id        continue_block_id,
-                            ir_static_block_id        terminal_block_id)
-    -> injections_iter
-  {
-    return m_injections.emplace (pos,
-                                 std::in_place_type<ir_injection::branch>,
-                                 instr_pos,
-                                 uninit_var,
-                                 det_var,
-                                 def_id,
-                                 continue_block_id,
-                                 terminal_block_id);
-  }
-
-  ir_injection&
-  ir_block_descriptor::
-  prepend_assign_injection (const ir_block&    block,
-                            const ir_variable& det_var,
-                            ir_static_def_id   def_id,
-                            bool               assign_value)
-  {
-    return *emplace_assign_injection (m_injections.begin (),
-                                         block.begin<ir_block::range::body> (),
-                                         det_var,
-                                         def_id,
-                                         assign_value);
-  }
-
   optional_cref<ir_resolved_phi_node>
   ir_block_descriptor::
   maybe_get_phi (const ir_variable& var) const
@@ -1276,20 +1352,18 @@ namespace gch
     return nullopt;
   }
 
-  const ir_static_instruction&
+  bool
   ir_block_descriptor::
-  emplace_terminal_instruction (ir_opcode op,
-                                ir_static_def def,
-                                std::initializer_list<ir_static_operand> init)
+  has_terminal_instruction (void) const noexcept
   {
-    return m_terminal_instr.emplace (op, def, init);
+    return m_terminal_instr.has_value ();
   }
 
   const ir_static_instruction&
   ir_block_descriptor::
-  emplace_terminal_instruction (ir_opcode op, std::initializer_list<ir_static_operand> init)
+  get_terminal_instruction (void) const noexcept
   {
-    return m_terminal_instr.emplace (op, init);
+    return *m_terminal_instr;
   }
 
   //
@@ -1316,11 +1390,9 @@ namespace gch
     auto [pos, inserted] = m_descriptor_map.try_emplace (nonnull_ptr { block }, mapped_id);
     ir_block_descriptor& descriptor = pos->second;
 
-    std::for_each (successors.begin (), successors.end (),
-                   [&](nonnull_cptr<ir_block> b)
-                   {
-                     descriptor.add_successor (find_or_emplace (*b).get_id ());
-                   });
+    std::for_each (successors.begin (), successors.end (), [&](nonnull_cptr<ir_block> b) {
+      descriptor.add_successor (find_or_emplace (*b).get_id ());
+    });
 
     return descriptor;
   }
@@ -1549,6 +1621,121 @@ namespace gch
     }
 
   private:
+    class static_def_resolution
+    {
+    public:
+      static_def_resolution (const ir_block& b, std::optional<ir_static_def_id> def_id)
+        : m_leaf_block (b),
+          m_def_id (def_id)
+      { }
+
+      [[nodiscard]]
+      const ir_block&
+      get_leaf_block (void) const noexcept
+      {
+        return *m_leaf_block;
+      }
+
+      [[nodiscard]]
+      constexpr
+      std::optional<ir_static_def_id>
+      maybe_get_def_id (void) const noexcept
+      {
+        return m_def_id;
+      }
+
+    private:
+      nonnull_cptr<ir_block>          m_leaf_block;
+      std::optional<ir_static_def_id> m_def_id;
+    };
+
+    [[nodiscard]]
+    std::optional<ir_static_def_id>
+    static_join_at (const ir_block& block,
+                    const ir_variable& var,
+                    const small_vector<static_def_resolution>& incoming,
+                    ir_static_variable_map& var_map)
+    {
+      if (incoming.empty ())
+        return { };
+
+      // Note: In the case of loops we may be appending to a def-timeline which already exists.
+
+      bool needs_determinator = false;
+      small_vector<ir_static_incoming_pair> incoming_pairs;
+      std::transform (incoming.begin (), incoming.end (), std::back_inserter (incoming_pairs),
+                      [&](const static_def_resolution& r) -> ir_static_incoming_pair {
+        ir_static_block_id block_id = get_block_id (r.get_leaf_block ());
+        if (std::optional def_id { r.maybe_get_def_id () })
+          return { block_id, def_id };
+        needs_determinator = true;
+        return { block_id, std::nullopt };
+      });
+
+      ir_static_def_id phi_id = var_map[var].create_id ();
+      m_block_manager[block].add_phi_node (var, phi_id, std::move (incoming_pairs));
+
+      if (needs_determinator)
+        create_determinator (block, var, block.end<ir_block::range::body> (), var_map);
+
+      return phi_id;
+    }
+
+    small_vector<static_def_resolution>
+    static_resolve_with (ir_def_resolution_stack& stack,
+                         std::optional<ir_static_def_id> def_id,
+                         ir_static_variable_map& var_map)
+    {
+      if (const auto& block_res = stack.maybe_get_block_resolution ())
+      {
+        if (const auto& res = block_res->maybe_get_resolution ())
+        {
+          auto res_id = var_map.origin_id (*res >>= &ir_def_timeline::maybe_get_outgoing_timeline);
+          return { { block_res->get_block (), res_id } };
+        }
+        return { { block_res->get_block (), def_id } };
+      }
+
+      while (stack.has_frames ())
+      {
+        def_id = static_join_with (stack.top (), def_id, var_map);
+        stack.pop ();
+      }
+
+      small_vector<static_def_resolution> ret;
+      std::for_each (stack.leaves_begin (), stack.leaves_end (), [&](auto& leaf_stack) {
+        ret.append (static_resolve_with (leaf_stack, def_id, var_map));
+      });
+
+      return ret;
+    }
+
+    std::optional<ir_static_def_id>
+    static_join_with (ir_def_resolution_frame& frame,
+                      std::optional<ir_static_def_id> def_id,
+                      ir_static_variable_map& var_map)
+    {
+      return static_join_at (
+        frame.get_join_block (),
+        frame.get_variable (),
+        static_resolve_with (frame.get_substack (), def_id, var_map),
+        var_map);
+    }
+
+    std::optional<ir_static_def_id>
+    static_join_at (const ir_block& block, const ir_variable& var, ir_static_variable_map& var_map)
+    {
+      assert (! (block.maybe_get_def_timeline (var) >>= &ir_def_timeline::has_outgoing_timeline));
+
+      ir_def_resolution_stack res {
+        build_def_resolution_stack (block, var)
+      };
+
+      small_vector<static_def_resolution> ret = static_resolve_with (res, { }, var_map);
+      assert (1 == ret.size ());
+      return ret[0].maybe_get_def_id ();
+    }
+
     ir_static_block_id
     get_block_id (const ir_block& block) const
     {
@@ -1563,65 +1750,78 @@ namespace gch
       });
 
       // If the block does not already have a terminal instruction then create one.
-      if (! block.empty<ir_block::range::body> ()
-        &&! is_a<ir_opcode::terminal> (block.back<ir_block::range::body> ()))
+      if (block.empty<ir_block::range::body> ()
+      ||! is_a<ir_opcode::terminal> (block.back<ir_block::range::body> ()))
       {
-        ir_block_descriptor desc = m_block_manager[block];
-        if (1 < desc.num_successors ())
-        {
-          assert (block.has_condition_variable ());
-          const ir_variable& condition_var = block.get_condition_variable ();
+        resolve_terminal_instruction (block, var_map);
+      }
+    }
 
-          assert (block.has_def_timeline (condition_var));
-          const ir_def_timeline& cond_dt = block.get_def_timeline (condition_var);
+    void
+    resolve_terminal_instruction (const ir_block& block, ir_static_variable_map& var_map)
+    {
+      ir_block_descriptor& desc = m_block_manager[block];
+      if (1 < desc.num_successors ())
+      {
+        assert (block.has_condition_variable () && "Condition block missing condition variable.");
+        const ir_variable& condition_var = block.get_condition_variable ();
 
-          assert (cond_dt.has_incoming_timeline ());
-          const ir_use_timeline& cond_ut = cond_dt.get_incoming_timeline ();
+        optional_ref cond_ut {
+          block.maybe_get_def_timeline (condition_var)
+            >>= &ir_def_timeline::maybe_get_outgoing_timeline
+        };
 
-          assert (cond_ut.has_def ());
-          const ir_def& cond_def = cond_ut.get_def ();
+        small_vector<ir_static_operand, 2> cbranch_args;
 
-          small_vector<ir_static_operand, 2> cbranch_args {
-            { var_map[condition_var], var_map.get_def_id (cond_def) }
-          };
-          std::transform (desc.successors_begin (), desc.successors_end (),
-                          std::back_inserter (cbranch_args), create_block_operand);
-          desc.emplace_terminal_instruction (ir_opcode::cbranch, std::move (cbranch_args));
-        }
-        else if (1 == desc.num_successors ())
-        {
-          assert (! block.has_condition_variable ());
-          desc.emplace_terminal_instruction (
-            ir_opcode::branch,
-            { create_block_operand (desc.successors_front ()) });
-        }
+        ir_static_variable_id cond_var_id = var_map.get_variable_id (condition_var);
+        if (cond_ut)
+          cbranch_args.emplace_back (cond_var_id, var_map.origin_id (*cond_ut));
         else
+          cbranch_args.emplace_back (cond_var_id, static_join_at (block, condition_var, var_map));
+
+        std::transform (desc.successors_begin (), desc.successors_end (),
+                        std::back_inserter (cbranch_args), create_block_operand);
+        desc.emplace_terminal_instruction<ir_opcode::cbranch> (std::move (cbranch_args));
+      }
+      else if (1 == desc.num_successors ())
+      {
+        assert (! block.has_condition_variable ());
+        desc.emplace_terminal_instruction<ir_opcode::ucbranch> (
+          create_block_operand (desc.successors_front ()));
+      }
+      else
+      {
+        assert (! block.has_condition_variable ());
+        assert (! desc.has_successors ());
+
+        // Return from the function.
+        const ir_function& func = m_block_manager.get_function ();
+
+        small_vector<ir_static_operand, 2> ret_args;
+        for (auto ret_it = func.returns_begin (); ret_it != func.returns_end (); ++ret_it)
         {
-          assert (! block.has_condition_variable ());
-          assert (! desc.has_successors ());
-
-          // Return from the function.
-          const ir_function& func = m_block_manager.get_function ();
-
-          bool returns_ok = true;
-          small_vector<ir_static_operand, 2> ret_args;
-          for (auto ret_it = func.returns_begin (); ret_it != func.returns_end (); ++ret_it)
+          if (optional_ref ret_dt { block.maybe_get_def_timeline (**ret_it) })
           {
-            if (optional_ref ret_dt { block.maybe_get_def_timeline (**ret_it) })
+            if (std::optional res { resolve_def_timeline (block, *ret_dt, var_map) })
             {
-              if (std::optional res { resolve_def_timeline (block, *ret_dt, var_map) })
-                ret_args.emplace_back (var_map[**ret_it], var_map.get_def_id (*res));
-              else
-              {
-                returns_ok = false;
-                break;
-              }
+              ret_args.emplace_back (var_map.get_variable_id (**ret_it),
+                                     var_map.get_def_id (*res));
+            }
+            else
+            {
+              ir_injection& inj = desc.emplace_back_injection (block.end<ir_block::range::body> ());
+              append_determined_uninit_terminator (inj, var_map[**ret_it]);
+              return;
             }
           }
-
-          if (returns_ok)
-            desc.emplace_terminal_instruction (ir_opcode::ret, std::move (ret_args));
+          else
+          {
+            ret_args.emplace_back (
+              var_map.get_variable_id (**ret_it),
+              static_join_at (block, **ret_it, var_map));
+          }
         }
+        desc.emplace_terminal_instruction<ir_opcode::ret> (std::move (ret_args));
       }
     }
 
@@ -1667,10 +1867,10 @@ namespace gch
 
         // If the incoming timeline is orphaned, then any usages in this block are determined to
         // be uninitialized. We will inject a terminating instruction before the usage.
-        ir_block_descriptor&  descriptor  = m_block_manager[block];
+        ir_block_descriptor&  desc        = m_block_manager[block];
         const ir_instruction& first_usage = phi_ut.front ().get_instruction ();
 
-        auto pos = find_first_injection_after (first_usage, descriptor,
+        auto pos = find_first_injection_after (first_usage, desc,
                                                block.begin<ir_block::range::body> ());
 
         auto instr_pos = std::find_if (block.begin<ir_block::range::body> (),
@@ -1679,7 +1879,8 @@ namespace gch
                                          return &instr == &first_usage;
                                        });
 
-        descriptor.emplace_terminator_injection (pos, instr_pos, var);
+        ir_injection& inj = *desc.emplace_injection (pos, instr_pos);
+        append_determined_uninit_terminator (inj, var_map[var]);
 
         return std::nullopt;
       }
@@ -1733,7 +1934,7 @@ namespace gch
           }
           incoming_pairs.emplace_back (
             incoming_block_id,
-            curr ? var_map.get_def_id (*curr) : ir_undefined_def_id);
+            curr >>= maybe { [&](const auto& curr_dr) { return var_map.get_def_id (curr_dr); } });
         }
       });
 
@@ -1747,7 +1948,7 @@ namespace gch
 
       if (! (origin >>= &ir_def_reference::is_determinate) && phi_ut.has_uses ())
       {
-        create_determinator (dt, block, phi_ut.front ().get_instruction ());
+        create_determinator (block, dt, phi_ut.front ().get_instruction (), var_map);
 
         // we have determined the def, so set state to false
         origin >>= [](ir_def_reference& dr) noexcept { dr.set_indeterminate_state (false); };
@@ -1757,12 +1958,20 @@ namespace gch
     }
 
     void
-    create_determinator (const ir_variable& var, const ir_block& block, ir_instruction_citer pos)
+    create_determinator (const ir_block& block,
+                         const ir_variable& var,
+                         ir_instruction_citer pos,
+                         ir_static_variable_map& var_map)
     {
-      const determinator&  det  = m_det_manager.register_var (var);
-      ir_block_descriptor& desc = m_block_manager[block];
+      const ir_static_variable& det_var    = m_det_manager.get_determinator (var, var_map);
+      ir_block_descriptor&      desc   = m_block_manager[block];
+      ir_static_variable_id     det_var_id = var_map.get_variable_id (det_var);
 
-      ir_static_def_id det_id = find_determinator_def (det, desc, block, *pos, m_block_manager);
+      ir_static_def_id det_def_id = find_determinator_def (det_var_id,
+                                                           desc,
+                                                           block,
+                                                           *pos,
+                                                           m_block_manager);
 
       ir_static_block_id continue_id = m_block_manager.create_injected_block ();
       ir_static_block_id terminal_id = m_block_manager.create_injected_block ();
@@ -1770,18 +1979,29 @@ namespace gch
       auto injection_pos = find_first_injection_after (*pos, desc,
                                                        block.begin<ir_block::range::body> ());
 
-      desc.emplace_branch_injection (injection_pos,
-                                     pos,
-                                     var,
-                                     det.get_variable (),
-                                     det_id,
-                                     continue_id,
-                                     terminal_id);
+      auto det_branch = ir_static_instruction::create<ir_opcode::cbranch> (
+        ir_static_use { det_var_id, det_def_id },
+        create_block_operand (continue_id),
+        create_block_operand (terminal_id));
+
+      desc.emplace_injection (
+        injection_pos,
+        pos,
+        std::move (det_branch),
+        [=, &var](ir_static_block&,
+                  std::vector<ir_static_block>& sblocks,
+                  const ir_static_variable_map& vmap) -> ir_static_block&
+        {
+          append_determined_uninit_terminator (sblocks[terminal_id], vmap[var]);
+          return sblocks[continue_id];
+        });
     }
 
     void
-    create_determinator (const ir_def_timeline& dt, const ir_block& block,
-                         const ir_instruction& instr)
+    create_determinator (const ir_block& block,
+                         const ir_def_timeline& dt,
+                         const ir_instruction& instr,
+                         ir_static_variable_map& var_map)
     {
       auto instr_pos = std::find_if (block.begin<ir_block::range::body> (),
                                      dt.instructions_end (dt.get_incoming_timeline_iter ()),
@@ -1789,7 +2009,7 @@ namespace gch
                                        return &curr == &instr;
                                      });
 
-      create_determinator (dt.get_variable (), block, instr_pos);
+      create_determinator (block, dt.get_variable (), instr_pos, var_map);
     }
 
     static
@@ -1811,25 +2031,6 @@ namespace gch
   }
 
   static
-  ir_static_block&
-  generate_determined_uninit_terminator (ir_static_block& block, const ir_static_variable& var)
-  {
-    std::string err;
-    err.append ("The variable `")
-       .append (var.get_name ())
-       .append ("` was uninitialized at this time.");
-
-    block.push_back ({
-      ir_metadata_v<ir_opcode::call>,
-      { ir_constant ("print_error"),
-        ir_constant (std::move (err)) }
-    });
-
-    block.push_back ({ ir_metadata_v<ir_opcode::unreachable> });
-    return block;
-  }
-
-  static
   std::vector<ir_static_block>
   process_block_descriptors (const ir_dynamic_block_manager& block_manager,
                              const ir_static_variable_map&   var_map)
@@ -1838,32 +2039,29 @@ namespace gch
     small_vector<ir_static_operand, 2> args;
 
     std::for_each (block_manager.begin (), block_manager.end (), applied {
-      [&](nonnull_cptr<ir_block> block, const ir_block_descriptor& descriptor)
+      [&](nonnull_cptr<ir_block> block, const ir_block_descriptor& desc)
       {
-        nonnull_ptr<ir_static_block> curr_sblock { sblocks[descriptor.get_id ()] };
+        nonnull_ptr<ir_static_block> curr_sblock { sblocks[desc.get_id ()] };
 
         // create phi instructions
-        std::transform (descriptor.phi_map_begin (), descriptor.phi_map_end (),
+        std::transform (desc.phi_map_begin (), desc.phi_map_end (),
                         std::back_inserter (*curr_sblock), applied {
           [&](nonnull_cptr<ir_variable> var, const ir_resolved_phi_node& phi)
             -> ir_static_instruction
           {
-            const ir_static_variable& svar = var_map[*var];
+            ir_static_variable_id var_id = var_map.get_variable_id (*var);
 
-            ir_static_def phi_def { svar, phi.get_id () };
+            ir_static_def phi_def { var_id, phi.get_id () };
 
             std::for_each (phi.begin (), phi.end (), [&](ir_static_incoming_pair pair) {
               args.emplace_back (std::in_place_type<ir_static_block_id::value_type>,
                                  pair.get_block_id ());
 
-              args.emplace_back (svar, pair.get_def_id ());
+              args.emplace_back (var_id, pair.maybe_get_def_id ());
             });
 
-            return {
-              ir_metadata_v<ir_opcode::phi>,
-              phi_def,
-              std::exchange (args, { })
-            };
+            return ir_static_instruction::create<ir_opcode::phi> (phi_def,
+                                                                  std::exchange (args, { }));
           }
         });
 
@@ -1898,83 +2096,26 @@ namespace gch
 
         // create body instructions
         auto curr_first = block->begin<ir_block::range::body> ();
-        std::for_each (descriptor.injections_begin (), descriptor.injections_end (),
+        std::for_each (desc.injections_begin (), desc.injections_end (),
                        [&](const ir_injection& inj) {
           generate_subrange (curr_first, inj.get_injection_pos ());
 
-          visit (overloaded {
-            [&](const ir_injection::assign& assign_inj) {
-              curr_sblock->push_back ({
-                ir_metadata_v<ir_opcode::assign>,
-                { var_map[assign_inj.get_assign_variable ()], assign_inj.get_assign_def_id () },
-                { ir_static_operand { assign_inj.get_assign_value () } }
-              });
-            },
-            [&](const ir_injection::terminator& terminator_inj) {
-              generate_determined_uninit_terminator (
-                *curr_sblock,
-                var_map[terminator_inj.get_uninit_variable ()]);
-            },
-            [&](const ir_injection::branch& branch_inj) {
-              curr_sblock->push_back ({
-                ir_metadata_v<ir_opcode::cbranch>,
-                { ir_static_operand {
-                    var_map[branch_inj.get_determinator_variable ()],
-                    branch_inj.get_determinator_def_id () },
-                  create_block_operand (branch_inj.get_continue_block_id ()),
-                  create_block_operand (branch_inj.get_terminal_block_id ()) }
-              });
+          std::copy (inj.begin (), inj.end (), std::back_inserter (*curr_sblock));
 
-              // Generate the terminator block
-              generate_determined_uninit_terminator (sblocks[branch_inj.get_terminal_block_id ()],
-                                                     var_map[branch_inj.get_uninit_variable ()]);
-
-              // Switch to continuing block.
-              curr_sblock.emplace (sblocks[branch_inj.get_continue_block_id ()]);
-            }
-          }, inj);
+          if (optional_ref new_sblock { inj.maybe_invoke (*curr_sblock, sblocks, var_map) })
+            curr_sblock.emplace (*new_sblock);
           curr_first = inj.get_injection_pos ();
         });
 
         generate_subrange (curr_first, block->end<ir_block::range::body> ());
 
         assert (args.empty ());
-        assert (descriptor.has_terminal_instruction ());
+        assert (desc.has_terminal_instruction ()
+            || (! block->empty<ir_block::range::body> ()
+              &&  is_a<ir_opcode::terminal> (block->back<ir_block::range::body> ())));
 
-        if (! descriptor.has_successors ())
-        {
-          if (curr_sblock->empty () || ! is_a<ir_opcode::terminal> (curr_sblock->back ()))
-          {
-            curr_sblock->push_back ({ ir_metadata_v<ir_opcode::terminate> });
-          }
-        }
-        else if (descriptor.num_successors () == 1)
-        {
-          // unconditional branch
-          curr_sblock->push_back ({
-            ir_metadata_v<ir_opcode::ucbranch>,
-            { create_block_operand (descriptor.successors_front ()) }
-          });
-        }
-        else
-        {
-          // conditional branch
-          assert (! block->empty<ir_block::range::body> ());
-
-          assert (maybe_get_def (block->back<ir_block::range::body> ()) >>=
-                    [](const ir_def& def) noexcept { return def.get_type () == ir_type_v<int>; });
-
-          const ir_instruction& last_instr  = block->back<ir_block::range::body> ();
-          const ir_def&         last_def    = get_def (last_instr);
-          const ir_variable&    last_var    = last_def.get_variable ();
-
-          args.emplace_back (var_map[last_def.get_variable ()], var_map.get_def_id (last_def));
-
-          std::transform (descriptor.successors_begin (), descriptor.successors_end (),
-                          std::back_inserter (args), create_block_operand);
-
-          curr_sblock->push_back ({ ir_metadata_v<ir_opcode::cbranch>, std::exchange (args, { })});
-        }
+        if (desc.has_terminal_instruction ())
+          curr_sblock->push_back (desc.get_terminal_instruction ());
       }
     });
 
@@ -1990,11 +2131,25 @@ namespace gch
     ir_static_variable_map       var_map (resolve_defs (block_manager, func));
     std::vector<ir_static_block> sblocks (process_block_descriptors (block_manager, var_map));
 
+    small_vector<ir_static_variable_id> rets;
+    std::transform (func.returns_begin (), func.returns_end (), std::back_inserter (rets),
+                    [&](nonnull_cptr<ir_variable> var) {
+      return var_map.get_variable_id (*var);
+    });
+
+    small_vector<ir_static_variable_id> args;
+    std::transform (func.args_begin (), func.args_end (), std::back_inserter (args),
+                    [&](nonnull_cptr<ir_variable> var) {
+      return var_map.get_variable_id (*var);
+    });
+
     return {
       func.get_name (),
       ir_processed_id { },
       std::move (sblocks),
-      var_map.release_variables ()
+      var_map.release_variables (),
+      std::move (rets),
+      std::move (args)
     };
   }
 

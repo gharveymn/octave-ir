@@ -176,7 +176,7 @@ test_if (void)
   ir_block& entry = get_entry_block (seq);
   entry.append_instruction<ir_opcode::assign> (var_x, ir_constant (0));
 
-  auto& fork = seq.emplace_back<ir_component_fork> ();
+  auto& fork = seq.emplace_back<ir_component_fork> (var_tmp);
   ir_block& condition_block = fork.get_condition ();
   auto& true_block = fork.add_case<ir_block> ();
   auto& false_block = fork.add_case<ir_block> ();
@@ -209,10 +209,75 @@ test_if (void)
   }
 }
 
+static
+void
+test_loop (void)
+{
+  ir_function my_func ("x", { }, "myloopfunc");
+  ir_variable& var_x = my_func.get_variable ("x");
+  var_x.set_type<int> ();
+
+  ir_variable& var_i = my_func.get_variable ("i");
+  var_i.set_type<int> ();
+
+  ir_variable& var_tmp = my_func.get_variable ("check");
+  var_tmp.set_type<bool> ();
+
+  auto& seq = dynamic_cast<ir_component_sequence&> (my_func.get_body ());
+
+  ir_block& entry_block     = get_entry_block (seq);
+  auto&     loop            = seq.emplace_back<ir_component_loop> (var_tmp);
+  auto&     start_block     = static_cast<ir_block&> (loop.get_start ());
+  ir_block& condition_block = loop.get_condition ();
+  auto&     body_seq        = static_cast<ir_component_sequence&> (loop.get_body ());
+  auto&     body_block      = static_cast<ir_block&> (body_seq.front ());
+  auto&     update_block    = static_cast<ir_block&> (loop.get_update ());
+  auto&     after_block     = seq.emplace_back<ir_block> ();
+
+  entry_block    .set_name ("entry");
+  start_block    .set_name ("start");
+  condition_block.set_name ("condition");
+  body_block     .set_name ("body");
+  update_block   .set_name ("update");
+  after_block    .set_name ("after");
+
+  entry_block.append_instruction<ir_opcode::assign> (var_x, ir_constant (1));
+
+  start_block.append_instruction<ir_opcode::assign> (var_i, ir_constant (0));
+
+  update_block.append_instruction<ir_opcode::add> (var_i, var_i, ir_constant (1));
+
+  ir_def_timeline& dt = condition_block.get_def_timeline (var_i);
+  body_block.append_instruction<ir_opcode::add> (var_x, var_x, ir_constant (2));
+
+  condition_block.append_instruction<ir_opcode::lt> (var_tmp, var_i, ir_constant (5));
+
+  after_block.append_instruction<ir_opcode::ret> (var_x);
+
+  ir_static_function my_static_func = generate_static_function (my_func);
+
+  std::cout << my_static_func << std::endl << std::endl;
+
+  auto jit = octave_jit_compiler::create<octave_jit_compiler_llvm> ();
+  jit.enable_printing ();
+
+  try
+  {
+    auto *proto = reinterpret_cast<int (*)(void)> (jit.compile (my_static_func));
+    int res = proto ();
+    std::cout << "Result: " << proto () << std::endl;
+  }
+  catch (std::exception& e)
+  {
+    std::cerr << e.what () << std::endl;
+    exit (1);
+  }
+}
+
 int
 main (void)
 {
-  test_if ();
+  test_loop ();
   return 0;
 
   invalid_func ();

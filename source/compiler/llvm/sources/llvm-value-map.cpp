@@ -84,7 +84,6 @@ namespace gch
   llvm_def_map::
   operator[] (ir_static_def_id id) const
   {
-    assert (ir_undefined_def_id != id);
     assert (m_llvm_defs[id].has_value ());
     return *m_llvm_defs[id];
   }
@@ -202,6 +201,13 @@ namespace gch
     return found->second.get_allocation ();
   }
 
+  llvm::AllocaInst&
+  llvm_value_map::
+  operator[] (ir_static_def def) const
+  {
+    return operator[] (m_function.get_variable (def));
+  }
+
   llvm::Value&
   llvm_value_map::
   operator[] (ir_static_use use)
@@ -213,15 +219,12 @@ namespace gch
   llvm_value_map::
   operator[] (ir_static_use use) const
   {
-
-    auto found = m_var_map.find (nonnull_ptr { use.get_variable () });
+    auto found = m_var_map.find (nonnull_ptr { m_function.get_variable (use) });
     assert (found != m_var_map.end ());
 
-    ir_static_def_id id = use.get_def_id ();
-    if (ir_undefined_def_id == id)
-      return *llvm::UndefValue::get (&get_llvm_type (found->first->get_type ()));
-
-    return found->second[id];
+    if (std::optional def_id { use.maybe_get_def_id () })
+      return found->second[*def_id];
+    return *llvm::UndefValue::get (&get_llvm_type (found->first->get_type ()));
   }
 
   llvm::Value&
@@ -237,7 +240,7 @@ namespace gch
   llvm_value_map::
   register_def (ir_static_def def, llvm::Value& llvm_value)
   {
-    auto found = m_var_map.find (nonnull_ptr { def.get_variable () });
+    auto found = m_var_map.find (nonnull_ptr { m_function.get_variable (def) });
     assert (found != m_var_map.end ());
     return found->second.register_def (def.get_id (), llvm_value);
   }
@@ -256,6 +259,37 @@ namespace gch
   create_block (std::string_view name)
   {
     return create_block_before (name, nullptr);
+  }
+
+  llvm::Type&
+  llvm_value_map::
+  get_llvm_type (ir_static_def def) const
+  {
+    return get_llvm_type (get_type (def));
+  }
+
+  llvm::Twine
+  llvm_value_map::
+  get_variable_name (ir_static_def def) const
+  {
+    return create_twine (m_function.get_variable_name (def));
+  }
+
+  ir_type
+  llvm_value_map::
+  get_type (ir_static_def def) const
+  {
+    return m_function.get_type (def);
+  }
+
+  ir_type
+  llvm_value_map::
+  get_type (const ir_static_operand& op) const
+  {
+    return visit (overloaded {
+      std::mem_fn (&ir_constant::get_type),
+      [&](ir_static_use use) { return m_function.get_type (use); }
+    }, op);
   }
 
 }

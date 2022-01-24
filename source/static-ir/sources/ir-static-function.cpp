@@ -23,12 +23,18 @@ namespace gch
   { }
 
   ir_static_function::
-  ir_static_function (std::string_view name, ir_processed_id id, container_type&& blocks,
-                      std::vector<ir_static_variable>&& vars)
+  ir_static_function (std::string_view name,
+                      ir_processed_id id,
+                      container_type&& blocks,
+                      std::vector<ir_static_variable>&& vars,
+                      small_vector<ir_static_variable_id>&& ret_ids,
+                      small_vector<ir_static_variable_id>&& arg_ids)
     : m_name      (name),
       m_id        (id),
       m_blocks    (std::move (blocks)),
-      m_variables (std::move (vars))
+      m_variables (std::move (vars)),
+      m_ret_ids   (std::move (ret_ids)),
+      m_arg_ids   (std::move (arg_ids))
   { }
 
   ir_static_function::~ir_static_function (void) = default;
@@ -128,6 +134,41 @@ namespace gch
     return m_variables.end ();
   }
 
+  small_vector<ir_static_variable_id>::const_iterator
+  ir_static_function::
+  returns_begin (void) const noexcept
+  {
+    return m_ret_ids.begin ();
+  }
+
+  small_vector<ir_static_variable_id>::const_iterator
+  ir_static_function::
+  returns_end (void) const noexcept
+  {
+    return m_ret_ids.end ();
+  }
+
+  bool
+  ir_static_function::
+  has_returns (void) const noexcept
+  {
+    return ! m_ret_ids.empty ();
+  }
+
+  small_vector<ir_static_variable_id>::const_iterator
+  ir_static_function::
+  args_begin (void) const noexcept
+  {
+    return m_arg_ids.begin ();
+  }
+
+  small_vector<ir_static_variable_id>::const_iterator
+  ir_static_function::
+  args_end (void) const noexcept
+  {
+    return m_arg_ids.end ();
+  }
+
   std::string_view
   ir_static_function::
   get_name (void) const noexcept
@@ -149,8 +190,320 @@ namespace gch
     return std::string ("Block").append (std::to_string (std::distance (&m_blocks[0], &block)));
   }
 
+  const ir_static_variable&
+  ir_static_function::
+  get_variable (ir_static_variable_id var_id) const
+  {
+    return m_variables[var_id];
+  }
+
+  const ir_static_variable&
+  ir_static_function::
+  get_variable (ir_static_def def) const
+  {
+    return get_variable (def.get_variable_id ());
+  }
+
+  const ir_static_variable&
+  ir_static_function::
+  get_variable (ir_static_use use) const
+  {
+    return get_variable (use.get_variable_id ());
+  }
+
+  std::string_view
+  ir_static_function::
+  get_variable_name (ir_static_variable_id var_id) const
+  {
+    return get_variable (var_id).get_name ();
+  }
+
+  std::string_view
+  ir_static_function::
+  get_variable_name (ir_static_def def) const
+  {
+    return get_variable_name (def.get_variable_id ());
+  }
+
+  std::string_view
+  ir_static_function::
+  get_variable_name (ir_static_use use) const
+  {
+    return get_variable_name (use.get_variable_id ());
+  }
+
+  ir_type
+  ir_static_function::
+  get_type (ir_static_variable_id var_id) const
+  {
+    return get_variable (var_id).get_type ();
+  }
+
+  ir_type
+  ir_static_function::
+  get_type (ir_static_def def) const
+  {
+    return get_type (def.get_variable_id ());
+  }
+
+  ir_type
+  ir_static_function::
+  get_type (ir_static_use use) const
+  {
+    return get_type (use.get_variable_id ());
+  }
+
   std::ostream&
-  operator<< (std::ostream& out, const ir_static_function& unit)
+  ir_static_function::
+  print (std::ostream& out, const ir_static_def& def) const
+  {
+    return out << get_variable (def.get_variable_id ()).get_name () << def.get_id ();
+  }
+
+  std::ostream&
+  ir_static_function::
+  print (std::ostream& out, const ir_static_use& use) const
+  {
+    out << get_variable (use.get_variable_id ()).get_name ();
+    if (std::optional def_id { use.get_def_id () })
+      return out << *def_id;
+    return out << "??";
+  }
+
+  std::ostream&
+  ir_static_function::
+  print (std::ostream& out, const ir_static_operand& op) const
+  {
+    if (optional_ref constant { maybe_as_constant (op) })
+      return out << *constant;
+    return print (out, op.as_use ());
+  }
+
+   template <ir_opcode Op,
+            ir_metadata::flag::is_abstract IsAbstract = ir_metadata_v<Op>.get_is_abstract (),
+            ir_metadata::flag::has_def     HasDef     = ir_metadata_v<Op>.get_has_def (),
+            ir_metadata::flag::arity       Arity      = ir_metadata_v<Op>.get_arity ()>
+  struct instruction_printer
+  {
+    static
+    std::ostream&
+    print (std::ostream&, const ir_static_instruction&, const ir_static_function&)
+    {
+      throw std::ios_base::failure { "Cannot print an instruction (it shouldn't even exist)." };
+    }
+  };
+
+  template <ir_opcode Op>
+  struct instruction_printer<Op,
+                             ir_metadata::flag::is_abstract::no,
+                             ir_metadata::flag::has_def::    no,
+                             ir_metadata::flag::arity::      nullary>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr, const ir_static_function&)
+    {
+      return out << instr.get_metadata ().get_name ();
+    }
+  };
+
+  template <ir_opcode Op>
+  struct instruction_printer<Op,
+                             ir_metadata::flag::is_abstract::no,
+                             ir_metadata::flag::has_def::    yes,
+                             ir_metadata::flag::arity::      nullary>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr, const ir_static_function& func)
+    {
+      return func.print (out, instr.get_def ()) << " = " << instr.get_metadata ().get_name ();
+    }
+  };
+
+  template <>
+  struct instruction_printer<ir_opcode::call>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr, const ir_static_function& func)
+    {
+      if (instr.has_def ())
+        func.print (out, instr.get_def ()) << " = ";
+
+      out << instr.get_metadata ().get_name ()
+          << " (";
+
+      if (instr.has_args ())
+      {
+        func.print (out, instr[0]);
+        std::for_each (std::next (instr.begin ()), instr.end (),
+                       [&](const ir_static_operand& op) { func.print (out << ", ",  op); });
+      }
+
+      return out << ')';
+    }
+  };
+
+  template <>
+  struct instruction_printer<ir_opcode::phi>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr, const ir_static_function& func)
+    {
+      if (instr.has_def ())
+        func.print (out, instr.get_def ()) << " = ";
+
+      out << instr.get_metadata ().get_name ()
+          << " (";
+
+      if (instr.has_args ())
+      {
+        func.print (out, instr[1]);
+        out << " : Block";
+        func.print (out, instr[0]);
+
+        for (auto it = std::next (instr.begin (), 2); it != instr.end (); ++it)
+        {
+          auto block_it = it++;
+
+          out << " | ";
+          func.print (out, *it);
+          out << " : Block";
+          func.print (out, *block_it);
+        }
+      }
+
+      return out << ')';
+    }
+  };
+
+  template <>
+  struct instruction_printer<ir_opcode::assign>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr, const ir_static_function& func)
+    {
+      if (instr.has_def ())
+        func.print (out, instr.get_def ()) << " = ";
+      func.print (out, instr[0]);
+
+      return out;
+    }
+  };
+
+  template <ir_opcode Op>
+  struct instruction_printer<Op,
+                             ir_metadata::flag::is_abstract::no,
+                             ir_metadata::flag::has_def::    yes,
+                             ir_metadata::flag::arity::      unary>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr, const ir_static_function& func)
+    {
+      if (instr.has_def ())
+        func.print (out, instr.get_def ()) << " = ";
+
+      out << instr.get_metadata ().get_name ();
+      func.print (out, instr[0]);
+
+      return out;
+    }
+  };
+
+  template <ir_opcode Op>
+  struct instruction_printer<Op,
+                             ir_metadata::flag::is_abstract::no,
+                             ir_metadata::flag::has_def::    no,
+                             ir_metadata::flag::arity::      unary>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr, const ir_static_function& func)
+    {
+      out << instr.get_metadata ().get_name () << ' ';
+      func.print (out, instr[0]);
+
+      return out;
+    }
+  };
+
+  template <ir_opcode Op>
+  struct instruction_printer<Op,
+                             ir_metadata::flag::is_abstract::no,
+                             ir_metadata::flag::has_def::    yes,
+                             ir_metadata::flag::arity::      binary>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr, const ir_static_function& func)
+    {
+      if (instr.has_def ())
+        func.print (out, instr.get_def ()) << " = ";
+      func.print (out, instr[0]);
+      out << ' ' << instr.get_metadata ().get_name () << ' ';
+      func.print (out, instr[1]);
+
+      return out;
+    }
+  };
+
+  template <>
+  struct instruction_printer<ir_opcode::cbranch>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr, const ir_static_function& func)
+    {
+      out << instr.get_metadata ().get_name () << ' ';
+      func.print (out, instr[0]);
+      out << " ? ";
+      func.print (out, instr[1]);
+      out << " : ";
+      func.print (out, instr[2]);
+
+      return out;
+    }
+  };
+
+  template <ir_opcode Op>
+  struct instruction_printer_mapper
+  {
+    constexpr
+    auto
+    operator() (void) const noexcept
+    {
+      return instruction_printer<Op>::print;
+    }
+  };
+
+  std::ostream&
+  ir_static_function::
+  print (std::ostream& out, const ir_static_instruction& instr) const
+  {
+    constexpr auto map = ir_metadata::generate_map<instruction_printer_mapper> ();
+    return map[instr.get_metadata ()] (out, instr, *this);
+  }
+
+  std::ostream&
+  ir_static_function::
+  print (std::ostream& out, const ir_static_block& block) const
+  {
+    if (block.empty ())
+      return out;
+
+    return std::accumulate (std::next (block.begin ()), block.end (),
+                            std::ref (print (out, block[0])),
+                            [&](std::ostream& o, const ir_static_instruction& instr) {
+                              return std::ref (print (o << '\n', instr));
+                            });
+  }
+
+  std::ostream&
+  operator<< (std::ostream& out, const ir_static_function& func)
   {
     class indenter
       : public std::streambuf
@@ -181,17 +534,17 @@ namespace gch
       bool            m_needs_indent = true;
     };
 
-    auto print_block = [&unit](std::ostream& o, const ir_static_block& block) {
-      o << unit.get_block_name (block) << ":\n";
+    auto print_block = [&func] (std::ostream& o, const ir_static_block& block) {
+      o << func.get_block_name (block) << ":\n";
 
       indenter indented_buffer { o };
-      std::ostream { &indented_buffer } << block;
+      func.print (std::ostream { &indented_buffer }, block);
 
       return std::ref (o);
     };
 
-    return std::accumulate (std::next (unit.begin ()), unit.end (), print_block (out, unit[0]),
-                            [&](std::ostream& o, const auto& block) {
+    return std::accumulate (std::next (func.begin ()), func.end (), print_block (out, func[0]),
+                            [&](std::ostream& o, const ir_static_block& block) {
                               return print_block (o << "\n\n", block);
                             });
   }

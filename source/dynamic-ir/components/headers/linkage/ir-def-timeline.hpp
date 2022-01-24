@@ -196,11 +196,11 @@ namespace gch
 
     [[nodiscard]]
     incoming_size_type
-    num_incoming_blocks (void) const noexcept;
+    num_incoming (void) const noexcept;
 
     [[nodiscard]]
     bool
-    has_incoming_blocks (void) const noexcept;
+    has_incoming (void) const noexcept;
 
     /* use-timelines */
 

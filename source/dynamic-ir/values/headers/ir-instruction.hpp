@@ -34,49 +34,6 @@ namespace gch
     template <ir_opcode Op>
     using type = ir_instruction_traits<Op>;
 
-  public:
-    template <ir_opcode Op>
-    using tag_t = type<Op>;
-
-    template <ir_opcode Op>
-    static constexpr tag_t<Op> tag { };
-
-    using args_container_type     = small_vector<ir_operand, 2>;
-    using value_type              = args_container_type::value_type;
-    using allocator_type          = args_container_type::allocator_type;
-    using size_type               = args_container_type::size_type;
-    using difference_type         = args_container_type::difference_type;
-    using reference               = args_container_type::reference;
-    using const_reference         = args_container_type::const_reference;
-    using pointer                 = args_container_type::pointer;
-    using const_pointer           = args_container_type::const_pointer;
-
-    using iterator                = args_container_type::iterator;
-    using const_iterator          = args_container_type::const_iterator;
-    using reverse_iterator        = args_container_type::reverse_iterator;
-    using const_reverse_iterator  = args_container_type::const_reverse_iterator;
-
-    using val_t   = value_type;
-    using alloc_t = allocator_type;
-    using size_ty = size_type;
-    using diff_ty = difference_type;
-    using ref     = reference;
-    using cref    = const_reference;
-    using ptr     = pointer;
-    using cptr    = const_pointer;
-
-    using iter    = iterator;
-    using citer   = const_iterator;
-    using riter   = reverse_iterator;
-    using criter  = const_reverse_iterator;
-
-    ir_instruction            (void)                      = delete;
-    ir_instruction            (const ir_instruction&)     = delete;
-    ir_instruction            (ir_instruction&&) noexcept;
-    ir_instruction& operator= (const ir_instruction&)     = delete;
-    ir_instruction& operator= (ir_instruction&&) noexcept;
-    ~ir_instruction           (void)                      = default;
-
     template <ir_opcode Op>
     static constexpr
     void
@@ -121,6 +78,49 @@ namespace gch
       static_assert (type<Op>::template is_valid_num_args<0>,
                      "Instruction metadata specified at least one argument");
     }
+
+  public:
+    template <ir_opcode Op>
+    using tag_t = type<Op>;
+
+    template <ir_opcode Op>
+    static constexpr tag_t<Op> tag { };
+
+    using args_container_type     = small_vector<ir_operand, 2>;
+    using value_type              = args_container_type::value_type;
+    using allocator_type          = args_container_type::allocator_type;
+    using size_type               = args_container_type::size_type;
+    using difference_type         = args_container_type::difference_type;
+    using reference               = args_container_type::reference;
+    using const_reference         = args_container_type::const_reference;
+    using pointer                 = args_container_type::pointer;
+    using const_pointer           = args_container_type::const_pointer;
+
+    using iterator                = args_container_type::iterator;
+    using const_iterator          = args_container_type::const_iterator;
+    using reverse_iterator        = args_container_type::reverse_iterator;
+    using const_reverse_iterator  = args_container_type::const_reverse_iterator;
+
+    using val_t   = value_type;
+    using alloc_t = allocator_type;
+    using size_ty = size_type;
+    using diff_ty = difference_type;
+    using ref     = reference;
+    using cref    = const_reference;
+    using ptr     = pointer;
+    using cptr    = const_pointer;
+
+    using iter    = iterator;
+    using citer   = const_iterator;
+    using riter   = reverse_iterator;
+    using criter  = const_reverse_iterator;
+
+    ir_instruction            (void)                      = delete;
+    ir_instruction            (const ir_instruction&)     = delete;
+    ir_instruction            (ir_instruction&&) noexcept;
+    ir_instruction& operator= (const ir_instruction&)     = delete;
+    ir_instruction& operator= (ir_instruction&&) noexcept;
+    ~ir_instruction           (void)                      = default;
 
     template <ir_opcode Op, typename ...Args>
     ir_instruction (tag_t<Op>, ir_variable& ret_var, Args&&... args)

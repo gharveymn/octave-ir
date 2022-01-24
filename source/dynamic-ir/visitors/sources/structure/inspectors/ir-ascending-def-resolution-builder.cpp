@@ -5,7 +5,7 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "structure/mutators/ir-ascending-def-resolution-builder.hpp"
+#include "structure/inspectors/ir-ascending-def-resolution-builder.hpp"
 
 #include "ir-block.hpp"
 #include "ir-component-fork.hpp"
@@ -14,20 +14,20 @@
 #include "ir-function.hpp"
 #include "ir-def-resolution.hpp"
 #include "ir-error.hpp"
-#include "component/mutators/ir-descending-def-resolution-builder.hpp"
+#include "component/inspectors/ir-descending-def-resolution-builder.hpp"
 
 namespace gch
 {
 
-  template class acceptor<ir_component_fork,     mutator_type<ir_ascending_def_resolution_builder>>;
-  template class acceptor<ir_component_loop,     mutator_type<ir_ascending_def_resolution_builder>>;
-  template class acceptor<ir_component_sequence, mutator_type<ir_ascending_def_resolution_builder>>;
-  template class acceptor<ir_function,           mutator_type<ir_ascending_def_resolution_builder>>;
+  template class acceptor<ir_component_fork,     inspector_type<ir_ascending_def_resolution_builder>>;
+  template class acceptor<ir_component_loop,     inspector_type<ir_ascending_def_resolution_builder>>;
+  template class acceptor<ir_component_sequence, inspector_type<ir_ascending_def_resolution_builder>>;
+  template class acceptor<ir_function,           inspector_type<ir_ascending_def_resolution_builder>>;
 
   template <>
   auto
   ir_ascending_def_resolution_builder::acceptor_type<ir_component_fork>::
-  accept (visitor_reference_t<ir_ascending_def_resolution_builder> v)
+  accept (visitor_reference_t<ir_ascending_def_resolution_builder> v) const
     -> result_type
   {
     return v.visit (static_cast<concrete_reference> (*this));
@@ -36,7 +36,7 @@ namespace gch
   template <>
   auto
   ir_ascending_def_resolution_builder::acceptor_type<ir_component_loop>::
-  accept (visitor_reference_t<ir_ascending_def_resolution_builder> v)
+  accept (visitor_reference_t<ir_ascending_def_resolution_builder> v) const
     -> result_type
   {
     return v.visit (static_cast<concrete_reference> (*this));
@@ -45,7 +45,7 @@ namespace gch
   template <>
   auto
   ir_ascending_def_resolution_builder::acceptor_type<ir_component_sequence>::
-  accept (visitor_reference_t<ir_ascending_def_resolution_builder> v)
+  accept (visitor_reference_t<ir_ascending_def_resolution_builder> v) const
     -> result_type
   {
     return v.visit (static_cast<concrete_reference> (*this));
@@ -54,16 +54,16 @@ namespace gch
   template <>
   auto
   ir_ascending_def_resolution_builder::acceptor_type<ir_function>::
-  accept (visitor_reference_t<ir_ascending_def_resolution_builder> v)
+  accept (visitor_reference_t<ir_ascending_def_resolution_builder> v) const
     -> result_type
   {
     return v.visit (static_cast<concrete_reference> (*this));
   }
 
   ir_ascending_def_resolution_builder::
-  ir_ascending_def_resolution_builder (ir_subcomponent& sub, ir_variable& var)
-    : ir_subcomponent_mutator (sub),
-      m_variable        (var)
+  ir_ascending_def_resolution_builder (const ir_subcomponent& sub,  const ir_variable& var)
+    : ir_subcomponent_inspector (sub),
+      m_variable                (var)
   { }
 
   auto
@@ -76,7 +76,7 @@ namespace gch
 
   auto
   ir_ascending_def_resolution_builder::
-  visit (ir_component_fork& fork) const
+  visit (const ir_component_fork& fork) const
     -> result_type
   {
     if (! fork.is_condition (get_subcomponent ()))
@@ -90,7 +90,7 @@ namespace gch
 
   auto
   ir_ascending_def_resolution_builder::
-  visit (ir_component_loop& loop) const
+  visit (const ir_component_loop& loop) const
     -> result_type
   {
     using id = ir_component_loop::subcomponent_id;
@@ -155,10 +155,18 @@ namespace gch
 
         // start
         result_type start_res { dispatch_descender (loop.get_start ()) };
-        if (start_res.needs_join ())
+
+        // FIXME: Should only be dispatched up to the relevant block.
+        result_type update_res { dispatch_descender (loop.get_update ()) };
+
+        if (start_res.needs_join () || update_res.needs_join ())
+        {
+          stack.push_frame (loop.get_condition (), update_res.release_stack ());
           stack.push_frame (loop.get_condition (), start_res.release_stack ());
-        needs_join    |= start_res.needs_join ();
-        is_resolvable = start_res.is_resolvable ();
+          needs_join    = true;
+          is_resolvable = start_res.is_resolvable ();
+        }
+
         break;
       }
       case id::body:
@@ -195,10 +203,10 @@ namespace gch
 
   auto
   ir_ascending_def_resolution_builder::
-  visit (ir_component_sequence& seq) const
+  visit (const ir_component_sequence& seq) const
     -> result_type
   {
-    const ir_component_sequence::riter rpos { seq.find (get_subcomponent ()) };
+    const ir_component_sequence::criter rpos { seq.find (get_subcomponent ()) };
 
     ir_def_resolution_stack stack         { get_variable () };
     bool                    needs_join    { false           };
@@ -221,7 +229,7 @@ namespace gch
 
   auto
   ir_ascending_def_resolution_builder::
-  visit (ir_function&) const
+  visit (const ir_function&) const
     -> result_type
   {
     return { { get_variable () },
@@ -231,7 +239,7 @@ namespace gch
 
   auto
   ir_ascending_def_resolution_builder::
-  maybe_ascend (ir_substructure& sub, ir_def_resolution_build_result&& sub_result) const
+  maybe_ascend (const ir_substructure& sub, ir_def_resolution_build_result&& sub_result) const
     -> result_type
   {
     if (sub_result.is_resolvable ())
@@ -253,7 +261,7 @@ namespace gch
 
   auto
   ir_ascending_def_resolution_builder::
-  ascend (ir_substructure& sub) const
+  ascend (const ir_substructure& sub) const
     -> result_type
   {
     return ir_ascending_def_resolution_builder { sub, get_variable () } ();
@@ -261,19 +269,19 @@ namespace gch
 
   ir_def_resolution_build_result
   ir_ascending_def_resolution_builder::
-  dispatch_descender (ir_subcomponent& c) const
+  dispatch_descender (const ir_subcomponent& c) const
   {
     return ir_descending_def_resolution_builder { get_variable () } (c);
   }
 
 ir_def_resolution_build_result
   ir_ascending_def_resolution_builder::
-  dispatch_descender (ir_block& block) const
+  dispatch_descender (const ir_block& block) const
   {
     return ir_descending_def_resolution_builder { get_variable () } (block);
   }
 
-  ir_variable&
+  const ir_variable&
   ir_ascending_def_resolution_builder::
   get_variable (void) const noexcept
   {

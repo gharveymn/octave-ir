@@ -5,7 +5,7 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "component/mutators/ir-descending-def-resolution-builder.hpp"
+#include "component/inspectors/ir-descending-def-resolution-builder.hpp"
 
 #include "ir-block.hpp"
 #include "ir-component-fork.hpp"
@@ -18,16 +18,16 @@
 namespace gch
 {
 
-  template class acceptor<ir_block,              mutator_type<ir_descending_def_resolution_builder>>;
-  template class acceptor<ir_component_fork,     mutator_type<ir_descending_def_resolution_builder>>;
-  template class acceptor<ir_component_loop,     mutator_type<ir_descending_def_resolution_builder>>;
-  template class acceptor<ir_component_sequence, mutator_type<ir_descending_def_resolution_builder>>;
-  template class acceptor<ir_function,           mutator_type<ir_descending_def_resolution_builder>>;
+  template class acceptor<ir_block,              inspector_type<ir_descending_def_resolution_builder>>;
+  template class acceptor<ir_component_fork,     inspector_type<ir_descending_def_resolution_builder>>;
+  template class acceptor<ir_component_loop,     inspector_type<ir_descending_def_resolution_builder>>;
+  template class acceptor<ir_component_sequence, inspector_type<ir_descending_def_resolution_builder>>;
+  template class acceptor<ir_function,           inspector_type<ir_descending_def_resolution_builder>>;
 
   template <>
   auto
   ir_descending_def_resolution_builder::acceptor_type<ir_block>::
-  accept (visitor_reference_t<ir_descending_def_resolution_builder> v)
+  accept (visitor_reference_t<ir_descending_def_resolution_builder> v) const
     -> result_type
   {
     return v.visit (static_cast<concrete_reference> (*this));
@@ -36,7 +36,7 @@ namespace gch
   template <>
   auto
   ir_descending_def_resolution_builder::acceptor_type<ir_component_fork>::
-  accept (visitor_reference_t<ir_descending_def_resolution_builder> v)
+  accept (visitor_reference_t<ir_descending_def_resolution_builder> v) const
     -> result_type
   {
     return v.visit (static_cast<concrete_reference> (*this));
@@ -45,7 +45,7 @@ namespace gch
   template <>
   auto
   ir_descending_def_resolution_builder::acceptor_type<ir_component_loop>::
-  accept (visitor_reference_t<ir_descending_def_resolution_builder> v)
+  accept (visitor_reference_t<ir_descending_def_resolution_builder> v) const
     -> result_type
   {
     return v.visit (static_cast<concrete_reference> (*this));
@@ -54,7 +54,7 @@ namespace gch
   template <>
   auto
   ir_descending_def_resolution_builder::acceptor_type<ir_component_sequence>::
-  accept (visitor_reference_t<ir_descending_def_resolution_builder> v)
+  accept (visitor_reference_t<ir_descending_def_resolution_builder> v) const
     -> result_type
   {
     return v.visit (static_cast<concrete_reference> (*this));
@@ -63,20 +63,20 @@ namespace gch
   template <>
   auto
   ir_descending_def_resolution_builder::acceptor_type<ir_function>::
-  accept (visitor_reference_t<ir_descending_def_resolution_builder> v)
+  accept (visitor_reference_t<ir_descending_def_resolution_builder> v) const
     -> result_type
   {
     return v.visit (static_cast<concrete_reference> (*this));
   }
 
   ir_descending_def_resolution_builder::
-  ir_descending_def_resolution_builder (ir_variable& var)
+  ir_descending_def_resolution_builder (const ir_variable& var)
     : m_variable (var)
   { }
 
   auto
   ir_descending_def_resolution_builder::
-  operator() (ir_component& c) const &&
+  operator() (const ir_component& c) const &&
     -> result_type
   {
     return c.accept (*this);
@@ -84,7 +84,7 @@ namespace gch
 
   auto
   ir_descending_def_resolution_builder::
-  operator() (ir_block& block) const &&
+  operator() (const ir_block& block) const &&
     -> result_type
   {
     return visit (block);
@@ -92,7 +92,7 @@ namespace gch
 
   auto
   ir_descending_def_resolution_builder::
-  visit (ir_block& block) const
+  visit (const ir_block& block) const
     -> result_type
   {
     if (optional_ref dt { block.maybe_get_def_timeline (get_variable ()) })
@@ -105,7 +105,10 @@ namespace gch
                  result_type::resolvable::yes };
       }
       else
-        block.remove_def_timeline (get_variable ());
+      {
+        // FIXME: This shouldn't occur here, but I can't find a more convenient place for it.
+        const_cast<ir_block&> (block).remove_def_timeline (get_variable ());
+      }
     }
 
     return { { get_variable (), block },
@@ -115,12 +118,12 @@ namespace gch
 
   auto
   ir_descending_def_resolution_builder::
-  visit (ir_component_fork& fork) const
+  visit (const ir_component_fork& fork) const
     -> result_type
   {
     small_vector<result_type> case_results;
     std::transform (fork.cases_begin (), fork.cases_end (), std::back_inserter (case_results),
-                    [this](ir_subcomponent& sub) { return dispatch_descender (sub); });
+                    [this](const ir_subcomponent& sub) { return dispatch_descender (sub); });
 
     assert (! case_results.empty ());
 
@@ -154,7 +157,7 @@ namespace gch
 
   auto
   ir_descending_def_resolution_builder::
-  visit (ir_component_loop& loop) const
+  visit (const ir_component_loop& loop) const
     -> result_type
   {
     result_type cond_res { dispatch_descender (loop.get_condition ()) };
@@ -199,7 +202,7 @@ namespace gch
 
   auto
   ir_descending_def_resolution_builder::
-  visit (ir_component_sequence& seq) const
+  visit (const ir_component_sequence& seq) const
     -> result_type
   {
     result_type leaf_res { dispatch_descender (seq.back ()) };
@@ -230,7 +233,7 @@ namespace gch
 
   auto
   ir_descending_def_resolution_builder::
-  visit (ir_function& func) const
+  visit (const ir_function& func) const
     -> result_type
   {
     return dispatch_descender (func.get_body ());
@@ -238,7 +241,7 @@ namespace gch
 
   auto
   ir_descending_def_resolution_builder::
-  dispatch_descender (ir_subcomponent& sub) const
+  dispatch_descender (const ir_subcomponent& sub) const
     -> result_type
   {
     return sub.accept (*this);
@@ -246,13 +249,13 @@ namespace gch
 
   auto
   ir_descending_def_resolution_builder::
-  dispatch_descender (ir_block& block) const
+  dispatch_descender (const ir_block& block) const
     -> result_type
   {
     return visit (block);
   }
 
-  ir_variable&
+  const ir_variable&
   ir_descending_def_resolution_builder::
   get_variable () const noexcept
   {

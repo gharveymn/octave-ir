@@ -7,69 +7,7 @@
 
 #include "ir-static-def.hpp"
 
-#include "ir-static-variable.hpp"
-
-#include <ostream>
-
 namespace gch
 {
-
-  ir_static_def::
-  ir_static_def (const ir_static_variable& var, ir_static_def_id id)
-    : m_variable (var),
-      m_id       (id)
-  { }
-
-  const ir_static_variable&
-  ir_static_def::
-  get_variable (void) const noexcept
-  {
-    return *m_variable;
-  }
-
-  ir_static_def_id
-  ir_static_def::
-  get_id (void) const noexcept
-  {
-    return m_id;
-  }
-
-  std::string_view
-  ir_static_def::
-  get_variable_name (void) const noexcept
-  {
-    return get_variable ().get_name ();
-  }
-
-  ir_type
-  ir_static_def::
-  get_type (void) const noexcept
-  {
-    return get_variable ().get_type ();
-  }
-
-  std::string
-  get_name (const ir_static_def& def)
-  {
-    return std::string (def.get_variable_name ()).append (std::to_string (def.get_id ()));
-  }
-
-  bool
-  operator== (const ir_static_def& lhs, const ir_static_def& rhs) noexcept
-  {
-    return (&lhs.get_variable () == &rhs.get_variable ()) && (lhs.get_id () == rhs.get_id ());
-  }
-
-  bool
-  operator!= (const ir_static_def& lhs, const ir_static_def& rhs) noexcept
-  {
-    return ! (lhs == rhs);
-  }
-
-  std::ostream&
-  operator<< (std::ostream& out, const ir_static_def& def)
-  {
-    return out << def.get_variable_name () << def.get_id ();
-  }
 
 }

@@ -39,14 +39,14 @@ namespace gch
     ir_def_resolution& operator= (ir_def_resolution&&) noexcept = default;
     ~ir_def_resolution           (void)                         = default;
 
-    ir_def_resolution (ir_block& b, optional_ref<ir_def_timeline> dt);
+    ir_def_resolution (const ir_block& b, optional_cref<ir_def_timeline> dt);
 
     [[nodiscard]]
-    ir_block&
+    const ir_block&
     get_leaf_block (void) const noexcept;
 
     [[nodiscard]]
-    ir_def_timeline&
+    const ir_def_timeline&
     get_timeline (void) const;
 
     [[nodiscard]]
@@ -54,12 +54,12 @@ namespace gch
     has_timeline (void) const noexcept;
 
     [[nodiscard]]
-    optional_ref<ir_def_timeline>
+    optional_cref<ir_def_timeline>
     maybe_get_timeline (void) const noexcept;
 
   private:
-    nonnull_ptr<ir_block>         m_leaf_block;
-    optional_ref<ir_def_timeline> m_timeline;
+    nonnull_cptr<ir_block>         m_leaf_block;
+    optional_cref<ir_def_timeline> m_timeline;
   };
 
   class ir_def_resolution_stack
@@ -69,12 +69,13 @@ namespace gch
     {
     public:
       explicit
-      leading_block_resolution (ir_block& block);
+      leading_block_resolution (const ir_block& block);
 
-      leading_block_resolution (ir_block& block, ir_link_set<ir_def_timeline>&& resolution);
+      leading_block_resolution (const ir_block& block,
+                                ir_link_set<const ir_def_timeline>&& resolution);
 
       [[nodiscard]]
-      ir_block&
+      const ir_block&
       get_block (void) const noexcept;
 
       [[nodiscard]]
@@ -82,19 +83,48 @@ namespace gch
       has_resolution (void) const noexcept;
 
       [[nodiscard]]
-      optional_ref<ir_def_timeline>
+      optional_cref<ir_def_timeline>
       get_resolution (void) const noexcept;
 
       [[nodiscard]]
-      const std::optional<optional_ref<ir_def_timeline>>&
+      const std::optional<optional_cref<ir_def_timeline>>&
       maybe_get_resolution (void) const noexcept;
 
     private:
-      nonnull_ptr<ir_block>                        m_block;
-      std::optional<optional_ref<ir_def_timeline>> m_resolution;
+      nonnull_cptr<ir_block>                        m_block;
+      std::optional<optional_cref<ir_def_timeline>> m_resolution;
     };
 
     using stack_backing_type = std::vector<ir_def_resolution_frame>;
+
+    using leaves_container_type          = std::vector<ir_def_resolution_stack>;
+    using leaves_value_type              = leaves_container_type::value_type;
+    using leaves_allocator_type          = leaves_container_type::allocator_type;
+    using leaves_size_type               = leaves_container_type::size_type;
+    using leaves_difference_type         = leaves_container_type::difference_type;
+    using leaves_reference               = leaves_container_type::reference;
+    using leaves_const_reference         = leaves_container_type::const_reference;
+    using leaves_pointer                 = leaves_container_type::pointer;
+    using leaves_const_pointer           = leaves_container_type::const_pointer;
+
+    using leaves_iterator                = leaves_container_type::iterator;
+    using leaves_const_iterator          = leaves_container_type::const_iterator;
+    using leaves_reverse_iterator        = leaves_container_type::reverse_iterator;
+    using leaves_const_reverse_iterator  = leaves_container_type::const_reverse_iterator;
+
+    using leaves_val_t   = leaves_value_type;
+    using leaves_alloc_t = leaves_allocator_type;
+    using leaves_size_ty = leaves_size_type;
+    using leaves_diff_ty = leaves_difference_type;
+    using leaves_ref     = leaves_reference;
+    using leaves_cref    = leaves_const_reference;
+    using leaves_ptr     = leaves_pointer;
+    using leaves_cptr    = leaves_const_pointer;
+
+    using leaves_iter    = leaves_iterator;
+    using leaves_citer   = leaves_const_iterator;
+    using leaves_riter   = leaves_reverse_iterator;
+    using leaves_criter  = leaves_const_reverse_iterator;
 
     ir_def_resolution_stack            (void)                               = delete;
     ir_def_resolution_stack            (const ir_def_resolution_stack&)     = default;
@@ -104,21 +134,22 @@ namespace gch
     ~ir_def_resolution_stack           (void)                               = default;
 
     explicit
-    ir_def_resolution_stack (ir_variable& var);
+    ir_def_resolution_stack (const ir_variable& var);
 
-    ir_def_resolution_stack (ir_variable& var, ir_block& block);
+    ir_def_resolution_stack (const ir_variable& var, const ir_block& block);
 
-    ir_def_resolution_stack (ir_variable& var, ir_block& block, ir_link_set<ir_def_timeline>&& s);
+    ir_def_resolution_stack (const ir_variable& var, const ir_block& block,
+                             ir_link_set<const ir_def_timeline>&& s);
 
     [[nodiscard]]
     bool
     is_resolvable (void) const noexcept;
 
     ir_def_resolution_frame&
-    push_frame (ir_block& join_block, ir_def_resolution_stack&& substack);
+    push_frame (const ir_block& join_block, ir_def_resolution_stack&& substack);
 
     ir_def_resolution_frame&
-    push_frame (ir_block& join_block, ir_variable& var);
+    push_frame (const ir_block& join_block, const ir_variable& var);
 
     [[nodiscard]]
     ir_def_resolution_frame&
@@ -127,6 +158,9 @@ namespace gch
     [[nodiscard]]
     const ir_def_resolution_frame&
     top (void) const;
+
+    void
+    pop (void);
 
     [[nodiscard]]
     bool
@@ -139,30 +173,20 @@ namespace gch
     add_leaf (void);
 
     ir_def_resolution_stack&
-    add_leaf (ir_block& block);
+    add_leaf (const ir_block& block);
 
     ir_def_resolution_stack&
-    add_leaf (ir_block& block, ir_def_timeline& dt);
+    add_leaf (const ir_block& block, const ir_def_timeline& dt);
 
     [[nodiscard]]
-    bool
-    has_leaves (void) const noexcept;
-
-    [[nodiscard]]
-    ir_variable&
+    const ir_variable&
     get_variable (void) const noexcept;
 
-    small_vector<ir_def_resolution>
-    resolve (void);
-
-    small_vector<ir_def_resolution>
-    resolve_with (optional_ref<ir_def_timeline> dt);
+    void
+    set_block_resolution (const ir_block& block, std::nullopt_t);
 
     void
-    set_block_resolution (ir_block& block, std::nullopt_t);
-
-    void
-    set_block_resolution (ir_block& block, ir_link_set<ir_def_timeline>&& s);
+    set_block_resolution (const ir_block& block, ir_link_set<const ir_def_timeline>&& s);
 
     void
     set_block_resolution (leading_block_resolution&& res);
@@ -179,8 +203,80 @@ namespace gch
     const std::optional<leading_block_resolution>&
     maybe_get_block_resolution (void) const noexcept;
 
+    [[nodiscard]]
+    leaves_iter
+    leaves_begin (void) noexcept;
+
+    [[nodiscard]]
+    leaves_citer
+    leaves_begin (void) const noexcept;
+
+    [[nodiscard]]
+    leaves_citer
+    leaves_cbegin (void) const noexcept;
+
+    [[nodiscard]]
+    leaves_iter
+    leaves_end (void) noexcept;
+
+    [[nodiscard]]
+    leaves_citer
+    leaves_end (void) const noexcept;
+
+    [[nodiscard]]
+    leaves_citer
+    leaves_cend (void) const noexcept;
+
+    [[nodiscard]]
+    leaves_riter
+    leaves_rbegin (void) noexcept;
+
+    [[nodiscard]]
+    leaves_criter
+    leaves_rbegin (void) const noexcept;
+
+    [[nodiscard]]
+    leaves_criter
+    leaves_crbegin (void) const noexcept;
+
+    [[nodiscard]]
+    leaves_riter
+    leaves_rend (void) noexcept;
+
+    [[nodiscard]]
+    leaves_criter
+    leaves_rend (void) const noexcept;
+
+    [[nodiscard]]
+    leaves_criter
+    leaves_crend (void) const noexcept;
+
+    [[nodiscard]]
+    leaves_ref
+    leaves_front (void);
+
+    [[nodiscard]]
+    leaves_cref
+    leaves_front (void) const;
+
+    [[nodiscard]]
+    leaves_ref
+    leaves_back (void);
+
+    [[nodiscard]]
+    leaves_cref
+    leaves_back (void) const;
+
+    [[nodiscard]]
+    leaves_size_ty
+    num_leaves (void) const noexcept;
+
+    [[nodiscard]]
+    bool
+    has_leaves (void) const noexcept;
+
   private:
-    nonnull_ptr<ir_variable>                                m_variable;
+    nonnull_cptr<ir_variable>                               m_variable;
     std::optional<leading_block_resolution>                 m_block_resolution;
     std::stack<ir_def_resolution_frame, stack_backing_type> m_stack;
     std::vector<ir_def_resolution_stack>                    m_leaves;
@@ -189,31 +285,32 @@ namespace gch
   class ir_def_resolution_frame
   {
   public:
-    ir_def_resolution_frame (ir_block& join_block, ir_def_resolution_stack&& substack);
-    ir_def_resolution_frame (ir_block& join_block, ir_variable& var);
+    ir_def_resolution_frame (const ir_block& join_block, ir_def_resolution_stack&& substack);
+
+    ir_def_resolution_frame (const ir_block& join_block, const ir_variable& var);
 
     [[nodiscard]]
     bool
     is_joinable (void) const noexcept;
 
     [[nodiscard]]
-    optional_ref<ir_def_timeline>
-    join (void);
-
-    [[nodiscard]]
-    optional_ref<ir_def_timeline>
-    join_with (optional_ref<ir_def_timeline> dt);
-
-    [[nodiscard]]
-    ir_block&
+    const ir_block&
     get_join_block (void) const noexcept;
 
     [[nodiscard]]
-    ir_variable&
+    ir_def_resolution_stack&
+    get_substack (void) noexcept;
+
+    [[nodiscard]]
+    const ir_def_resolution_stack&
+    get_substack (void) const noexcept;
+
+    [[nodiscard]]
+    const ir_variable&
     get_variable (void) const noexcept;
 
   private:
-    nonnull_ptr<ir_block>   m_join_block;
+    nonnull_cptr<ir_block>  m_join_block;
     ir_def_resolution_stack m_substack;
   };
 
@@ -239,7 +336,7 @@ namespace gch
       no  = false,
     };
 
-    ir_def_resolution_build_result (ir_variable& var, join j, resolvable r);
+    ir_def_resolution_build_result (const ir_variable& var, join j, resolvable r);
 
     ir_def_resolution_build_result (ir_def_resolution_stack&& s, join j, resolvable r);
 
@@ -272,10 +369,22 @@ namespace gch
 
   [[nodiscard]]
   ir_def_resolution_stack
-  build_def_resolution_stack (ir_block& block, ir_variable& var);
+  build_def_resolution_stack (const ir_block& block, const ir_variable& var);
 
-  ir_use_timeline&
-  join_at (ir_block& block, ir_variable& var);
+  small_vector<ir_def_resolution>
+  resolve (ir_def_resolution_stack& stack);
+
+  small_vector<ir_def_resolution>
+  resolve_with (ir_def_resolution_stack& stack, optional_ref<ir_def_timeline> dt);
+
+  optional_ref<ir_def_timeline>
+  join (ir_def_resolution_frame& frame);
+
+  optional_ref<ir_def_timeline>
+  join_with (ir_def_resolution_frame& frame, optional_ref<ir_def_timeline> dt);
+
+  optional_ref<ir_def_timeline>
+  join_at (ir_block& block, ir_variable& var, const small_vector<ir_def_resolution>& incoming);
 
   ir_use_timeline&
   join_at (ir_def_timeline& dt);

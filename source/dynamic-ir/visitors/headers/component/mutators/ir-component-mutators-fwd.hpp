@@ -20,23 +20,12 @@ namespace gch
   template <>
   struct exclusive_mutators<ir_component>
   {
-    using type = visitor_types<ir_descending_def_resolution_builder,
-                               ir_descending_forward_mutator,
+    using type = visitor_types<ir_descending_forward_mutator,
                                ir_descending_def_propagator>;
   };
 
   template <typename T>
   class ir_link_set;
-
-  class ir_def_resolution_build_result;
-
-  template <>
-  struct visitor_traits<ir_descending_def_resolution_builder>
-    : acceptor_trait<ir_descending_def_resolution_builder>
-  {
-    using result_type      = ir_def_resolution_build_result;
-    using visitor_category = const_mutator_tag;
-  };
 
   template <>
   struct visitor_traits<ir_descending_forward_mutator>

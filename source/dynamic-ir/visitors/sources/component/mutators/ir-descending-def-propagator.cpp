@@ -98,36 +98,53 @@ namespace gch
   visit (ir_block& block) const
     -> result_type
   {
-    ir_variable& var      = m_dominator.get_variable ();
-    auto rebinder = applied { [&](auto&&, ir_incoming_node& node) { node.rebind (m_dominator); } };
+    ir_variable& var = m_dominator.get_variable ();
 
     if (optional_ref block_dt { block.maybe_get_def_timeline (var) })
     {
-      if (block_dt->has_incoming_blocks ())
+      if (block_dt->has_incoming ())
       {
         if (m_incoming_blocks.empty ())
         {
           // replace all
-          std::for_each (block_dt->incoming_begin (), block_dt->incoming_end (), rebinder);
+          std::for_each (block_dt->incoming_begin (), block_dt->incoming_end (), applied {
+            [&](auto&&, ir_incoming_node& node) { node.rebind (m_dominator); }
+          });
         }
         else
         {
           // targeted replacement
-          small_vector<std::reference_wrapper<ir_def_timeline::incoming_value_type>> replaced_nodes;
-          replaced_nodes.reserve (block_dt->num_incoming_blocks ());
+          // small_vector<nonnull_ptr<ir_block>> added_nodes;
+          // added_nodes.reserve (m_incoming_blocks.size ());
+          //
+          // std::for_each (m_incoming_blocks.begin (),  m_incoming_blocks.end (),
+          //                [&](nonnull_ptr<ir_block> inc_block) {
+          //   auto found = std::find_if (block_dt->incoming_begin (), block_dt->incoming_end (),
+          //                              [inc_block](const auto& inc_pair) {
+          //     return std::get<const nonnull_cptr<ir_block>> (inc_pair) == inc_block;
+          //   });
+          //
+          //   if (found != block_dt->incoming_end ())
+          //     std::get<ir_incoming_node> (*found).rebind (m_dominator);
+          //   else
+          //     added_nodes.push_back (inc_block);
+          // });
+          //
+          // std::for_each (added_nodes.begin (), added_nodes.end (),
+          //                [&](nonnull_ptr<ir_block> inc_block) {
+          //   block_dt->append_incoming (*inc_block, m_dominator);
+          // });
 
-          std::set_intersection (
-            block_dt->incoming_begin (), block_dt->incoming_begin (),
-            m_incoming_blocks.begin (),  m_incoming_blocks.end (),
-            std::back_inserter (replaced_nodes),
-            overloaded
-            {
-              [](nonnull_ptr<ir_block> lhs, const auto&           rhs) { return lhs == rhs.first; },
-              [](const auto&           lhs, nonnull_ptr<ir_block> rhs) { return lhs.first == rhs; }
+          std::for_each (m_incoming_blocks.begin (),  m_incoming_blocks.end (),
+                         [&](nonnull_ptr<ir_block> inc_block) {
+            auto found = std::find_if (block_dt->incoming_begin (), block_dt->incoming_end (),
+                                       [inc_block](const auto& inc_pair) {
+              return std::get<const nonnull_cptr<ir_block>> (inc_pair) == inc_block;
             });
 
-          std::for_each (replaced_nodes.begin (), replaced_nodes.end (),
-                         [&](auto ref) { rebinder (ref.get ()); });
+            if (found != block_dt->incoming_end ())
+              std::get<ir_incoming_node> (*found).rebind (m_dominator);
+          });
 
           // m_incoming_blocks is a transient cache, so clear it after first use (on entry)
           m_incoming_blocks.clear ();
@@ -150,10 +167,9 @@ namespace gch
       return cond_res;
 
     return std::accumulate (fork.cases_begin (), fork.cases_end (), result_type { },
-                            [this](auto&& curr_res, ir_subcomponent& sub)
-                            {
-                              return std::move (curr_res) | dispatch_descender (sub);
-                            });
+                            [this](auto&& curr_res, ir_subcomponent& sub) {
+      return std::move (curr_res) | dispatch_descender (sub);
+    });
   }
 
   auto

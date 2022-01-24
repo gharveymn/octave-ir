@@ -8,9 +8,10 @@
 #ifndef OCTAVE_IR_STATIC_IR_IR_STATIC_VARIABLE_HPP
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_VARIABLE_HPP
 
-#include "ir-static-def.hpp"
-
 #include "ir-common.hpp"
+
+#include "ir-static-id.hpp"
+#include "ir-type.hpp"
 
 #include <gch/small_vector.hpp>
 
@@ -52,7 +53,7 @@ namespace gch
   private:
     const std::string m_name;
     const ir_type     m_type;
-    std::size_t       m_num_defs;
+    std::size_t       m_num_defs = 0;
   };
 
 }

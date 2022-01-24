@@ -9,8 +9,8 @@
 #ifndef OCTAVE_IR_UTILITIES_IR_COMMON_HPP
 #define OCTAVE_IR_UTILITIES_IR_COMMON_HPP
 
-#define GCH_PRINT_SIZE(TYPE)                 \
-char (*__gch__fail) (void)[sizeof(TYPE)] = 1;
+#define GCH_PRINT_SIZE(...)                         \
+char (*__gch__fail) (void)[sizeof(__VA_ARGS__)] = 1;
 
 #define GCH_STRCAT_(x, y) x ## y
 #define GCH_STRCAT(x, y) GCH_STRCAT_(x, y)

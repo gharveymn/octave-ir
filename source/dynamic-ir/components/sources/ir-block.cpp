@@ -11,6 +11,7 @@
 #include "ir-all-subcomponent-visitors.hpp"
 
 #include "ir-iterator.hpp"
+#include "structure/mutators/ir-ascending-def-propagator.hpp"
 
 #include <gch/select-iterator.hpp>
 
@@ -178,8 +179,12 @@ namespace gch
   {
     ir_def_timeline& dt     = get_def_timeline (var);
     auto             ut_pos = find_latest_use_timeline_before (pos, dt).base ();
+    auto             ut_it  = dt.emplace_local (ut_pos, pos);
 
-    return *dt.emplace_local (ut_pos, pos);
+    if (std::prev (dt.use_timelines_end ()) == ut_it)
+      propagate_def (dt);
+
+    return *ut_it;
   }
 
   ir_block::iter

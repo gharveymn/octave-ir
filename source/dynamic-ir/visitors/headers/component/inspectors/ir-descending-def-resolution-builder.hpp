@@ -8,7 +8,7 @@
 #ifndef OCTAVE_IR_DYNAMIC_IR_IR_DESCENDING_DEF_RESOLUTION_BUILDER_HPP
 #define OCTAVE_IR_DYNAMIC_IR_IR_DESCENDING_DEF_RESOLUTION_BUILDER_HPP
 
-#include "ir-component-mutators-fwd.hpp"
+#include "component/inspectors/ir-component-inspectors-fwd.hpp"
 
 #include "ir-visitor.hpp"
 
@@ -31,50 +31,50 @@ namespace gch
     using result_type = ir_def_resolution_build_result;
 
     explicit
-    ir_descending_def_resolution_builder (ir_variable& var);
+    ir_descending_def_resolution_builder (const ir_variable& var);
 
     [[nodiscard]]
     result_type
-    operator() (ir_component& c) const &&;
+    operator() (const ir_component& c) const &&;
 
     [[nodiscard]]
     result_type
-    operator() (ir_block& block) const &&;
+    operator() (const ir_block& block) const &&;
 
   private:
     [[nodiscard]]
     result_type
-    visit (ir_block& block) const;
+    visit (const ir_block& block) const;
 
     [[nodiscard]]
     result_type
-    visit (ir_component_fork& fork) const;
+    visit (const ir_component_fork& fork) const;
 
     [[nodiscard]]
     result_type
-    visit (ir_component_loop& loop) const;
+    visit (const ir_component_loop& loop) const;
 
     [[nodiscard]]
     result_type
-    visit (ir_component_sequence& seq) const;
+    visit (const ir_component_sequence& seq) const;
 
     [[nodiscard]]
     result_type
-    visit (ir_function& func) const;
+    visit (const ir_function& func) const;
 
     [[nodiscard]]
     result_type
-    dispatch_descender (ir_subcomponent& sub) const;
+    dispatch_descender (const ir_subcomponent& sub) const;
 
     [[nodiscard]]
     result_type
-    dispatch_descender (ir_block& block) const;
+    dispatch_descender (const ir_block& block) const;
 
     [[nodiscard]]
-    ir_variable&
+    const ir_variable&
     get_variable (void) const noexcept;
 
-    ir_variable& m_variable;
+    const ir_variable& m_variable;
   };
 
 }

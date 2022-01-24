@@ -88,21 +88,16 @@ namespace gch
 
   void
   ir_static_block::
+  push_back (const ir_static_instruction& instr)
+  {
+    m_instructions.emplace_back (instr);
+  }
+
+  void
+  ir_static_block::
   push_back (ir_static_instruction&& instr)
   {
     m_instructions.emplace_back (std::move (instr));
-  }
-
-  std::ostream&
-  operator<< (std::ostream& out, const ir_static_block& block)
-  {
-    if (block.empty ())
-      return out;
-
-    return std::accumulate (std::next (block.begin ()), block.end (), std::ref (out << block[0]),
-                            [&](std::ostream& o, const auto& instr) {
-                              return std::ref (o << '\n' << instr);
-                            });
   }
 
 }

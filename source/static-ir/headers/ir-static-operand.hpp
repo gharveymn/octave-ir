@@ -18,6 +18,8 @@
 namespace gch
 {
 
+  class ir_static_function;
+
   class ir_static_operand
   {
   public:
@@ -37,7 +39,7 @@ namespace gch
     GCH_IMPLICIT_CONVERSION
     ir_static_operand (ir_static_use use) noexcept;
 
-    ir_static_operand (const ir_static_variable& var, ir_static_def_id id) noexcept;
+    ir_static_operand (ir_static_variable_id var_id, std::optional<ir_static_def_id> id) noexcept;
 
     template <typename ...Args,
               std::enable_if_t<std::is_constructible_v<ir_constant, Args...>> * = nullptr>
@@ -70,10 +72,6 @@ namespace gch
     [[nodiscard]]
     std::optional<ir_static_use>
     maybe_as_use (void) const noexcept;
-
-    [[nodiscard]]
-    ir_type
-    get_type (void) const noexcept;
 
   private:
     static_assert (std::is_trivially_destructible_v<ir_static_use>,
@@ -155,9 +153,6 @@ namespace gch
       return std::invoke (std::forward<Visitor> (vis), *constant);
     return std::invoke (std::forward<Visitor> (vis), as_use (op));
   }
-
-  std::ostream&
-  operator<< (std::ostream& out, const ir_static_operand& operand);
 
 }
 

@@ -9,14 +9,6 @@
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_USE_HPP
 
 #include "ir-static-def.hpp"
-#include "ir-type.hpp"
-
-#include "ir-common.hpp"
-
-#include <gch/nonnull_ptr.hpp>
-
-#include <iosfwd>
-#include <string_view>
 
 namespace gch
 {
@@ -33,31 +25,48 @@ namespace gch
     ir_static_use& operator= (ir_static_use&&) noexcept = default;
     ~ir_static_use           (void)                     = default;
 
-    ir_static_use (const ir_static_variable& var, ir_static_def_id id);
+    constexpr
+    ir_static_use (ir_static_variable_id var_id, std::optional<ir_static_def_id> id)
+      : m_var_id (var_id),
+        m_id     (id)
+    { }
 
     [[nodiscard]]
-    const ir_static_variable&
-    get_variable (void) const noexcept;
+    constexpr
+    ir_static_variable_id
+    get_variable_id (void) const noexcept
+    {
+      return m_var_id;
+    }
 
     [[nodiscard]]
+    constexpr
+    bool
+    has_def_id (void) const noexcept
+    {
+      return m_id.has_value ();
+    }
+
+    [[nodiscard]]
+    constexpr
     ir_static_def_id
-    get_def_id (void) const noexcept;
+    get_def_id (void) const
+    {
+      return *m_id;
+    }
 
     [[nodiscard]]
-    std::string_view
-    get_variable_name (void) const;
-
-    [[nodiscard]]
-    ir_type
-    get_type (void) const noexcept;
+    constexpr
+    std::optional<ir_static_def_id>
+    maybe_get_def_id (void) const noexcept
+    {
+      return m_id;
+    }
 
   private:
-    nonnull_cptr<ir_static_variable> m_variable;
-    ir_static_def_id                 m_id;
+    ir_static_variable_id           m_var_id;
+    std::optional<ir_static_def_id> m_id;
   };
-
-  std::ostream&
-  operator<< (std::ostream& out, const ir_static_use& use);
 
 }
 

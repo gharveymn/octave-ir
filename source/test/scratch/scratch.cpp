@@ -151,26 +151,26 @@ namespace gch
     return test_ext_helper ();
   }
 
-  struct test_struct
-  {
-    std::string
-    g (void)
-    {
-      return "hi";
-    }
-
-    std::string
-    g (void) const
-    {
-      return "hello";
-    }
-
-    std::string
-    f (void) const
-    {
-      return "f";
-    }
-  };
+  // struct test_struct
+  // {
+  //   std::string
+  //   g (void)
+  //   {
+  //     return "hi";
+  //   }
+  //
+  //   std::string
+  //   g (void) const
+  //   {
+  //     return "hello";
+  //   }
+  //
+  //   std::string
+  //   f (void) const
+  //   {
+  //     return "f";
+  //   }
+  // };
 
   static
   std::optional<test_struct>
@@ -186,18 +186,18 @@ namespace gch
     return { { } };
   }
 
-  static
-  void
-  test_bind (void)
-  {
-    // operator>>= (get_opt (), &test_struct::g);
-    // operator>>= (get_copt (), &test_struct::g);
-    std::cout << (get_opt ()  >>= &test_struct::g) << std::endl;
-    std::cout << (get_copt () >>= &test_struct::g) << std::endl;
-
-    const test_struct x;
-    std::invoke (&test_struct::f, x);
-  }
+  // static
+  // void
+  // test_bind (void)
+  // {
+  //   // operator>>= (get_opt (), &test_struct::g);
+  //   // operator>>= (get_copt (), &test_struct::g);
+  //   std::cout << (get_opt ()  >>= &test_struct::g) << std::endl;
+  //   std::cout << (get_copt () >>= &test_struct::g) << std::endl;
+  //
+  //   const test_struct x;
+  //   std::invoke (&test_struct::f, x);
+  // }
 
   static
   std::optional<int>
@@ -1131,12 +1131,27 @@ namespace gch
 
 }
 
+std::optional<int>
+optref_test1 (char x)
+{
+  return x;
+}
+
+std::optional<long>
+optref_test2 (int x)
+{
+  return x;
+}
+
 int
 main (void)
 {
   using namespace gch;
 
-  std::vector<ir_component_mover> ret { };
+  std::optional<char> c = 1;
+  std::optional<long> l = c >>= &optref_test1 >>= &optref_test2;
+
+  // std::vector<ir_component_mover> ret { };
 
   test_move ();
   test_dy ();
@@ -1150,35 +1165,35 @@ main (void)
   test_links ();
 
   management_stack s;
-  ir_component_storage xs = std::make_unique<ir_subcomponent> ();
-  ir_component_storage ys = std::make_unique<ir_subcomponent> ();
+  // ir_component_storage xs = std::make_unique<ir_subcomponent> ();
+  // ir_component_storage ys = std::make_unique<ir_subcomponent> ();
 
-  ret.emplace_back (xs);
+  // ret.emplace_back (xs);
 
-  ir_component_ptr x { &xs };
-  ir_component_ptr y { &ys };
+  // ir_component_ptr x { &xs };
+  // ir_component_ptr y { &ys };
 
-  assert (x != y);
+  // assert (x != y);
 
-  optional_ref o { *x };
-  static_cast<void> (o);
-  assert (o.get_pointer () == x);
-  assert (o.get_pointer () != y);
+  // optional_ref o { *x };
+  // static_cast<void> (o);
+  // assert (o.get_pointer () == x);
+  // assert (o.get_pointer () != y);
 
-  nonnull_ptr n { *x };
-  static_cast<void> (n);
-  assert (n == x);
-  assert (n != y);
+  // nonnull_ptr n { *x };
+  // static_cast<void> (n);
+  // assert (n == x);
+  // assert (n != y);
 
-  ir_subcomponent *p = x.get_component_pointer ();
-  static_cast<void> (p);
-  assert (p == x);
-  assert (p != y);
+  // ir_subcomponent *p = x.get_component_pointer ();
+  // static_cast<void> (p);
+  // assert (p == x);
+  // assert (p != y);
 
-  const ir_subcomponent& r = *x;
-  static_cast<void> (r);
-  assert (&r == x);
-  assert (&r != y);
+  // const ir_subcomponent& r = *x;
+  // static_cast<void> (r);
+  // assert (&r == x);
+  // assert (&r != y);
 
   int yy = 1;
   optional_ref op { *nonnull_ptr<int> { yy } };
@@ -1189,7 +1204,7 @@ main (void)
   b >>= 2;
 
   std::vector<int> v = test_ext ();
-  test_bind ();
+  // test_bind ();
 
   std::optional<int> mx { 1 };
   std::optional<int> my { 2 };

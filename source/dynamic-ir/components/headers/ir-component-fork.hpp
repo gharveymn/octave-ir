@@ -37,8 +37,7 @@ namespace gch
     ir_component_fork& operator= (ir_component_fork&&) noexcept = delete;
     ~ir_component_fork (void)       noexcept override;
 
-    explicit
-    ir_component_fork (ir_structure& parent);
+    ir_component_fork (ir_structure& parent, ir_variable& condition_var);
 
     [[nodiscard]]
     ir_block&

@@ -9,6 +9,7 @@
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_BLOCK_HPP
 
 #include "ir-type.hpp"
+#include "ir-static-instruction.hpp"
 
 #include "ir-common.hpp"
 #include "ir-utility.hpp"
@@ -127,15 +128,23 @@ namespace gch
     const_reference
     operator[] (size_type n) const;
 
+    template <ir_opcode Op, typename ...Args>
+    ir_static_instruction&
+    emplace_back (Args&&... args)
+    {
+      return m_instructions.emplace_back (
+        ir_static_instruction::create<Op> (std::forward<Args> (args)...));
+    }
+
+    void
+    push_back (const ir_static_instruction& instr);
+
     void
     push_back (ir_static_instruction&& instr);
 
   private:
     container_type m_instructions;
   };
-
-  std::ostream&
-  operator<< (std::ostream& out, const ir_static_block& block);
 
 }
 

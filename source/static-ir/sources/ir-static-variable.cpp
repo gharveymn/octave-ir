@@ -14,8 +14,8 @@ namespace gch
 
   ir_static_variable::
   ir_static_variable (std::string_view name, ir_type type)
-    : m_name     (name),
-      m_type     (type)
+    : m_name (name),
+      m_type (type)
   { }
 
   std::string_view

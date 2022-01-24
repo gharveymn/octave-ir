@@ -5,6 +5,7 @@ target_sources (
     ir-block-counter.hpp
     ir-component-inspectors.hpp
     ir-component-inspectors-fwd.hpp
+    ir-descending-def-resolution-builder.hpp
     ir-leaf-collector.hpp
     ir-static-function-generator.hpp
 )

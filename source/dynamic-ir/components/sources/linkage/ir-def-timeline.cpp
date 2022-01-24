@@ -110,7 +110,7 @@ namespace gch
 
   auto
   ir_def_timeline::
-  num_incoming_blocks (void) const noexcept
+  num_incoming (void) const noexcept
     -> incoming_size_ty
   {
     return m_incoming.size ();
@@ -118,7 +118,7 @@ namespace gch
 
   bool
   ir_def_timeline::
-  has_incoming_blocks (void) const noexcept
+  has_incoming (void) const noexcept
   {
     return ! m_incoming.empty ();
   }

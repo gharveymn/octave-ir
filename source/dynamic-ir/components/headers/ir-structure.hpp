@@ -143,6 +143,11 @@ namespace gch
     ir_substructure (ir_structure& parent)
       : ir_subcomponent { parent }
     { }
+
+    explicit
+    ir_substructure (ir_structure& parent, std::string_view base_name)
+      : ir_subcomponent (parent, base_name)
+    { }
   };
 
   ir_link_set<ir_block>

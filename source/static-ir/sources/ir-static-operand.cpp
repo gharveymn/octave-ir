@@ -109,8 +109,8 @@ namespace gch
   { }
 
   ir_static_operand::
-  ir_static_operand (const ir_static_variable& var, ir_static_def_id id) noexcept
-    : m_use (var, id),
+  ir_static_operand (ir_static_variable_id var_id, std::optional<ir_static_def_id> id) noexcept
+    : m_use (var_id, id),
       m_tag (tag::use)
   { }
 
@@ -162,15 +162,6 @@ namespace gch
     return std::nullopt;
   }
 
-  ir_type
-  ir_static_operand::
-  get_type (void) const noexcept
-  {
-    if (is_constant ())
-      return m_constant.get_type ();
-    return m_use.get_type ();
-  }
-
   bool
   is_constant (const ir_static_operand& op) noexcept
   {
@@ -205,18 +196,6 @@ namespace gch
   maybe_as_use (const ir_static_operand& op) noexcept
   {
     return op.maybe_as_use ();
-  }
-
-  ir_type
-  get_type (const ir_static_operand& op) noexcept
-  {
-    return op.get_type ();
-  }
-
-  std::ostream&
-  operator<< (std::ostream& out, const ir_static_operand& operand)
-  {
-    return visit ([&](const auto& x) { return std::ref (out << x); }, operand);
   }
 
 }

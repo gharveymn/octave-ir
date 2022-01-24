@@ -7,7 +7,7 @@
 
 #include "ir-component-fork.hpp"
 #include "ir-block.hpp"
-#include "structure/mutators/ir-ascending-def-resolution-builder.hpp"
+#include "structure/inspectors/ir-ascending-def-resolution-builder.hpp"
 #include "ir-all-substructure-visitors.hpp"
 
 #include <algorithm>
@@ -17,9 +17,9 @@ namespace gch
 {
 
   ir_component_fork::
-  ir_component_fork (ir_structure& parent)
+  ir_component_fork (ir_structure& parent, ir_variable& condition_var)
     : ir_substructure (parent),
-      m_condition     (*this)
+      m_condition     (*this, condition_var)
   { }
 
   ir_component_fork::

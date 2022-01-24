@@ -37,8 +37,7 @@ namespace gch
     ir_component_loop& operator= (ir_component_loop&&) noexcept = delete;
     ~ir_component_loop (void) noexcept override;
 
-    explicit
-    ir_component_loop (ir_structure& parent);
+    ir_component_loop (ir_structure& parent, ir_variable& condition_var);
 
     [[nodiscard]]
     ir_subcomponent&

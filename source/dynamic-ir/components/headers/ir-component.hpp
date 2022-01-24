@@ -53,7 +53,19 @@ namespace gch
     ir_component& operator= (ir_component&&) noexcept = default;
     ~ir_component           (void) override;
 
+    explicit
+    ir_component (std::string_view name)
+      : m_name (name)
+    { }
+
+    void
+    set_name (std::string_view name)
+    {
+      m_name = name;
+    }
+
   private:
+    std::string m_name;
   };
 
   // a subcomponent is any component that isn't an function
@@ -75,6 +87,11 @@ namespace gch
     explicit
     ir_subcomponent (ir_structure& parent)
       : m_parent (parent)
+    { }
+
+    ir_subcomponent (ir_structure& parent, std::string_view base_name)
+      : ir_component (base_name),
+        m_parent (parent)
     { }
 
     [[nodiscard]]

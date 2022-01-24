@@ -66,16 +66,12 @@ namespace gch
     ir_static_instruction& operator= (ir_static_instruction&&) noexcept = default;
     ~ir_static_instruction           (void)                             = default;
 
-    ir_static_instruction (ir_metadata m, ir_static_def def, args_container_type&& args);
+    ir_static_instruction (ir_metadata m, ir_static_def def, args_container_type&& args) noexcept;
 
-    ir_static_instruction (ir_metadata m, args_container_type&& args);
+    ir_static_instruction (ir_metadata m, args_container_type&& args) noexcept;
 
-    ir_static_instruction (ir_metadata m);
-
-    template <typename ...Args>
-    ir_static_instruction (ir_opcode op, Args&&... args)
-      : ir_static_instruction (ir_metadata::get (op), std::forward<Args> (args)...)
-    { }
+    explicit
+    ir_static_instruction (ir_metadata m) noexcept;
 
     [[nodiscard]]
     const_iterator
@@ -137,6 +133,28 @@ namespace gch
     const std::optional<ir_static_def>&
     maybe_get_def (void) const noexcept;
 
+    template <ir_opcode Op,
+              typename ...Args,
+              typename traits = ir_instruction_traits<Op>,
+              std::enable_if_t<! traits::is_abstract && traits::has_def> * = nullptr>
+    static
+    ir_static_instruction
+    create (ir_static_def def, Args&&... args) noexcept
+    {
+      return ir_static_instruction { ir_metadata_v<Op>, def, { std::forward<Args> (args)... } };
+    }
+
+    template <ir_opcode Op,
+              typename ...Args,
+              typename traits = ir_instruction_traits<Op>,
+              std::enable_if_t<! traits::is_abstract> * = nullptr>
+    static
+    ir_static_instruction
+    create (Args&&... args) noexcept
+    {
+      return ir_static_instruction { ir_metadata_v<Op>, { std::forward<Args> (args)... } };
+    }
+
   private:
     ir_metadata                  m_metadata;
     std::optional<ir_static_def> m_def;
@@ -150,13 +168,6 @@ namespace gch
   {
     return instr.get_metadata ().is_a (ir_metadata_v<BaseOp>);
   }
-
-  [[nodiscard]]
-  bool
-  has_def (const ir_static_instruction& instr) noexcept;
-
-  std::ostream&
-  operator<< (std::ostream& out, const ir_static_instruction& instr);
 
 }
 

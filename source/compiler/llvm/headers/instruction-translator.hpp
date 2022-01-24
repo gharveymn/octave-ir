@@ -69,8 +69,8 @@ namespace gch
       const ir_static_def& def           = instr.get_def ();
       unsigned             num_incoming  = static_cast<unsigned> (instr.num_args ()) / 2;
 
-      llvm::Type& llvm_def_ty   = value_map.get_llvm_type (def.get_type ());
-      llvm::Twine llvm_def_name = create_twine (def.get_variable_name ());
+      llvm::Type& llvm_def_ty   = value_map.get_llvm_type (def);
+      llvm::Twine llvm_def_name = value_map.get_variable_name (def);
 
       return builder.CreatePHI (&llvm_def_ty, num_incoming, llvm_def_name);
     }
@@ -120,14 +120,14 @@ namespace gch
                llvm_value_map&              value_map)
     {
       const ir_static_def& def = instr.get_def ();
-      llvm::Value *var = &value_map[def.get_variable ()];
+      llvm::Value& var = value_map[def];
 
-      builder.CreateStore (&value_map[instr[0]], var);
+      builder.CreateStore (&value_map[instr[0]], &var);
 
       return builder.CreateLoad (
-        &value_map.get_llvm_type (def.get_type ()),
-        var,
-        def.get_variable_name ());
+        &value_map.get_llvm_type (def),
+        &var,
+        value_map.get_variable_name (def));
     }
   };
 
@@ -184,13 +184,13 @@ namespace gch
                llvm_value_map&              value_map)
     {
       const ir_static_def& def = instr.get_def ();
-      const ir_type type = def.get_type ();
+      const ir_type type = value_map.get_type (def);
 
       return creator_map[type] (
         builder,
         &value_map[instr[0]],
         &value_map[instr[1]],
-        create_twine (def.get_variable_name ()));
+        value_map.get_variable_name (def));
     }
   };
 
@@ -211,13 +211,13 @@ namespace gch
                llvm_value_map&              value_map)
     {
       const ir_static_def& def = instr.get_def ();
-      const ir_type type = def.get_type ();
+      const ir_type type = value_map.get_type (def);
 
       return creator_map[type] (
         builder,
         &value_map[instr[0]],
         &value_map[instr[1]],
-        create_twine (def.get_variable_name ()));
+        value_map.get_variable_name (def));
     }
   };
 
@@ -238,13 +238,13 @@ namespace gch
                llvm_value_map&              value_map)
     {
       const ir_static_def& def = instr.get_def ();
-      const ir_type type = def.get_type ();
+      const ir_type type = value_map.get_type (def);
 
       return creator_map[type] (
         value_map,
         builder,
         &value_map[instr[0]],
-        create_twine (def.get_variable_name ()));
+        value_map.get_variable_name (def));
     }
   };
 
@@ -260,12 +260,12 @@ namespace gch
       const ir_static_def& def = instr.get_def ();
 
       const ir_static_operand& lhs = instr[0];
-      const ir_type lhs_type = lhs.get_type ();
+      const ir_type lhs_type = value_map.get_type (lhs);
       llvm::Constant& lhs_zero = *llvm::ConstantInt::get (&value_map.get_llvm_type (lhs_type), 0);
       const auto& lhs_cond_creator = instruction_translator<ir_opcode::eq>::creator_map[lhs_type];
 
       const ir_static_operand& rhs = instr[1];
-      const ir_type rhs_type = rhs.get_type ();
+      const ir_type rhs_type = value_map.get_type (rhs);
       llvm::Constant& rhs_zero = *llvm::ConstantInt::get (&value_map.get_llvm_type (rhs_type), 0);
       const auto& rhs_cond_creator = instruction_translator<ir_opcode::ne>::creator_map[rhs_type];
 
@@ -290,7 +290,7 @@ namespace gch
       llvm::PHINode *phi = builder.CreatePHI (
         &value_map.get_llvm_type<bool> (),
         2,
-        create_twine (def.get_variable_name ()));
+        value_map.get_variable_name (def));
 
       // The result is always false if not coming from the rhs block.
       phi->addIncoming (&value_map.get_bool_constant<false> (), &curr_block);
@@ -312,12 +312,12 @@ namespace gch
       const ir_static_def& def = instr.get_def ();
 
       const ir_static_operand& lhs = instr[0];
-      const ir_type lhs_type = lhs.get_type ();
+      const ir_type lhs_type = value_map.get_type (lhs);
       llvm::Constant& lhs_zero = *llvm::ConstantInt::get (&value_map.get_llvm_type (lhs_type), 0);
       const auto& lhs_cond_creator = instruction_translator<ir_opcode::eq>::creator_map[lhs_type];
 
       const ir_static_operand& rhs = instr[1];
-      const ir_type rhs_type = rhs.get_type ();
+      const ir_type rhs_type = value_map.get_type (rhs);
       llvm::Constant& rhs_zero = *llvm::ConstantInt::get (&value_map.get_llvm_type (rhs_type), 0);
       const auto& rhs_cond_creator = instruction_translator<ir_opcode::ne>::creator_map[rhs_type];
 
@@ -342,7 +342,7 @@ namespace gch
       llvm::PHINode *phi = builder.CreatePHI (
         &value_map.get_llvm_type<bool> (),
         2,
-        create_twine (def.get_variable_name ()));
+        value_map.get_variable_name (def));
 
       // The result is always true if not coming from the rhs block.
       phi->addIncoming (&value_map.get_bool_constant<true> (), &curr_block);
@@ -363,7 +363,7 @@ namespace gch
     {
       const ir_static_def& def = instr.get_def ();
       const ir_static_operand& val = instr[0];
-      const ir_type val_type = val.get_type ();
+      const ir_type val_type = value_map.get_type (val);
       llvm::Constant& zero = *llvm::ConstantInt::get (&value_map.get_llvm_type (val_type), 0);
 
       const auto& bool_creator = instruction_translator<ir_opcode::eq>::creator_map[val_type];
@@ -372,7 +372,7 @@ namespace gch
       return builder.CreateXor (
         &bool_val,
         false,
-        create_twine (def.get_variable_name ()));
+        value_map.get_variable_name (def));
     }
   };
 
@@ -393,13 +393,13 @@ namespace gch
                llvm_value_map&              value_map)
     {
       const ir_static_def& def = instr.get_def ();
-      const ir_type type = def.get_type ();
+      const ir_type type = value_map.get_type (def);
 
       return creator_map[type] (
         builder,
         &value_map[instr[0]],
         &value_map[instr[1]],
-        create_twine (def.get_variable_name ()));
+        value_map.get_variable_name (def));
     }
   };
 
@@ -420,12 +420,12 @@ namespace gch
                llvm_value_map&              value_map)
     {
       const ir_static_def& def = instr.get_def ();
-      const ir_type type = def.get_type ();
+      const ir_type type = value_map.get_type (def);
 
       return creator_map[type] (
         builder,
         &value_map[instr[0]],
-        create_twine (def.get_variable_name ()));
+        value_map.get_variable_name (def));
     }
   };
 
@@ -444,11 +444,11 @@ namespace gch
       llvm::SmallVector<llvm::Type *> arg_types;
       std::transform (std::next (instr.begin ()), instr.end (), std::back_inserter (arg_types),
                       [&](const ir_static_operand& op) {
-        return &value_map.get_llvm_type (op.get_type ());
+        return &value_map.get_llvm_type (value_map.get_type (op));
       });
 
       llvm::Type& ret_type = value_map.get_llvm_type (
-        instr.has_def () ? instr.get_def ().get_type () : ir_type_v<void>);
+        instr.has_def () ? value_map.get_type (instr.get_def ()) : ir_type_v<void>);
 
       llvm::FunctionType *llvm_function_ty = llvm::FunctionType::get (&ret_type, arg_types, false);
 
@@ -469,7 +469,7 @@ namespace gch
       return builder.CreateCall (
         func.get_pointer (),
         args,
-        create_twine (instr.maybe_get_def () >>= &ir_static_def::get_variable_name));
+        instr.maybe_get_def () >>= [&](auto def) { return value_map.get_variable_name (def); });
     }
   };
 

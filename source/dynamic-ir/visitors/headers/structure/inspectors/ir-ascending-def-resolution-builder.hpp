@@ -8,8 +8,8 @@
 #ifndef OCTAVE_IR_DYNAMIC_IR_IR_ASCENDING_DEF_RESOLUTION_BUILDER_HPP
 #define OCTAVE_IR_DYNAMIC_IR_IR_ASCENDING_DEF_RESOLUTION_BUILDER_HPP
 
-#include "ir-structure-mutators-fwd.hpp"
-#include "structure/mutators/utility/ir-subcomponent-mutator.hpp"
+#include "structure/inspectors/ir-structure-inspectors-fwd.hpp"
+#include "structure/inspectors/utility/ir-subcomponent-inspector.hpp"
 
 namespace gch
 {
@@ -19,7 +19,7 @@ namespace gch
 
   class ir_ascending_def_resolution_builder
     : public    visitor_traits<ir_ascending_def_resolution_builder>,
-      protected ir_subcomponent_mutator
+      protected ir_subcomponent_inspector
   {
   public:
     friend acceptor_type<ir_component_fork>;
@@ -30,7 +30,7 @@ namespace gch
     using result_type = ir_def_resolution_build_result;
 
     explicit
-    ir_ascending_def_resolution_builder (ir_subcomponent& sub, ir_variable& var);
+    ir_ascending_def_resolution_builder (const ir_subcomponent& sub, const ir_variable& var);
 
     result_type
     operator() (void) const;
@@ -38,41 +38,41 @@ namespace gch
   private:
     [[nodiscard]]
     result_type
-    visit (ir_component_fork& fork) const;
+    visit (const ir_component_fork& fork) const;
 
     [[nodiscard]]
     result_type
-    visit (ir_component_loop& loop) const;
+    visit (const ir_component_loop& loop) const;
 
     [[nodiscard]]
     result_type
-    visit (ir_component_sequence& seq) const;
+    visit (const ir_component_sequence& seq) const;
 
     [[nodiscard]]
     result_type
-    visit (ir_function& func) const;
+    visit (const ir_function& func) const;
 
     [[nodiscard]]
     result_type
-    maybe_ascend (ir_substructure& sub, ir_def_resolution_build_result&& sub_result) const;
+    maybe_ascend (const ir_substructure& sub, ir_def_resolution_build_result&& sub_result) const;
 
     [[nodiscard]]
     result_type
-    ascend (ir_substructure& sub) const;
+    ascend (const ir_substructure& sub) const;
 
     [[nodiscard]]
     ir_def_resolution_build_result
-    dispatch_descender (ir_subcomponent& sub) const;
+    dispatch_descender (const ir_subcomponent& sub) const;
 
     [[nodiscard]]
     ir_def_resolution_build_result
-    dispatch_descender (ir_block& block) const;
+    dispatch_descender (const ir_block& block) const;
 
     [[nodiscard]]
-    ir_variable&
+    const ir_variable&
     get_variable (void) const noexcept;
 
-    ir_variable& m_variable;
+    const ir_variable& m_variable;
   };
 
 }

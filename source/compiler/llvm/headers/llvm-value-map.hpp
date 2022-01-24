@@ -210,6 +210,9 @@ namespace gch
     llvm::AllocaInst&
     operator[] (const ir_static_variable& var) const;
 
+    llvm::AllocaInst&
+    operator[] (ir_static_def def) const;
+
     llvm::Value&
     operator[] (ir_static_use use);
 
@@ -227,6 +230,20 @@ namespace gch
 
     llvm::BasicBlock&
     create_block (std::string_view name = "");
+
+    using llvm_module_interface::get_llvm_type;
+
+    llvm::Type&
+    get_llvm_type (ir_static_def def) const;
+
+    llvm::Twine
+    get_variable_name (ir_static_def def) const;
+
+    ir_type
+    get_type (ir_static_def def) const;
+
+    ir_type
+    get_type (const ir_static_operand& op) const;
 
   private:
     llvm::Function&           m_llvm_function;

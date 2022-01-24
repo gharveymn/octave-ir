@@ -127,7 +127,7 @@ namespace gch
     : public virtual abstract_acceptor<inspector_type<Inspector>>
   {
   public:
-    using category_wrapper         = inspector_type<Inspector>;
+    using category_wrapper   = inspector_type<Inspector>;
     using concrete_reference = const Derived&;
     using visitor_reference  = typename abstract_acceptor<category_wrapper>::visitor_reference;
     using result_type        = typename abstract_acceptor<category_wrapper>::result_type;

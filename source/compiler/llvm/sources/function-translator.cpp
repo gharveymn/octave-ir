@@ -54,9 +54,16 @@ namespace gch
   {
     llvm_module_interface module_interface (llvm_tsm);
 
-    llvm::FunctionType *llvm_function_ty = llvm::FunctionType::get (
-      &module_interface.get_llvm_type<bool> (),
-      false);
+    llvm::SmallVector<llvm::Type *> arg_types;
+    std::transform (func.args_begin (), func.args_end (), std::back_inserter (arg_types),
+                    [&](const ir_static_variable_id& id) {
+      return &module_interface.get_llvm_type (func.get_type (id));
+    });
+
+    llvm::Type& ret_type = module_interface.get_llvm_type (
+      func.has_returns () ? func.get_type (*func.returns_begin ()) : ir_type_v<void>);
+
+    llvm::FunctionType *llvm_function_ty = llvm::FunctionType::get (&ret_type, arg_types, false);
 
     llvm::Function& out_func = *module_interface.invoke_with_module ([&](llvm::Module& module) {
       return llvm::Function::Create (
