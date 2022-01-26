@@ -74,18 +74,21 @@ namespace gch
 
   ir_variable&
   ir_function::
-  get_variable (const std::string& identifier)
+  create_variable (ir_type type)
   {
-    auto [it, inserted] = m_variable_map.try_emplace (identifier, *this, identifier);
+    auto [it, ins] = m_variable_map.try_emplace (ir_variable::anonymous_name, *this, type);
+    assert (ins && "Tried to create a variable which already exists.");
     return std::get<ir_variable> (*it);
   }
 
-  ir_variable&
+  void
   ir_function::
-  get_variable (std::string&& identifier)
+  set_variable_type (const std::string& name, ir_type type)
   {
-    auto [it, inserted] = m_variable_map.try_emplace (identifier, *this, std::move (identifier));
-    return std::get<ir_variable> (*it);
+    auto found = m_variable_map.find (name);
+    assert (found != m_variable_map.end ()
+        &&  "Tried to set the variable type of a nonexistent variable.");
+    found->second.set_type (type);
   }
 
   auto

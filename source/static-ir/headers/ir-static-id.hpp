@@ -16,46 +16,47 @@
 namespace gch
 {
 
-  class ir_static_variable_id
-    : public named_type<std::size_t>
+  template <typename T>
+  class ir_iterable_id
+    : public named_type<T>
   {
   public:
-    using named_type<std::size_t>::named_type;
+    using named_type<T>::named_type;
 
-    ir_static_variable_id&
+    ir_iterable_id&
     operator++ (void) noexcept
     {
-      return *this = ir_static_variable_id { static_cast<value_type> (*this) + 1 };
+      return *this = ir_iterable_id { static_cast<T> (*this) + 1U };
     }
 
-    ir_static_variable_id
+    ir_iterable_id
     operator++ (int) noexcept
     {
-      ir_static_variable_id ret { *this };
+      ir_iterable_id ret { *this };
       ++(*this);
       return ret;
     }
   };
 
-  class ir_static_def_id
-    : public named_type<std::size_t>
+  class ir_static_variable_id
+    : public ir_iterable_id<std::size_t>
   {
   public:
-    using named_type<std::size_t>::named_type;
+    using ir_iterable_id<std::size_t>::ir_iterable_id;
+  };
 
-    ir_static_def_id&
-    operator++ (void) noexcept
-    {
-      return *this = ir_static_def_id { static_cast<value_type> (*this) + 1 };
-    }
+  class ir_static_def_id
+    : public ir_iterable_id<std::size_t>
+  {
+  public:
+    using ir_iterable_id<std::size_t>::ir_iterable_id;
+  };
 
-    ir_static_def_id
-    operator++ (int) noexcept
-    {
-      ir_static_def_id ret { *this };
-      ++(*this);
-      return ret;
-    }
+  class ir_static_block_id
+    : public ir_iterable_id<std::size_t>
+  {
+  public:
+    using ir_iterable_id<std::size_t>::ir_iterable_id;
   };
 
   class ir_processed_id

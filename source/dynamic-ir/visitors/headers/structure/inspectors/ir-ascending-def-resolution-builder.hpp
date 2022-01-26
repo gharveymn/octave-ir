@@ -11,6 +11,8 @@
 #include "structure/inspectors/ir-structure-inspectors-fwd.hpp"
 #include "structure/inspectors/utility/ir-subcomponent-inspector.hpp"
 
+#include "ir-def-resolution.hpp"
+
 namespace gch
 {
 
@@ -73,6 +75,7 @@ namespace gch
     get_variable (void) const noexcept;
 
     const ir_variable& m_variable;
+    // result_type        m_sub_result;
   };
 
 }

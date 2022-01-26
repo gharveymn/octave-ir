@@ -23,30 +23,30 @@
 namespace gch
 {
 
-  [[nodiscard]]
-  static
-  bool
-  check_matching_incoming_blocks (const ir_block& join_block,
-                                  const small_vector<ir_def_resolution>& c)
-  {
-    ir_link_set<ir_block> lhs = get_predecessors (join_block);
-    ir_link_set<const ir_block> rhs;
-
-    std::for_each (c.begin (), c.end (), [&rhs](const ir_def_resolution& r) {
-      rhs.emplace (r.get_leaf_block ());
-    });
-
-    bool res = std::equal (lhs.begin (), lhs.end (), rhs.begin (), rhs.end ());
-    assert (res);
-    return res;
-  }
-
-  static
-  void
-  assert_matching_incoming_blocks (ir_block& join_block, const small_vector<ir_def_resolution>& c)
-  {
-    assert (check_matching_incoming_blocks (join_block, c));
-  }
+  // [[nodiscard]]
+  // static
+  // bool
+  // check_matching_incoming_blocks (const ir_block& join_block,
+  //                                 const small_vector<ir_def_resolution>& c)
+  // {
+  //   ir_link_set<ir_block> lhs = get_predecessors (join_block);
+  //   ir_link_set<const ir_block> rhs;
+  //
+  //   std::for_each (c.begin (), c.end (), [&rhs](const ir_def_resolution& r) {
+  //     rhs.emplace (r.get_leaf_block ());
+  //   });
+  //
+  //   bool res = std::equal (lhs.begin (), lhs.end (), rhs.begin (), rhs.end ());
+  //   assert (res);
+  //   return res;
+  // }
+  //
+  // static
+  // void
+  // assert_matching_incoming_blocks (ir_block& join_block, const small_vector<ir_def_resolution>& c)
+  // {
+  //   assert (check_matching_incoming_blocks (join_block, c));
+  // }
 
   //
   // ir_def_resolution
@@ -660,13 +660,21 @@ namespace gch
     };
 
     small_vector<ir_def_resolution> res = resolve_with (stack, { });
-    
-    // FIXME: Results in self reference.
-    join_at (dt.get_block (), dt.get_variable (), res);
 
-    // If no incoming timeline was found, we will generate an orphaned use-timeline.
+    assert (1 == res.size ());
     if (! dt.has_incoming_timeline ())
-      return dt.create_orphaned_incoming_timeline ();
+    {
+      if (optional_ref join_dt { res[0].maybe_get_timeline () })
+      {
+        ir_link_set preds { get_predecessors (dt.get_block ()) };
+        std::for_each (preds.begin (), preds.end (), [&](nonnull_ptr<ir_block> pred_block) {
+          dt.append_incoming (*pred_block, as_mutable (*join_dt));
+        });
+      }
+      else
+        dt.create_orphaned_incoming_timeline ();
+    }
+
     return dt.get_incoming_timeline ();
   }
 

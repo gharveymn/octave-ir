@@ -68,7 +68,7 @@ namespace gch
                                ir_link_set<ir_block>&& incoming)
     : ir_subcomponent_mutator (sub),
       m_dominator             (dominator),
-      m_incoming_blocks       (std::move (incoming))
+      m_incoming_block_cache (std::move (incoming))
   { }
 
   auto
@@ -85,12 +85,11 @@ namespace gch
     -> result_type
   {
     if (! fork.is_condition (get_subcomponent ()))
-      return ascend (fork, std::move (m_incoming_blocks));
+      return ascend (fork, std::move (m_incoming_block_cache));
 
     ir_link_set cases_res {
       std::accumulate (fork.cases_begin (), fork.cases_end (), ir_link_set<ir_block> { },
-                       [this](auto&& curr_res, ir_subcomponent& sub)
-                       {
+                       [this](auto&& curr_res, ir_subcomponent& sub) {
                          return std::move (curr_res) | dispatch_descender (sub);
                        })
     };
@@ -110,6 +109,11 @@ namespace gch
     {
       case id::start:
       {
+        if (optional_ref s { maybe_cast<ir_structure> (loop.get_start ()) })
+          m_incoming_block_cache = s->get_leaves ();
+        else
+          m_incoming_block_cache.emplace (static_cast<ir_block&> (loop.get_start ()));
+
         if (needs_stop (dispatch_descender (loop.get_condition ())))
           return;
         if (! needs_stop (dispatch_descender (loop.get_body ())))
@@ -124,15 +128,29 @@ namespace gch
       }
       case id::body:
       {
-        if (needs_stop (dispatch_descender (loop.get_update ()))
-        ||  needs_stop (dispatch_descender (loop.get_condition ())))
+        if (needs_stop (dispatch_descender (loop.get_update ())))
           return;
+
+        if (optional_ref s { maybe_cast<ir_structure> (loop.get_update ()) })
+          m_incoming_block_cache = s->get_leaves ();
+        else
+          m_incoming_block_cache.emplace (static_cast<ir_block&> (loop.get_update ()));
+
+        if (needs_stop (dispatch_descender (loop.get_condition ())))
+          return;
+
         break;
       }
       case id::update:
       {
+        if (optional_ref s { maybe_cast<ir_structure> (loop.get_update ()) })
+          m_incoming_block_cache = s->get_leaves ();
+        else
+          m_incoming_block_cache.emplace (static_cast<ir_block&> (loop.get_update ()));
+
         if (needs_stop (dispatch_descender (loop.get_condition ())))
           return;
+
         dispatch_descender (loop.get_body ());
         break;
       }
@@ -151,7 +169,7 @@ namespace gch
     assert (pos != seq.end ());
 
     ir_link_set<ir_block> res;
-    for (auto it = seq.begin (); it != seq.end (); ++it)
+    for (auto it = std::next (pos); it != seq.end (); ++it)
     {
       if (needs_stop (res = dispatch_descender (*it)))
         return;
@@ -172,8 +190,10 @@ namespace gch
   dispatch_descender (ir_subcomponent& c) const
   {
     // incoming blocks get used up on first call
-    return ir_descending_def_propagator { m_dominator,
-                                          std::exchange (m_incoming_blocks, { }) } (c);
+    return ir_descending_def_propagator {
+      m_dominator,
+      std::exchange (m_incoming_block_cache, { })
+    } (c);
   }
 
   ir_link_set<ir_block>
@@ -181,8 +201,10 @@ namespace gch
   dispatch_descender (ir_block& block) const
   {
     // incoming blocks get used up on first call
-    return ir_descending_def_propagator { m_dominator,
-                                          std::exchange (m_incoming_blocks, { }) } (block);
+    return ir_descending_def_propagator {
+      m_dominator,
+      std::exchange (m_incoming_block_cache, { })
+    } (block);
   }
 
   bool

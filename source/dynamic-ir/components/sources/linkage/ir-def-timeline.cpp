@@ -1015,6 +1015,13 @@ namespace gch
       destroy_incoming_timeline ();
   }
 
+  void
+  ir_def_timeline::
+  remove_incoming (const ir_block& block)
+  {
+    return remove_incoming (find_incoming (block));
+  }
+
   auto
   ir_def_timeline::
   find_incoming (const ir_block& block) noexcept

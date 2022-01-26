@@ -85,14 +85,10 @@ namespace gch
                llvm_ir_builder_type&        builder,
                llvm_value_map&              value_map)
     {
-      using id_value_type = ir_static_block_id::value_type;
-      ir_static_block_id true_block_id { as<id_value_type> (as_constant (instr[1])) };
-      ir_static_block_id false_block_id { as<id_value_type> (as_constant (instr[2])) };
-
       return builder.CreateCondBr (
         &value_map[instr[0]],
-        &value_map[true_block_id],
-        &value_map[false_block_id]);
+        &value_map[as_constant<ir_static_block_id> (instr[1])],
+        &value_map[as_constant<ir_static_block_id> (instr[2])]);
     }
   };
 
@@ -105,8 +101,7 @@ namespace gch
                llvm_ir_builder_type&        builder,
                llvm_value_map&              value_map)
     {
-      ir_static_block_id block_id { as<ir_static_block_id::value_type> (as_constant (instr[0])) };
-      return builder.CreateBr (&value_map[block_id]);
+      return builder.CreateBr (&value_map[as_constant<ir_static_block_id> (instr[0])]);
     }
   };
 
@@ -166,6 +161,10 @@ namespace gch
                llvm_ir_builder_type&        builder,
                llvm_value_map&              value_map)
     {
+      assert (instr.num_args () <= 1 && "Multiple returns not supported yet.");
+
+      if (! instr.has_args ())
+        return builder.CreateRetVoid ();
       return builder.CreateRet (&value_map[instr[0]]);
     }
   };

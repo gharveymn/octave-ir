@@ -9,6 +9,7 @@
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_BLOCK_HPP
 
 #include "ir-type.hpp"
+#include "ir-static-id.hpp"
 #include "ir-static-instruction.hpp"
 
 #include "ir-common.hpp"
@@ -27,31 +28,6 @@ namespace gch
   class ir_metadata;
   class ir_static_instruction;
   class ir_static_def;
-
-  class ir_static_block_id
-    : public named_type<std::size_t>
-  {
-  public:
-    using named_type<std::size_t>::named_type;
-
-    ir_static_block_id&
-    operator++ (void) noexcept
-    {
-      return *this = ir_static_block_id { static_cast<value_type> (*this) + 1U };
-    }
-
-    ir_static_block_id
-    operator++ (int) noexcept
-    {
-      ir_static_block_id ret { *this };
-      ++(*this);
-      return ret;
-    }
-  };
-
-  inline constexpr
-  ir_static_block_id
-  ir_undefined_block_id { static_cast<std::size_t> (-1) };
 
   class ir_static_block
   {

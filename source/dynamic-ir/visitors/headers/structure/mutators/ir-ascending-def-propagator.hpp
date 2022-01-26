@@ -39,7 +39,8 @@ namespace gch
     ~ir_ascending_def_propagator           (void)                                   = default;
 
     explicit
-    ir_ascending_def_propagator (ir_subcomponent& sub, ir_def_timeline& dominator,
+    ir_ascending_def_propagator (ir_subcomponent& sub,
+                                 ir_def_timeline& dominator,
                                  ir_link_set<ir_block>&& incoming);
 
     result_type
@@ -73,7 +74,7 @@ namespace gch
     needs_stop (const ir_link_set<ir_block>& res) noexcept;
 
     ir_def_timeline&              m_dominator;
-    mutable ir_link_set<ir_block> m_incoming_blocks;
+    mutable ir_link_set<ir_block> m_incoming_block_cache;
   };
 
   void

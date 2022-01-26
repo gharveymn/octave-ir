@@ -184,11 +184,73 @@ namespace gch
     bool
     is_body (const ir_subcomponent& sub) const noexcept;
 
+    template <typename T, std::enable_if_t<std::is_constructible_v<std::string, T>> * = nullptr>
     ir_variable&
-    get_variable (const std::string& identifier);
+    get_variable (T&& name)
+    {
+      auto [it, ins] = m_variable_map.try_emplace (
+        std::string (name),
+        *this,
+        std::forward<T> (name));
+
+      return std::get<ir_variable> (*it);
+    }
 
     ir_variable&
-    get_variable (std::string&& identifier);
+    create_variable (ir_type type);
+
+    template <typename T, std::enable_if_t<std::is_constructible_v<std::string, T>> * = nullptr>
+    ir_variable&
+    create_variable (T&& name)
+    {
+      auto [it, ins] = m_variable_map.try_emplace (
+        std::string (name),
+        *this,
+        std::forward<T> (name));
+
+      assert (ins && "Tried to create a variable which already exists.");
+      return std::get<ir_variable> (*it);
+    }
+
+    template <typename T, std::enable_if_t<std::is_constructible_v<std::string, T>> * = nullptr>
+    ir_variable&
+    create_variable (T&& name, ir_type type)
+    {
+      auto [it, ins] = m_variable_map.try_emplace (
+        std::string (name),
+        *this,
+        std::forward<T> (name),
+        type);
+
+      assert (ins && "Tried to create a variable which already exists.");
+      return std::get<ir_variable> (*it);
+    }
+
+    template <typename T,
+              typename S,
+              std::enable_if_t<std::is_constructible_v<std::string, S>> * = nullptr>
+    ir_variable&
+    create_variable (S&& name)
+    {
+      return create_variable (std::forward<S> (name), ir_type_v<T>);
+    }
+
+    template <typename T>
+    ir_variable&
+    create_variable (void)
+    {
+      return create_variable (ir_type_v<T>);
+    }
+
+    void
+    set_variable_type (const std::string& name, ir_type type);
+
+    template <typename T>
+    void
+    set_variable_type (const std::string& name)
+    {
+      return set_variable_type (name, ir_type_v<T>);
+    }
 
     [[nodiscard]]
     variables_iter

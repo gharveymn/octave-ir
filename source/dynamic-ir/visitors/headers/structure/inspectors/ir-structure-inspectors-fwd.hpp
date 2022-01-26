@@ -10,6 +10,9 @@
 
 #include "ir-visitor-fwd.hpp"
 
+#include <gch/small_vector.hpp>
+#include <gch/nonnull_ptr.hpp>
+
 namespace gch
 {
 
@@ -74,7 +77,7 @@ namespace gch
   struct visitor_traits<ir_successor_collector>
     : acceptor_trait<ir_successor_collector>
   {
-    using result_type      = ir_link_set<ir_block>;
+    using result_type      = small_vector<nonnull_ptr<ir_block>>;
     using visitor_category = const_inspector_tag;
   };
 

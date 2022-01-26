@@ -187,7 +187,38 @@ namespace gch
           needs_join    = true;
           is_resolvable = start_res.is_resolvable ();
         }
-        break;
+
+        if (! is_resolvable)
+        {
+          result_type ascent_res { ascend (loop) };
+          if (ascent_res.needs_join ())
+          {
+            if (! (update_res.needs_join () || start_res.needs_join ()))
+            {
+              stack.push_frame (loop.get_condition (), update_res.release_stack ());
+              stack.push_frame (loop.get_condition (), start_res.release_stack ());
+            }
+
+            ir_def_resolution_stack&& ascent_stack = ascent_res.release_stack ();
+            ir_def_resolution_stack& start_res_stack = stack.top ().get_substack ();
+
+            ascent_stack.add_leaf (std::move (start_res_stack));
+            start_res_stack = std::move (ascent_stack);
+
+            return {
+              std::move (stack),
+              result_type::join::yes,
+              ascent_res.get_resolvable_state ()
+            };
+          }
+        }
+
+        return {
+          std::move (stack),
+          static_cast<result_type::join>       (needs_join),
+          static_cast<result_type::resolvable> (is_resolvable)
+        };
+        // break;
       }
       case id::start:
       {

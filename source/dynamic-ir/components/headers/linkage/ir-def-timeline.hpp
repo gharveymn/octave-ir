@@ -683,12 +683,14 @@ namespace gch
 
       try
       {
+        // assert (m_incoming.find (nonnull_cptr<ir_block> (incoming_block)) == m_incoming.end ());
+
         auto [pos, inserted] = m_incoming.emplace (
           std::piecewise_construct,
           std::forward_as_tuple (incoming_block),
           std::forward_as_tuple (std::forward<Args> (args)...));
 
-        assert (inserted && "tried to emplace an incoming node for a key which already exists");
+        // assert (inserted && "tried to emplace an incoming node for a key which already exists");
         return std::get<ir_incoming_node> (*pos);
       }
       catch (...)
@@ -702,10 +704,7 @@ namespace gch
     remove_incoming (incoming_citer pos);
 
     void
-    remove_incoming (const ir_block& block)
-    {
-      return remove_incoming (find_incoming (block));
-    }
+    remove_incoming (const ir_block& block);
 
     [[nodiscard]]
     incoming_iterator

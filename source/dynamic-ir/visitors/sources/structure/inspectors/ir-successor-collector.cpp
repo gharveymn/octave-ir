@@ -12,7 +12,6 @@
 #include "ir-component-sequence.hpp"
 #include "ir-function.hpp"
 #include "ir-error.hpp"
-#include "ir-iterator.hpp"
 
 namespace gch
 {
@@ -74,13 +73,12 @@ namespace gch
     if (! fork.is_condition (get_subcomponent ()))
       return get_successors (fork);
 
-    ir_link_set<ir_block> ret;
-    std::transform (fork.cases_begin (), fork.cases_end (), set_inserter { ret },
-                    [&](const ir_component& c)
-                    {
+    result_type res;
+    std::transform (fork.cases_begin (), fork.cases_end (), std::back_inserter (res),
+                    [&](const ir_component& c) {
                       return nonnull_ptr { as_mutable (get_entry_block (c)) };
                     });
-    return ret;
+    return res;
   }
 
   auto
@@ -95,8 +93,8 @@ namespace gch
         return { nonnull_ptr { as_mutable (loop.get_condition ()) } };
       case id::condition:
       {
-        ir_link_set res { get_successors (loop) };
-        res.emplace (as_mutable (get_entry_block (loop.get_body ())));
+        result_type res { nonnull_ptr { as_mutable (get_entry_block (loop.get_body ())) } };
+        res.append (get_successors (loop));
         return res;
       }
       case id::body:

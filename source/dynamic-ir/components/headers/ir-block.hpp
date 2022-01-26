@@ -114,10 +114,9 @@ namespace gch
     ir_block& operator= (ir_block&&) noexcept;
     ~ir_block           (void) override;
 
-    explicit
-    ir_block (ir_structure& parent);
+    ir_block (ir_structure& parent, std::string_view name = "");
 
-    ir_block (ir_structure& parent, ir_variable& condition_var) noexcept;
+    ir_block (ir_structure& parent, ir_variable& condition_var, std::string_view name = "");
 
     ir_block (ir_structure& parent, ir_block&& other) noexcept;
 
@@ -389,7 +388,15 @@ namespace gch
 
     static
     ir_constant&&
-    prepare_operand (citer pos, ir_constant&& t) noexcept;
+    prepare_operand (citer pos, ir_constant&& c) noexcept;
+
+    template <typename T>
+    static
+    ir_constant
+    prepare_operand (citer, T&& t) noexcept
+    {
+      return ir_constant (std::forward<T> (t));
+    }
 
     ir_use_timeline&
     track_def_at (iter pos, ir_variable& var);
@@ -584,10 +591,17 @@ namespace gch
       return emplace_instruction<Op> (begin<range::body> (), std::forward<Args> (args)...);
     }
 
+    void
+    set_name (std::string_view name)
+    {
+      m_name = name;
+    }
+
   private:
     instruction_container     m_instr_partition;
     dt_map_type               m_def_timelines_map;
     optional_ref<ir_variable> m_condition_var;
+    std::string               m_name;
   };
 
   template <typename RandomIt,

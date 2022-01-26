@@ -60,7 +60,7 @@ namespace gch
     return ir_predecessor_collector { sub } ();
   }
 
-  ir_link_set<ir_block>
+  small_vector<nonnull_ptr<ir_block>>
   get_successors (const ir_subcomponent& sub)
   {
     return ir_successor_collector { sub } ();

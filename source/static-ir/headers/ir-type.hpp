@@ -17,13 +17,10 @@
 
 #include "ir-common.hpp"
 #include "ir-functional.hpp"
-
-#include <gch/nonnull_ptr.hpp>
-#include <gch/optional_ref.hpp>
+#include "ir-static-id.hpp"
 
 #include <array>
 #include <complex>
-#include <optional>
 #include <string>
 
 class octave_base_value;
@@ -62,6 +59,7 @@ namespace gch
     std::complex<double>,
     std::complex<single>,
     std::string,
+    ir_static_block_id,
 
     long double *,
     double *,
@@ -89,8 +87,8 @@ namespace gch
     ir_block *
   >;
 
-  static_assert (std::is_same_v<ir_type_pack, pack_unique_t<ir_type_pack>>,
-                 "IR types are not unique.");
+  // static_assert (std::is_same_v<ir_type_pack, pack_unique_t<ir_type_pack>>,
+  //                "IR types are not unique.");
 
   inline constexpr
   unsigned
@@ -165,16 +163,16 @@ namespace gch
     template <typename T>
     struct instance;
 
+    ir_type_base (void) = default;
+
     constexpr explicit
     ir_type_base (const impl& impl_ref) noexcept
-      : m_ptr (impl_ref)
+      : m_ptr (&impl_ref)
     { }
 
   public:
     friend struct std::hash<ir_type>;
     friend class ir_type;
-
-    ir_type_base            (void)                    = delete;
     ir_type_base            (const ir_type_base&)     = default;
     ir_type_base            (ir_type_base&&) noexcept = default;
     ir_type_base& operator= (const ir_type_base&)     = default;
@@ -197,7 +195,7 @@ namespace gch
     template <typename T>
     static constexpr
     impl
-    create_type (const char *name, std::optional<ir_type> base) noexcept;
+    create_type (const char *name, ir_type base) noexcept;
 
     // shortcut for ir_type_impl::create_compound_type
     template <typename T, std::size_t N>
@@ -210,7 +208,11 @@ namespace gch
     impl
     create_pointer (ir_type pointer_base) noexcept;
 
-    nonnull_ptr<const impl> m_ptr;
+    static constexpr
+    ir_type
+    get_null_type (void) noexcept;
+
+    const impl * m_ptr;
   };
 
   class ir_type
@@ -226,7 +228,7 @@ namespace gch
     constexpr
     ir_type (ir_type_base ty, unsigned idx) noexcept
       : m_base (ty),
-        m_idx  (idx)
+        m_index (idx)
     { }
 
     [[nodiscard]] constexpr
@@ -265,14 +267,14 @@ namespace gch
     bool
     operator== (const ir_type& lhs, const ir_type& rhs) noexcept
     {
-      return lhs.m_idx == rhs.m_idx;
+      return lhs.m_index == rhs.m_index;
     }
 
     [[nodiscard]] constexpr
     unsigned
     get_index (void) const noexcept
     {
-      return m_idx;
+      return m_index;
     }
 
   private:
@@ -283,20 +285,45 @@ namespace gch
       return *m_base.m_ptr;
     }
 
+    static constexpr
+    unsigned
+    null_type_index = static_cast<unsigned> (-1);
+
+    struct constexpr_default_tag { };
+
+    constexpr
+    ir_type (constexpr_default_tag)
+      : m_base  (),
+        m_index (null_type_index)
+    { }
+
+    friend constexpr
+    ir_type
+    ir_type_base::
+    get_null_type (void) noexcept;
+
     ir_type_base m_base;
-    unsigned     m_idx;
+    unsigned     m_index;
   };
+
+  constexpr
+  ir_type
+  ir_type_base::
+  get_null_type (void) noexcept
+  {
+    return ir_type { ir_type::constexpr_default_tag { } };
+  }
 
   struct ir_type_base::impl
   {
     // A user readable type name (this is the base name if it is a pointer).
     // This should not be used directly. Use ir_type_printer to print a name.
-    const char * const           m_name_base;
-    const std::optional<ir_type> m_base_type;
-    const std::optional<ir_type> m_pointer_base_type;
-    const std::size_t            m_rep_size;
-    const ir_type_array          m_members;
-    const bool                   m_is_integral;
+    const char * const  m_name_base;
+    const ir_type       m_base_type;
+    const ir_type       m_pointer_base_type;
+    const std::size_t   m_rep_size;
+    const ir_type_array m_members;
+    const bool          m_is_integral;
   };
 
   [[nodiscard]] constexpr
@@ -312,7 +339,7 @@ namespace gch
   ir_type::
   get_base (void) const noexcept
   {
-    return *get_impl ().m_base_type;
+    return get_impl ().m_base_type;
   }
 
   [[nodiscard]] constexpr
@@ -320,7 +347,7 @@ namespace gch
   ir_type::
   get_pointer_base (void) const noexcept
   {
-    return *get_impl ().m_pointer_base_type;
+    return get_impl ().m_pointer_base_type;
   }
 
   [[nodiscard]] constexpr
@@ -352,7 +379,7 @@ namespace gch
   ir_type::
   has_base (void) const noexcept
   {
-    return get_impl ().m_base_type.has_value ();
+    return get_impl ().m_base_type.m_index != null_type_index;
   }
 
   [[nodiscard]] constexpr
@@ -360,20 +387,20 @@ namespace gch
   ir_type::
   has_pointer_base (void) const noexcept
   {
-    return get_impl ().m_pointer_base_type.has_value ();
+    return get_impl ().m_pointer_base_type.m_index != null_type_index;
   }
 
   template <typename T>
   constexpr
   auto
   ir_type_base::
-  create_type (const char *name, std::optional<ir_type> base) noexcept
+  create_type (const char *name, ir_type base) noexcept
     -> impl
   {
     return {
       name,
       base,
-      std::nullopt,
+      get_null_type (),
       sizeof (T),
       { },
       std::is_integral_v<T>
@@ -391,7 +418,7 @@ namespace gch
     return {
       name,
       base,
-      std::nullopt,
+      get_null_type (),
       sizeof (T),
       ir_type_array (members),
       std::is_integral_v<T>
@@ -420,6 +447,13 @@ namespace gch
       static constexpr
       ir_type
       value = { ir_type_base::get<T> (), pack_index_v<ir_type_pack, remove_all_cv_t<T>> };
+
+      constexpr
+      ir_type
+      operator() (void) const noexcept
+      {
+        return value;
+      }
     };
 
   }
@@ -498,7 +532,7 @@ namespace gch
     using type = any;
     static constexpr
     impl
-    data = create_type<any> ("any", std::nullopt);
+    data = create_type<any> ("any", get_null_type ());
   };
 
   template <typename T>
@@ -536,8 +570,8 @@ namespace gch
     impl
     data = {
       "void",
-      std::nullopt,
-      std::nullopt,
+      get_null_type (),
+      get_null_type (),
       0,
       { },
       false
@@ -771,23 +805,21 @@ namespace gch
   };
 
   template <>
+  struct ir_type_base::instance<ir_static_block_id>
+  {
+    using type = ir_static_block_id;
+    static constexpr
+    impl
+    data = create_type<ir_static_block_id> ("ir_static_block_id", ir_type_v<std::size_t>);
+  };
+
+  template <>
   struct ir_type_base::instance<ir_block *>
   {
     using type = void;
     static constexpr
     impl
-    data = create_type<ir_block *> ("ir_block *", std::nullopt);
-  };
-
-  template <typename T>
-  struct ir_type_mapper
-  {
-    constexpr
-    ir_type
-    operator() (void) const noexcept
-    {
-      return ir_type_v<T>;
-    }
+    data = create_type<ir_block *> ("ir_block *", get_null_type ());
   };
 
 }

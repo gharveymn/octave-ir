@@ -8,7 +8,6 @@
 #include "ir-block.hpp"
 #include "ir-structure.hpp"
 #include "ir-def-resolution.hpp"
-#include "ir-all-subcomponent-visitors.hpp"
 
 #include "ir-iterator.hpp"
 #include "structure/mutators/ir-ascending-def-propagator.hpp"
@@ -41,14 +40,16 @@ namespace gch
   ~ir_block (void) = default;
 
   ir_block::
-  ir_block (ir_structure& parent)
-    : ir_subcomponent (parent)
+  ir_block (ir_structure& parent, std::string_view name)
+    : ir_subcomponent (parent),
+      m_name          (name)
   { }
 
   ir_block::
-  ir_block (ir_structure& parent, ir_variable& condition_var) noexcept
+  ir_block (ir_structure& parent, ir_variable& condition_var, std::string_view name)
     : ir_subcomponent (parent),
-      m_condition_var (condition_var)
+      m_condition_var (condition_var),
+      m_name          (name)
   { }
 
   ir_block::
@@ -168,9 +169,9 @@ namespace gch
 
   ir_constant&&
   ir_block::
-  prepare_operand (citer, ir_constant&& t) noexcept
+  prepare_operand (citer, ir_constant&& c) noexcept
   {
-    return std::move (t);
+    return std::move (c);
   }
 
   ir_use_timeline&

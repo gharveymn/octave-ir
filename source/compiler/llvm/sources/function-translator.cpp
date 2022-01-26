@@ -83,29 +83,35 @@ namespace gch
     std::for_each (func.begin (), func.end (), [&](const ir_static_block& block) {
       auto instr_it  = block.begin ();
       auto phi_range = value_map[block].phis ();
-      std::for_each (phi_range.begin (), phi_range.end (),
-        [&](llvm::PHINode& phi_node)
+
+      std::for_each (phi_range.begin (), phi_range.end (), [&](llvm::PHINode& phi_node) {
+        assert (is_a<ir_opcode::phi> (*instr_it));
+        assert (instr_it->num_args () % 2 == 0);
+
+        for (auto op_it = instr_it->begin (); op_it != instr_it->end (); ++op_it)
         {
-          assert (is_a<ir_opcode::phi> (*instr_it));
-          assert (instr_it->num_args () % 2 == 0);
+          const ir_static_operand& block_op = *op_it++;
+          const ir_static_operand& value_op = *op_it;
 
-          for (auto op_it = instr_it->begin (); op_it != instr_it->end (); ++op_it)
-          {
-            const ir_static_operand& block_op = *op_it++;
-            const ir_static_operand& value_op = *op_it;
+          assert (is_constant (block_op));
+          const ir_constant& block_id_c = as_constant (block_op);
 
-            assert (is_constant (block_op));
-            const ir_constant& block_id_c = as_constant (block_op);
+          assert (is_use (value_op));
+          const ir_static_use& value = as_use (value_op);
 
-            assert (is_use (value_op));
-            const ir_static_use& value = as_use (value_op);
+          assert (is_a<ir_static_block_id> (block_id_c));
+          ir_static_block_id block_id { as<ir_static_block_id> (block_id_c) };
 
-            assert (is_a<ir_static_block_id::value_type> (block_id_c));
-            ir_static_block_id block_id { as<ir_static_block_id::value_type> (block_id_c) };
+          phi_node.addIncoming (&value_map[value], &value_map[block_id]);
+        }
 
-            phi_node.addIncoming (&value_map[value], &value_map[block_id]);
-          }
-        });
+        assert (block.end () != instr_it);
+
+        ++instr_it;
+      });
+
+      assert (block.end () == instr_it || ! is_a<ir_opcode::phi> (*instr_it));
+
     });
 
     return out_func;

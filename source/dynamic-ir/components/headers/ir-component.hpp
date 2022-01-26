@@ -68,7 +68,7 @@ namespace gch
     std::string m_name;
   };
 
-  // a subcomponent is any component that isn't an function
+  // A subcomponent is any component that isn't a function.
   class ir_subcomponent
     : public ir_component,
       public abstract_visitable<exclusive_visitors_t<ir_subcomponent>>
@@ -135,7 +135,7 @@ namespace gch
   ir_link_set<ir_block>
   get_predecessors (const ir_subcomponent& sub);
 
-  ir_link_set<ir_block>
+  small_vector<nonnull_ptr<ir_block>>
   get_successors (const ir_subcomponent& sub);
 
   bool

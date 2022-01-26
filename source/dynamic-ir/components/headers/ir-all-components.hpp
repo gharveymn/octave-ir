@@ -1,4 +1,4 @@
-/** ir-all-components.hpp.h
+/** ir-all-components.hpp
  * Copyright © 2021 Gene Harvey
  *
  * This software may be modified and distributed under the terms

@@ -64,6 +64,7 @@ macro (add_test_executable target_name)
       ${target_name}
       PRIVATE
         /W4
+        /EHc-
     )
   endif ()
 

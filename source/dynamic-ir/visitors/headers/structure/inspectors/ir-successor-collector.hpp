@@ -11,8 +11,8 @@
 #include "ir-structure-inspectors-fwd.hpp"
 #include "structure/inspectors/utility/ir-subcomponent-inspector.hpp"
 
-#include "ir-link-set.hpp"
 #include "ir-visitor.hpp"
+#include <gch/small_vector.hpp>
 
 namespace gch
 {
@@ -27,7 +27,7 @@ namespace gch
     friend acceptor_type<ir_component_sequence>;
     friend acceptor_type<ir_function>;
 
-    using result_type = ir_link_set<ir_block>;
+    using result_type = small_vector<nonnull_ptr<ir_block>>;
 
     ir_successor_collector            (void)                              = delete;
     ir_successor_collector            (const ir_successor_collector&)     = delete;

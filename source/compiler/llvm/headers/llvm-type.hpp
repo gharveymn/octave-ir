@@ -25,6 +25,7 @@ namespace gch
 {
   class octave_base_value;
   class ir_block;
+  class ir_static_block_id;
 
   using any = octave_base_value *;
   using single = float;
@@ -208,7 +209,18 @@ namespace gch
     static constexpr
     auto
     value = [](llvm::LLVMContext&) -> llvm::Type * {
-      std::cerr << "Not implemented yet for `any`." << std::endl;
+      // std::cerr << "Not implemented yet for `any`." << std::endl;
+      return nullptr;
+    };
+  };
+
+  template <>
+  struct llvm_type_function<ir_static_block_id>
+  {
+    static constexpr
+    auto
+    value = [](llvm::LLVMContext&) -> llvm::Type * {
+      // This should never be used.
       return nullptr;
     };
   };
@@ -227,7 +239,6 @@ namespace gch
   template <typename T>
   struct llvm_type_function<T *>
   {
-    // FIXME: Not working.
     static constexpr
     auto
     value = [](llvm::LLVMContext& ctx) -> llvm::Type * {

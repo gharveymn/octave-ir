@@ -113,28 +113,6 @@ namespace gch
         }
         else
         {
-          // targeted replacement
-          // small_vector<nonnull_ptr<ir_block>> added_nodes;
-          // added_nodes.reserve (m_incoming_blocks.size ());
-          //
-          // std::for_each (m_incoming_blocks.begin (),  m_incoming_blocks.end (),
-          //                [&](nonnull_ptr<ir_block> inc_block) {
-          //   auto found = std::find_if (block_dt->incoming_begin (), block_dt->incoming_end (),
-          //                              [inc_block](const auto& inc_pair) {
-          //     return std::get<const nonnull_cptr<ir_block>> (inc_pair) == inc_block;
-          //   });
-          //
-          //   if (found != block_dt->incoming_end ())
-          //     std::get<ir_incoming_node> (*found).rebind (m_dominator);
-          //   else
-          //     added_nodes.push_back (inc_block);
-          // });
-          //
-          // std::for_each (added_nodes.begin (), added_nodes.end (),
-          //                [&](nonnull_ptr<ir_block> inc_block) {
-          //   block_dt->append_incoming (*inc_block, m_dominator);
-          // });
-
           std::for_each (m_incoming_blocks.begin (),  m_incoming_blocks.end (),
                          [&](nonnull_ptr<ir_block> inc_block) {
             auto found = std::find_if (block_dt->incoming_begin (), block_dt->incoming_end (),
@@ -144,6 +122,8 @@ namespace gch
 
             if (found != block_dt->incoming_end ())
               std::get<ir_incoming_node> (*found).rebind (m_dominator);
+            else
+              block_dt->append_incoming (*inc_block, m_dominator);
           });
 
           // m_incoming_blocks is a transient cache, so clear it after first use (on entry)

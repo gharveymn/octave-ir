@@ -359,7 +359,7 @@ namespace gch
 
       small_vector<ir_static_operand, 2> phi_args;
       std::for_each (pairs.begin (), pairs.end (), [&](incoming_pair p){
-        phi_args.emplace_back (std::in_place_type<ir_static_block_id::value_type>,
+        phi_args.emplace_back (std::in_place_type<ir_static_block_id>,
                                m_block_manager[*p.block].get_id ());
         phi_args.emplace_back (m_det_var_id, p.def_id);
       });
@@ -673,9 +673,7 @@ namespace gch
   ir_static_operand
   create_block_operand (ir_static_block_id id)
   {
-    static_assert (is_ir_type_v<int>);
-    static_assert (! is_ir_type_v<std::string_view>);
-    return ir_static_operand { std::in_place_type<ir_static_block_id::value_type>, id };
+    return ir_static_operand { std::in_place_type<ir_static_block_id>, id };
   }
 
   //
@@ -1589,7 +1587,7 @@ namespace gch
     std::for_each (block_manager.begin (), block_manager.end (), applied {
       [&](nonnull_cptr<ir_block> block_ptr, ir_block_descriptor& descriptor)
       {
-        ir_link_set<ir_block> succs { get_successors (*block_ptr) };
+        small_vector<nonnull_ptr<ir_block>> succs { get_successors (*block_ptr) };
         std::for_each (succs.begin (), succs.end (), [&](nonnull_cptr<ir_block> b) {
           descriptor.add_successor (block_manager[*b].get_id ());
         });
@@ -1612,9 +1610,21 @@ namespace gch
     {
       ir_static_variable_map ret (m_block_manager.get_function ());
 
-      // resolve phi nodes and defs
+      // Resolve phi nodes and defs.
       std::for_each (m_block_manager.begin (), m_block_manager.end (), applied {
         [&](nonnull_cptr<ir_block> block, auto&&) { resolve_block (*block, ret); }
+      });
+
+      // Resolve terminal instructions.
+      std::for_each (m_block_manager.begin (), m_block_manager.end (), applied {
+        [&](nonnull_cptr<ir_block> block, auto&&)
+        {
+          if (block->empty<ir_block::range::body> ()
+          ||! is_a<ir_opcode::terminal> (block->back<ir_block::range::body> ()))
+          {
+            resolve_terminal_instruction (*block, ret);
+          }
+        }
       });
 
       return ret;
@@ -1748,13 +1758,6 @@ namespace gch
       std::for_each (block.dt_map_begin (), block.dt_map_end (), applied {
         [&](auto&&, const ir_def_timeline& dt) { resolve_def_timeline (block, dt, var_map); }
       });
-
-      // If the block does not already have a terminal instruction then create one.
-      if (block.empty<ir_block::range::body> ()
-      ||! is_a<ir_opcode::terminal> (block.back<ir_block::range::body> ()))
-      {
-        resolve_terminal_instruction (block, var_map);
-      }
     }
 
     void
@@ -1830,27 +1833,29 @@ namespace gch
                           const ir_def_timeline& dt,
                           ir_static_variable_map& var_map)
     {
+      assert (dt.has_outgoing_timeline ());
+
+      // Return early if the def timeline has already been processed.
+      if (optional_ref ret { var_map.maybe_get (dt.get_outgoing_timeline ()) })
+        return *ret;
+
       if (dt.has_local_timelines ())
       {
-        if (optional_ref ret { var_map.maybe_get (dt.local_back ()) })
-          return *ret;
-
         std::for_each (dt.local_rbegin (), dt.local_rend (), [&](const ir_use_timeline& ut) {
           var_map.map_origin (ut);
         });
 
         if (dt.has_incoming_timeline ())
-          return resolve_phi (block, dt, var_map);
+          resolve_phi (dt.get_block (), dt, var_map);
 
         return std::optional<ir_def_reference> {
           std::in_place,
-          dt.local_front ().get_def (),
+          dt.local_back ().get_def (),
           false
         };
       }
-
-      assert (dt.has_incoming_timeline ());
-      return resolve_phi (block, dt, var_map);
+      else
+        return resolve_phi (dt.get_block (), dt, var_map);
     }
 
     std::optional<ir_def_reference>
@@ -1895,6 +1900,9 @@ namespace gch
         const ir_component& start = loop->get_start ();
         while (pivot != dt.incoming_end () && ! is_leaf_of (start, *pivot->first))
           ++pivot;
+
+        if (pivot == dt.incoming_end ())
+          pivot = dt.incoming_begin ();
       }
 
       assert (pivot != dt.incoming_end ());
@@ -2054,9 +2062,7 @@ namespace gch
             ir_static_def phi_def { var_id, phi.get_id () };
 
             std::for_each (phi.begin (), phi.end (), [&](ir_static_incoming_pair pair) {
-              args.emplace_back (std::in_place_type<ir_static_block_id::value_type>,
-                                 pair.get_block_id ());
-
+              args.emplace_back (std::in_place_type<ir_static_block_id>, pair.get_block_id ());
               args.emplace_back (var_id, pair.maybe_get_def_id ());
             });
 

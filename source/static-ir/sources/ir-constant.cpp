@@ -69,6 +69,17 @@ namespace gch
     }
   };
 
+  template <>
+  struct constant_printer<ir_static_block_id>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_constant& c)
+    {
+      return out << "BLOCK" << static_cast<std::size_t> (as<ir_static_block_id> (c));
+    }
+  };
+
   template <typename T>
   struct printer_mapper
   {

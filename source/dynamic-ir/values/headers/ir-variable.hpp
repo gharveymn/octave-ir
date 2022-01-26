@@ -36,8 +36,10 @@ namespace gch
     ir_variable& operator= (ir_variable&&) noexcept = delete;
     ~ir_variable           (void)                   = default;
 
-    ir_variable (const ir_component& c, std::string_view name);
     ir_variable (const ir_component& c, std::string_view name, ir_type type);
+    ir_variable (const ir_component& c, ir_type type);
+    ir_variable (const ir_component& c, std::string_view name);
+    ir_variable (const ir_component& c);
 
     [[nodiscard]]
     std::string_view

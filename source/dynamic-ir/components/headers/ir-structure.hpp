@@ -92,7 +92,7 @@ namespace gch
     void
     invalidate_leaf_cache (void) noexcept;
 
-    // mutate a component inside a structure to a different type of component
+    // Mutate a component inside a structure to a different type of component.
     template <typename T>
     T&
     mutate (ir_component_handle comp)

@@ -659,7 +659,7 @@ namespace gch
   {
     static constexpr
     impl
-    data = derive<ir_opcode::branch> ("br",
+    data = derive<ir_opcode::branch> ("cbr",
                                       ir_opcode::  cbranch,
                                       flag::arity::ternary);
   };
@@ -669,7 +669,7 @@ namespace gch
   {
     static constexpr
     impl
-    data = derive<ir_opcode::branch> ("ubr",
+    data = derive<ir_opcode::branch> ("br",
                                       ir_opcode::  ucbranch,
                                       flag::arity::unary);
   };
@@ -702,7 +702,7 @@ namespace gch
     impl
     data = derive<ir_opcode::terminal> ("return",
                                         ir_opcode::  ret,
-                                        flag::arity::unary);
+                                        flag::arity::n_ary);
   };
 
   /* relation */

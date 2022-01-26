@@ -50,9 +50,17 @@ namespace gch
     return { map_pack<MapperT, ir_type_pack> (args...) };
   }
 
+  template <typename Ret, template <typename ...> typename MapperT, typename ...Args>
+  constexpr
+  ir_type_map<Ret>
+  generate_ir_type_map (const Args&... args) noexcept
+  {
+    return { map_pack<Ret, MapperT, ir_type_pack> (args...) };
+  }
+
   inline constexpr
   auto
-  ir_type_list = generate_ir_type_map<ir_type_mapper> ();
+  ir_type_list = generate_ir_type_map<ir_type_value> ();
 
   namespace detail
   {
@@ -71,6 +79,7 @@ namespace gch
       }
     };
 
+    // Clang will exceed the map constexpr recursion limit if we define it in the depth function.
     inline constexpr
     auto
     ir_type_depth_map = generate_ir_type_map<ir_type_depth_mapper> ();
@@ -119,10 +128,13 @@ namespace gch
       if (lhs == rhs)
         return lhs;
 
-      if (depth (lhs) < depth (rhs) && rhs.has_base ())
+      unsigned depth_lhs = depth (lhs);
+      unsigned depth_rhs = depth (rhs);
+
+      if (depth_lhs < depth_rhs && rhs.has_base ())
         return lca_impl (lhs, rhs.get_base ());
 
-      if (depth (lhs) > depth (rhs) && lhs.has_base ())
+      if (depth_lhs > depth_rhs && lhs.has_base ())
         return lca_impl (lhs.get_base (), rhs);
 
       if (! lhs.has_base () || ! rhs.has_base ())
@@ -153,10 +165,6 @@ namespace gch
       };
     };
 
-    inline constexpr
-    auto
-    ir_type_lca_map = generate_ir_type_map<ir_type_lca_mapper> ();
-
   }
 
   /**
@@ -170,8 +178,8 @@ namespace gch
   ir_type
   lca (ir_type lhs, ir_type rhs) noexcept
   {
-    constexpr auto lca_map = generate_ir_type_map<detail::ir_type_lca_mapper> ();
-    return lca_map[lhs][rhs];
+    auto map = generate_ir_type_map<detail::ir_type_lca_mapper> ();
+    return map[lhs][rhs];
   }
 
   constexpr

@@ -13,16 +13,27 @@ namespace gch
 {
 
   ir_variable::
+  ir_variable (const ir_component& c, std::string_view name, ir_type type)
+    : m_component (c),
+      m_name      (name),
+      m_type      (type)
+  { }
+
+  ir_variable::
+  ir_variable (const ir_component& c, ir_type type)
+    : m_component (c),
+      m_type      (type)
+  { }
+
+  ir_variable::
   ir_variable (const ir_component& c, std::string_view name)
     : m_component (c),
       m_name      (name)
   { }
 
   ir_variable::
-  ir_variable (const ir_component& c, std::string_view name, ir_type type)
-    : m_component (c),
-      m_name      (name),
-      m_type      (type)
+  ir_variable (const ir_component& c)
+    : m_component (c)
   { }
 
   std::string_view

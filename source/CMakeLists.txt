@@ -1,9 +1,9 @@
 set (CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY     ${CMAKE_BINARY_DIR}/build-output/lib)
-set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build-output/lib)
+#set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build-output/lib)
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY     ${CMAKE_BINARY_DIR}/build-output/lib)
-set (CMAKE_PDB_OUTPUT_DIRECTORY         ${CMAKE_BINARY_DIR}/build-output/bin)
+#set (CMAKE_PDB_OUTPUT_DIRECTORY         ${CMAKE_BINARY_DIR}/build-output/bin)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY     ${CMAKE_BINARY_DIR}/build-output/bin)
 
 add_library (octave-ir.common INTERFACE)
@@ -26,6 +26,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       -Wno-documentation
       -Wno-weak-vtables
       -Wno-weak-template-vtables
+      -Wno-extra-semi
   )
 
   target_link_options (
@@ -74,6 +75,7 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     INTERFACE
       /W4
       /wd4250
+      /permissive-
   )
 endif ()
 

@@ -133,7 +133,7 @@ namespace gch
     using result_type        = typename abstract_acceptor<category_wrapper>::result_type;
 
     result_type
-    accept (visitor_reference) const override;
+    accept (visitor_reference v) const override;
   };
 
   template <typename Derived, typename Mutator>
@@ -141,13 +141,13 @@ namespace gch
     : public virtual abstract_acceptor<mutator_type<Mutator>>
   {
   public:
-    using category_wrapper         = mutator_type<Mutator>;
+    using category_wrapper   = mutator_type<Mutator>;
     using concrete_reference = Derived&;
     using visitor_reference  = typename abstract_acceptor<category_wrapper>::visitor_reference;
     using result_type        = typename abstract_acceptor<category_wrapper>::result_type;
 
     result_type
-    accept (visitor_reference) override;
+    accept (visitor_reference v) override;
   };
 
   template <typename Derived, typename Visitor>

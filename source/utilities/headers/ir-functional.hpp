@@ -72,6 +72,19 @@ namespace gch
     return detail::invoke_impl (std::forward<Functor> (f), std::forward<Args> (args)...);
   }
 
+  template<typename Ret, typename Functor, typename ...Args,
+           std::enable_if_t<std::is_invocable_r_v<Ret, Functor, Args...>> * = nullptr>
+  constexpr
+  Ret
+  invoke_r (Functor&& f, Args&&... args)
+    noexcept (std::is_nothrow_invocable_r_v<Ret, Functor, Args...>)
+  {
+    if constexpr (std::is_void_v<Ret>)
+      gch::invoke (std::forward<Functor> (f), std::forward<Args> (args)...);
+    else
+      return gch::invoke (std::forward<Functor> (f), std::forward<Args> (args)...);
+  }
+
   struct identity
   {
     template <typename T>
@@ -783,7 +796,8 @@ namespace gch
     struct map_pack_impl
     { };
 
-    template <template <typename ...> typename MapperT, template <typename ...> typename PackT,
+    template <template <typename ...> typename MapperT,
+              template <typename ...> typename PackT,
               typename ...Ts>
     struct map_pack_impl<MapperT, PackT<Ts...>>
     {
@@ -800,6 +814,27 @@ namespace gch
       }
     };
 
+    template <typename Ret, template <typename ...> typename MapperT, typename Pack>
+    struct map_pack_impl_r
+    { };
+
+    template <typename Ret,
+              template <typename ...> typename MapperT,
+              template <typename ...> typename PackT,
+              typename ...Ts>
+    struct map_pack_impl_r<Ret, MapperT, PackT<Ts...>>
+    {
+      template <typename ...Args>
+      constexpr
+      std::array<Ret, sizeof...(Ts)>
+      operator() (const Args&... args)
+        noexcept (noexcept (
+          std::array<Ret, sizeof...(Ts)> { gch::invoke_r<Ret> (MapperT<Ts> { }, args...)... }))
+      {
+        return { gch::invoke_r<Ret> (MapperT<Ts> { }, args...)... };
+      }
+    };
+
   } // namespace gch::detail
 
   template <template <typename ...> typename MapperT, typename Pack, typename ...Args>
@@ -808,6 +843,14 @@ namespace gch
   map_pack (const Args&... args)
   {
     return gch::invoke (detail::map_pack_impl<MapperT, Pack> { }, args...);
+  }
+
+  template <typename Ret, template <typename ...> typename MapperT, typename Pack, typename ...Args>
+  constexpr
+  std::array<Ret, pack_size_v<Pack>>
+  map_pack (const Args&... args)
+  {
+    return gch::invoke (detail::map_pack_impl_r<Ret, MapperT, Pack> { }, args...);
   }
 
 }

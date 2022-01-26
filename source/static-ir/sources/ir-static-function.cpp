@@ -187,7 +187,7 @@ namespace gch
   ir_static_function::
   get_block_name (const ir_static_block& block) const
   {
-    return std::string ("Block").append (std::to_string (std::distance (&m_blocks[0], &block)));
+    return std::string ("BLOCK").append (std::to_string (std::distance (&m_blocks[0], &block)));
   }
 
   const ir_static_variable&
@@ -361,7 +361,7 @@ namespace gch
       if (instr.has_args ())
       {
         func.print (out, instr[1]);
-        out << " : Block";
+        out << " : ";
         func.print (out, instr[0]);
 
         for (auto it = std::next (instr.begin (), 2); it != instr.end (); ++it)
@@ -370,7 +370,7 @@ namespace gch
 
           out << " | ";
           func.print (out, *it);
-          out << " : Block";
+          out << " : ";
           func.print (out, *block_it);
         }
       }
@@ -464,6 +464,28 @@ namespace gch
       func.print (out, instr[1]);
       out << " : ";
       func.print (out, instr[2]);
+
+      return out;
+    }
+  };
+
+  template <>
+  struct instruction_printer<ir_opcode::ret>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_static_instruction& instr, const ir_static_function& func)
+    {
+      out << instr.get_metadata ().get_name ();
+
+      if (instr.has_args ())
+      {
+        return std::accumulate (std::next (instr.begin ()), instr.end (),
+                                std::ref (func.print (out << ' ', instr[0])),
+                                [&](std::ostream& o, const ir_static_operand& op) {
+                                  return std::ref (func.print (o << ' ',  op));
+                                });
+      }
 
       return out;
     }
