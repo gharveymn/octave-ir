@@ -34,48 +34,61 @@ namespace gch
     explicit
     ir_ascending_def_resolution_builder (const ir_subcomponent& sub, const ir_variable& var);
 
+    explicit
+    ir_ascending_def_resolution_builder (const ir_subcomponent& sub, result_type&& sub_result);
+
     result_type
-    operator() (void) const;
+    operator() (void);
 
   private:
     [[nodiscard]]
     result_type
-    visit (const ir_component_fork& fork) const;
+    visit (const ir_component_fork& fork);
 
     [[nodiscard]]
     result_type
-    visit (const ir_component_loop& loop) const;
+    visit (const ir_component_loop& loop);
 
     [[nodiscard]]
     result_type
-    visit (const ir_component_sequence& seq) const;
+    visit (const ir_component_sequence& seq);
 
     [[nodiscard]]
     result_type
-    visit (const ir_function& func) const;
+    visit (const ir_function& func);
 
     [[nodiscard]]
     result_type
-    maybe_ascend (const ir_substructure& sub, ir_def_resolution_build_result&& sub_result) const;
+    maybe_ascend (const ir_substructure& sub,
+                  ir_def_resolution_stack&& stack,
+                  result_type::join_type needs_join,
+                  result_type::resolvable_type is_resolvable);
 
     [[nodiscard]]
     result_type
-    ascend (const ir_substructure& sub) const;
+    maybe_ascend (const ir_substructure& sub, result_type&& res);
+
+    [[nodiscard]]
+    result_type
+    ascend (const ir_substructure& sub);
 
     [[nodiscard]]
     ir_def_resolution_build_result
-    dispatch_descender (const ir_subcomponent& sub) const;
+    dispatch_descender (const ir_subcomponent& sub);
 
     [[nodiscard]]
     ir_def_resolution_build_result
-    dispatch_descender (const ir_block& block) const;
+    dispatch_descender (const ir_block& block);
+
+    [[nodiscard]]
+    result_type&&
+    create_dominating_result (result_type&& res);
 
     [[nodiscard]]
     const ir_variable&
     get_variable (void) const noexcept;
 
-    const ir_variable& m_variable;
-    // result_type        m_sub_result;
+    result_type m_sub_result;
   };
 
 }

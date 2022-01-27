@@ -1756,7 +1756,7 @@ namespace gch
     resolve_block (const ir_block& block, ir_static_variable_map& var_map)
     {
       std::for_each (block.dt_map_begin (), block.dt_map_end (), applied {
-        [&](auto&&, const ir_def_timeline& dt) { resolve_def_timeline (block, dt, var_map); }
+        [&](auto&&, const ir_def_timeline& dt) { resolve_def_timeline (dt, var_map); }
       });
     }
 
@@ -1805,7 +1805,7 @@ namespace gch
         {
           if (optional_ref ret_dt { block.maybe_get_def_timeline (**ret_it) })
           {
-            if (std::optional res { resolve_def_timeline (block, *ret_dt, var_map) })
+            if (std::optional res { resolve_def_timeline (*ret_dt, var_map) })
             {
               ret_args.emplace_back (var_map.get_variable_id (**ret_it),
                                      var_map.get_def_id (*res));
@@ -1829,23 +1829,22 @@ namespace gch
     }
 
     std::optional<ir_def_reference>
-    resolve_def_timeline (const ir_block& block,
-                          const ir_def_timeline& dt,
-                          ir_static_variable_map& var_map)
+    resolve_def_timeline (const ir_def_timeline& dt, ir_static_variable_map& var_map)
     {
       assert (dt.has_outgoing_timeline ());
 
-      // Return early if the def timeline has already been processed.
-      if (optional_ref ret { var_map.maybe_get (dt.get_outgoing_timeline ()) })
-        return *ret;
+      std::optional<ir_def_reference> ret;
 
       if (dt.has_local_timelines ())
       {
-        std::for_each (dt.local_rbegin (), dt.local_rend (), [&](const ir_use_timeline& ut) {
-          var_map.map_origin (ut);
-        });
+        if (! var_map.maybe_get (dt.local_back ()))
+        {
+          std::for_each (dt.local_rbegin (), dt.local_rend (), [&](const ir_use_timeline& ut) {
+            var_map.map_origin (ut);
+          });
+        }
 
-        if (dt.has_incoming_timeline ())
+        if (dt.has_incoming_timeline () && ! var_map.maybe_get (dt.get_incoming_timeline ()))
           resolve_phi (dt.get_block (), dt, var_map);
 
         return std::optional<ir_def_reference> {
@@ -1854,8 +1853,37 @@ namespace gch
           false
         };
       }
-      else
-        return resolve_phi (dt.get_block (), dt, var_map);
+
+      if (optional_ref phi_ref { var_map.maybe_get (dt.get_incoming_timeline ()) })
+        return *phi_ref;
+      return resolve_phi (dt.get_block (), dt, var_map);
+    }
+
+    std::optional<ir_def_reference>
+    lazy_resolve_def_timeline (const ir_def_timeline& dt, ir_static_variable_map& var_map)
+    {
+      assert (dt.has_outgoing_timeline ());
+
+      // If the def timeline has local timelines, only map those and exit. Do not resolve phi.
+
+      if (dt.has_local_timelines ())
+      {
+        if (optional_ref ret { var_map.maybe_get (dt.local_back ()) })
+          return *ret;
+
+        std::for_each (dt.local_rbegin (), dt.local_rend (), [&](const ir_use_timeline& ut) {
+          var_map.map_origin (ut);
+        });
+
+        return std::optional<ir_def_reference> {
+          std::in_place,
+          dt.local_back ().get_def (),
+          false
+        };
+      }
+      else if (optional_ref ret { var_map.maybe_get (dt.get_incoming_timeline ()) })
+        return *ret;
+      return resolve_phi (dt.get_block (), dt, var_map);
     }
 
     std::optional<ir_def_reference>
@@ -1909,7 +1937,7 @@ namespace gch
 
       std::optional<ir_def_reference> init_origin =
         pivot->second.maybe_get_incoming_def_timeline () >>= [&](const auto& inc_dt) {
-        return resolve_def_timeline (*pivot->first, inc_dt, var_map);
+        return lazy_resolve_def_timeline (inc_dt, var_map);
       };
 
       std::optional<ir_def_reference>& origin = var_map.map_origin (phi_ut, init_origin);
@@ -1921,7 +1949,7 @@ namespace gch
 
           std::optional<ir_def_reference> curr =
             node.maybe_get_incoming_def_timeline () >>= [&](const auto& curr_dt) {
-            return resolve_def_timeline (*incoming_block, curr_dt, var_map);
+            return lazy_resolve_def_timeline (curr_dt, var_map);
           };
 
           if (curr)

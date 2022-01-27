@@ -28,13 +28,15 @@ namespace gch
   llvm::BasicBlock&
   translate_block (const ir_static_block& block, llvm_value_map& value_map)
   {
+    constexpr auto instruction_map = ir_metadata::generate_map<instruction_translator_mapper> ();
+
     llvm::BasicBlock& llvm_block = value_map[block];
     llvm_ir_builder_type block_builder (&llvm_block);
 
     std::for_each (block.begin (), block.end (), [&](const ir_static_instruction& instr) {
       try
       {
-        llvm::Value *val = translator_map[instr.get_metadata ()] (instr, block_builder, value_map);
+        llvm::Value *val = instruction_map[instr.get_metadata ()] (instr, block_builder, value_map);
         if (instr.has_def ())
           value_map.register_def (instr.get_def (), *val);
       }

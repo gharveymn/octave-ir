@@ -10,6 +10,19 @@
 namespace gch
 {
 
+  ir_type
+  lca (ir_type lhs, ir_type rhs) noexcept
+  {
+    auto map = generate_ir_type_map<detail::ir_type_lca_mapper> ();
+    return map[lhs][rhs];
+  }
+
+  ir_type
+  operator^ (ir_type lhs, ir_type rhs) noexcept
+  {
+    return lca (lhs, rhs);
+  }
+
   std::string
   get_name (ir_type ty)
   {

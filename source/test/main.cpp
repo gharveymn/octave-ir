@@ -317,6 +317,23 @@ test_double_loop (void)
 
   after_block     .set_name ("after");
 
+  auto print_dt = [](const ir_block& block, const ir_variable& var) {
+    block.maybe_get_def_timeline (var) >>= [](auto& dt) { std::cout << dt << '\n' << std::endl; };
+  };
+
+  auto print_dts = [&] {
+    print_dt (entry_block,     var_x);
+    print_dt (start_block,     var_x);
+    print_dt (condition_block, var_x);
+    print_dt (body_block,      var_x);
+    print_dt (update_block,    var_x);
+    print_dt (start_block2,    var_x);
+    print_dt (condition_block2,var_x);
+    print_dt (body_block2,     var_x);
+    print_dt (update_block2,   var_x);
+    print_dt (after_block,     var_x);
+  };
+
   entry_block.append_instruction<ir_opcode::assign> (var_x, 1);
 
   start_block.append_instruction<ir_opcode::assign> (var_i, 0);
@@ -326,6 +343,8 @@ test_double_loop (void)
   update_block2.append_instruction<ir_opcode::add> (var_j, var_j, 1);
 
   body_block2.append_instruction<ir_opcode::add> (var_x, var_x, 2);
+
+  print_dts ();
 
   condition_block2.append_instruction<ir_opcode::lt> (var_tmp, var_j, 3);
 
@@ -356,7 +375,8 @@ test_double_loop (void)
 int
 main (void)
 {
-  test_loop ();
+  test_double_loop ();
+  return 0;
 
   invalid_func ();
 

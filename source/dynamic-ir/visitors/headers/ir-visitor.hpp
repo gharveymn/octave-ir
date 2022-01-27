@@ -136,6 +136,17 @@ namespace gch
     accept (visitor_reference v) const override;
   };
 
+#define INSTANTIATE_ACCEPTOR(DERIVED, INSPECTOR)             \
+template class acceptor<DERIVED, inspector_type<INSPECTOR>>; \
+template <>                                                  \
+auto                                                         \
+INSPECTOR::acceptor_type<DERIVED>::                          \
+accept (visitor_reference_t<INSPECTOR> v) const              \
+  -> result_type                                             \
+{                                                            \
+  return v.visit (static_cast<concrete_reference> (*this));  \
+}
+
   template <typename Derived, typename Mutator>
   class acceptor<Derived, mutator_type<Mutator>>
     : public virtual abstract_acceptor<mutator_type<Mutator>>
@@ -149,6 +160,17 @@ namespace gch
     result_type
     accept (visitor_reference v) override;
   };
+
+#define INSTANTIATE_MUTATOR(DERIVED, MUTATOR)               \
+template class acceptor<DERIVED, inspector_type<MUTATOR>>;  \
+template <>                                                 \
+auto                                                        \
+MUTATOR::acceptor_type<DERIVED>::                           \
+accept (visitor_reference_t<MUTATOR> v)                     \
+  -> result_type                                            \
+{                                                           \
+  return v.visit (static_cast<concrete_reference> (*this)); \
+}
 
   template <typename Derived, typename Visitor>
   class visitable

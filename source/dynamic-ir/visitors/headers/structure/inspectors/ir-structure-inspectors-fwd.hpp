@@ -54,7 +54,7 @@ namespace gch
     : acceptor_trait<ir_ascending_def_resolution_builder>
   {
     using result_type      = ir_def_resolution_build_result;
-    using visitor_category = const_inspector_tag;
+    using visitor_category = inspector_tag;
   };
 
   template <>

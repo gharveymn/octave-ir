@@ -483,10 +483,6 @@ namespace gch
     }
   };
 
-  inline constexpr
-  auto
-  translator_map { ir_metadata::generate_map<instruction_translator_mapper> () };
-
 }
 
 #endif // OCTAVE_IR_COMPILER_LLVM_INSTRUCTION_TRANSLATOR_HPP

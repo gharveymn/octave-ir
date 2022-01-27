@@ -130,7 +130,7 @@ namespace gch
   llvm_module_interface::
   get_function (std::string_view name)
   {
-    return invoke_with_module (&llvm::Module::getFunction, name);
+    return invoke_with_module (&llvm::Module::getFunction, name.data ());
   }
 
   //

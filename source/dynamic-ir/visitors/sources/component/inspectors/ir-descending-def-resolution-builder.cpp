@@ -100,14 +100,14 @@ namespace gch
       if (dt->has_outgoing_timeline ())
       {
         return { { get_variable (), block, { nonnull_ptr { *dt } } },
-                 result_type::join::yes,
-                 result_type::resolvable::yes };
+                 result_type::join<true>,
+                 result_type::resolvable<true> };
       }
     }
 
     return { { get_variable (), block },
-             result_type::join::no,
-             result_type::resolvable::no };
+             result_type::join<false>,
+             result_type::resolvable<false> };
   }
 
   auto
@@ -126,8 +126,7 @@ namespace gch
     bool                    is_resolvable { true            };
 
     std::for_each (case_results.begin (), case_results.end (),
-                   [&](result_type& r)
-                   {
+                   [&](result_type& r) {
                      stack.add_leaf  (r.release_stack ());
                      needs_join    |= r.needs_join ();
                      is_resolvable &= r.is_resolvable ();
@@ -144,9 +143,7 @@ namespace gch
       }
     }
 
-    return { std::move (stack),
-             static_cast<result_type::join>       (needs_join),
-             static_cast<result_type::resolvable> (is_resolvable) };
+    return { std::move (stack), needs_join, is_resolvable };
   }
 
   auto
@@ -189,9 +186,7 @@ namespace gch
       is_resolvable = start_res.is_resolvable ();
     }
 
-    return { std::move (stack),
-             static_cast<result_type::join>       (needs_join),
-             static_cast<result_type::resolvable> (is_resolvable) };
+    return { std::move (stack), needs_join, is_resolvable };
   }
 
   auto
@@ -220,9 +215,7 @@ namespace gch
     if (needs_join)
      stack.add_leaf (leaf_res.release_stack ());
 
-    return { std::move (stack),
-             static_cast<result_type::join>       (needs_join),
-             static_cast<result_type::resolvable> (is_resolvable) };
+    return { std::move (stack), needs_join, is_resolvable };
   }
 
   auto

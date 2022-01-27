@@ -9,6 +9,7 @@
 #define OCTAVE_IR_DYNAMIC_IR_IR_DEF_RESOLUTION_HPP
 
 #include "ir-link-set.hpp"
+#include "ir-utility.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 #include <gch/optional_ref.hpp>
@@ -163,6 +164,10 @@ namespace gch
     pop (void);
 
     [[nodiscard]]
+    std::size_t
+    num_frames (void) const noexcept;
+
+    [[nodiscard]]
     bool
     has_frames (void) const noexcept;
 
@@ -275,6 +280,9 @@ namespace gch
     bool
     has_leaves (void) const noexcept;
 
+    void
+    dominate_with (const ir_block& join_block, ir_def_resolution_stack&& dominator);
+
   private:
     nonnull_cptr<ir_variable>                               m_variable;
     std::optional<leading_block_resolution>                 m_block_resolution;
@@ -324,29 +332,39 @@ namespace gch
     ir_def_resolution_build_result& operator= (ir_def_resolution_build_result&&) noexcept = default;
     ~ir_def_resolution_build_result           (void)                                      = default;
 
-    enum class join : bool
+    struct join_type
+      : transparent_named_type<join_type, bool>
     {
-      yes = true,
-      no  = false,
+      using transparent_named_type<join_type, bool>::transparent_named_type;
     };
 
-    enum class resolvable : bool
+    template <bool B>
+    static constexpr join_type join { B };
+
+    struct resolvable_type
+      : transparent_named_type<resolvable_type, bool>
     {
-      yes = true,
-      no  = false,
+      using transparent_named_type<resolvable_type, bool>::transparent_named_type;
     };
 
-    ir_def_resolution_build_result (const ir_variable& var, join j, resolvable r);
+    template <bool B>
+    static constexpr resolvable_type resolvable { B };
 
-    ir_def_resolution_build_result (ir_def_resolution_stack&& s, join j, resolvable r);
+    ir_def_resolution_build_result (const ir_variable& var, join_type j, resolvable_type r);
+
+    ir_def_resolution_build_result (ir_def_resolution_stack&& s, join_type j, resolvable_type r);
 
     [[nodiscard]]
-    join
-    get_join_state (void) const noexcept;
+    const ir_variable&
+    get_variable (void) const noexcept;
 
     [[nodiscard]]
-    resolvable
-    get_resolvable_state (void) const noexcept;
+    const ir_def_resolution_stack&
+    get_stack (void) const noexcept;
+
+    [[nodiscard]]
+    ir_def_resolution_stack&
+    get_stack (void) noexcept;
 
     // returning rvalue reference just for semantic reasons
     [[nodiscard]]
@@ -354,17 +372,51 @@ namespace gch
     release_stack (void) noexcept;
 
     [[nodiscard]]
-    bool
+    join_type
     needs_join (void) const noexcept;
 
     [[nodiscard]]
-    bool
+    resolvable_type
     is_resolvable (void) const noexcept;
+
+    void
+    set_join (join_type j) noexcept;
+
+    void
+    set_resolvable (resolvable_type r) noexcept;
+
+    ir_def_resolution_build_result&
+    operator&= (ir_def_resolution_build_result::join_type j)
+    {
+      m_join &= j;
+      return *this;
+    }
+
+    ir_def_resolution_build_result&
+    operator|= (ir_def_resolution_build_result::join_type j)
+    {
+      m_join |= j;
+      return *this;
+    }
+
+    ir_def_resolution_build_result&
+    operator&= (ir_def_resolution_build_result::resolvable_type r)
+    {
+      m_resolvable &= r;
+      return *this;
+    }
+
+    ir_def_resolution_build_result&
+    operator|= (ir_def_resolution_build_result::resolvable_type r)
+    {
+      m_resolvable |= r;
+      return *this;
+    }
 
   private:
     ir_def_resolution_stack m_stack;
-    join                    m_join;
-    resolvable              m_resolvable;
+    join_type               m_join;
+    resolvable_type         m_resolvable;
   };
 
   [[nodiscard]]

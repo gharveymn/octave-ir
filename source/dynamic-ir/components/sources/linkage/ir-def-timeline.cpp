@@ -1073,4 +1073,31 @@ namespace gch
       m_block->erase_phi (*phi_it);
     get_use_timelines<range::incoming> ().clear ();
   }
+
+  std::ostream&
+  operator<< (std::ostream& out, const ir_def_timeline& dt)
+  {
+    out << "Variable: " << dt.get_variable ().get_name () << "\n";
+    out << "Block:    " << dt.get_block ().get_name () << "\n";
+    out << "Incoming: [";
+
+    if (dt.has_incoming ())
+    {
+      std::for_each (dt.incoming_begin (), dt.incoming_end (), applied {
+        [&](nonnull_cptr<ir_block> incoming_block, const ir_incoming_node& node)
+        {
+          out << "\n  "
+              << incoming_block->get_name ()
+              << " -> "
+              << node.get_remote ().get_block ().get_name ();
+        }
+      });
+      out << "\n";
+    }
+    out << "]\n";
+
+    out << "Locals:   " << dt.local_size ();
+    return out;
+  }
+
 }

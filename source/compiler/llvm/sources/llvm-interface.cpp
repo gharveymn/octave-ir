@@ -71,8 +71,8 @@ namespace gch
   {
     llvm::orc::MangleAndInterner mangler (m_base_layer.getExecutionSession (), m_data_layout);
     llvm::orc::SymbolFlagsMap syms;
-    syms[mangler (func.get_name ())] = llvm::JITSymbolFlags (llvm::JITSymbolFlags::Exported
-                                                           | llvm::JITSymbolFlags::Callable);
+    syms[mangler (func.get_name ().data ())] =
+      llvm::JITSymbolFlags (llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
     return syms;
   }
 

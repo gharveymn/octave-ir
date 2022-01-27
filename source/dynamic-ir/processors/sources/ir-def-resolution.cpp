@@ -193,6 +193,13 @@ namespace gch
     m_stack.pop ();
   }
 
+  std::size_t
+  ir_def_resolution_stack::
+  num_frames (void) const noexcept
+  {
+    return m_stack.size ();
+  }
+
   bool
   ir_def_resolution_stack::
   has_frames (void) const noexcept
@@ -422,6 +429,17 @@ namespace gch
     return ! m_leaves.empty ();
   }
 
+  void
+  ir_def_resolution_stack::
+  dominate_with (const ir_block& join_block, ir_def_resolution_stack&& dominator)
+  {
+    // FIXME: Is there a faster way to do this? Does aliasing matter here?
+    // Move self to leaves.
+    auto sub = std::exchange (*this, ir_def_resolution_stack { get_variable () });
+    add_leaf (std::move (sub));
+    push_frame (join_block, std::move (dominator));
+  }
+
   //
   // ir_def_resolution_frame
   //
@@ -478,33 +496,38 @@ namespace gch
   //
 
   ir_def_resolution_build_result::
-  ir_def_resolution_build_result (const ir_variable& var, join j, resolvable r)
+  ir_def_resolution_build_result (const ir_variable& var, join_type j, resolvable_type r)
     : m_stack      (var),
       m_join       (j),
       m_resolvable (r)
   { }
 
   ir_def_resolution_build_result::
-  ir_def_resolution_build_result (ir_def_resolution_stack&& s, join j, resolvable r)
+  ir_def_resolution_build_result (ir_def_resolution_stack&& s, join_type j, resolvable_type r)
     : m_stack      (std::move (s)),
       m_join       (j),
       m_resolvable (r)
   { }
 
-  auto
+  const ir_variable&
   ir_def_resolution_build_result::
-  get_join_state (void) const noexcept
-  -> join
+  get_variable (void) const noexcept
   {
-    return m_join;
+    return m_stack.get_variable ();
   }
 
-  auto
+  const ir_def_resolution_stack&
   ir_def_resolution_build_result::
-  get_resolvable_state (void) const noexcept
-  -> resolvable
+  get_stack (void) const noexcept
   {
-    return m_resolvable;
+    return m_stack;
+  }
+
+  ir_def_resolution_stack&
+  ir_def_resolution_build_result::
+  get_stack (void) noexcept
+  {
+    return m_stack;
   }
 
   ir_def_resolution_stack&&
@@ -514,29 +537,48 @@ namespace gch
     return std::move (m_stack);
   }
 
-  bool
+  auto
   ir_def_resolution_build_result::
   needs_join (void) const noexcept
+    -> join_type
   {
-    return get_join_state () == join::yes;
+    return m_join;
   }
 
-  bool
+  auto
   ir_def_resolution_build_result::
   is_resolvable (void) const noexcept
+    -> resolvable_type
   {
-    return get_resolvable_state () == resolvable::yes;
+    return m_resolvable;
+  }
+
+  void
+  ir_def_resolution_build_result::
+  set_join (join_type j) noexcept
+  {
+    m_join = j;
+  }
+
+  void
+  ir_def_resolution_build_result::
+  set_resolvable (resolvable_type r) noexcept
+  {
+    m_resolvable = r;
   }
 
   ir_def_resolution_stack
   build_def_resolution_stack (const ir_block& block, const ir_variable& var)
   {
-    auto stack { ir_ascending_def_resolution_builder { block, var } ().release_stack () };
-
-    // assert (! stack.has_leaves ());
+    ir_def_resolution_stack stack { var };
+    stack.push_frame (block, { var, block });
+    ir_def_resolution_build_result primer {
+      std::move (stack),
+      ir_def_resolution_build_result::join<true>,
+      ir_def_resolution_build_result::join<false>
+    };
     stack.add_leaf (block);
-
-    return stack;
+    return ir_ascending_def_resolution_builder { block, std::move (primer) } ().release_stack ();
   }
 
   [[nodiscard]]
@@ -552,11 +594,26 @@ namespace gch
 
     // Note: In the case of loops we may be appending to a def-timeline which already exists.
 
-    std::for_each (incoming.begin (), incoming.end (), [&dt](const ir_def_resolution& r) {
-      dt.append_incoming (
-        as_mutable (r.get_leaf_block ()),
-        as_mutable (r.maybe_get_timeline ()));
-    });
+    if (incoming.size () == 1 && &join_block == &incoming[0].get_leaf_block ())
+    {
+      if (! dt.has_incoming ())
+      {
+        // FIXME: Hack.
+        ir_link_set<ir_block> preds = get_predecessors (join_block);
+        optional_ref inc_dt { as_mutable (incoming[0].maybe_get_timeline ()) };
+        std::for_each (preds.begin (), preds.end (), [&](nonnull_ptr<ir_block> inc_block) {
+          dt.append_incoming (*inc_block, inc_dt);
+        });
+      }
+    }
+    else
+    {
+      std::for_each (incoming.begin (), incoming.end (), [&dt](const ir_def_resolution& r) {
+        dt.append_incoming (
+          as_mutable (r.get_leaf_block ()),
+          as_mutable (r.maybe_get_timeline ()));
+      });
+    }
 
     // Q: Do we need to re-point references to the found predecessor timelines
     //    in subsequent blocks?
@@ -661,19 +718,20 @@ namespace gch
 
     small_vector<ir_def_resolution> res = resolve_with (stack, { });
 
-    assert (1 == res.size ());
-    if (! dt.has_incoming_timeline ())
-    {
-      if (optional_ref join_dt { res[0].maybe_get_timeline () })
-      {
-        ir_link_set preds { get_predecessors (dt.get_block ()) };
-        std::for_each (preds.begin (), preds.end (), [&](nonnull_ptr<ir_block> pred_block) {
-          dt.append_incoming (*pred_block, as_mutable (*join_dt));
-        });
-      }
-      else
-        dt.create_orphaned_incoming_timeline ();
-    }
+    assert (dt.has_incoming_timeline ());
+    // assert (1 == res.size ());
+    // if (! dt.has_incoming_timeline ())
+    // {
+    //   if (optional_ref join_dt { res[0].maybe_get_timeline () })
+    //   {
+    //     ir_link_set preds { get_predecessors (dt.get_block ()) };
+    //     std::for_each (preds.begin (), preds.end (), [&](nonnull_ptr<ir_block> pred_block) {
+    //       dt.append_incoming (*pred_block, as_mutable (*join_dt));
+    //     });
+    //   }
+    //   else
+    //     dt.create_orphaned_incoming_timeline ();
+    // }
 
     return dt.get_incoming_timeline ();
   }

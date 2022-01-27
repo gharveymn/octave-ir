@@ -731,6 +731,9 @@ namespace gch
   };
 
 
+  std::ostream&
+  operator<< (std::ostream& out, const ir_def_timeline& dt);
+
 }
 
 #endif // OCTAVE_IR_DYNAMIC_IR_IR_DEF_TIMELINE_HPP

@@ -196,6 +196,332 @@ namespace gch
     value_type m_value;
   };
 
+  template <typename Derived, typename T>
+  class transparent_named_type
+    : public named_type<T>
+  {
+  public:
+    using value_type = T;
+
+    using named_type<T>::named_type;
+
+    template <typename U,
+              std::enable_if_t<! std::is_same_v<transparent_named_type, std::decay_t<U>>
+                             &&  std::is_convertible_v<U, T>> * = nullptr>
+    constexpr GCH_IMPLICIT_CONVERSION
+    transparent_named_type (U&& u)
+          noexcept (std::is_nothrow_constructible_v<T, U>)
+      : named_type<T> (std::forward<U> (u))
+    { }
+
+    constexpr
+    operator value_type& (void) & noexcept
+    {
+      T&& ret = static_cast<T&&> (std::move (*this));
+      return static_cast<T&> (ret);
+    }
+  };
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived&
+  operator+= (transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    static_cast<T&> (lhs) += rhs;
+    return static_cast<Derived&> (lhs);
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived&
+  operator-= (transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    static_cast<T&> (lhs) -= rhs;
+    return static_cast<Derived&> (lhs);
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived&
+  operator*= (transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    static_cast<T&> (lhs) *= rhs;
+    return static_cast<Derived&> (lhs);
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived&
+  operator/= (transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    static_cast<T&> (lhs) /= rhs;
+    return static_cast<Derived&> (lhs);
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived&
+  operator%= (transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    static_cast<T&> (lhs) %= rhs;
+    return static_cast<Derived&> (lhs);
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived&
+  operator&= (transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    static_cast<T&> (lhs) &= rhs;
+    return static_cast<Derived&> (lhs);
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived&
+  operator|= (transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    static_cast<T&> (lhs) |= rhs;
+    return static_cast<Derived&> (lhs);
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived&
+  operator^= (transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    static_cast<T&> (lhs) ^= rhs;
+    return static_cast<Derived&> (lhs);
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived&
+  operator<<= (transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    static_cast<T&> (lhs) <<= rhs;
+    return static_cast<Derived&> (lhs);
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived&
+  operator>>= (transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    static_cast<T&> (lhs) >>= rhs;
+    return static_cast<Derived&> (lhs);
+  }
+
+  template <typename Derived, typename T>
+  constexpr
+  Derived&
+  operator++ (transparent_named_type<Derived, T>& val)
+  {
+    ++static_cast<T&> (val);
+    return static_cast<Derived&> (val);
+  }
+
+  template <typename Derived, typename T>
+  constexpr
+  Derived
+  operator++ (transparent_named_type<Derived, T>& val, int)
+  {
+    return Derived { static_cast<T&> (val)++ };
+  }
+
+  template <typename Derived, typename T>
+  constexpr
+  Derived&
+  operator-- (transparent_named_type<Derived, T>& val)
+  {
+    --static_cast<T&> (val);
+    return static_cast<Derived&> (val);
+  }
+
+  template <typename Derived, typename T>
+  constexpr
+  Derived
+  operator-- (transparent_named_type<Derived, T>& val, int)
+  {
+    return Derived { static_cast<T&> (val)-- };
+  }
+
+  template <typename Derived, typename T>
+  constexpr
+  Derived
+  operator+ (const transparent_named_type<Derived, T>& val)
+  {
+    return Derived { +static_cast<const T&> (val) };
+  }
+
+  template <typename Derived, typename T>
+  constexpr
+  Derived
+  operator- (const transparent_named_type<Derived, T>& val)
+  {
+    return Derived { -static_cast<const T&> (val) };
+  }
+
+  template <typename Derived, typename T>
+  constexpr
+  Derived
+  operator~ (const transparent_named_type<Derived, T>& val)
+  {
+    return Derived { ~static_cast<const T&> (val) };
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived
+  operator+ (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return Derived { Derived { static_cast<const T&> (lhs) + rhs } };
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived
+  operator- (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return Derived { static_cast<const T&> (lhs) - rhs };
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived
+  operator* (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return Derived { static_cast<const T&> (lhs) * rhs };
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived
+  operator/ (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return Derived { static_cast<const T&> (lhs) / rhs };
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived
+  operator% (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return Derived { static_cast<const T&> (lhs) % rhs };
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived
+  operator& (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return Derived { static_cast<const T&> (lhs) & rhs };
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived
+  operator| (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return Derived { static_cast<const T&> (lhs) | rhs };
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived
+  operator^ (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return Derived { static_cast<const T&> (lhs) ^ rhs };
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived
+  operator<< (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return Derived { static_cast<const T&> (lhs) << rhs };
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  Derived
+  operator>> (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return Derived { static_cast<const T&> (lhs) >> rhs };
+  }
+
+  template <typename Derived, typename T>
+  constexpr
+  bool
+  operator! (const transparent_named_type<Derived, T>& val)
+  {
+    return ! static_cast<const T&> (val);
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  bool
+  operator&& (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return static_cast<const T&> (lhs) && rhs;
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  bool
+  operator|| (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return static_cast<const T&> (lhs) || rhs;
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  bool
+  operator== (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return static_cast<const T&> (lhs) == rhs;
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  bool
+  operator!= (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return static_cast<const T&> (lhs) != rhs;
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  bool
+  operator< (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return static_cast<const T&> (lhs) < rhs;
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  bool
+  operator> (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return static_cast<const T&> (lhs) > rhs;
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  bool
+  operator<= (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return static_cast<const T&> (lhs) <= rhs;
+  }
+
+  template <typename Derived, typename T, typename U>
+  constexpr
+  bool
+  operator>= (const transparent_named_type<Derived, T>& lhs, const U& rhs)
+  {
+    return static_cast<const T&> (lhs) >= rhs;
+  }
+
   template <typename T, typename ParameterTag>
   class named_parameter
     : public named_type<T>

@@ -591,6 +591,12 @@ namespace gch
       return emplace_instruction<Op> (begin<range::body> (), std::forward<Args> (args)...);
     }
 
+    std::string_view
+    get_name (void) const noexcept
+    {
+      return m_name;
+    }
+
     void
     set_name (std::string_view name)
     {

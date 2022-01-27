@@ -167,27 +167,11 @@ namespace gch
 
   }
 
-  /**
-   * Compute the lowest common ancestor between the two types.
-   *
-   * @param lhs an ir_type
-   * @param rhs another ir_type
-   * @return the lowest common ancestor
-   */
-  constexpr
   ir_type
-  lca (ir_type lhs, ir_type rhs) noexcept
-  {
-    auto map = generate_ir_type_map<detail::ir_type_lca_mapper> ();
-    return map[lhs][rhs];
-  }
+  lca (ir_type lhs, ir_type rhs) noexcept;
 
-  constexpr
   ir_type
-  operator^ (ir_type lhs, ir_type rhs) noexcept
-  {
-    return lca (lhs, rhs);
-  }
+  operator^ (ir_type lhs, ir_type rhs) noexcept;
 
   std::string
   get_name (ir_type ty);
