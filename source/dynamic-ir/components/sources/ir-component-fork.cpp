@@ -11,7 +11,6 @@
 #include "ir-all-substructure-visitors.hpp"
 
 #include <algorithm>
-#include <numeric>
 
 namespace gch
 {

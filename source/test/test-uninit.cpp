@@ -30,8 +30,8 @@ main (void)
 
   try
   {
-    auto *proto = reinterpret_cast<bool (*)(void)> (jit.compile (my_static_func));
-    bool res = proto ();
+    auto *proto = reinterpret_cast<void (*)(void)> (jit.compile (my_static_func));
+    proto ();
   }
   catch (std::exception& e)
   {

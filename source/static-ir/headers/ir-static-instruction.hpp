@@ -25,7 +25,6 @@ namespace gch
 
   class ir_instruction;
   class ir_static_variable_map;
-  class ir_timeline_origin_map;
 
   class ir_static_instruction
   {

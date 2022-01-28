@@ -1,4 +1,4 @@
-/** ir-instruction-metadata.cpp
+/** ir-metadata.cpp
  * Copyright © 2021 Gene Harvey
  *
  * This software may be modified and distributed under the terms

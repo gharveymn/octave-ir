@@ -1,18 +1,16 @@
-if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-  string (REGEX REPLACE "/[wW]([0-4deovX]|all) ?" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-endif ()
-
 macro (add_ctest_executables)
   foreach (file ${ARGN})
-    get_filename_component (_TARGET_NAME "${file}" NAME_WE)
-    string (PREPEND _TARGET_NAME "octave-ir.utilities.ir-link-set.")
+    get_filename_component (_TARGET_BASE_NAME "${file}" NAME_WE)
+    string (PREPEND _TARGET_BASE_NAME "octave-ir.utilities.ir-link-set.")
     foreach (version 17 20)
-      add_test_executable (${_TARGET_NAME}.c++${version} ${file})
+      set (_TARGET_NAME ${_TARGET_BASE_NAME}.c++${version})
 
-      target_link_libraries (${_TARGET_NAME}.c++${version} PRIVATE octave-ir.utilities)
+      add_test_executable (${_TARGET_NAME} ${file})
+
+      target_link_libraries (${_TARGET_NAME} PRIVATE octave-ir.utilities)
 
       set_target_properties (
-        ${_TARGET_NAME}.c++${version}
+        ${_TARGET_NAME}
         PROPERTIES
         CXX_STANDARD
           ${version}
@@ -24,12 +22,12 @@ macro (add_ctest_executables)
 
       add_test (
         NAME
-          ${_TARGET_NAME}.c++${version}
+          ${_TARGET_NAME}
         COMMAND
-          ${_TARGET_NAME}.c++${version}
+          ${_TARGET_NAME}
       )
 
-      add_dependencies(octave-ir.ctest ${_TARGET_NAME}.c++${version})
+      add_dependencies(octave-ir.ctest ${_TARGET_NAME})
     endforeach ()
   endforeach ()
 endmacro ()

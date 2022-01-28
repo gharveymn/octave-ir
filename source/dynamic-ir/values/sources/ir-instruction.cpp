@@ -9,7 +9,6 @@
 #include "ir-instruction.hpp"
 #include "ir-optional-util.hpp"
 #include "ir-variable.hpp"
-#include <algorithm>
 #include <list>
 
 namespace gch

@@ -10,11 +10,8 @@
 #include "ir-component-sequence.hpp"
 #include "ir-block.hpp"
 
-#include "structure/inspectors/utility/ir-subcomponent-inspector.hpp"
 #include "component/inspectors/ir-leaf-collector.hpp"
 #include "ir-all-structure-visitors.hpp"
-
-#include <numeric>
 
 namespace gch
 {

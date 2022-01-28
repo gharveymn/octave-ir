@@ -1,10 +1,12 @@
 set (CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY     ${CMAKE_BINARY_DIR}/build-output/lib)
-#set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build-output/lib)
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY     ${CMAKE_BINARY_DIR}/build-output/lib)
-#set (CMAKE_PDB_OUTPUT_DIRECTORY         ${CMAKE_BINARY_DIR}/build-output/bin)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY     ${CMAKE_BINARY_DIR}/build-output/bin)
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  string (REGEX REPLACE "/[wW]([0-4deovX]|all) ?" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+endif ()
 
 add_library (octave-ir.common INTERFACE)
 
@@ -163,7 +165,6 @@ macro (add_test_executable target_name)
       ${target_name}
       PRIVATE
         /W4
-        /EHc-
     )
   endif ()
 

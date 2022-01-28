@@ -10,7 +10,6 @@
 #include "ir-static-instruction.hpp"
 
 #include <numeric>
-#include <ostream>
 
 namespace gch
 {

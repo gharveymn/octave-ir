@@ -26,7 +26,9 @@ namespace gch
     virtual
     void
     enable_printing (bool printing = true)
-    { }
+    {
+      static_cast<void> (printing);
+    }
   };
 
   class octave_jit_compiler

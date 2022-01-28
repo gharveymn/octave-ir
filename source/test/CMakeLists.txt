@@ -1,5 +1,5 @@
 if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-  string (REGEX REPLACE "/[wW]([0-4deovX]|all) ?" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  string (REGEX REPLACE "/EH[ascr]+-?" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 endif ()
 
 add_library (octave-ir.test.extern-funcs OBJECT)
@@ -7,13 +7,15 @@ target_sources (octave-ir.test.extern-funcs PRIVATE extern-funcs.cpp)
 
 macro (add_ctest_executables)
   foreach (file ${ARGN})
-    get_filename_component (_TARGET_NAME "${file}" NAME_WE)
-    string (PREPEND _TARGET_NAME "octave-ir.")
+    get_filename_component (_TARGET_BASE_NAME "${file}" NAME_WE)
+    string (PREPEND _TARGET_BASE_NAME "octave-ir.")
     foreach (version 17 20)
-      add_test_executable (${_TARGET_NAME}.c++${version} ${file})
+      set (_TARGET_NAME ${_TARGET_BASE_NAME}.c++${version})
+
+      add_test_executable (${_TARGET_NAME} ${file})
 
       target_link_libraries (
-        ${_TARGET_NAME}.c++${version}
+        ${_TARGET_NAME}
         PRIVATE
           octave-ir.utilities
           octave-ir.static-ir
@@ -23,7 +25,7 @@ macro (add_ctest_executables)
       )
 
       set_target_properties (
-        ${_TARGET_NAME}.c++${version}
+        ${_TARGET_NAME}
         PROPERTIES
         CXX_STANDARD
           ${version}
@@ -35,12 +37,20 @@ macro (add_ctest_executables)
 
       add_test (
         NAME
-          ${_TARGET_NAME}.c++${version}
+          ${_TARGET_NAME}
         COMMAND
-          ${_TARGET_NAME}.c++${version}
+          ${_TARGET_NAME}
       )
 
-      add_dependencies(octave-ir.ctest ${_TARGET_NAME}.c++${version})
+      if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        target_compile_options (
+          ${_TARGET_NAME}
+          PRIVATE
+            /EHsc-
+        )
+      endif ()
+
+      add_dependencies(octave-ir.ctest ${_TARGET_NAME})
     endforeach ()
   endforeach ()
 endmacro ()
