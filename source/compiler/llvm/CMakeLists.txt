@@ -1,9 +1,9 @@
 set (GCH_OCTAVE_IR_LLVM_PATH "" CACHE STRING "A user specified path to an LLVM installation")
 
 if (GCH_OCTAVE_IR_LLVM_PATH)
-  find_package (LLVM REQUIRED CONFIG PATHS "${GCH_OCTAVE_IR_LLVM_PATH}" NO_DEFAULT_PATH)
+  find_package (LLVM 13 EXACT REQUIRED CONFIG PATHS "${GCH_OCTAVE_IR_LLVM_PATH}" NO_DEFAULT_PATH)
 else ()
-  find_package (LLVM REQUIRED CONFIG)
+  find_package (LLVM 13 EXACT REQUIRED CONFIG)
 endif ()
 
 add_library (octave-ir.compiler-llvm SHARED)
