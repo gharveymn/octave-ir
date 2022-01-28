@@ -53,3 +53,7 @@ Other projects that are utilized by this project include
 - [gch::select-iterator](https://github.com/gharveymn/select-iterator) - Iterators which select tuple elements when dereferencing.
 - [gch::small_vector](https://github.com/gharveymn/small_vector) - An implementation of a vector with a small buffer optimization.
 - [gch::tracker](https://github.com/gharveymn/tracker) - A system for automatic tracking of remote object lifetimes.
+
+# License
+
+This software may be modified and distributed under the terms of the MIT license. See the LICENSE file for details.
