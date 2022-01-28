@@ -63,6 +63,7 @@ namespace gch
     {
     public:
       using iterator        = ir_link_set::const_iterator;
+      using size_type       = ir_link_set::size_type;
       using difference_type = ir_link_set::difference_type;
       using value_type      = ir_link_set::value_type;
 
@@ -107,10 +108,10 @@ namespace gch
       }
 
       [[nodiscard]]
-      std::size_t
+      size_type
       size (void) const noexcept
       {
-        return std::distance (m_first, m_last);
+        return static_cast<size_type> (std::distance (m_first, m_last));
       }
 
       [[nodiscard]]

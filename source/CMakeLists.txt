@@ -10,7 +10,7 @@ endif ()
 
 add_library (octave-ir.common INTERFACE)
 
-target_compile_features (octave-ir.common INTERFACE cxx_std_17)
+target_compile_features (octave-ir.common INTERFACE cxx_std_${GCH_OCTAVE_IR_CXX_STANDARD})
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options (

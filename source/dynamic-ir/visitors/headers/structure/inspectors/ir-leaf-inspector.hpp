@@ -54,7 +54,7 @@ namespace gch
     visit (const ir_component_sequence& seq) const noexcept;
 
     [[nodiscard]]
-    static GCH_CPP20_CONSTEVAL
+    static
     result_type
     visit (const ir_function&) noexcept { return true; }
   };

@@ -33,6 +33,9 @@ namespace gch
   class ir_structure;
   class ir_def_timeline;
 
+  extern template class ir_link_set<ir_block>;
+  extern template class ir_link_set<const ir_block>;
+
   template <typename T>
   using is_ir_component = std::is_base_of<ir_component, T>;
 

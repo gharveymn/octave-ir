@@ -10,9 +10,19 @@
 #include "ir-type-util.hpp"
 
 #include <ostream>
+#include <iostream>
 
 namespace gch
 {
+
+  template <typename T>
+  inline constexpr
+  bool
+  is_wide_char_v = std::is_same_v<T, wchar_t>
+               ||  std::is_same_v<T, char32_t>
+               ||  std::is_same_v<T, char16_t>;
+
+  // FIXME: We probably shouldn't just be casting wide character types to char.
 
   template <typename T>
   struct constant_printer
@@ -21,7 +31,29 @@ namespace gch
     std::ostream&
     print (std::ostream& out, const ir_constant& c)
     {
-      return out << as<T> (c);
+      if constexpr (is_wide_char_v<T>)
+        return out << static_cast<char> (as<T> (c));
+      else
+        return out << as<T> (c);
+    }
+  };
+
+  template <typename T>
+  struct constant_printer<T *>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_constant& c)
+    {
+      if constexpr (is_wide_char_v<T>)
+      {
+        auto ptr = as<T *> (c);
+        while (T val = *ptr)
+          out << static_cast<char> (val);
+        return out;
+      }
+      else
+        return out << as<T *> (c);
     }
   };
 
@@ -33,39 +65,6 @@ namespace gch
     print (std::ostream&, const ir_constant&)
     {
       throw std::ios_base::failure { "Cannot print a constant of type `void`." };
-    }
-  };
-
-  template <>
-  struct constant_printer<wchar_t>
-  {
-    static
-    std::ostream&
-    print (std::ostream& out, const ir_constant& c)
-    {
-      return out << static_cast<char> (as<wchar_t> (c));
-    }
-  };
-
-  template <>
-  struct constant_printer<char32_t>
-  {
-    static
-    std::ostream&
-    print (std::ostream& out, const ir_constant& c)
-    {
-      return out << static_cast<char> (as<char32_t> (c));
-    }
-  };
-
-  template <>
-  struct constant_printer<char16_t>
-  {
-    static
-    std::ostream&
-    print (std::ostream& out, const ir_constant& c)
-    {
-      return out << static_cast<char> (as<char16_t> (c));
     }
   };
 

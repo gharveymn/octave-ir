@@ -24,4 +24,6 @@ struct test_struct
 
 static inline std::array<test_struct, 10> blks { };
 
+extern template class gch::ir_link_set<test_struct>;
+
 #endif // OCTAVE_IR_UTILITIES_IR_LINK_SET_TEST_COMMON_HPP

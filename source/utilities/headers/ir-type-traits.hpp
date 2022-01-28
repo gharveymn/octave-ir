@@ -11,7 +11,6 @@
 #include "ir-type-pack.hpp"
 #include "ir-function-traits.hpp"
 
-#include <complex>
 #include <iterator>
 #include <type_traits>
 #include <utility>
@@ -43,14 +42,6 @@ namespace gch
   inline constexpr
   bool
   is_complete_v = is_complete<T>::value;
-
-  template <typename T>
-  struct is_complex;
-
-  template <typename T>
-  inline constexpr
-  bool
-  is_complex_v = is_complex<T>::value;
 
   template <typename It>
   struct is_iterator;
@@ -100,16 +91,6 @@ namespace gch
 
     template <typename U>
     struct is_complete_impl<U, decltype (static_cast<void> (sizeof (U)))>
-      : std::true_type
-    { };
-
-    template <typename T>
-    struct is_complex_impl
-      : std::false_type
-    { };
-
-    template <typename T>
-    struct is_complex_impl<std::complex<T>>
       : std::true_type
     { };
 
@@ -367,11 +348,6 @@ namespace gch
   template <typename T>
   struct is_complete
     : detail::is_complete_impl<T>
-  { };
-
-  template <typename T>
-  struct is_complex
-    : detail::is_complex_impl<T>
   { };
 
   template <typename It>

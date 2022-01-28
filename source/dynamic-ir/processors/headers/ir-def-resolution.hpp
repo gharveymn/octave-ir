@@ -30,6 +30,9 @@ namespace gch
   class ir_def_resolution_frame;
   class ir_variable;
 
+  extern template class ir_link_set<ir_def_timeline>;
+  extern template class ir_link_set<const ir_def_timeline>;
+
   class ir_def_resolution
   {
   public:

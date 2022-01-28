@@ -30,10 +30,39 @@ GCH_DISABLE_WARNINGS_MSVC
 
 GCH_ENABLE_WARNINGS_MSVC
 
+#include <complex>
 #include <string_view>
 
 namespace gch
 {
+
+  template <typename T>
+  struct is_complex;
+
+  template <typename T>
+  inline constexpr
+  bool
+  is_complex_v = is_complex<T>::value;
+
+  namespace detail
+  {
+
+    template <typename T>
+    struct is_complex_impl
+      : std::false_type
+    { };
+
+    template <typename T>
+    struct is_complex_impl<std::complex<T>>
+      : std::true_type
+    { };
+
+  }
+
+  template <typename T>
+  struct is_complex
+    : detail::is_complex_impl<T>
+  { };
 
   inline
   llvm::Twine

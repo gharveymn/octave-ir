@@ -11,6 +11,8 @@
 
 namespace gch
 {
+  template class ir_link_set<ir_def_timeline>;
+  template class ir_link_set<const ir_def_timeline>;
 
   ir_def_timeline::
   ir_def_timeline (ir_block& block, ir_variable& var) noexcept

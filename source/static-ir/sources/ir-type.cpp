@@ -28,9 +28,6 @@ namespace gch
   template struct ir_type_base::instance<wchar_t *>;
   template struct ir_type_base::instance<char32_t *>;
   template struct ir_type_base::instance<char16_t *>;
-#if defined (__cpp_char8_t) && __cpp_char8_t >= 201811L
-  template struct ir_type_base::instance<char8_t *>;
-#endif
   template struct ir_type_base::instance<bool *>;
   template struct ir_type_base::instance<std::complex<double> *>;
   template struct ir_type_base::instance<std::complex<single> *>;

@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 3.18)
 
 cmake_policy (SET CMP0091 NEW)
+cmake_policy (SET CMP0111 NEW)
 
 project (
   octave-ir
@@ -52,6 +53,23 @@ cmake_dependent_option (
   OFF
   "CMAKE_SYSTEM_NAME MATCHES Linux"
   OFF
+)
+
+set (
+  GCH_OCTAVE_IR_CXX_STANDARD
+  "17"
+  CACHE STRING
+  "Set the C++ standard to use when compiling octave-ir."
+)
+
+set_property (
+  CACHE
+  GCH_OCTAVE_IR_CXX_STANDARD
+  PROPERTY
+  STRINGS
+    17
+    20
+    23
 )
 
 find_package (Git REQUIRED)

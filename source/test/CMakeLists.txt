@@ -64,6 +64,7 @@ add_ctest_executables (
   test-loop.cpp
   test-lor.cpp
   test-nested-loop.cpp
+  test-sub.cpp
   test-uninit.cpp
 )
 

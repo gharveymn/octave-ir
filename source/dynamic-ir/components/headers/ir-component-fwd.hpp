@@ -60,8 +60,6 @@ namespace gch
   ir_subcomponent_type_t<Subcomponent>
   ir_subcomponent_type { };
 
-
-
 }
 
 #endif // OCTAVE_IR_DYNAMIC_IR_IR_COMPONENT_FWD_HPP

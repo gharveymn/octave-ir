@@ -1,34 +1,29 @@
+add_library (octave-ir.utilities.ir-link-set.test_common OBJECT)
+target_sources (octave-ir.utilities.ir-link-set.test_common PRIVATE test_common.cpp)
+target_link_libraries (octave-ir.utilities.ir-link-set.test_common PRIVATE octave-ir.utilities)
+
 macro (add_ctest_executables)
   foreach (file ${ARGN})
-    get_filename_component (_TARGET_BASE_NAME "${file}" NAME_WE)
-    string (PREPEND _TARGET_BASE_NAME "octave-ir.utilities.ir-link-set.")
-    foreach (version 17 20)
-      set (_TARGET_NAME ${_TARGET_BASE_NAME}.c++${version})
+    get_filename_component (_TARGET_NAME "${file}" NAME_WE)
+    string (PREPEND _TARGET_NAME "octave-ir.utilities.ir-link-set.")
 
-      add_test_executable (${_TARGET_NAME} ${file})
+    add_test_executable (${_TARGET_NAME} ${file})
 
-      target_link_libraries (${_TARGET_NAME} PRIVATE octave-ir.utilities)
+    target_link_libraries (
+      ${_TARGET_NAME}
+      PRIVATE
+        octave-ir.utilities.ir-link-set.test_common
+        octave-ir.utilities
+    )
 
-      set_target_properties (
+    add_test (
+      NAME
         ${_TARGET_NAME}
-        PROPERTIES
-        CXX_STANDARD
-          ${version}
-        CXX_STANDARD_REQUIRED
-          NO
-        CXX_EXTENSIONS
-          NO
-      )
+      COMMAND
+        ${_TARGET_NAME}
+    )
 
-      add_test (
-        NAME
-          ${_TARGET_NAME}
-        COMMAND
-          ${_TARGET_NAME}
-      )
-
-      add_dependencies(octave-ir.ctest ${_TARGET_NAME})
-    endforeach ()
+    add_dependencies(octave-ir.ctest ${_TARGET_NAME})
   endforeach ()
 endmacro ()
 

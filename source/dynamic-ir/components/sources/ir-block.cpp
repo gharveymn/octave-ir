@@ -20,6 +20,8 @@
 
 namespace gch
 {
+  template class ir_link_set<ir_block>;
+  template class ir_link_set<const ir_block>;
 
   ir_block&
   ir_block::
