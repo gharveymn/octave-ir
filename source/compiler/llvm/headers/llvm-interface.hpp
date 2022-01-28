@@ -61,20 +61,14 @@ namespace gch
 
         [[nodiscard]]
         llvm::StringRef
-        getName (void) const override
-        {
-          return "gch::llvm_interface::ast_layer::materialization_unit";
-        }
+        getName (void) const override;
 
         void
         materialize (std::unique_ptr<llvm::orc::MaterializationResponsibility> resp) override;
 
       private:
         void
-        discard (const resource_tracker_type&, const llvm::orc::SymbolStringPtr&) override
-        {
-          llvm_unreachable("octave-ir functions are not overridable");
-        }
+        discard (const resource_tracker_type&, const llvm::orc::SymbolStringPtr&) override;
 
         ast_layer&                m_ast_layer;
         const ir_static_function& m_function;

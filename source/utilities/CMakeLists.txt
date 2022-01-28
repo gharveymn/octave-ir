@@ -15,7 +15,8 @@ target_include_directories (
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/headers>
 )
 
+add_library (gch::octave-ir.utilities ALIAS octave-ir.utilities)
+
 add_subdirectory (headers)
 add_subdirectory (sources)
-
-add_library (gch::octave-ir.utilities ALIAS octave-ir.utilities)
+add_subdirectory (test)

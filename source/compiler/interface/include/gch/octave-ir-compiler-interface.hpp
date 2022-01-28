@@ -20,7 +20,7 @@ namespace gch
     virtual ~octave_jit_compiler_impl (void) = default;
 
     virtual
-    std::size_t
+    void *
     compile (const ir_static_function& func) = 0;
 
     virtual
@@ -43,7 +43,7 @@ namespace gch
     octave_jit_compiler& operator= (octave_jit_compiler&&) noexcept = default;
     virtual ~octave_jit_compiler   (void)                           = default;
 
-    std::size_t
+    void *
     compile (const ir_static_function& func)
     {
       return m_impl->compile (func);

@@ -26,11 +26,25 @@ namespace gch
       m_function (func)
   { }
 
+  llvm::StringRef
+  llvm_interface::ast_layer::materialization_unit::
+  getName (void) const
+  {
+    return "gch::llvm_interface::ast_layer::materialization_unit";
+  }
+
   void
   llvm_interface::ast_layer::materialization_unit::
-  materialize(std::unique_ptr<llvm::orc::MaterializationResponsibility> resp)
+  materialize (std::unique_ptr<llvm::orc::MaterializationResponsibility> resp)
   {
     m_ast_layer.emit (std::move (resp), m_function);
+  }
+
+  void
+  llvm_interface::ast_layer::materialization_unit::
+  discard (const resource_tracker_type&, const llvm::orc::SymbolStringPtr&)
+  {
+    llvm_unreachable ("octave-ir functions are not overridable");
   }
 
   llvm_interface::ast_layer::
@@ -57,9 +71,7 @@ namespace gch
     llvm::orc::ThreadSafeModule tsm = create_llvm_module (m_data_layout, func);
     if (m_printing_enabled)
     {
-      tsm.withModuleDo ([&](llvm::Module& module) {
-        module.print (llvm::outs (), nullptr);
-      });
+      tsm.withModuleDo ([&](llvm::Module& module) { module.print (llvm::outs (), nullptr); });
       std::cout << std::endl;
     }
     m_base_layer.emit (std::move (resp), std::move (tsm));

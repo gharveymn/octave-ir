@@ -232,6 +232,10 @@ namespace gch
     incoming_const_iterator
     end (void) const noexcept;
 
+    [[nodiscard]]
+    bool
+    has_incoming (void) const noexcept;
+
   private:
     ir_static_def_id        m_id;
     incoming_container_type m_incoming;
@@ -749,8 +753,6 @@ namespace gch
     std::size_t                                                     m_num_injected_blocks = 0;
   };
 
-
-
   class ir_dynamic_block_manager_builder final
     : public ir_abstract_component_inspector
   {
@@ -781,9 +783,6 @@ namespace gch
 
     ir_dynamic_block_manager m_block_manager;
   };
-
-  ir_static_function
-  generate_static_function (const ir_function& c);
 
 }
 

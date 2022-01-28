@@ -133,116 +133,116 @@ namespace gch
     ir_metadata& operator= (ir_metadata&&) noexcept = default;
     ~ir_metadata           (void)                   = default;
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     const char *
     get_name (void) const noexcept
     {
       return m_ptr->m_name;
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     ir_metadata
     get_base (void) const noexcept
     {
       return ir_metadata { *m_ptr->m_base };
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     ir_opcode
     get_opcode (void) const noexcept
     {
       return m_ptr->m_opcode;
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     flag::arity
     get_arity (void) const noexcept
     {
       return m_ptr->m_arity;
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     flag::has_def
     get_has_def (void) const noexcept
     {
       return m_ptr->m_has_def;
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     flag::is_abstract
     get_is_abstract (void) const noexcept
     {
       return m_ptr->m_abstract;
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     bool
     has_def (void) const noexcept
     {
       return m_ptr->m_has_def == flag::has_def::yes;
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     bool
     is_abstract (void) const noexcept
     {
       return m_ptr->m_abstract == flag::is_abstract::yes;
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     bool
     has_base (void) const noexcept
     {
       return m_ptr->m_base != nullptr;
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     bool
     is_n_ary (void) const noexcept
     {
       return get_arity () == flag::arity::n_ary;
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     bool
     is_nullary (void) const noexcept
     {
       return get_arity () == flag::arity::nullary;
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     bool
     is_unary (void) const noexcept
     {
       return get_arity () == flag::arity::unary;
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     bool
     is_binary (void) const noexcept
     {
       return get_arity () == flag::arity::binary;
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     bool
     is_ternary (void) const noexcept
     {
       return get_arity () == flag::arity::ternary;
     }
 
-    friend GCH_CPP20_CONSTEVAL
+    friend constexpr
     bool
     operator== (const ir_metadata& lhs, const ir_metadata& rhs) noexcept;
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     bool
     is_a (ir_metadata cmp) const noexcept
     {
       return (cmp == *this) || (has_base () && get_base ().is_a (cmp));
     }
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     bool
     is_base_of (ir_metadata cmp) const noexcept
     {
@@ -263,7 +263,7 @@ namespace gch
     ir_metadata
     get (ir_opcode op) noexcept;
 
-    [[nodiscard]] GCH_CPP20_CONSTEVAL
+    [[nodiscard]] constexpr
     std::underlying_type_t<ir_opcode>
     get_index (void) const noexcept
     {
@@ -301,7 +301,7 @@ namespace gch
 
     struct identity_projection
     {
-      GCH_CPP20_CONSTEVAL
+      constexpr
       ir_metadata
       operator() (ir_metadata m) const noexcept
       {
@@ -337,13 +337,13 @@ namespace gch
   public:
     template <typename Projection = identity_projection>
     [[nodiscard]]
-    static GCH_CPP20_CONSTEVAL
+    static constexpr
     value_map<std::remove_reference_t<std::invoke_result_t<Projection, ir_metadata>>>
     generate_map (Projection proj = { }) noexcept;
 
     template <template <ir_opcode> typename MapperT, typename ...Args>
     [[nodiscard]]
-    static GCH_CPP20_CONSTEVAL
+    static constexpr
     value_map<common_mapping_result_t<MapperT, const Args&...>>
     generate_map (const Args&... args) noexcept;
 
@@ -487,7 +487,7 @@ namespace gch
   };
 
   template <typename Projection>
-  GCH_CPP20_CONSTEVAL
+  constexpr
   auto
   ir_metadata::
   generate_map (Projection proj) noexcept
@@ -497,7 +497,7 @@ namespace gch
   }
 
   template <template <ir_opcode> typename MapperT, typename ...Args>
-  GCH_CPP20_CONSTEVAL
+  constexpr
   auto
   ir_metadata::
   generate_map (const Args&... args) noexcept
@@ -506,14 +506,14 @@ namespace gch
     return gch::invoke (map_generator_template<MapperT> { }, args...);
   }
 
-  [[nodiscard]] GCH_CPP20_CONSTEVAL
+  [[nodiscard]] constexpr
   bool
   operator== (const ir_metadata& lhs, const ir_metadata& rhs) noexcept
   {
     return lhs.m_ptr->m_opcode == rhs.m_ptr->m_opcode;
   }
 
-  [[nodiscard]] GCH_CPP20_CONSTEVAL
+  [[nodiscard]] constexpr
   bool
   operator!= (const ir_metadata& lhs, const ir_metadata& rhs) noexcept
   {
@@ -564,7 +564,7 @@ namespace gch
     data = create_type ("fetch",
                         ir_opcode::        fetch,
                         flag::has_def::    yes,
-                        flag::arity::      unary,
+                        flag::arity::      nullary,
                         flag::is_abstract::no);
   };
 

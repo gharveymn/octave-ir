@@ -58,6 +58,29 @@ namespace gch
   };
 
   template <>
+  struct instruction_translator<ir_opcode::fetch>
+  {
+    static
+    llvm::Value *
+    translate (const ir_static_instruction& instr,
+               llvm_ir_builder_type&        builder,
+               llvm_value_map&              value_map)
+    {
+      const ir_static_def& def = instr.get_def ();
+      llvm::Value& var = value_map[def];
+
+      llvm::Argument& llvm_arg = value_map.get_llvm_argument (def.get_variable_id ());
+
+      builder.CreateStore (&llvm_arg, &var);
+
+      return builder.CreateLoad (
+        &value_map.get_llvm_type (def),
+        &var,
+        value_map.get_variable_name (def));
+    }
+  };
+
+  template <>
   struct instruction_translator<ir_opcode::phi>
   {
     static
@@ -260,12 +283,12 @@ namespace gch
 
       const ir_static_operand& lhs = instr[0];
       const ir_type lhs_type = value_map.get_type (lhs);
-      llvm::Constant& lhs_zero = *llvm::ConstantInt::get (&value_map.get_llvm_type (lhs_type), 0);
+      llvm::Constant& lhs_zero = value_map.get_zero (lhs_type);
       const auto& lhs_cond_creator = instruction_translator<ir_opcode::eq>::creator_map[lhs_type];
 
       const ir_static_operand& rhs = instr[1];
       const ir_type rhs_type = value_map.get_type (rhs);
-      llvm::Constant& rhs_zero = *llvm::ConstantInt::get (&value_map.get_llvm_type (rhs_type), 0);
+      llvm::Constant& rhs_zero = value_map.get_zero (rhs_type);
       const auto& rhs_cond_creator = instruction_translator<ir_opcode::ne>::creator_map[rhs_type];
 
       llvm::BasicBlock& curr_block = *builder.GetInsertBlock ();
@@ -312,12 +335,12 @@ namespace gch
 
       const ir_static_operand& lhs = instr[0];
       const ir_type lhs_type = value_map.get_type (lhs);
-      llvm::Constant& lhs_zero = *llvm::ConstantInt::get (&value_map.get_llvm_type (lhs_type), 0);
+      llvm::Constant& lhs_zero = value_map.get_zero (lhs_type);
       const auto& lhs_cond_creator = instruction_translator<ir_opcode::eq>::creator_map[lhs_type];
 
       const ir_static_operand& rhs = instr[1];
       const ir_type rhs_type = value_map.get_type (rhs);
-      llvm::Constant& rhs_zero = *llvm::ConstantInt::get (&value_map.get_llvm_type (rhs_type), 0);
+      llvm::Constant& rhs_zero = value_map.get_zero (rhs_type);
       const auto& rhs_cond_creator = instruction_translator<ir_opcode::ne>::creator_map[rhs_type];
 
       llvm::BasicBlock& curr_block = *builder.GetInsertBlock ();
@@ -363,7 +386,7 @@ namespace gch
       const ir_static_def& def = instr.get_def ();
       const ir_static_operand& val = instr[0];
       const ir_type val_type = value_map.get_type (val);
-      llvm::Constant& zero = *llvm::ConstantInt::get (&value_map.get_llvm_type (val_type), 0);
+      llvm::Constant& zero = value_map.get_zero (val_type);
 
       const auto& bool_creator = instruction_translator<ir_opcode::eq>::creator_map[val_type];
       llvm::Value& bool_val = *bool_creator (builder, &value_map[val], &zero, "");
@@ -449,16 +472,9 @@ namespace gch
       llvm::Type& ret_type = value_map.get_llvm_type (
         instr.has_def () ? value_map.get_type (instr.get_def ()) : ir_type_v<void>);
 
-      llvm::FunctionType *llvm_function_ty = llvm::FunctionType::get (&ret_type, arg_types, false);
-
+      llvm::FunctionType& llvm_function_ty = *llvm::FunctionType::get (&ret_type, arg_types, false);
       optional_ref<llvm::Function> func {
-        *value_map.invoke_with_module ([&](llvm::Module& module) {
-          return llvm::Function::Create (
-            llvm_function_ty,
-            llvm::Function::ExternalLinkage,
-            create_twine (as_constant<const char *> (instr[0])),
-            module);
-        })
+        value_map.get_external_function (as_constant<const char *> (instr[0]), llvm_function_ty)
       };
 
       llvm::SmallVector<llvm::Value *> args;

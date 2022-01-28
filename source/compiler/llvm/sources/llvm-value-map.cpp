@@ -128,9 +128,61 @@ namespace gch
 
   optional_ref<llvm::Function>
   llvm_module_interface::
-  get_function (std::string_view name)
+  get_external_function (std::string_view name, llvm::FunctionType& prototype)
   {
-    return invoke_with_module (&llvm::Module::getFunction, name.data ());
+    struct key_pair
+    {
+      std::string                     name;
+      nonnull_ptr<llvm::FunctionType> prototype;
+    };
+
+    struct key_hash
+    {
+      std::size_t
+      operator() (const key_pair& pair) const
+      {
+        std::size_t name_hash = std::hash<std::string> {} (pair.name);
+        std::size_t proto_hash = std::hash<nonnull_ptr<llvm::FunctionType>> { } (pair.prototype);
+        return name_hash ^ (proto_hash + 0x9E3779B9 + (name_hash << 6) + (name_hash >> 2));
+      }
+    };
+
+    struct key_equal
+    {
+      bool
+      operator() (const key_pair& lhs, const key_pair& rhs) const
+      {
+        return lhs.name == rhs.name && lhs.prototype == rhs.prototype;
+      }
+    };
+
+    using map_type = std::unordered_map<key_pair,
+                                        optional_ref<llvm::Function>,
+                                        key_hash,
+                                        key_equal>;
+
+    // The function name/prototype map is a singleton since LLVM loads each external function
+    // once per thread.
+    static std::unique_ptr<map_type> map;
+    if (! map)
+      map = std::make_unique<map_type> ();
+
+    auto [it, ins] = map->try_emplace (key_pair { std::string (name), nonnull_ptr { prototype } });
+
+    optional_ref<llvm::Function>& ret = it->second;
+
+    if (ins)
+    {
+      ret.emplace (invoke_with_module ([&](llvm::Module& module) {
+        return llvm::Function::Create (
+          &prototype,
+          llvm::Function::ExternalLinkage,
+          create_twine (name),
+          module);
+      }));
+    }
+
+    return ret;
   }
 
   //
@@ -290,6 +342,30 @@ namespace gch
       std::mem_fn (&ir_constant::get_type),
       [&](ir_static_use use) { return m_function.get_type (use); }
     }, op);
+  }
+
+  llvm::Argument&
+  llvm_value_map::
+  get_llvm_argument (ir_static_variable_id var_id)
+  {
+    // FIXME: We shouldn't need to do a search here.
+    auto found = std::find (m_function.args_begin (), m_function.args_end (), var_id);
+    assert (found != m_function.args_end ()
+        &&  "Could not find the variable in the function arguments");
+
+    unsigned arg_idx = static_cast<unsigned> (std::distance (m_function.args_begin (), found));
+    llvm::Argument *llvm_arg = m_llvm_function.getArg (arg_idx);
+    return *llvm_arg;
+  }
+
+  llvm::Constant&
+  llvm_value_map::
+  get_zero (ir_type type)
+  {
+    if (type.is_integral ())
+      return *llvm::ConstantInt::get (&get_llvm_type (type), 0);
+    else
+      return *llvm::ConstantFP::get (&get_llvm_type (type), 0.0);
   }
 
 }

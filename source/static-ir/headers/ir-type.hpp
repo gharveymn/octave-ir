@@ -8,13 +8,6 @@
 #ifndef OCTAVE_IR_STATIC_IR_IR_TYPE_HPP
 #define OCTAVE_IR_STATIC_IR_IR_TYPE_HPP
 
-
-#if defined (__cpp_char8_t) && __cpp_char8_t >= 201811L
-#  ifndef GCH_CHAR8_T
-#    define GCH_CHAR8_T
-#  endif
-#endif
-
 #include "ir-common.hpp"
 #include "ir-functional.hpp"
 #include "ir-static-id.hpp"
@@ -52,9 +45,6 @@ namespace gch
     wchar_t,
     char32_t,
     char16_t,
-#ifdef GCH_CHAR8_T
-    char8_t,
-#endif
     bool,
     std::complex<double>,
     std::complex<single>,
@@ -76,9 +66,6 @@ namespace gch
     wchar_t *,
     char32_t *,
     char16_t *,
-#ifdef GCH_CHAR8_T
-    char8_t *,
-#endif
     bool *,
     std::complex<double> *,
     std::complex<single> *,
@@ -552,11 +539,7 @@ namespace gch
     };
   }
 
-  // template instantiations
-  // to define an ir_type_p implement a specialization of ir_type_instance
-  // copying the structure seen below. For examples, see
-  // ir_type_instance<any> for base types, ir_type_instance<Complex> for
-  // struct types, and ir_type_instance<any *> for pointer types.
+  // Template instantiations.
 
   //////////
   // void //
@@ -734,19 +717,6 @@ namespace gch
     impl
     data = create_type<type> ("char16", ir_type_v<any>);
   };
-
-#ifdef GCH_CHAR8_T
-
-  template <>
-  struct ir_type_base::instance<char8_t>
-  {
-    using type = char8_t;
-    static constexpr
-    impl
-    data = create_type<char8_t> ("char8");
-  };
-
-#endif
 
   template <>
   struct ir_type_base::instance<bool>

@@ -50,7 +50,7 @@ namespace gch
        .append ("` was uninitialized at this time.");
 
     container.template emplace_back<ir_opcode::call> (
-      ir_constant ("print_error"),
+      ir_constant ("throw_error"),
       ir_constant (std::move (err))
     );
 
@@ -984,6 +984,13 @@ namespace gch
     return m_incoming.end ();
   }
 
+  bool
+  ir_resolved_phi_node::
+  has_incoming () const noexcept
+  {
+    return ! m_incoming.empty ();
+  }
+
   //
   // ir_injection
   //
@@ -1631,32 +1638,16 @@ namespace gch
     }
 
   private:
-    class static_def_resolution
+    // struct unresolved_incoming_pair
+    // {
+    //   ir_static_block_id             m_block_id;
+    //   optional_ref<ir_def_reference> m_def_ref;
+    // };
+
+    struct static_def_resolution
     {
-    public:
-      static_def_resolution (const ir_block& b, std::optional<ir_static_def_id> def_id)
-        : m_leaf_block (b),
-          m_def_id (def_id)
-      { }
-
-      [[nodiscard]]
-      const ir_block&
-      get_leaf_block (void) const noexcept
-      {
-        return *m_leaf_block;
-      }
-
-      [[nodiscard]]
-      constexpr
-      std::optional<ir_static_def_id>
-      maybe_get_def_id (void) const noexcept
-      {
-        return m_def_id;
-      }
-
-    private:
-      nonnull_cptr<ir_block>          m_leaf_block;
-      std::optional<ir_static_def_id> m_def_id;
+      nonnull_cptr<ir_block>          leaf_block;
+      std::optional<ir_static_def_id> def_id;
     };
 
     [[nodiscard]]
@@ -1675,9 +1666,9 @@ namespace gch
       small_vector<ir_static_incoming_pair> incoming_pairs;
       std::transform (incoming.begin (), incoming.end (), std::back_inserter (incoming_pairs),
                       [&](const static_def_resolution& r) -> ir_static_incoming_pair {
-        ir_static_block_id block_id = get_block_id (r.get_leaf_block ());
-        if (std::optional def_id { r.maybe_get_def_id () })
-          return { block_id, def_id };
+        ir_static_block_id block_id = get_block_id (*r.leaf_block);
+        if (r.def_id)
+          return { block_id, *r.def_id };
         needs_determinator = true;
         return { block_id, std::nullopt };
       });
@@ -1701,9 +1692,9 @@ namespace gch
         if (const auto& res = block_res->maybe_get_resolution ())
         {
           auto res_id = var_map.origin_id (*res >>= &ir_def_timeline::maybe_get_outgoing_timeline);
-          return { { block_res->get_block (), res_id } };
+          return { { nonnull_ptr { block_res->get_block () }, res_id } };
         }
-        return { { block_res->get_block (), def_id } };
+        return { { nonnull_ptr { block_res->get_block () }, def_id } };
       }
 
       while (stack.has_frames ())
@@ -1743,7 +1734,7 @@ namespace gch
 
       small_vector<static_def_resolution> ret = static_resolve_with (res, { }, var_map);
       assert (1 == ret.size ());
-      return ret[0].maybe_get_def_id ();
+      return ret[0].def_id;
     }
 
     ir_static_block_id
@@ -1919,7 +1910,20 @@ namespace gch
       }
 
       const ir_def& phi_def = phi_ut.get_def ();
-      auto          pivot   = dt.incoming_begin ();
+
+      if (! dt.has_incoming ())
+      {
+        // Assert that this is the entry block.
+        assert (get_predecessors (block).empty ());
+        assert (&get_entry_block (m_block_manager.get_function ()) == &block);
+
+        var_map.map_origin (phi_ut);
+        m_block_manager[block].add_phi_node (var, var_map.get_def_id (phi_def), { });
+
+        return std::optional<ir_def_reference> { std::in_place, phi_def, false };
+      }
+
+      auto pivot = dt.incoming_begin ();
 
       // FIXME: Kind of a hack. I think this check should be built into the data structure.
       optional_ref loop { maybe_cast<ir_component_loop> (block.get_parent ()) };
@@ -1977,9 +1981,10 @@ namespace gch
       if (origin >>= [&](ir_def_reference& dr) noexcept { return &*dr == &phi_def; })
       {
         var_map.map_origin (phi_ut);
-        m_block_manager[block].add_phi_node (var,
-                                             var_map.get_def_id (phi_def),
-                                             std::move (incoming_pairs));
+        m_block_manager[block].add_phi_node (
+          var,
+          var_map.get_def_id (phi_def),
+          std::move (incoming_pairs));
       }
 
       if (! (origin >>= &ir_def_reference::is_determinate) && phi_ut.has_uses ())
@@ -2055,8 +2060,9 @@ namespace gch
       return dr >>= &ir_def_reference::is_determinate;
     }
 
-    ir_dynamic_block_manager& m_block_manager;
-    determinator_manager      m_det_manager;
+    ir_dynamic_block_manager&                                                m_block_manager;
+    determinator_manager                                                     m_det_manager;
+    // std::vector<std::pair<nonnull_cptr<ir_block>, unresolved_incoming_pair>> m_unresolved_phi_nodes;
   };
 
   static
@@ -2079,7 +2085,7 @@ namespace gch
       {
         nonnull_ptr<ir_static_block> curr_sblock { sblocks[desc.get_id ()] };
 
-        // create phi instructions
+        // Create phi instructions.
         std::transform (desc.phi_map_begin (), desc.phi_map_end (),
                         std::back_inserter (*curr_sblock), applied {
           [&](nonnull_cptr<ir_variable> var, const ir_resolved_phi_node& phi)
@@ -2089,13 +2095,17 @@ namespace gch
 
             ir_static_def phi_def { var_id, phi.get_id () };
 
+            if (! phi.has_incoming ())
+              return ir_static_instruction::create<ir_opcode::fetch> (phi_def);
+
             std::for_each (phi.begin (), phi.end (), [&](ir_static_incoming_pair pair) {
               args.emplace_back (std::in_place_type<ir_static_block_id>, pair.get_block_id ());
               args.emplace_back (var_id, pair.maybe_get_def_id ());
             });
 
-            return ir_static_instruction::create<ir_opcode::phi> (phi_def,
-                                                                  std::exchange (args, { }));
+            return ir_static_instruction::create<ir_opcode::phi> (
+              phi_def,
+              std::exchange (args, { }));
           }
         });
 

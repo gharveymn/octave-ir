@@ -22,14 +22,14 @@ namespace gch
   octave_jit_compiler_llvm::
   ~octave_jit_compiler_llvm (void) = default;
 
-  std::size_t
+  void *
   octave_jit_compiler_llvm::
   compile (const ir_static_function& func)
   {
     llvm::ExitOnError exit_on_error { };
     exit_on_error (m_interface->add_ast (func));
     auto sym = exit_on_error (m_interface->find_symbol (func.get_name ()));
-    return static_cast<std::size_t> (sym.getAddress ());
+    return reinterpret_cast<void *> (sym.getAddress ());
   }
 
   void

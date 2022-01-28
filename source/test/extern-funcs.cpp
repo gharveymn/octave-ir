@@ -1,4 +1,4 @@
-/** test-extern.cpp
+/** extern-funcs.cpp
  * Copyright © 2022 Gene Harvey
  *
  * This software may be modified and distributed under the terms
@@ -9,18 +9,29 @@
 #include <stdexcept>
 
 #ifdef _WIN32
-#define DLLEXPORT __declspec(dllexport)
+#  define DLLEXPORT __declspec(dllexport)
 #else
-#define DLLEXPORT
+#  define DLLEXPORT
 #endif
 
 extern "C" DLLEXPORT
 void
 print_error (const char *s);
 
+extern "C" DLLEXPORT
+void
+throw_error (const char *s);
+
 extern "C"
 void
 print_error (const char *s)
 {
-  throw std::logic_error (s);
+  std::fprintf (stderr, "%s", s);
+}
+
+extern "C"
+void
+throw_error (const char *s)
+{
+  throw std::runtime_error (s);
 }

@@ -317,7 +317,8 @@ namespace gch
     std::ostream&
     print (std::ostream& out, const ir_static_instruction& instr, const ir_static_function& func)
     {
-      return func.print (out, instr.get_def ()) << " = " << instr.get_metadata ().get_name ();
+      out << instr.get_metadata ().get_name () << " ";
+      return func.print (out, instr.get_def ());
     }
   };
 

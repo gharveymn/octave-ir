@@ -716,23 +716,10 @@ namespace gch
       build_def_resolution_stack (dt.get_block (), dt.get_variable ())
     };
 
-    small_vector<ir_def_resolution> res = resolve_with (stack, { });
+    resolve_with (stack, { });
 
-    assert (dt.has_incoming_timeline ());
-    // assert (1 == res.size ());
-    // if (! dt.has_incoming_timeline ())
-    // {
-    //   if (optional_ref join_dt { res[0].maybe_get_timeline () })
-    //   {
-    //     ir_link_set preds { get_predecessors (dt.get_block ()) };
-    //     std::for_each (preds.begin (), preds.end (), [&](nonnull_ptr<ir_block> pred_block) {
-    //       dt.append_incoming (*pred_block, as_mutable (*join_dt));
-    //     });
-    //   }
-    //   else
-    //     dt.create_orphaned_incoming_timeline ();
-    // }
-
+    if (! dt.has_incoming_timeline ())
+      dt.create_orphaned_incoming_timeline ();
     return dt.get_incoming_timeline ();
   }
 

@@ -18,24 +18,28 @@ namespace gch
 
   class ir_static_function;
 
+  // My IDE is having difficulties if I just put this in the declaration.
+  using ir_function_visitable_base =
+    visitable<ir_function, consolidated_visitors_t<ir_component, ir_structure>>;
+
   class ir_function final
     : public ir_component,
       public ir_structure,
-      public visitable<ir_function, consolidated_visitors_t<ir_component, ir_structure>>
+      public ir_function_visitable_base
   {
   public:
-    using variables_container_type          = std::unordered_map<std::string, ir_variable>;
-    using variables_value_type              = variables_container_type::value_type;
-    using variables_allocator_type          = variables_container_type::allocator_type;
-    using variables_size_type               = variables_container_type::size_type;
-    using variables_difference_type         = variables_container_type::difference_type;
-    using variables_reference               = variables_container_type::reference;
-    using variables_const_reference         = variables_container_type::const_reference;
-    using variables_pointer                 = variables_container_type::pointer;
-    using variables_const_pointer           = variables_container_type::const_pointer;
+    using variables_container_type  = std::unordered_map<std::string, ir_variable>;
+    using variables_value_type      = variables_container_type::value_type;
+    using variables_allocator_type  = variables_container_type::allocator_type;
+    using variables_size_type       = variables_container_type::size_type;
+    using variables_difference_type = variables_container_type::difference_type;
+    using variables_reference       = variables_container_type::reference;
+    using variables_const_reference = variables_container_type::const_reference;
+    using variables_pointer         = variables_container_type::pointer;
+    using variables_const_pointer   = variables_container_type::const_pointer;
 
-    using variables_iterator                = variables_container_type::iterator;
-    using variables_const_iterator          = variables_container_type::const_iterator;
+    using variables_iterator        = variables_container_type::iterator;
+    using variables_const_iterator  = variables_container_type::const_iterator;
 
     using variables_val_t   = variables_value_type;
     using variables_alloc_t = variables_allocator_type;
@@ -107,6 +111,40 @@ namespace gch
     using returns_riter   = returns_reverse_iterator;
     using returns_criter  = returns_const_reverse_iterator;
 
+    struct ir_variable_pair
+    {
+      std::string_view name;
+      ir_type          type;
+    };
+
+  private:
+    template <typename It, typename Enable = void>
+    struct is_ir_variable_constructor_iterator
+      : std::false_type
+    { };
+
+    template <typename It>
+    struct is_ir_variable_constructor_iterator<
+      It,
+      std::enable_if_t<std::is_constructible_v<
+                         ir_variable,
+                         const ir_function&,
+                         decltype (*std::declval<It> ())>
+                   ||  std::is_same_v<
+                         ir_variable_pair,
+                         std::decay_t<decltype (*std::declval<It> ())>>>>
+      : std::true_type
+    { };
+
+    template <typename It>
+    static constexpr
+    bool
+    is_ir_variable_constructor_iterator_v = is_ir_variable_constructor_iterator<It>::value;
+
+    void
+    create_entry_instruction (ir_variable& var);
+
+  public:
 //  ir_function            (void)                   = impl
     ir_function            (const ir_function&)     = delete;
     ir_function            (ir_function&&) noexcept = default;
@@ -118,34 +156,25 @@ namespace gch
     ir_function (std::string_view name = "");
 
     template <typename RetIt, typename ArgsIt,
-              std::enable_if_t<std::is_constructible_v<
-                                 ir_variable,
-                                 const ir_function&,
-                                 decltype (*std::declval<RetIt> ())>
-                           &&  std::is_constructible_v<
-                                 ir_variable,
-                                 const ir_function&,
-                                 decltype (*std::declval<ArgsIt> ())>
-                               > * = nullptr>
+              std::enable_if_t<is_ir_variable_constructor_iterator_v<RetIt>
+                           &&  is_ir_variable_constructor_iterator_v<ArgsIt>> * = nullptr>
     ir_function (RetIt ret_first, RetIt ret_last, ArgsIt args_first, ArgsIt args_last,
                  std::string_view name = "")
       : ir_function (name)
     {
       std::for_each (ret_first, ret_last, [&](auto&& ret) {
-        m_ret.emplace_back (get_variable (std::string (std::forward<decltype (ret)> (ret))));
+        m_ret.emplace_back (create_variable (std::forward<decltype (ret)> (ret)));
       });
 
       std::for_each (args_first, args_last, [&](auto&& arg) {
-        m_ret.emplace_back (get_variable (std::string (std::forward<decltype (arg)> (arg))));
+        ir_variable& arg_var = create_variable (std::forward<decltype (arg)> (arg));
+        m_args.emplace_back (arg_var);
+        create_entry_instruction (arg_var);
       });
     }
 
     template <typename ArgsIt,
-              std::enable_if_t<std::is_constructible_v<
-                                 ir_variable,
-                                 const ir_function&,
-                                 decltype (*std::declval<ArgsIt> ())>
-                               > * = nullptr>
+              std::enable_if_t<is_ir_variable_constructor_iterator_v<ArgsIt>> * = nullptr>
     ir_function (std::initializer_list<std::string_view> ret_names,
                  ArgsIt args_first, ArgsIt args_last,
                  std::string_view name = "")
@@ -153,11 +182,15 @@ namespace gch
     { }
 
     template <typename ArgsIt,
-              std::enable_if_t<std::is_constructible_v<
-                                 ir_variable,
-                                 const ir_function&,
-                                 decltype (*std::declval<ArgsIt> ())>
-                               > * = nullptr>
+              std::enable_if_t<is_ir_variable_constructor_iterator_v<ArgsIt>> * = nullptr>
+    ir_function (std::initializer_list<ir_variable_pair> rets,
+                 ArgsIt args_first, ArgsIt args_last,
+                 std::string_view name = "")
+      : ir_function (rets.begin (), rets.end (), args_first, args_last, name)
+    { }
+
+    template <typename ArgsIt,
+              std::enable_if_t<is_ir_variable_constructor_iterator_v<ArgsIt>> * = nullptr>
     ir_function (ArgsIt args_first, ArgsIt args_last, std::string_view name = "")
       : ir_function ({ }, args_first, args_last, name)
     { }
@@ -171,6 +204,37 @@ namespace gch
                  std::string_view name = "");
 
     ir_function (std::initializer_list<std::string_view> arg_names, std::string_view name = "");
+
+    ir_function (std::initializer_list<std::string_view> ret_names,
+                 std::initializer_list<ir_variable_pair> args,
+                 std::string_view name = "");
+
+    ir_function (std::string_view ret_name,
+                 std::initializer_list<ir_variable_pair> args,
+                 std::string_view name = "");
+
+    ir_function (std::initializer_list<ir_variable_pair> rets,
+                 std::initializer_list<std::string_view> arg_names,
+                 std::string_view name = "");
+
+    ir_function (ir_variable_pair ret,
+                 std::initializer_list<std::string_view> arg_names,
+                 std::string_view name = "");
+
+    ir_function (std::initializer_list<ir_variable_pair> rets,
+                 std::initializer_list<ir_variable_pair> args,
+                 std::string_view name = "");
+
+    ir_function (ir_variable_pair ret,
+                 std::initializer_list<ir_variable_pair> args,
+                 std::string_view name = "");
+
+    ir_function (std::initializer_list<ir_variable_pair> args,
+                 std::string_view name = "");
+
+    ir_function (ir_variable_pair ret, std::string_view name = "");
+
+    ir_function (std::string_view ret_name, std::string_view name);
 
     [[nodiscard]]
     ir_subcomponent&
@@ -198,6 +262,9 @@ namespace gch
 
     ir_variable&
     create_variable (ir_type type);
+
+    ir_variable&
+    create_variable (ir_variable_pair pair);
 
     template <typename T, std::enable_if_t<std::is_constructible_v<std::string, T>> * = nullptr>
     ir_variable&
@@ -463,6 +530,9 @@ namespace gch
   [[nodiscard]]
   const ir_block&
   get_entry_block (const ir_function& func);
+
+  ir_static_function
+  generate_static_function (const ir_function& c);
 
 }
 

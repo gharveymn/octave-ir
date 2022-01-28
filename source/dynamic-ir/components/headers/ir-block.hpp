@@ -122,8 +122,6 @@ namespace gch
 
     using range = ir_instruction_range;
 
-    /* clang-format off */
-    // all
     [[nodiscard]]
     auto
     get_data_view (void) const noexcept

@@ -114,7 +114,7 @@ namespace gch
     get_bool_constant (bool b);
 
     optional_ref<llvm::Function>
-    get_function (std::string_view name);
+    get_external_function (std::string_view name, llvm::FunctionType& prototype);
 
     template <typename Functor, typename ...Args>
     decltype (auto)
@@ -244,6 +244,12 @@ namespace gch
 
     ir_type
     get_type (const ir_static_operand& op) const;
+
+    llvm::Argument&
+    get_llvm_argument (ir_static_variable_id var_id);
+
+    llvm::Constant&
+    get_zero (ir_type type);
 
   private:
     llvm::Function&           m_llvm_function;

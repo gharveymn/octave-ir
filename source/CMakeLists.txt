@@ -99,6 +99,80 @@ endif ()
 
 add_library (gch::octave-ir.common ALIAS octave-ir.common)
 
+add_custom_target (octave-ir.ctest)
+
+macro (add_test_executable target_name)
+  add_executable (${target_name} ${ARGN})
+
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options (
+      ${target_name}
+      PRIVATE
+        -ftime-trace
+        --coverage
+        -Weverything
+        -Wno-padded
+        -Wno-c++98-compat
+        -Wno-c++98-compat-pedantic
+        -Wno-zero-as-null-pointer-constant
+        -Wno-used-but-marked-unused
+    )
+
+    target_link_options (
+      ${target_name}
+      PRIVATE
+        --coverage
+    )
+
+    if (GCH_USE_LIBCXX_WITH_CLANG)
+      target_compile_options (${target_name} PRIVATE -stdlib=libc++)
+      target_link_options (${target_name} PRIVATE LINKER:--allow-multiple-definition)
+      target_link_libraries (${target_name} PRIVATE c++ c++abi)
+    endif ()
+  elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    target_compile_options (
+      ${target_name}
+      PRIVATE
+        -pedantic
+        -Wall
+        -Wextra
+        -Wcast-align
+        -Wcast-qual
+        -Wctor-dtor-privacy
+        -Wdisabled-optimization
+        -Wformat=2
+        -Winit-self
+        -Wlogical-op
+        -Wmissing-declarations
+        -Wmissing-include-dirs
+        -Wnoexcept
+        -Wold-style-cast
+        -Woverloaded-virtual
+        -Wredundant-decls
+        -Wshadow
+        -Wsign-conversion
+        -Wsign-promo
+        -Wstrict-null-sentinel
+        -Wstrict-overflow=5
+        -Wswitch-default
+        -Wundef
+        -Wno-unused
+    )
+  elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    target_compile_options (
+      ${target_name}
+      PRIVATE
+        /W4
+        /EHc-
+    )
+  endif ()
+
+  if (GCH_OCTAVE_IR_ENABLE_ASAN)
+    target_compile_options (${target_name} PRIVATE -fsanitize=address)
+    target_link_options (${target_name} PRIVATE -fsanitize=address)
+  endif ()
+endmacro ()
+
 # Always build octave-ir.utilities
 add_subdirectory (utilities)
 
