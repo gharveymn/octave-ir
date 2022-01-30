@@ -26,6 +26,62 @@ namespace gch
   ir_component_loop::
   ~ir_component_loop (void) noexcept = default;
 
+  ir_subcomponent&
+  ir_component_loop::
+  get_start (void) noexcept
+  {
+    return *m_start;
+  }
+
+  const ir_subcomponent&
+  ir_component_loop::
+  get_start (void) const noexcept
+  {
+    return as_mutable (*this).get_start ();
+  }
+
+  ir_block&
+  ir_component_loop::
+  get_condition (void) noexcept
+  {
+    return m_condition;
+  }
+
+  const ir_block&
+  ir_component_loop::
+  get_condition (void) const noexcept
+  {
+    return as_mutable (*this).get_condition ();
+  }
+
+  ir_subcomponent&
+  ir_component_loop::
+  get_body (void) noexcept
+  {
+    return *m_body;
+  }
+
+  const ir_subcomponent&
+  ir_component_loop::
+  get_body (void) const noexcept
+  {
+    return as_mutable (*this).get_body ();
+  }
+
+  ir_subcomponent&
+  ir_component_loop::
+  get_update (void) noexcept
+  {
+    return *m_update;
+  }
+
+  const ir_subcomponent&
+  ir_component_loop::
+  get_update (void) const noexcept
+  {
+    return as_mutable (*this).get_update ();
+  }
+
   bool
   ir_component_loop::
   is_start (const ir_subcomponent& sub) const noexcept

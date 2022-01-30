@@ -145,7 +145,7 @@ namespace gch
       return get_subrange<R> (m_instr_partition);
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     iterator
     begin (void) noexcept
@@ -153,7 +153,7 @@ namespace gch
       return get<R> ().begin ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     const_iterator
     begin (void) const noexcept
@@ -161,7 +161,7 @@ namespace gch
       return as_mutable (*this).begin<R> ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     const_iterator
     cbegin (void) const noexcept
@@ -169,7 +169,7 @@ namespace gch
       return begin<R> ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     iterator
     end (void) noexcept
@@ -177,7 +177,7 @@ namespace gch
       return get<R> ().end ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     const_iterator
     end (void) const noexcept
@@ -185,7 +185,7 @@ namespace gch
       return as_mutable (*this).end<R> ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     const_iterator
     cend (void) const noexcept
@@ -193,7 +193,7 @@ namespace gch
       return end<R> ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     reverse_iterator
     rbegin (void) noexcept
@@ -201,7 +201,7 @@ namespace gch
       return get<R> ().rbegin ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     const_reverse_iterator
     rbegin (void) const noexcept
@@ -209,7 +209,7 @@ namespace gch
       return as_mutable (*this).rbegin<R> ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     const_reverse_iterator
     crbegin (void) const noexcept
@@ -217,7 +217,7 @@ namespace gch
       return rbegin<R> ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     reverse_iterator
     rend (void) noexcept
@@ -225,7 +225,7 @@ namespace gch
       return get<R> ().rend ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     const_reverse_iterator
     rend (void) const noexcept
@@ -233,7 +233,7 @@ namespace gch
       return as_mutable (*this).rend<R> ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     const_reverse_iterator
     crend (void) const noexcept
@@ -241,7 +241,7 @@ namespace gch
       return rend<R> ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     reference
     front (void)
@@ -249,7 +249,7 @@ namespace gch
       return get<R> ().front ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     const_reference
     front (void) const
@@ -257,7 +257,7 @@ namespace gch
       return as_mutable (*this).front<R> ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     reference
     back (void)
@@ -265,7 +265,7 @@ namespace gch
       return get<R> ().back ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     const_reference
     back (void) const
@@ -273,7 +273,7 @@ namespace gch
       return as_mutable (*this).back<R> ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     size_type
     size (void) const noexcept
@@ -281,7 +281,7 @@ namespace gch
      return get<R> ().size ();
     }
 
-    template <range R>
+    template <range R = range::all>
     [[nodiscard]]
     bool
     empty (void) const noexcept

@@ -41,17 +41,11 @@ namespace gch
 
     [[nodiscard]]
     ir_block&
-    get_condition (void) noexcept
-    {
-      return m_condition;
-    }
+    get_condition (void) noexcept;
 
     [[nodiscard]]
     const ir_block&
-    get_condition (void) const noexcept
-    {
-      return as_mutable (*this).get_condition ();
-    }
+    get_condition (void) const noexcept;
 
     [[nodiscard]]
     bool
@@ -59,129 +53,75 @@ namespace gch
 
     [[nodiscard]]
     cases_iter
-    cases_begin (void) noexcept
-    {
-      return make_ptr (m_cases.begin ());
-    }
+    cases_begin (void) noexcept;
 
     [[nodiscard]]
     cases_citer
-    cases_begin (void) const noexcept
-    {
-      return as_mutable (*this).cases_begin ();
-    }
+    cases_begin (void) const noexcept;
 
     [[nodiscard]]
     cases_citer
-    cases_cbegin (void) const noexcept
-    {
-      return cases_begin ();
-    }
+    cases_cbegin (void) const noexcept;
 
     [[nodiscard]]
     cases_iter
-    cases_end (void) noexcept
-    {
-      return make_ptr (m_cases.end ());
-    }
+    cases_end (void) noexcept;
 
     [[nodiscard]]
     cases_citer
-    cases_end (void) const noexcept
-    {
-      return as_mutable (*this).cases_end ();
-    }
+    cases_end (void) const noexcept;
 
     [[nodiscard]]
     cases_citer
-    cases_cend (void) const noexcept
-    {
-      return cases_end ();
-    }
+    cases_cend (void) const noexcept;
 
     [[nodiscard]]
     cases_riter
-    cases_rbegin (void) noexcept
-    {
-      return cases_riter { cases_end () };
-    }
+    cases_rbegin (void) noexcept;
 
     [[nodiscard]]
     cases_criter
-    cases_rbegin (void) const noexcept
-    {
-      return as_mutable (*this).cases_rbegin ();
-    }
+    cases_rbegin (void) const noexcept;
 
     [[nodiscard]]
     cases_criter
-    cases_crbegin (void) const noexcept
-    {
-      return cases_rbegin ();
-    }
+    cases_crbegin (void) const noexcept;
 
     [[nodiscard]]
     cases_riter
-    cases_rend (void) noexcept
-    {
-      return cases_riter { cases_begin () };
-    }
+    cases_rend (void) noexcept;
 
     [[nodiscard]]
     cases_criter
-    cases_rend (void) const noexcept
-    {
-      return as_mutable (*this).cases_rend ();
-    }
+    cases_rend (void) const noexcept;
 
     [[nodiscard]]
     cases_criter
-    cases_crend (void) const noexcept
-    {
-      return cases_rend ();
-    }
+    cases_crend (void) const noexcept;
 
     [[nodiscard]]
     cases_ref
-    cases_front (void)
-    {
-      return *cases_begin ();
-    }
+    cases_front (void);
 
     [[nodiscard]]
     cases_cref
-    cases_front (void) const
-    {
-      return *cases_begin ();
-    }
+    cases_front (void) const;
 
     [[nodiscard]]
     cases_ref
-    cases_back (void)
-    {
-      return *cases_rbegin ();
-    }
+    cases_back (void);
 
     [[nodiscard]]
     cases_cref
-    cases_back (void) const
-    {
-      return *cases_rbegin ();
-    }
+    cases_back (void) const;
 
     [[nodiscard]]
     cases_size_ty
-    cases_size (void) const noexcept
-    {
-     return m_cases.size ();
-    }
+    num_cases (void) const noexcept;
 
     [[nodiscard]]
     bool
-    cases_empty (void) const noexcept
-    {
-      return m_cases.empty ();
-    }
+    has_cases (void) const noexcept;
 
     [[nodiscard]]
     cases_iter
@@ -189,10 +129,7 @@ namespace gch
 
     [[nodiscard]]
     cases_citer
-    find_case (const ir_component& c) const
-    {
-      return find_case (as_mutable (c));
-    }
+    find_case (const ir_component& c) const;
 
     template <typename Component, typename ...Args,
               typename = std::enable_if_t<is_ir_component_v<Component>>>

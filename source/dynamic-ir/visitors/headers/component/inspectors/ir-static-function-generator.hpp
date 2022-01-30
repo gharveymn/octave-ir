@@ -125,16 +125,28 @@ namespace gch
     origin_id (optional_cref<ir_use_timeline> ut) const;
 
     std::optional<ir_def_reference>&
+    map_origin (const ir_use_timeline& ut, const ir_def& def);
+
+    std::optional<ir_def_reference>&
     map_origin (const ir_use_timeline& ut, const std::optional<ir_def_reference>& origin);
 
     std::optional<ir_def_reference>&
     map_origin (const ir_use_timeline& ut);
 
+    bool
+    has_origin (const ir_use_timeline& ut) const;
+
+    std::optional<ir_def_reference>&
+    get_origin (const ir_use_timeline& ut);
+
+    const std::optional<ir_def_reference>&
+    get_origin (const ir_use_timeline& ut) const;
+
     optional_ref<std::optional<ir_def_reference>>
-    maybe_get (const ir_use_timeline& ut);
+    maybe_get_origin (const ir_use_timeline& ut);
 
     optional_cref<std::optional<ir_def_reference>>
-    maybe_get (const ir_use_timeline& ut) const;
+    maybe_get_origin (const ir_use_timeline& ut) const;
 
     std::vector<ir_static_variable>&&
     release_variables (void) noexcept;

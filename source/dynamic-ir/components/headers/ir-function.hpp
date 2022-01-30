@@ -232,6 +232,7 @@ namespace gch
     ir_function (std::initializer_list<ir_variable_pair> args,
                  std::string_view name = "");
 
+    explicit
     ir_function (ir_variable_pair ret, std::string_view name = "");
 
     ir_function (std::string_view ret_name, std::string_view name);

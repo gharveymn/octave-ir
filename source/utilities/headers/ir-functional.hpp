@@ -14,6 +14,7 @@
 #include <utility>
 #include <tuple>
 #include <type_traits>
+#include <typeinfo>
 
 namespace gch
 {

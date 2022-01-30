@@ -41,59 +41,35 @@ namespace gch
 
     [[nodiscard]]
     ir_subcomponent&
-    get_start (void) noexcept
-    {
-      return *m_start;
-    }
+    get_start (void) noexcept;
 
     [[nodiscard]]
     const ir_subcomponent&
-    get_start (void) const noexcept
-    {
-      return as_mutable (*this).get_start ();
-    }
+    get_start (void) const noexcept;
 
     [[nodiscard]]
     ir_block&
-    get_condition (void) noexcept
-    {
-      return m_condition;
-    }
+    get_condition (void) noexcept;
 
     [[nodiscard]]
     const ir_block&
-    get_condition (void) const noexcept
-    {
-      return as_mutable (*this).get_condition ();
-    }
+    get_condition (void) const noexcept;
 
     [[nodiscard]]
     ir_subcomponent&
-    get_body (void) noexcept
-    {
-      return *m_body;
-    }
+    get_body (void) noexcept;
 
     [[nodiscard]]
     const ir_subcomponent&
-    get_body (void) const noexcept
-    {
-      return as_mutable (*this).get_body ();
-    }
+    get_body (void) const noexcept;
 
     [[nodiscard]]
     ir_subcomponent&
-    get_update (void) noexcept
-    {
-      return *m_update;
-    }
+    get_update (void) noexcept;
 
     [[nodiscard]]
     const ir_subcomponent&
-    get_update (void) const noexcept
-    {
-      return as_mutable (*this).get_update ();
-    }
+    get_update (void) const noexcept;
 
     [[nodiscard]]
     bool
@@ -134,9 +110,6 @@ namespace gch
     //                   +----+     +------+
 
   };
-
-  bool
-  is_loop_condition (const ir_block& block) noexcept;
 
 }
 

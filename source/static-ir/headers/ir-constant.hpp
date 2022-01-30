@@ -16,9 +16,9 @@
 
 #include <gch/optional_ref.hpp>
 
-#include <any>
 #include <cassert>
 #include <iosfwd>
+#include <variant>
 
 namespace gch
 {
@@ -26,6 +26,12 @@ namespace gch
   class ir_constant
   {
   public:
+    template <typename T>
+    using make_const_pointee_t = std::remove_const_t<make_all_levels_const_t<T>>;
+
+    using variant_pack = pack_for_each_t<pack_remove_t<ir_type_pack, void>, make_const_pointee_t>;
+    using variant_type = pack_apply_t<variant_pack, std::variant>;
+
     ir_constant            (void)                   = default;
     ir_constant            (const ir_constant&)     = default;
     ir_constant            (ir_constant&&) noexcept = default;
@@ -35,15 +41,15 @@ namespace gch
 
     template <typename T, typename ...Args,
               std::enable_if_t<is_ir_type_v<std::decay_t<T>>> * = nullptr>
-    explicit
+    constexpr explicit
     ir_constant (std::in_place_type_t<T>, Args&&... args)
       : m_type (ir_type_v<std::decay_t<T>>),
-        m_data (std::in_place_type<make_all_levels_const_t<T>>, std::forward<Args> (args)...)
+        m_data (std::in_place_type<make_const_pointee_t<std::decay_t<T>>>,
+                std::forward<Args> (args)...)
     { }
 
-    template <typename T,
-              std::enable_if_t<is_ir_type_v<std::decay_t<T>>> * = nullptr>
-    explicit
+    template <typename T, std::enable_if_t<is_ir_type_v<std::decay_t<T>>> * = nullptr>
+    constexpr explicit
     ir_constant (T&& t)
       : ir_constant (std::in_place_type<T>, std::forward<T&&> (t))
     { }
@@ -60,23 +66,23 @@ namespace gch
     decltype (auto)
     emplace (Args&&... args)
     {
-      m_type = ir_type_v<T>;
-      return m_data.emplace<T> (std::forward<Args> (args)...);
+      m_type = ir_type_v<std::decay_t<T>>;
+      return m_data.emplace<make_const_pointee_t<std::decay_t<T>>> (std::forward<Args> (args)...);
     }
 
     template <typename T>
     friend constexpr
-    optional_ref<make_all_levels_const_t<T>>
-    maybe_as (const ir_constant& c) noexcept;
+    optional_ref<make_const_pointee_t<T>>
+    maybe_as (ir_constant& c) noexcept;
 
     template <typename T>
     friend constexpr
-    make_all_levels_const_t<T>&
-    as (const ir_constant& c);
+    ir_constant::make_const_pointee_t<T>&
+    as (ir_constant& c);
 
   private:
-    ir_type  m_type = ir_type_v<void>;
-    std::any m_data;
+    ir_type      m_type = ir_type_v<void>;
+    variant_type m_data;
   };
 
   template <typename T>
@@ -89,19 +95,35 @@ namespace gch
 
   template <typename T>
   [[nodiscard]] constexpr
-  optional_ref<make_all_levels_const_t<T>>
-  maybe_as (const ir_constant& c) noexcept
+  optional_ref<ir_constant::make_const_pointee_t<T>>
+  maybe_as (ir_constant& c) noexcept
   {
-    return std::any_cast<make_all_levels_const_t<T>> (&c.m_data);
+    return std::get_if<ir_constant::make_const_pointee_t<T>> (&c.m_data);
   }
 
   template <typename T>
   [[nodiscard]] constexpr
-  make_all_levels_const_t<T>&
-  as (const ir_constant& c)
+  optional_cref<ir_constant::make_const_pointee_t<T>>
+  maybe_as (const ir_constant& c) noexcept
+  {
+    return maybe_as<T> (as_mutable (c));
+  }
+
+  template <typename T>
+  [[nodiscard]] constexpr
+  ir_constant::make_const_pointee_t<T>&
+  as (ir_constant& c)
   {
     assert (ir_type_v<T> == c.get_type ());
     return *maybe_as<T> (c);
+  }
+
+  template <typename T>
+  [[nodiscard]] constexpr
+  const ir_constant::make_const_pointee_t<T>&
+  as (const ir_constant& c)
+  {
+    return as<T> (as_mutable (c));
   }
 
   std::ostream&

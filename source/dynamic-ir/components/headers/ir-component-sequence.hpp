@@ -43,29 +43,18 @@ namespace gch
       ~find_cache           (void)                  = default;
 
       explicit
-      find_cache (ir_component_handle it) noexcept
-        : m_handle (it)
-      { }
+      find_cache (ir_component_handle it) noexcept;
 
       void
-      emplace (ir_component_handle it) noexcept
-      {
-        m_handle = it;
-      }
+      emplace (ir_component_handle it) noexcept;
 
-      [[nodiscard]] constexpr
+      [[nodiscard]]
       bool
-      contains (const ir_subcomponent& sub) const noexcept
-      {
-        return &sub == m_handle;
-      }
+      contains (const ir_subcomponent& sub) const noexcept;
 
       [[nodiscard]]
       ir_component_handle
-      get (void) const noexcept
-      {
-        return m_handle;
-      }
+      get (void) const noexcept;
 
     private:
       ir_component_handle m_handle;
@@ -73,25 +62,15 @@ namespace gch
 
     [[nodiscard]]
     iter
-    make_mutable (const citer cit)
-    {
-      return std::next (begin (), std::distance (cbegin (), cit));
-    }
+    make_mutable (const citer cit);
 
     [[nodiscard]]
     typename container_type::iterator
-    get_container_iter (iter it) const
-    {
-      return std::next (as_mutable (*this).m_body.begin (),
-                        std::distance (as_mutable (*this).begin (), it));
-    }
+    get_container_iter (iter it) const;
 
     [[nodiscard]]
     typename container_type::const_iterator
-    get_container_iter (citer cit) const
-    {
-      return std::next (m_body.cbegin (), std::distance (cbegin (), cit));
-    }
+    get_container_iter (citer cit) const;
 
   public:
     ir_component_sequence (void)                                        = delete;
@@ -115,148 +94,86 @@ namespace gch
 
     [[nodiscard]]
     iter
-    begin (void) noexcept
-    {
-      return make_ptr (m_body.begin ());
-    }
+    begin (void) noexcept;
 
     [[nodiscard]]
     citer
-    begin (void) const noexcept
-    {
-      return as_mutable (*this).begin ();
-    }
+    begin (void) const noexcept;
 
     [[nodiscard]]
     citer
-    cbegin (void) const noexcept
-    {
-      return begin ();
-    }
+    cbegin (void) const noexcept;
 
     [[nodiscard]]
     iter
-    end (void) noexcept
-    {
-      return make_ptr (m_body.end ());
-    }
+    end (void) noexcept;
 
     [[nodiscard]]
     citer
-    end (void) const noexcept
-    {
-      return as_mutable (*this).end ();
-    }
+    end (void) const noexcept;
 
     [[nodiscard]]
     citer
-    cend (void) const noexcept
-    {
-      return end ();
-    }
+    cend (void) const noexcept;
 
     [[nodiscard]]
     riter
-    rbegin (void) noexcept
-    {
-      return riter { end () };
-    }
+    rbegin (void) noexcept;
 
     [[nodiscard]]
     criter
-    rbegin (void) const noexcept
-    {
-      return as_mutable (*this).rbegin ();
-    }
+    rbegin (void) const noexcept;
 
     [[nodiscard]]
     criter
-    crbegin (void) const noexcept
-    {
-      return rbegin ();
-    }
+    crbegin (void) const noexcept;
 
     [[nodiscard]]
     riter
-    rend (void) noexcept
-    {
-      return riter { begin () };
-    }
+    rend (void) noexcept;
 
     [[nodiscard]]
     criter
-    rend (void) const noexcept
-    {
-      return as_mutable (*this).rend ();
-    }
+    rend (void) const noexcept;
 
     [[nodiscard]]
     criter
-    crend (void) const noexcept
-    {
-      return rend ();
-    }
+    crend (void) const noexcept;
 
     [[nodiscard]]
     ref
-    front (void)
-    {
-      return *begin ();
-    }
+    front (void);
 
     [[nodiscard]]
     cref
-    front (void) const
-    {
-      return as_mutable (*this).front ();
-    }
+    front (void) const;
 
     [[nodiscard]]
     ref
-    back (void)
-    {
-      return *rbegin ();
-    }
+    back (void);
 
     [[nodiscard]]
     cref
-    back (void) const
-    {
-      return as_mutable (*this).back ();
-    }
+    back (void) const;
 
     [[nodiscard]]
     size_ty
-    size (void) const noexcept
-    {
-     return m_body.size ();
-    }
+    size (void) const noexcept;
 
-    // sequences cannot be empty
-    [[nodiscard]]
     bool
     empty (void) = delete;
 
     [[nodiscard]]
     iter
-    last (void) noexcept
-    {
-      return std::prev (end ());
-    }
+    last (void) noexcept;
 
     [[nodiscard]]
     citer
-    last (void) const noexcept
-    {
-      return as_mutable (*this).last ();
-    }
+    last (void) const noexcept;
 
     [[nodiscard]]
     citer
-    clast (void) const noexcept
-    {
-      return last ();
-    }
+    clast (void) const noexcept;
 
     template <typename Component = ir_subcomponent>
     [[nodiscard]]

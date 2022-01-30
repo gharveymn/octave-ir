@@ -856,6 +856,15 @@ namespace gch
 
   std::optional<ir_def_reference>&
   ir_static_variable_map::
+  map_origin (const ir_use_timeline& ut, const ir_def& def)
+  {
+    auto [pos, in] = m_origin_map.try_emplace (nonnull_ptr { ut }, std::in_place, def, false);
+    register_def (def);
+    return pos->second;
+  }
+
+  std::optional<ir_def_reference>&
+  ir_static_variable_map::
   map_origin (const ir_use_timeline& ut, const std::optional<ir_def_reference>& origin)
   {
     auto [pos, in] = m_origin_map.try_emplace (nonnull_ptr { ut }, origin);
@@ -878,9 +887,30 @@ namespace gch
     return pos->second;
   }
 
+  bool
+  ir_static_variable_map::
+  has_origin (const ir_use_timeline& ut) const
+  {
+    return m_origin_map.find (nonnull_ptr { ut }) != m_origin_map.end ();
+  }
+
+  std::optional<ir_def_reference>&
+  ir_static_variable_map::
+  get_origin (const ir_use_timeline& ut)
+  {
+    return m_origin_map.find (nonnull_ptr { ut })->second;
+  }
+
+  const std::optional<ir_def_reference>&
+  ir_static_variable_map::
+  get_origin (const ir_use_timeline& ut) const
+  {
+    return as_mutable (*this).get_origin (ut);
+  }
+
   optional_ref<std::optional<ir_def_reference>>
   ir_static_variable_map::
-  maybe_get (const ir_use_timeline& ut)
+  maybe_get_origin (const ir_use_timeline& ut)
   {
     if (auto found = m_origin_map.find (nonnull_ptr { ut }) ; found != m_origin_map.end ())
       return optional_ref { found->second };
@@ -889,11 +919,9 @@ namespace gch
 
   optional_cref<std::optional<ir_def_reference>>
   ir_static_variable_map::
-  maybe_get (const ir_use_timeline& ut) const
+  maybe_get_origin (const ir_use_timeline& ut) const
   {
-    if (auto found = m_origin_map.find (nonnull_ptr { ut }) ; found != m_origin_map.end ())
-      return optional_ref { found->second };
-    return nullopt;
+    return as_mutable (*this).maybe_get_origin (ut);
   }
 
   std::vector<ir_static_variable>&&
@@ -1626,11 +1654,8 @@ namespace gch
       std::for_each (m_block_manager.begin (), m_block_manager.end (), applied {
         [&](nonnull_cptr<ir_block> block, auto&&)
         {
-          if (block->empty<ir_block::range::body> ()
-          ||! is_a<ir_opcode::terminal> (block->back<ir_block::range::body> ()))
-          {
+          if (block->empty () ||! is_a<ir_opcode::terminal> (block->back ()))
             resolve_terminal_instruction (*block, ret);
-          }
         }
       });
 
@@ -1828,14 +1853,14 @@ namespace gch
 
       if (dt.has_local_timelines ())
       {
-        if (! var_map.maybe_get (dt.local_back ()))
+        if (! var_map.maybe_get_origin (dt.local_back ()))
         {
           std::for_each (dt.local_rbegin (), dt.local_rend (), [&](const ir_use_timeline& ut) {
             var_map.map_origin (ut);
           });
         }
 
-        if (dt.has_incoming_timeline () && ! var_map.maybe_get (dt.get_incoming_timeline ()))
+        if (dt.has_incoming_timeline () && ! var_map.maybe_get_origin (dt.get_incoming_timeline ()))
           resolve_phi (dt.get_block (), dt, var_map);
 
         return std::optional<ir_def_reference> {
@@ -1845,7 +1870,7 @@ namespace gch
         };
       }
 
-      if (optional_ref phi_ref { var_map.maybe_get (dt.get_incoming_timeline ()) })
+      if (optional_ref phi_ref { var_map.maybe_get_origin (dt.get_incoming_timeline ()) })
         return *phi_ref;
       return resolve_phi (dt.get_block (), dt, var_map);
     }
@@ -1859,7 +1884,7 @@ namespace gch
 
       if (dt.has_local_timelines ())
       {
-        if (optional_ref ret { var_map.maybe_get (dt.local_back ()) })
+        if (optional_ref ret { var_map.maybe_get_origin (dt.local_back ()) })
           return *ret;
 
         std::for_each (dt.local_rbegin (), dt.local_rend (), [&](const ir_use_timeline& ut) {
@@ -1872,7 +1897,7 @@ namespace gch
           false
         };
       }
-      else if (optional_ref ret { var_map.maybe_get (dt.get_incoming_timeline ()) })
+      else if (optional_ref ret { var_map.maybe_get_origin (dt.get_incoming_timeline ()) })
         return *ret;
       return resolve_phi (dt.get_block (), dt, var_map);
     }

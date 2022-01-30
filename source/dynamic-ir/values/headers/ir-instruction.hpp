@@ -210,8 +210,7 @@ namespace gch
       m_args.reserve (N);
       std::for_each (std::move_iterator { args.begin () },
                      std::move_iterator { args.end () },
-                     [this](ir_operand_in&& op)
-                     {
+                     [this](ir_operand_in&& op) {
                        emplace_back (std::move (op));
                      });
     }

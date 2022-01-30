@@ -18,6 +18,32 @@
 namespace gch
 {
 
+  ir_component_sequence::find_cache::
+  find_cache (ir_component_handle it) noexcept
+    : m_handle (it)
+  { }
+
+  void
+  ir_component_sequence::find_cache::
+  emplace (ir_component_handle it) noexcept
+  {
+    m_handle = it;
+  }
+
+  bool
+  ir_component_sequence::find_cache::
+  contains (const ir_subcomponent& sub) const noexcept
+  {
+    return &sub == m_handle;
+  }
+
+  ir_component_handle
+  ir_component_sequence::find_cache::
+  get (void) const noexcept
+  {
+    return m_handle;
+  }
+
   ir_component_sequence::
   ~ir_component_sequence (void) = default;
 
@@ -27,6 +53,194 @@ namespace gch
       m_body          (init.begin (), init.end ()),
       m_find_cache    { make_handle (begin ()) }
   { }
+
+  auto
+  ir_component_sequence::
+  make_mutable (const citer cit)
+    -> iter
+  {
+    return std::next (begin (), std::distance (cbegin (), cit));
+  }
+
+  auto
+  ir_component_sequence::
+  get_container_iter (iter it) const
+    -> typename container_type::iterator
+  {
+    return std::next (as_mutable (*this).m_body.begin (),
+                      std::distance (as_mutable (*this).begin (), it));
+  }
+
+  auto
+  ir_component_sequence::
+  get_container_iter (citer cit) const
+    -> typename container_type::const_iterator
+  {
+    return std::next (m_body.cbegin (), std::distance (cbegin (), cit));
+  }
+
+  auto
+  ir_component_sequence::
+  begin (void) noexcept
+    -> iter
+  {
+    return make_ptr (m_body.begin ());
+  }
+
+  auto
+  ir_component_sequence::
+  begin (void) const noexcept
+    -> citer
+  {
+    return as_mutable (*this).begin ();
+  }
+
+  auto
+  ir_component_sequence::
+  cbegin (void) const noexcept
+    -> citer
+  {
+    return begin ();
+  }
+
+  auto
+  ir_component_sequence::
+  end (void) noexcept
+    -> iter
+  {
+    return make_ptr (m_body.end ());
+  }
+
+  auto
+  ir_component_sequence::
+  end (void) const noexcept
+    -> citer
+  {
+    return as_mutable (*this).end ();
+  }
+
+  auto
+  ir_component_sequence::
+  cend (void) const noexcept
+    -> citer
+  {
+    return end ();
+  }
+
+  auto
+  ir_component_sequence::
+  rbegin (void) noexcept
+    -> riter
+  {
+    return riter { end () };
+  }
+
+  auto
+  ir_component_sequence::
+  rbegin (void) const noexcept
+    -> criter
+  {
+    return as_mutable (*this).rbegin ();
+  }
+
+  auto
+  ir_component_sequence::
+  crbegin (void) const noexcept
+    -> criter
+  {
+    return rbegin ();
+  }
+
+  auto
+  ir_component_sequence::
+  rend (void) noexcept
+    -> riter
+  {
+    return riter { begin () };
+  }
+
+  auto
+  ir_component_sequence::
+  rend (void) const noexcept
+    -> criter
+  {
+    return as_mutable (*this).rend ();
+  }
+
+  auto
+  ir_component_sequence::
+  crend (void) const noexcept
+    -> criter
+  {
+    return rend ();
+  }
+
+  auto
+  ir_component_sequence::
+  front (void)
+    -> ref
+  {
+    return *begin ();
+  }
+
+  auto
+  ir_component_sequence::
+  front (void) const
+    -> cref
+  {
+    return as_mutable (*this).front ();
+  }
+
+  auto
+  ir_component_sequence::
+  back (void)
+    -> ref
+  {
+    return *rbegin ();
+  }
+
+  auto
+  ir_component_sequence::
+  back (void) const
+    -> cref
+  {
+    return as_mutable (*this).back ();
+  }
+
+  auto
+  ir_component_sequence::
+  size (void) const noexcept
+    -> size_ty
+  {
+    return m_body.size ();
+  }
+
+  [[nodiscard]]
+  auto
+  ir_component_sequence::
+  last (void) noexcept
+    -> iter
+  {
+    return std::prev (end ());
+  }
+
+  [[nodiscard]]
+  auto
+  ir_component_sequence::
+  last (void) const noexcept
+    -> citer
+  {
+    return as_mutable (*this).last ();
+  }
+
+  [[nodiscard]]
+  auto
+  ir_component_sequence::
+  clast (void) const noexcept
+    -> citer
+  {
+    return last ();
+  }
 
   auto
   ir_component_sequence::

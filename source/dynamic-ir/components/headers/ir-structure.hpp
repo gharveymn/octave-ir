@@ -140,14 +140,10 @@ namespace gch
     using ir_subcomponent::accept;
 
     explicit
-    ir_substructure (ir_structure& parent)
-      : ir_subcomponent { parent }
-    { }
+    ir_substructure (ir_structure& parent);
 
     explicit
-    ir_substructure (ir_structure& parent, std::string_view base_name)
-      : ir_subcomponent (parent, base_name)
-    { }
+    ir_substructure (ir_structure& parent, std::string_view base_name);
   };
 
   ir_link_set<ir_block>

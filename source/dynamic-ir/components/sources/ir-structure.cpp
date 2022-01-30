@@ -109,6 +109,16 @@ namespace gch
     }
   }
 
+  ir_substructure::
+  ir_substructure (ir_structure& parent)
+    : ir_subcomponent { parent }
+  { }
+
+  ir_substructure::
+  ir_substructure (ir_structure& parent, std::string_view base_name)
+    : ir_subcomponent (parent, base_name)
+  { }
+
   //
   // non-member functions
   //

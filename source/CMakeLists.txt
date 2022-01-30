@@ -12,6 +12,10 @@ add_library (octave-ir.common INTERFACE)
 
 target_compile_features (octave-ir.common INTERFACE cxx_std_${GCH_OCTAVE_IR_CXX_STANDARD})
 
+if (NOT DEFINED CMAKE_CXX_EXTENSIONS)
+  set (CMAKE_CXX_EXTENSIONS OFF)
+endif ()
+
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options (
     octave-ir.common

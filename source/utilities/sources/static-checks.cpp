@@ -86,10 +86,19 @@ namespace gch
   static_assert (std::is_same_v<type_pack<int>,       pack_reverse_t<type_pack<int>>>);
   static_assert (std::is_same_v<type_pack<int, long>, pack_reverse_t<type_pack<long, int>>>);
 
-  static_assert (std::is_same_v<type_pack<>,            pack_remove_t<type_pack<int>, 0>>);
-  static_assert (std::is_same_v<type_pack<int,  short>, pack_remove_t<type_pack<long, int, short>, 0>>);
-  static_assert (std::is_same_v<type_pack<long, short>, pack_remove_t<type_pack<long, int, short>, 1>>);
-  static_assert (std::is_same_v<type_pack<long, int>,   pack_remove_t<type_pack<long, int, short>, 2>>);
+  static_assert (std::is_same_v<type_pack<>,            pack_erase_t<type_pack<int>, 0>>);
+  static_assert (std::is_same_v<type_pack<int,  short>, pack_erase_t<type_pack<long, int, short>, 0>>);
+  static_assert (std::is_same_v<type_pack<long, short>, pack_erase_t<type_pack<long, int, short>, 1>>);
+  static_assert (std::is_same_v<type_pack<long, int>,   pack_erase_t<type_pack<long, int, short>, 2>>);
+
+  static_assert (std::is_same_v<type_pack<>,            pack_remove_t<type_pack<>>>);
+  static_assert (std::is_same_v<type_pack<int>,         pack_remove_t<type_pack<int>>>);
+  static_assert (std::is_same_v<type_pack<>,            pack_remove_t<type_pack<int>, int>>);
+  static_assert (std::is_same_v<type_pack<>,            pack_remove_t<type_pack<int, int>, int>>);
+  static_assert (std::is_same_v<type_pack<short, long>, pack_remove_t<type_pack<int, short, int, long>, int>>);
+  static_assert (std::is_same_v<type_pack<short, long>, pack_remove_t<type_pack<short, int, long, int>, int>>);
+  static_assert (std::is_same_v<type_pack<short, long>, pack_remove_t<type_pack<short, long>, int>>);
+  static_assert (std::is_same_v<type_pack<long>,        pack_remove_t<type_pack<int, short, int, long>, int, short>>);
 
   static_assert (std::is_same_v<type_pack<>,           pack_pop_front_t<type_pack<int>>>);
   static_assert (std::is_same_v<type_pack<int, short>, pack_pop_front_t<type_pack<long, int, short>>>);

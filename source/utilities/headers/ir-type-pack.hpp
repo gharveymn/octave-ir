@@ -121,6 +121,12 @@ namespace gch
   template <typename Pack, template <typename ...> typename TT>
   using pack_apply_t = typename pack_apply<Pack, TT>::type;
 
+  template <typename Pack, template <typename> typename TT>
+  struct pack_for_each;
+
+  template <typename Pack, template <typename> typename TT>
+  using pack_for_each_t = typename pack_for_each<Pack, TT>::type;
+
   template <typename Pack>
   struct pack_reverse;
 
@@ -128,10 +134,16 @@ namespace gch
   using pack_reverse_t = typename pack_reverse<Pack>::type;
 
   template <typename Pack, std::size_t Index>
-  struct pack_remove;
+  struct pack_erase;
 
   template <typename Pack, std::size_t Index>
-  using pack_remove_t = typename pack_remove<Pack, Index>::type;
+  using pack_erase_t = typename pack_erase<Pack, Index>::type;
+
+  template <typename Pack, typename ...Ts>
+  struct pack_remove;
+
+  template <typename Pack, typename ...Ts>
+  using pack_remove_t = typename pack_remove<Pack, Ts...>::type;
 
   template <typename Pack>
   struct pack_pop_front;
@@ -330,10 +342,22 @@ namespace gch
     { };
 
     template <template <typename ...> typename PackT, typename ...Ts,
-      template <typename ...> typename TT>
+              template <typename ...> typename TT>
     struct pack_apply_impl<PackT<Ts...>, TT>
-      : TT<Ts...>
+    {
+      using type = TT<Ts...>;
+    };
+
+    template <typename Pack, template <typename> typename TT>
+    struct pack_for_each_impl
     { };
+
+    template <template <typename ...> typename PackT, typename ...Ts,
+              template <typename> typename TT>
+    struct pack_for_each_impl<PackT<Ts...>, TT>
+    {
+      using type = PackT<TT<Ts>...>;
+    };
 
     template <typename PackIn, typename PackOut>
     struct pack_reverse_helper
@@ -362,12 +386,12 @@ namespace gch
     { };
 
     template <std::size_t I, typename PackIn, typename PackOut, typename Enable = void>
-    struct pack_remove_helper
+    struct pack_erase_helper
     { };
 
     template <template <typename ...> typename PackT,
               typename PackLHS, typename RHSHead, typename ...RHSTail>
-    struct pack_remove_helper<0, PackLHS, PackT<RHSHead, RHSTail...>>
+    struct pack_erase_helper<0, PackLHS, PackT<RHSHead, RHSTail...>>
     {
       using type = pack_concatenate_t<PackLHS, PackT<RHSTail...>>;
     };
@@ -375,18 +399,43 @@ namespace gch
     template <std::size_t I,
               template <typename ...> typename PackT,
               typename ...LHS, typename RHSHead, typename ...RHSTail>
-    struct pack_remove_helper<I, PackT<LHS...>, PackT<RHSHead, RHSTail...>,
+    struct pack_erase_helper<I, PackT<LHS...>, PackT<RHSHead, RHSTail...>,
                               std::enable_if_t<I != 0>>
-      : pack_remove_helper<I - 1, PackT<LHS..., RHSHead>, PackT<RHSTail...>>
+      : pack_erase_helper<I - 1, PackT<LHS..., RHSHead>, PackT<RHSTail...>>
     { };
 
     template <typename Pack, std::size_t I>
-    struct pack_remove_impl
+    struct pack_erase_impl
     { };
 
     template <template <typename ...> typename PackT, typename ...Ts, std::size_t I>
-    struct pack_remove_impl<PackT<Ts...>, I>
-      : pack_remove_helper<I, PackT<>, PackT<Ts...>>
+    struct pack_erase_impl<PackT<Ts...>, I>
+      : pack_erase_helper<I, PackT<>, PackT<Ts...>>
+    { };
+
+    template <typename Pack, typename T, typename IndexType = pack_index<Pack, T>, typename = void>
+    struct pack_remove_helper
+    {
+      using type = Pack;
+    };
+
+    template <typename Pack, typename T, typename IndexType>
+    struct pack_remove_helper<Pack, T, IndexType, std::void_t<typename IndexType::type>>
+      : pack_remove_helper<pack_erase_t<Pack, IndexType::value>, T>
+    { };
+
+    template <typename Pack, typename ...Ts>
+    struct pack_remove_impl;
+
+    template <typename Pack>
+    struct pack_remove_impl<Pack>
+    {
+      using type = Pack;
+    };
+
+    template <typename Pack, typename T, typename ...Rest>
+    struct pack_remove_impl<Pack, T, Rest...>
+      : pack_remove_impl<typename pack_remove_helper<Pack, T>::type, Rest...>
     { };
 
     template <std::size_t I, typename T, typename PackLHS, typename PackRHS,
@@ -494,24 +543,34 @@ namespace gch
     : detail::pack_apply_impl<Pack, TT>
   { };
 
+  template <typename Pack, template <typename> typename TT>
+  struct pack_for_each
+    : detail::pack_for_each_impl<Pack, TT>
+  { };
+
   template <typename Pack>
   struct pack_reverse
     : detail::pack_reverse_impl<Pack>
   { };
 
   template <typename Pack, std::size_t Index>
+  struct pack_erase
+    : detail::pack_erase_impl<Pack, Index>
+  { };
+
+  template <typename Pack, typename ...Ts>
   struct pack_remove
-    : detail::pack_remove_impl<Pack, Index>
+    : detail::pack_remove_impl<Pack, Ts...>
   { };
 
   template <typename Pack>
   struct pack_pop_front
-    : pack_remove<Pack, 0>
+    : pack_erase<Pack, 0>
   { };
 
   template <typename Pack>
   struct pack_pop_back
-    : pack_remove<Pack, pack_size_v<Pack> - 1>
+    : pack_erase<Pack, pack_size_v<Pack> - 1>
   { };
 
   template <typename Pack, std::size_t Index, typename T>
