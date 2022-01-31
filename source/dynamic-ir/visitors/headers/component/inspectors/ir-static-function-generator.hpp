@@ -128,6 +128,9 @@ namespace gch
     map_origin (const ir_use_timeline& ut, const ir_def& def);
 
     std::optional<ir_def_reference>&
+    map_origin (const ir_use_timeline& ut, optional_cref<ir_def> origin);
+
+    std::optional<ir_def_reference>&
     map_origin (const ir_use_timeline& ut, const std::optional<ir_def_reference>& origin);
 
     std::optional<ir_def_reference>&
@@ -194,35 +197,6 @@ namespace gch
   class ir_resolved_phi_node
   {
   public:
-    using incoming_container_type          = small_vector<ir_static_incoming_pair>;
-    using incoming_value_type              = incoming_container_type::value_type;
-    using incoming_allocator_type          = incoming_container_type::allocator_type;
-    using incoming_size_type               = incoming_container_type::size_type;
-    using incoming_difference_type         = incoming_container_type::difference_type;
-    using incoming_reference               = incoming_container_type::reference;
-    using incoming_const_reference         = incoming_container_type::const_reference;
-    using incoming_pointer                 = incoming_container_type::pointer;
-    using incoming_const_pointer           = incoming_container_type::const_pointer;
-
-    using incoming_iterator                = incoming_container_type::iterator;
-    using incoming_const_iterator          = incoming_container_type::const_iterator;
-    using incoming_reverse_iterator        = incoming_container_type::reverse_iterator;
-    using incoming_const_reverse_iterator  = incoming_container_type::const_reverse_iterator;
-
-    using incoming_val_t   = incoming_value_type;
-    using incoming_alloc_t = incoming_allocator_type;
-    using incoming_size_ty = incoming_size_type;
-    using incoming_diff_ty = incoming_difference_type;
-    using incoming_ref     = incoming_reference;
-    using incoming_cref    = incoming_const_reference;
-    using incoming_ptr     = incoming_pointer;
-    using incoming_cptr    = incoming_const_pointer;
-
-    using incoming_iter    = incoming_iterator;
-    using incoming_citer   = incoming_const_iterator;
-    using incoming_riter   = incoming_reverse_iterator;
-    using incoming_criter  = incoming_const_reverse_iterator;
-
     ir_resolved_phi_node            (void)                            = delete;
     ir_resolved_phi_node            (const ir_resolved_phi_node&)     = default;
     ir_resolved_phi_node            (ir_resolved_phi_node&&) noexcept = default;
@@ -237,11 +211,11 @@ namespace gch
     get_id (void) const noexcept;
 
     [[nodiscard]]
-    incoming_const_iterator
+    small_vector<ir_static_incoming_pair>::const_iterator
     begin (void) const noexcept;
 
     [[nodiscard]]
-    incoming_const_iterator
+    small_vector<ir_static_incoming_pair>::const_iterator
     end (void) const noexcept;
 
     [[nodiscard]]
@@ -249,8 +223,8 @@ namespace gch
     has_incoming (void) const noexcept;
 
   private:
-    ir_static_def_id        m_id;
-    incoming_container_type m_incoming;
+    ir_static_def_id                      m_id;
+    small_vector<ir_static_incoming_pair> m_incoming;
   };
 
   class ir_injection
@@ -759,10 +733,10 @@ namespace gch
     ir_block_descriptor&
     find_or_emplace (const ir_block& block);
 
-    nonnull_cptr<ir_function>                                       m_function;
-    std::unordered_map<nonnull_cptr<ir_block>, ir_block_descriptor> m_descriptor_map;
-    std::list<ir_variable>                                          m_temp_variables;
-    std::size_t                                                     m_num_injected_blocks = 0;
+    nonnull_cptr<ir_function> m_function;
+    map_type                  m_descriptor_map;
+    std::list<ir_variable>    m_temp_variables;
+    std::size_t               m_num_injected_blocks = 0;
   };
 
   class ir_dynamic_block_manager_builder final

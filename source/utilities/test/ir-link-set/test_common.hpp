@@ -10,6 +10,7 @@
 
 #include "ir-link-set.hpp"
 
+#include <array>
 #include <cstdio>
 
 #define CHECK(EXPR)                                                           \

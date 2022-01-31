@@ -12,7 +12,7 @@ using namespace gch;
 int
 main (void)
 {
-  static constexpr int expected = 16;
+  static constexpr int expected = 31;
 
   ir_function my_func ("x", "myloopfunc");
   ir_variable& var_x = my_func.get_variable ("x");

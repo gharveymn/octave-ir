@@ -9,12 +9,17 @@
 #define OCTAVE_IR_STATIC_IR_IR_TYPE_HPP
 
 #include "ir-common.hpp"
-#include "ir-functional.hpp"
 #include "ir-static-id.hpp"
+#include "ir-type-pack.hpp"
+#include "ir-type-traits.hpp"
 
 #include <array>
 #include <complex>
+#include <cstddef>
+#include <cstdint>
 #include <string>
+#include <string_view>
+#include <type_traits>
 
 class octave_base_value;
 

@@ -13,14 +13,11 @@
 #include "ir-common.hpp"
 
 #include <gch/nonnull_ptr.hpp>
-#include <gch/optional_ref.hpp>
 
-#include <iosfwd>
-#include <memory>
-#include <functional>
-#include <unordered_set>
+#include <cstddef>
+#include <tuple>
 #include <type_traits>
-#include <optional>
+#include <utility>
 
 namespace gch
 {

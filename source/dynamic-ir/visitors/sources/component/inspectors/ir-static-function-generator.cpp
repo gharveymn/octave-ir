@@ -38,6 +38,105 @@
 
 namespace gch
 {
+  class indirect_def;
+
+  class resolved_def
+    : public intrusive_tracker<resolved_def, remote::intrusive_reporter<indirect_def>>
+  {
+    using base = intrusive_tracker<resolved_def, remote::intrusive_reporter<indirect_def>>;
+
+  public:
+    explicit
+    resolved_def (nullopt_t)
+      : m_resolution (nullopt)
+    { }
+
+    explicit
+    resolved_def (const ir_def& def)
+      : m_resolution (def)
+    { }
+
+    explicit
+    resolved_def (optional_cref<ir_def> def)
+      : m_resolution (def)
+    { }
+
+    optional_cref<ir_def>
+    maybe_get_def (void) const noexcept
+    {
+      return m_resolution;
+    }
+  private:
+    optional_cref<ir_def> m_resolution;
+  };
+
+  class indirect_def
+    : public intrusive_reporter<indirect_def, remote::intrusive_tracker<resolved_def>>
+  {
+    using base = intrusive_reporter<indirect_def, remote::intrusive_tracker<resolved_def>>;
+    using base::reporter;
+  };
+
+  class def_reference
+  {
+  public:
+    explicit
+    def_reference (nullopt_t)
+      : m_data (std::in_place_type<resolved_def>, nullopt)
+    { }
+
+    explicit
+    def_reference (const ir_def& def)
+      : m_data (std::in_place_type<resolved_def>, def)
+    { }
+
+    explicit
+    def_reference (optional_cref<ir_def> def)
+      : m_data (std::in_place_type<resolved_def>, def)
+    { }
+
+    explicit
+    def_reference (resolved_def& remote)
+      : m_data (std::in_place_type<indirect_def>, tag::bind, remote)
+    { }
+
+    void
+    repoint (resolved_def& remote)
+    {
+      std::visit (overloaded {
+        [&](resolved_def& curr_resolved) {
+          remote.splice_back (curr_resolved);
+          m_data.emplace<indirect_def> (tag::bind, remote);
+        },
+        [&](indirect_def& curr_indirect) {
+          curr_indirect.rebind (remote);
+        },
+      }, m_data);
+    }
+
+    resolved_def&
+    get_resolution (void) noexcept
+    {
+      if (optional_ref resolved { std::get_if<resolved_def> (&m_data) })
+        return *resolved;
+      return std::get_if<indirect_def> (&m_data)->get_remote ();
+    }
+
+    const resolved_def&
+    get_resolution (void) const noexcept
+    {
+      return as_mutable (*this).get_resolution ();
+    }
+
+    optional_cref<ir_def>
+    maybe_get_def (void) const noexcept
+    {
+      return get_resolution ().maybe_get_def ();
+    }
+
+  private:
+    std::variant<resolved_def, indirect_def> m_data;
+  };
 
   template <typename Container>
   static
@@ -733,7 +832,7 @@ namespace gch
     m_var_id_map.reserve (num_variables);
 
     std::for_each (func.variables_begin (), func.variables_end (), applied {
-      [&](const std::string& name, const ir_variable& var)
+      [&](const std::string_view& name, const ir_variable& var)
       {
         m_var_id_map.try_emplace (nonnull_ptr { var }, m_variables.size ());
         m_variables.emplace_back (name, var.get_type ());
@@ -859,7 +958,18 @@ namespace gch
   map_origin (const ir_use_timeline& ut, const ir_def& def)
   {
     auto [pos, in] = m_origin_map.try_emplace (nonnull_ptr { ut }, std::in_place, def, false);
-    register_def (def);
+    if (in)
+      register_def (def);
+    return pos->second;
+  }
+
+  std::optional<ir_def_reference>&
+  ir_static_variable_map::
+  map_origin (const ir_use_timeline& ut, optional_cref<ir_def> origin)
+  {
+    if (origin)
+      return map_origin (ut, *origin);
+    auto [pos, in] = m_origin_map.try_emplace (nonnull_ptr { ut }, std::nullopt);
     return pos->second;
   }
 
@@ -868,7 +978,7 @@ namespace gch
   map_origin (const ir_use_timeline& ut, const std::optional<ir_def_reference>& origin)
   {
     auto [pos, in] = m_origin_map.try_emplace (nonnull_ptr { ut }, origin);
-    if (origin)
+    if (origin && in)
       register_def (**origin);
     return pos->second;
   }
@@ -880,7 +990,8 @@ namespace gch
     if (optional_ref def { ut.maybe_get_def () })
     {
       auto [pos, in] = m_origin_map.try_emplace (nonnull_ptr { ut }, std::in_place, *def, false);
-      register_def (*def);
+      if (in)
+        register_def (*def);
       return pos->second;
     }
     auto [pos, in] = m_origin_map.try_emplace (nonnull_ptr { ut }, std::nullopt);
@@ -996,18 +1107,16 @@ namespace gch
     return m_id;
   }
 
-  auto
+  small_vector<ir_static_incoming_pair>::const_iterator
   ir_resolved_phi_node::
   begin (void) const noexcept
-    -> incoming_const_iterator
   {
     return m_incoming.begin ();
   }
 
-  auto
+  small_vector<ir_static_incoming_pair>::const_iterator
   ir_resolved_phi_node::
   end (void) const noexcept
-    -> incoming_const_iterator
   {
     return m_incoming.end ();
   }
@@ -1631,9 +1740,86 @@ namespace gch
     return block_manager;
   }
 
+  class unresolved_incoming_pair
+  {
+  public:
+    unresolved_incoming_pair (const ir_block& incoming_block, const def_reference& def_ref) noexcept
+      : m_incoming_block (incoming_block),
+        m_def_ref (def_ref)
+    { }
+
+    [[nodiscard]]
+    const ir_block&
+    get_block (void) const noexcept
+    {
+      return *m_incoming_block;
+    }
+
+    [[nodiscard]]
+    optional_cref<ir_def>
+    maybe_get_def (void) const noexcept
+    {
+      return m_def_ref->maybe_get_def ();
+    }
+
+  private:
+    nonnull_cptr<ir_block>      m_incoming_block;
+    nonnull_cptr<def_reference> m_def_ref;
+  };
+
+  class unresolved_phi_node
+  {
+  public:
+    unresolved_phi_node (const ir_def& phi_def,
+                         small_vector<unresolved_incoming_pair>&& incoming) noexcept
+      : m_phi_def (phi_def),
+        m_incoming (std::move (incoming))
+    { }
+
+    [[nodiscard]]
+    const ir_def&
+    get_def (void) const noexcept
+    {
+      return *m_phi_def;
+    }
+
+    [[nodiscard]]
+    small_vector<unresolved_incoming_pair>::const_iterator
+    begin (void) const noexcept
+    {
+      return m_incoming.begin ();
+    }
+
+    [[nodiscard]]
+    small_vector<unresolved_incoming_pair>::const_iterator
+    end (void) const noexcept
+    {
+      return m_incoming.end ();
+    }
+
+    [[nodiscard]]
+    bool
+    has_incoming (void) const noexcept
+    {
+      return ! m_incoming.empty ();
+    }
+
+  private:
+    nonnull_cptr<ir_def>                   m_phi_def;
+    small_vector<unresolved_incoming_pair> m_incoming;
+  };
+
   class def_resolver
   {
   public:
+    using def_reference_map = std::unordered_map<nonnull_cptr<ir_use_timeline>, def_reference>;
+
+    struct def_ref_map_insertion_result
+    {
+      def_reference& value;
+      bool           inserted;
+    };
+
     explicit
     def_resolver (ir_dynamic_block_manager& block_manager, const ir_component& c)
       : m_block_manager (block_manager),
@@ -1641,33 +1827,138 @@ namespace gch
     { }
 
     ir_static_variable_map
-    operator() (void)
+    operator() (void);
+
+    template <typename ...Args>
+    def_ref_map_insertion_result
+    map_def_ref (const ir_use_timeline& ut, Args&&... args)
     {
-      ir_static_variable_map ret (m_block_manager.get_function ());
+      auto [it, ins] = m_def_map.try_emplace (nonnull_ptr { ut }, std::forward<Args> (args)...);
+      assert (it != m_def_map.end ());
+      return { it->second, ins };
+    }
 
-      // Resolve phi nodes and defs.
-      std::for_each (m_block_manager.begin (), m_block_manager.end (), applied {
-        [&](nonnull_cptr<ir_block> block, auto&&) { resolve_block (*block, ret); }
-      });
+    void
+    add_unresolved_phi (const ir_block& join_block,
+                        const ir_def& phi_def,
+                        small_vector<unresolved_incoming_pair>&& incoming_pairs)
+    {
+      m_unresolved_phi.emplace_back (
+        std::piecewise_construct,
+        std::forward_as_tuple (join_block),
+        std::forward_as_tuple (phi_def, std::move (incoming_pairs)));
+    }
 
-      // Resolve terminal instructions.
-      std::for_each (m_block_manager.begin (), m_block_manager.end (), applied {
-        [&](nonnull_cptr<ir_block> block, auto&&)
+    void
+    add_fetch (const ir_block& block, const ir_variable& var, ir_static_def_id def_id)
+    {
+      ir_block_descriptor& desc = m_block_manager[block];
+      desc.add_phi_node (var, def_id, { });
+    }
+
+    void
+    add_uninit_phi (const ir_block& block,
+                    const ir_def_timeline& dt,
+                    const ir_static_variable_map& var_map)
+    {
+      ir_block_descriptor&  desc        = m_block_manager[block];
+      const ir_instruction& first_usage = dt.get_incoming_timeline ().front ().get_instruction ();
+
+      auto pos = find_first_injection_after (first_usage, desc,
+                                             block.begin<ir_block::range::body> ());
+
+      auto instr_pos = std::find_if (block.begin<ir_block::range::body> (),
+                                     dt.instructions_end (dt.get_incoming_timeline_iter ()),
+                                     [&](const ir_instruction& instr) {
+                                       return &instr == &first_usage;
+                                     });
+
+      ir_injection& inj = *desc.emplace_injection (pos, instr_pos);
+      append_determined_uninit_terminator (inj, var_map[dt.get_variable ()]);
+    }
+
+    void
+    create_determinator (const ir_block& block,
+                         const ir_variable& var,
+                         ir_instruction_citer pos,
+                         ir_static_variable_map& var_map)
+    {
+      const ir_static_variable& det_var    = m_det_manager.get_determinator (var, var_map);
+      ir_block_descriptor&      desc   = m_block_manager[block];
+      ir_static_variable_id     det_var_id = var_map.get_variable_id (det_var);
+
+      ir_static_def_id det_def_id = find_determinator_def (det_var_id,
+                                                           desc,
+                                                           block,
+                                                           *pos,
+                                                           m_block_manager);
+
+      ir_static_block_id continue_id = m_block_manager.create_injected_block ();
+      ir_static_block_id terminal_id = m_block_manager.create_injected_block ();
+
+      auto injection_pos = find_first_injection_after (*pos, desc,
+                                                       block.begin<ir_block::range::body> ());
+
+      auto det_branch = ir_static_instruction::create<ir_opcode::cbranch> (
+        ir_static_use { det_var_id, det_def_id },
+        create_block_operand (continue_id),
+        create_block_operand (terminal_id));
+
+      desc.emplace_injection (
+        injection_pos,
+        pos,
+        std::move (det_branch),
+        [=, &var](ir_static_block&,
+                  std::vector<ir_static_block>& sblocks,
+                  const ir_static_variable_map& vmap) -> ir_static_block&
         {
-          if (block->empty () ||! is_a<ir_opcode::terminal> (block->back ()))
-            resolve_terminal_instruction (*block, ret);
-        }
-      });
+          append_determined_uninit_terminator (sblocks[terminal_id], vmap[var]);
+          return sblocks[continue_id];
+        });
+    }
 
-      return ret;
+    void
+    create_determinator (const ir_block& block,
+                         const ir_def_timeline& dt,
+                         const ir_instruction& instr,
+                         ir_static_variable_map& var_map)
+    {
+      auto instr_pos = std::find_if (block.begin<ir_block::range::body> (),
+                                     dt.instructions_end (dt.get_incoming_timeline_iter ()),
+                                     [&](const ir_instruction& curr) {
+                                       return &curr == &instr;
+                                     });
+
+      create_determinator (block, dt.get_variable (), instr_pos, var_map);
     }
 
   private:
-    // struct unresolved_incoming_pair
-    // {
-    //   ir_static_block_id             m_block_id;
-    //   optional_ref<ir_def_reference> m_def_ref;
-    // };
+    void
+    resolve_phi (const ir_static_variable_map& var_map)
+    {
+      std::for_each (m_unresolved_phi.begin (), m_unresolved_phi.end (), applied {
+        [&](nonnull_cptr<ir_block> join_block, const unresolved_phi_node& node)
+        {
+          ir_block_descriptor& desc = m_block_manager[*join_block];
+          const ir_def& phi_def = node.get_def ();
+          const ir_variable& var = phi_def.get_variable ();
+
+          ir_static_def_id phi_def_id = var_map.get_def_id (phi_def);
+          small_vector<ir_static_incoming_pair> incoming_pairs;
+          std::for_each (node.begin (), node.end (), [&](const unresolved_incoming_pair& pair) {
+            ir_static_block_id block_id = m_block_manager[pair.get_block ()].get_id ();
+            std::optional def_id {
+              pair.maybe_get_def () >>= maybe {
+                [&](const ir_def& def) { return var_map.get_def_id (def); }
+              }
+            };
+            incoming_pairs.emplace_back (block_id, def_id);
+          });
+
+          desc.add_phi_node (var, phi_def_id, std::move (incoming_pairs));
+        }
+      });
+    }
 
     struct static_def_resolution
     {
@@ -1769,14 +2060,6 @@ namespace gch
     }
 
     void
-    resolve_block (const ir_block& block, ir_static_variable_map& var_map)
-    {
-      std::for_each (block.dt_map_begin (), block.dt_map_end (), applied {
-        [&](auto&&, const ir_def_timeline& dt) { resolve_def_timeline (dt, var_map); }
-      });
-    }
-
-    void
     resolve_terminal_instruction (const ir_block& block, ir_static_variable_map& var_map)
     {
       ir_block_descriptor& desc = m_block_manager[block];
@@ -1819,276 +2102,376 @@ namespace gch
         small_vector<ir_static_operand, 2> ret_args;
         for (auto ret_it = func.returns_begin (); ret_it != func.returns_end (); ++ret_it)
         {
-          if (optional_ref ret_dt { block.maybe_get_def_timeline (**ret_it) })
+          const ir_variable& var = **ret_it;
+          if (optional_ref ret_dt { block.maybe_get_def_timeline (var) })
           {
-            if (std::optional res { resolve_def_timeline (*ret_dt, var_map) })
-            {
-              ret_args.emplace_back (var_map.get_variable_id (**ret_it),
-                                     var_map.get_def_id (*res));
-            }
+            assert (ret_dt->has_outgoing_timeline ());
+            const ir_use_timeline& ret_ut = ret_dt->get_outgoing_timeline ();
+
+            if (optional_ref ret_def { ret_ut.maybe_get_def () })
+              ret_args.emplace_back (var_map.get_variable_id (var), var_map.get_def_id (*ret_def));
             else
             {
               ir_injection& inj = desc.emplace_back_injection (block.end<ir_block::range::body> ());
-              append_determined_uninit_terminator (inj, var_map[**ret_it]);
+              append_determined_uninit_terminator (inj, var_map[var]);
               return;
             }
           }
           else
           {
             ret_args.emplace_back (
-              var_map.get_variable_id (**ret_it),
-              static_join_at (block, **ret_it, var_map));
+              var_map.get_variable_id (var),
+              static_join_at (block, var, var_map));
           }
         }
         desc.emplace_terminal_instruction<ir_opcode::ret> (std::move (ret_args));
       }
     }
 
-    std::optional<ir_def_reference>
-    resolve_def_timeline (const ir_def_timeline& dt, ir_static_variable_map& var_map)
+    ir_dynamic_block_manager&                                           m_block_manager;
+    determinator_manager                                                m_det_manager;
+    def_reference_map                                                   m_def_map;
+    std::vector<std::pair<nonnull_cptr<ir_block>, unresolved_phi_node>> m_unresolved_phi;
+  };
+
+  class def_resolver_visitor
+    : public ir_abstract_component_inspector
+  {
+  public:
+    struct dominator_pair
     {
-      assert (dt.has_outgoing_timeline ());
+      nonnull_ptr<def_reference> def_ref;
+      bool                       is_determinate;
+    };
 
-      std::optional<ir_def_reference> ret;
+    using incoming_pair_vector = small_vector<std::pair<nonnull_cptr<ir_block>, dominator_pair>>;
+    using incoming_map = std::unordered_map<nonnull_cptr<ir_variable>, incoming_pair_vector>;
 
-      if (dt.has_local_timelines ())
-      {
-        if (! var_map.maybe_get_origin (dt.local_back ()))
+    def_resolver_visitor (def_resolver& resolver,
+                          ir_static_variable_map& var_map,
+                          const incoming_map& incoming)
+      : m_resolver (resolver),
+        m_var_map (var_map),
+        m_incoming (incoming)
+    { }
+
+    def_resolver_visitor (def_resolver& resolver,
+                          ir_static_variable_map& var_map,
+                          incoming_map&& incoming)
+      : m_resolver (resolver),
+        m_var_map (var_map),
+        m_incoming (std::move (incoming))
+    { }
+
+    incoming_map
+    operator() (const ir_component& c)
+    {
+      c.accept (*this);
+      return std::move (m_incoming);
+    }
+
+    void
+    visit (const ir_block& block) override
+    {
+      std::for_each (block.dt_map_begin (), block.dt_map_end (), applied {
+        [&](nonnull_cptr<ir_variable> var, const ir_def_timeline& dt)
         {
-          std::for_each (dt.local_rbegin (), dt.local_rend (), [&](const ir_use_timeline& ut) {
-            var_map.map_origin (ut);
-          });
-        }
+          incoming_pair_vector& incoming_pairs = m_incoming[var];
 
-        if (dt.has_incoming_timeline () && ! var_map.maybe_get_origin (dt.get_incoming_timeline ()))
-          resolve_phi (dt.get_block (), dt, var_map);
-
-        return std::optional<ir_def_reference> {
-          std::in_place,
-          dt.local_back ().get_def (),
-          false
-        };
-      }
-
-      if (optional_ref phi_ref { var_map.maybe_get_origin (dt.get_incoming_timeline ()) })
-        return *phi_ref;
-      return resolve_phi (dt.get_block (), dt, var_map);
-    }
-
-    std::optional<ir_def_reference>
-    lazy_resolve_def_timeline (const ir_def_timeline& dt, ir_static_variable_map& var_map)
-    {
-      assert (dt.has_outgoing_timeline ());
-
-      // If the def timeline has local timelines, only map those and exit. Do not resolve phi.
-
-      if (dt.has_local_timelines ())
-      {
-        if (optional_ref ret { var_map.maybe_get_origin (dt.local_back ()) })
-          return *ret;
-
-        std::for_each (dt.local_rbegin (), dt.local_rend (), [&](const ir_use_timeline& ut) {
-          var_map.map_origin (ut);
-        });
-
-        return std::optional<ir_def_reference> {
-          std::in_place,
-          dt.local_back ().get_def (),
-          false
-        };
-      }
-      else if (optional_ref ret { var_map.maybe_get_origin (dt.get_incoming_timeline ()) })
-        return *ret;
-      return resolve_phi (dt.get_block (), dt, var_map);
-    }
-
-    std::optional<ir_def_reference>
-    resolve_phi (const ir_block& block, const ir_def_timeline& dt, ir_static_variable_map& var_map)
-    {
-      assert (dt.has_incoming_timeline ());
-
-      const ir_use_timeline& phi_ut = dt.get_incoming_timeline ();
-      const ir_variable&     var    = dt.get_variable ();
-
-      if (! phi_ut.has_def ())
-      {
-        var_map.map_origin (phi_ut, std::nullopt);
-
-        // If the incoming timeline is orphaned, then any usages in this block are determined to
-        // be uninitialized. We will inject a terminating instruction before the usage.
-        ir_block_descriptor&  desc        = m_block_manager[block];
-        const ir_instruction& first_usage = phi_ut.front ().get_instruction ();
-
-        auto pos = find_first_injection_after (first_usage, desc,
-                                               block.begin<ir_block::range::body> ());
-
-        auto instr_pos = std::find_if (block.begin<ir_block::range::body> (),
-                                       dt.instructions_end (dt.get_incoming_timeline_iter ()),
-                                       [&](const ir_instruction& instr) {
-                                         return &instr == &first_usage;
-                                       });
-
-        ir_injection& inj = *desc.emplace_injection (pos, instr_pos);
-        append_determined_uninit_terminator (inj, var_map[var]);
-
-        return std::nullopt;
-      }
-
-      const ir_def& phi_def = phi_ut.get_def ();
-
-      if (! dt.has_incoming ())
-      {
-        // Assert that this is the entry block.
-        assert (get_predecessors (block).empty ());
-        assert (&get_entry_block (m_block_manager.get_function ()) == &block);
-
-        var_map.map_origin (phi_ut);
-        m_block_manager[block].add_phi_node (var, var_map.get_def_id (phi_def), { });
-
-        return std::optional<ir_def_reference> { std::in_place, phi_def, false };
-      }
-
-      auto pivot = dt.incoming_begin ();
-
-      // FIXME: Kind of a hack. I think this check should be built into the data structure.
-      optional_ref loop { maybe_cast<ir_component_loop> (block.get_parent ()) };
-      if (loop && loop->is_condition (block))
-      {
-        const ir_component& start = loop->get_start ();
-        while (pivot != dt.incoming_end () && ! is_leaf_of (start, *pivot->first))
-          ++pivot;
-
-        if (pivot == dt.incoming_end ())
-          pivot = dt.incoming_begin ();
-      }
-
-      assert (pivot != dt.incoming_end ());
-
-      std::optional<ir_def_reference> init_origin =
-        pivot->second.maybe_get_incoming_def_timeline () >>= [&](const auto& inc_dt) {
-        return lazy_resolve_def_timeline (inc_dt, var_map);
-      };
-
-      std::optional<ir_def_reference>& origin = var_map.map_origin (phi_ut, init_origin);
-
-      small_vector<ir_static_incoming_pair> incoming_pairs;
-      std::for_each (dt.incoming_begin (), dt.incoming_end (), applied {
-        [&](nonnull_cptr<ir_block> incoming_block, const ir_incoming_node& node) {
-          ir_static_block_id incoming_block_id = get_block_id (*incoming_block);
-
-          std::optional<ir_def_reference> curr =
-            node.maybe_get_incoming_def_timeline () >>= [&](const auto& curr_dt) {
-            return lazy_resolve_def_timeline (curr_dt, var_map);
-          };
-
-          if (curr)
+          if (optional_ref phi_ut { dt.maybe_get_incoming_timeline () })
           {
-            if (! origin)
-              origin.emplace (**curr, true);
-            else if (*origin != *curr)
+            if (! phi_ut->has_def ())
             {
-              origin->set_def (phi_def);
-              origin->set_indeterminate_state (origin->is_indeterminate ()
-                                           ||  curr->is_indeterminate ());
+              m_var_map.map_origin (*phi_ut, std::nullopt);
+              m_resolver.add_uninit_phi (block, dt, m_var_map);
+
+              if (! dt.has_local_timelines ())
+              {
+                auto res = m_resolver.map_def_ref (*phi_ut, nullopt);
+                incoming_pairs.assign ({ {
+                  nonnull_ptr { block },
+                  dominator_pair { nonnull_ptr { res.value }, false }
+                } });
+              }
+            }
+            else if (incoming_pairs.empty ())
+            {
+              // Assert that this is the entry block.
+              assert (get_predecessors (block).empty ());
+              assert (&get_entry_block (get_function (block)) == &block);
+
+              m_var_map.map_origin (*phi_ut);
+              m_resolver.add_fetch (block, *var, m_var_map.get_def_id (phi_ut->get_def ()));
+
+              if (! dt.has_local_timelines ())
+              {
+                auto res = m_resolver.map_def_ref (*phi_ut, nullopt);
+                incoming_pairs.assign ({ {
+                  nonnull_ptr { block },
+                  dominator_pair { nonnull_ptr { res.value }, false }
+                } });
+              }
+            }
+            else
+            {
+              const ir_def& phi_def = phi_ut->get_def ();
+
+              small_vector<unresolved_incoming_pair> phi_pairs;
+              phi_pairs.reserve (incoming_pairs.size ());
+
+              assert (! incoming_pairs.empty ());
+
+              dominator_pair phi_dom { incoming_pairs.front ().second };
+              def_reference& common_ref = *phi_dom.def_ref;
+              optional_ref common_def { common_ref.maybe_get_def () };
+
+              phi_pairs.emplace_back (*incoming_pairs.front ().first, *phi_dom.def_ref);
+
+              // Ensure this is true to simplify things.
+              assert (! common_def.equal_pointer (&phi_def));
+
+              std::for_each (std::next (incoming_pairs.begin ()), incoming_pairs.end (), applied {
+                [&](nonnull_cptr<ir_block> incoming_block, dominator_pair& curr_dom)
+                {
+                  optional_ref curr_def { curr_dom.def_ref->maybe_get_def () };
+                  phi_pairs.emplace_back (*incoming_block, *curr_dom.def_ref);
+
+                  if (curr_def.equal_pointer (&phi_def))
+                    return;
+
+                  if (common_def)
+                  {
+                    if (curr_def.equal_pointer (common_def))
+                      return;
+
+                    auto res = m_resolver.map_def_ref (*phi_ut, phi_def);
+
+                    // Insertion will not occur when this is a loop condition block.
+                    assert (res.inserted
+                        ||  (maybe_cast<ir_component_loop> (block.get_parent ())
+                               >>= [&](const auto& loop) { return loop.is_condition (block); }));
+
+                    phi_dom.def_ref.emplace (res.value);
+                    common_def.reset ();
+                  }
+
+                  assert (curr_def || ! curr_dom.is_determinate);
+                  phi_dom.is_determinate &= curr_dom.is_determinate;
+                }
+              });
+
+              if (common_def)
+              {
+                // We can skip phi generation.
+                resolved_def& common_res = common_ref.get_resolution ();
+                auto res = m_resolver.map_def_ref (*phi_ut, common_res);
+                if (! res.inserted) // This will happen for loops. Maybe put a check here?
+                  res.value.repoint (common_res);
+              }
+              else // Create a phi node that is deferred in its construction.
+                m_resolver.add_unresolved_phi (block, phi_def, std::move (phi_pairs));
+
+              // Do stuff with indeterminates.
+              if (! phi_dom.is_determinate && phi_ut->has_uses ())
+              {
+                m_resolver.create_determinator (
+                  block,
+                  dt,
+                  phi_ut->front ().get_instruction (),
+                  m_var_map);
+
+                // We have determined the def, so indicate that the def is determinate.
+                phi_dom.is_determinate = true;
+              }
+
+              incoming_pairs.assign ({ { nonnull_ptr { block }, phi_dom } });
             }
           }
-          else if (origin)
-          {
-            origin->set_def (phi_def);
-            origin->set_indeterminate_state (true);
-          }
-          incoming_pairs.emplace_back (
-            incoming_block_id,
-            curr >>= maybe { [&](const auto& curr_dr) { return var_map.get_def_id (curr_dr); } });
+
+          if (dt.has_local_timelines ())
+            incoming_pairs.assign ({ { nonnull_ptr { block }, map_local (dt) } });
         }
       });
 
-      if (origin >>= [&](ir_def_reference& dr) noexcept { return &*dr == &phi_def; })
-      {
-        var_map.map_origin (phi_ut);
-        m_block_manager[block].add_phi_node (
-          var,
-          var_map.get_def_id (phi_def),
-          std::move (incoming_pairs));
-      }
-
-      if (! (origin >>= &ir_def_reference::is_determinate) && phi_ut.has_uses ())
-      {
-        create_determinator (block, dt, phi_ut.front ().get_instruction (), var_map);
-
-        // we have determined the def, so set state to false
-        origin >>= [](ir_def_reference& dr) noexcept { dr.set_indeterminate_state (false); };
-      }
-
-      return origin;
-    }
-
-    void
-    create_determinator (const ir_block& block,
-                         const ir_variable& var,
-                         ir_instruction_citer pos,
-                         ir_static_variable_map& var_map)
-    {
-      const ir_static_variable& det_var    = m_det_manager.get_determinator (var, var_map);
-      ir_block_descriptor&      desc   = m_block_manager[block];
-      ir_static_variable_id     det_var_id = var_map.get_variable_id (det_var);
-
-      ir_static_def_id det_def_id = find_determinator_def (det_var_id,
-                                                           desc,
-                                                           block,
-                                                           *pos,
-                                                           m_block_manager);
-
-      ir_static_block_id continue_id = m_block_manager.create_injected_block ();
-      ir_static_block_id terminal_id = m_block_manager.create_injected_block ();
-
-      auto injection_pos = find_first_injection_after (*pos, desc,
-                                                       block.begin<ir_block::range::body> ());
-
-      auto det_branch = ir_static_instruction::create<ir_opcode::cbranch> (
-        ir_static_use { det_var_id, det_def_id },
-        create_block_operand (continue_id),
-        create_block_operand (terminal_id));
-
-      desc.emplace_injection (
-        injection_pos,
-        pos,
-        std::move (det_branch),
-        [=, &var](ir_static_block&,
-                  std::vector<ir_static_block>& sblocks,
-                  const ir_static_variable_map& vmap) -> ir_static_block&
+      std::for_each (m_incoming.begin (), m_incoming.end (), applied {
+        [&](nonnull_cptr<ir_variable> var, incoming_pair_vector& outgoing_pairs)
         {
-          append_determined_uninit_terminator (sblocks[terminal_id], vmap[var]);
-          return sblocks[continue_id];
-        });
+          assert (outgoing_pairs.size () != 0);
+          assert (std::all_of (std::next (outgoing_pairs.begin ()), outgoing_pairs.end (), applied {
+            [common = outgoing_pairs[0].second](auto, const dominator_pair& pair)
+            {
+              return pair.def_ref == common.def_ref && pair.is_determinate == common.is_determinate;
+            }
+          }));
+
+          if (1 < outgoing_pairs.size ())
+            outgoing_pairs.erase (std::next (outgoing_pairs.begin ()), outgoing_pairs.end ());
+
+          outgoing_pairs[0].first.emplace (block);
+        }
+      });
     }
 
     void
-    create_determinator (const ir_block& block,
-                         const ir_def_timeline& dt,
-                         const ir_instruction& instr,
-                         ir_static_variable_map& var_map)
+    visit (const ir_component_fork& fork) override
     {
-      auto instr_pos = std::find_if (block.begin<ir_block::range::body> (),
-                                     dt.instructions_end (dt.get_incoming_timeline_iter ()),
-                                     [&](const ir_instruction& curr) {
-                                       return &curr == &instr;
-                                     });
-
-      create_determinator (block, dt.get_variable (), instr_pos, var_map);
+      visit (fork.get_condition ());
+      incoming_map outgoing;
+      std::for_each (fork.cases_begin (), fork.cases_end (), [&](const ir_component& c) {
+        incoming_map res = dispatch_descender (c);
+        std::for_each (res.begin (), res.end (), applied {
+          [&](nonnull_cptr<ir_variable> var, incoming_pair_vector& incoming_pairs)
+          {
+            outgoing[var].append (std::move (incoming_pairs));
+          }
+        });
+      });
+      m_incoming = std::move (outgoing);
     }
 
-    static
-    bool
-    is_determinate (const std::optional<ir_def_reference>& dr)
+    void
+    visit (const ir_component_loop& loop) override
     {
-      return dr >>= &ir_def_reference::is_determinate;
+      loop.get_start ().accept (*this);
+
+      // Create a copy of the outgoing timelines from the start component.
+      // FIXME: Optimize.
+      incoming_map start_outgoing = m_incoming;
+
+      // Create phony phi nodes in the condition block.
+      const ir_block& cond_block = loop.get_condition ();
+      std::for_each (cond_block.dt_map_begin (), cond_block.dt_map_end (), applied {
+        [&](nonnull_cptr<ir_variable> var, const ir_def_timeline& dt)
+        {
+          if (optional_ref outgoing_ut { dt.maybe_get_outgoing_timeline () })
+          {
+            auto res = m_resolver.map_def_ref (*outgoing_ut, outgoing_ut->get_def ());
+            assert (res.inserted);
+            m_incoming[var].assign ({
+              { nonnull_ptr { cond_block },
+                dominator_pair { nonnull_ptr { res.value }, true } }
+            });
+          }
+        }
+      });
+
+      // Now descend into the body and update blocks.
+      loop.get_body ().accept (*this);
+      loop.get_update ().accept (*this);
+
+      // Merge the outgoing timelines from the update block with those coming from the start.
+      // Make sure they go after the start components so we can rely on some guarantees in the
+      // block visitor to simplify the code. This will cause a small performance hit for now.
+
+      // auto it = m_incoming.begin ();
+      // while (it != m_incoming.end ())
+      // {
+      //   auto found = start_outgoing.find (it->first);
+      //   if (found == start_outgoing.end ())
+      //     start_outgoing.insert (m_incoming.extract (it++));
+      //   else
+      //     found->second.append (std::move ((it++)->second));
+      // }
+
+      std::for_each (start_outgoing.begin (), start_outgoing.end (), applied {
+        [&](nonnull_cptr<ir_variable> var, incoming_pair_vector& incoming_pairs)
+        {
+          auto found = m_incoming.find (var);
+          assert (found != m_incoming.end ());
+          incoming_pairs.append (std::move (found->second));
+          found->second = std::move (incoming_pairs);
+        }
+      });
+
+      // Finally, visit the condition block.
+      visit (loop.get_condition ());
     }
 
-    ir_dynamic_block_manager&                                                m_block_manager;
-    determinator_manager                                                     m_det_manager;
-    // std::vector<std::pair<nonnull_cptr<ir_block>, unresolved_incoming_pair>> m_unresolved_phi_nodes;
+    void
+    visit (const ir_component_sequence& seq) override
+    {
+      std::for_each (seq.begin (), seq.end (), [&](const ir_component& c) {
+        c.accept (*this);
+      });
+    }
+
+    void
+    visit (const ir_function& func) override
+    {
+      func.get_body ().accept (*this);
+    }
+
+  private:
+    dominator_pair
+    map_local (const ir_def_timeline& dt)
+    {
+      std::for_each (dt.local_begin (), dt.local_end (), [&](const ir_use_timeline& ut) {
+        m_var_map.map_origin (ut);
+      });
+
+      const ir_use_timeline& last_ut = dt.local_back ();
+      auto res = m_resolver.map_def_ref (last_ut, last_ut.get_def ());
+
+      // Insertion will not occur when this is a loop condition block.
+      assert (res.inserted
+          ||  (maybe_cast<ir_component_loop> (dt.get_block ().get_parent ())
+                 >>= [&](const auto& loop) { return loop.is_condition (dt.get_block ()); }));
+
+      return { nonnull_ptr { res.value }, true };
+    }
+
+    incoming_map
+    dispatch_descender (const ir_component& c)
+    {
+      return def_resolver_visitor { m_resolver, m_var_map, m_incoming } (c);
+    }
+
+    incoming_map
+    move_dispatch_descender (const ir_component& c)
+    {
+      return def_resolver_visitor { m_resolver, m_var_map, std::move (m_incoming) } (c);
+    }
+
+    def_resolver&           m_resolver;
+    ir_static_variable_map& m_var_map;
+    incoming_map            m_incoming;
   };
+
+  ir_static_variable_map
+  def_resolver::
+  operator() (void)
+  {
+    ir_static_variable_map ret (m_block_manager.get_function ());
+
+    // Resolve phi nodes and defs.
+    // std::for_each (m_block_manager.begin (), m_block_manager.end (), applied {
+    //   [&](nonnull_cptr<ir_block> block, auto&&) { resolve_block (*block, ret); }
+    // });
+
+    def_resolver_visitor { *this, ret, { } } (m_block_manager.get_function ());
+
+    // Map all def references which were left unresolved when visiting the tree.
+    std::for_each (m_def_map.begin (), m_def_map.end (), applied {
+      [&](nonnull_cptr<ir_use_timeline> ut, const def_reference& def_ref)
+      {
+        ret.map_origin (*ut, def_ref.maybe_get_def ());
+      }
+    });
+
+    // Add the phi nodes now that the def references are resolved.
+    resolve_phi (ret);
+
+    // Resolve terminal instructions.
+    std::for_each (m_block_manager.begin (), m_block_manager.end (), applied {
+      [&](nonnull_cptr<ir_block> block, auto&&)
+      {
+        if (block->empty () ||! is_a<ir_opcode::terminal> (block->back ()))
+          resolve_terminal_instruction (*block, ret);
+      }
+    });
+
+    return ret;
+  }
 
   static
   ir_static_variable_map
@@ -2165,16 +2548,20 @@ namespace gch
 
         // create body instructions
         auto curr_first = block->begin<ir_block::range::body> ();
-        std::for_each (desc.injections_begin (), desc.injections_end (),
-                       [&](const ir_injection& inj) {
-          generate_subrange (curr_first, inj.get_injection_pos ());
+        for (auto inj_it = desc.injections_begin (); inj_it != desc.injections_end (); ++inj_it)
+        {
+          generate_subrange (curr_first, inj_it->get_injection_pos ());
 
-          std::copy (inj.begin (), inj.end (), std::back_inserter (*curr_sblock));
+          std::copy (inj_it->begin (), inj_it->end (), std::back_inserter (*curr_sblock));
 
-          if (optional_ref new_sblock { inj.maybe_invoke (*curr_sblock, sblocks, var_map) })
+          if (optional_ref new_sblock { inj_it->maybe_invoke (*curr_sblock, sblocks, var_map) })
             curr_sblock.emplace (*new_sblock);
-          curr_first = inj.get_injection_pos ();
-        });
+
+          if (! curr_sblock->empty () && is_a<ir_opcode::terminal> (curr_sblock->back ()))
+            return;
+
+          curr_first = inj_it->get_injection_pos ();
+        }
 
         generate_subrange (curr_first, block->end<ir_block::range::body> ());
 

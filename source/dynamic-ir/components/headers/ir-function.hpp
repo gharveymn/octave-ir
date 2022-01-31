@@ -28,7 +28,7 @@ namespace gch
       public ir_function_visitable_base
   {
   public:
-    using variables_container_type  = std::unordered_map<std::string, ir_variable>;
+    using variables_container_type  = std::unordered_map<std::string_view, ir_variable>;
     using variables_value_type      = variables_container_type::value_type;
     using variables_allocator_type  = variables_container_type::allocator_type;
     using variables_size_type       = variables_container_type::size_type;
@@ -249,15 +249,11 @@ namespace gch
     bool
     is_body (const ir_subcomponent& sub) const noexcept;
 
-    template <typename T, std::enable_if_t<std::is_constructible_v<std::string, T>> * = nullptr>
+    template <typename T, std::enable_if_t<std::is_convertible_v<T, std::string_view>> * = nullptr>
     ir_variable&
     get_variable (T&& name)
     {
-      auto [it, ins] = m_variable_map.try_emplace (
-        std::string (name),
-        *this,
-        std::forward<T> (name));
-
+      auto [it, ins] = try_emplace_variable (std::forward<T> (name));
       return std::get<ir_variable> (*it);
     }
 
@@ -267,36 +263,23 @@ namespace gch
     ir_variable&
     create_variable (ir_variable_pair pair);
 
-    template <typename T, std::enable_if_t<std::is_constructible_v<std::string, T>> * = nullptr>
+    template <typename T, typename ...Args,
+              std::enable_if_t<std::is_constructible_v<
+                ir_variable,
+                const ir_function&,
+                T,
+                Args...
+              >> * = nullptr>
     ir_variable&
-    create_variable (T&& name)
+    create_variable (T&& name, Args&&... args)
     {
-      auto [it, ins] = m_variable_map.try_emplace (
-        std::string (name),
-        *this,
-        std::forward<T> (name));
-
+      auto [it, ins] = try_emplace_variable (std::forward<T> (name), std::forward<Args> (args)...);
       assert (ins && "Tried to create a variable which already exists.");
       return std::get<ir_variable> (*it);
     }
 
-    template <typename T, std::enable_if_t<std::is_constructible_v<std::string, T>> * = nullptr>
-    ir_variable&
-    create_variable (T&& name, ir_type type)
-    {
-      auto [it, ins] = m_variable_map.try_emplace (
-        std::string (name),
-        *this,
-        std::forward<T> (name),
-        type);
-
-      assert (ins && "Tried to create a variable which already exists.");
-      return std::get<ir_variable> (*it);
-    }
-
-    template <typename T,
-              typename S,
-              std::enable_if_t<std::is_constructible_v<std::string, S>> * = nullptr>
+    template <typename T, typename S,
+              std::enable_if_t<std::is_convertible_v<S, std::string_view>> * = nullptr>
     ir_variable&
     create_variable (S&& name)
     {
@@ -517,11 +500,31 @@ namespace gch
     get_name (void) const noexcept;
 
   private:
-    std::unordered_map<std::string, ir_variable> m_variable_map;
-    std::string                                  m_name;
-    small_vector<nonnull_ptr<ir_variable>>       m_ret;
-    small_vector<nonnull_ptr<ir_variable>>       m_args;
-    ir_component_storage                         m_body;
+    template <typename T, typename ...Args>
+    std::pair<std::unordered_map<std::string_view, ir_variable>::iterator, bool>
+    try_emplace_variable (T&& name, Args&&... args)
+    {
+      auto [position, inserted] = m_variable_map.try_emplace (
+        name,
+        *this,
+        std::forward<T> (name),
+        std::forward<Args> (args)...);
+
+      if (inserted)
+      {
+        auto node = m_variable_map.extract (position);
+        node.key () = position->second.get_name ();
+        m_variable_map.insert (std::move (node));
+      }
+
+      return { position, inserted };
+    }
+
+    variables_container_type               m_variable_map;
+    std::string                            m_name;
+    small_vector<nonnull_ptr<ir_variable>> m_ret;
+    small_vector<nonnull_ptr<ir_variable>> m_args;
+    ir_component_storage                   m_body;
   };
 
   [[nodiscard]]

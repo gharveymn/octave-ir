@@ -8,16 +8,17 @@
 #ifndef OCTAVE_IR_STATIC_IR_IR_CONSTANT_HPP
 #define OCTAVE_IR_STATIC_IR_IR_CONSTANT_HPP
 
-#include "ir-type.hpp"
-
-#include "ir-common.hpp"
-#include "ir-utility.hpp"
+#include "ir-type-pack.hpp"
 #include "ir-type-traits.hpp"
+#include "ir-type.hpp"
+#include "ir-utility.hpp"
 
 #include <gch/optional_ref.hpp>
 
 #include <cassert>
 #include <iosfwd>
+#include <type_traits>
+#include <utility>
 #include <variant>
 
 namespace gch
@@ -128,6 +129,11 @@ namespace gch
 
   std::ostream&
   operator<< (std::ostream& out, const ir_constant& c);
+
+  template <typename T = void>
+  struct variant_instantiator
+    : ir_constant::variant_type
+  { };
 
 }
 

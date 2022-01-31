@@ -44,6 +44,7 @@ namespace gch
     ir_variable& var_z = my_func.get_variable ("z");
 
     ir_block& block = get_entry_block (my_func);
+    block.set_name ("entry");
 
     block.append_instruction<Op> (var_z, var_x, var_y);
 
@@ -92,6 +93,8 @@ namespace gch
     ir_variable& var_z = my_func.get_variable ("z");
 
     ir_block& block = get_entry_block (my_func);
+    block.set_name ("entry");
+
     block.append_instruction<Op> (var_z, var_x);
 
     ir_static_function my_static_func = generate_static_function (my_func);

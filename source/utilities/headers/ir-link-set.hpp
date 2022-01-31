@@ -15,7 +15,6 @@
 #include <gch/small_vector.hpp>
 
 #include <algorithm>
-#include <cstddef>
 #include <initializer_list>
 #include <iterator>
 #include <memory>

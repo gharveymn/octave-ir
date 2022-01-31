@@ -10,25 +10,26 @@
 #ifndef OCTAVE_IR_STATIC_IR_IR_STATIC_FUNCTION_HPP
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_FUNCTION_HPP
 
-#include "ir-common.hpp"
+#include "ir-static-block.hpp"
 #include "ir-static-id.hpp"
+#include "ir-static-variable.hpp"
 #include "ir-type.hpp"
 
 #include <gch/small_vector.hpp>
 
 #include <iosfwd>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 namespace gch
 {
 
-  class ir_static_block;
   class ir_static_def;
   class ir_static_instruction;
   class ir_static_operand;
   class ir_static_use;
-  class ir_static_variable;
 
   class ir_static_function
   {

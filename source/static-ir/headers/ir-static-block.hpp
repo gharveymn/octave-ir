@@ -7,26 +7,15 @@
 
 #ifndef OCTAVE_IR_STATIC_IR_IR_STATIC_BLOCK_HPP
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_BLOCK_HPP
-
-#include "ir-type.hpp"
-#include "ir-static-id.hpp"
+#include "ir-metadata.hpp"
 #include "ir-static-instruction.hpp"
 
-#include "ir-common.hpp"
-#include "ir-utility.hpp"
-
-#include <iosfwd>
+#include <utility>
 #include <vector>
 
 namespace gch
 {
 
-  class ir_instruction;
-  class ir_static_variable_map;
-
-  class ir_metadata;
-  class ir_static_instruction;
-  class ir_static_def;
 
   class ir_static_block
   {

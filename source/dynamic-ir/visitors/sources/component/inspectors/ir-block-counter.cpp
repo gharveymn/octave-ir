@@ -91,8 +91,7 @@ namespace gch
   -> result_type
   {
     return std::accumulate (fork.cases_begin (), fork.cases_end (), result_type (1),
-                            [](result_type res, const ir_subcomponent& sub)
-                            {
+                            [](result_type res, const ir_subcomponent& sub) {
                               return res + subcomponent_result (sub);
                             });
   }

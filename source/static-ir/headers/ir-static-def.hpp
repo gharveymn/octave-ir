@@ -10,8 +10,6 @@
 
 #include "ir-static-id.hpp"
 
-#include <iosfwd>
-
 namespace gch
 {
 

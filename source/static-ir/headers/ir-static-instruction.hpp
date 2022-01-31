@@ -8,23 +8,18 @@
 #ifndef OCTAVE_IR_STATIC_IR_IR_STATIC_INSTRUCTION_HPP
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_INSTRUCTION_HPP
 
+#include "ir-metadata.hpp"
 #include "ir-static-def.hpp"
 #include "ir-static-operand.hpp"
-#include "ir-metadata.hpp"
 
-#include "ir-common.hpp"
-
-#include <gch/optional_ref.hpp>
 #include <gch/small_vector.hpp>
 
-#include <iosfwd>
 #include <optional>
+#include <type_traits>
+#include <utility>
 
 namespace gch
 {
-
-  class ir_instruction;
-  class ir_static_variable_map;
 
   class ir_static_instruction
   {

@@ -156,8 +156,6 @@ namespace gch
       initialize_with_pack<Op> (std::move (c), std::forward<Args> (args)...);
     }
 
-
-
     template <ir_opcode Op, std::size_t N>
     ir_instruction (tag_t<Op>, ir_variable& ret_var, std::array<ir_operand_in, N>&& args)
       : m_metadata (type<Op>::metadata),

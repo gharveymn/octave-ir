@@ -8,12 +8,11 @@
 #ifndef OCTAVE_IR_STATIC_IR_IR_STATIC_USE_HPP
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_USE_HPP
 
-#include "ir-static-def.hpp"
+#include "ir-static-id.hpp"
+#include <optional>
 
 namespace gch
 {
-
-  class ir_static_variable;
 
   class ir_static_use
   {

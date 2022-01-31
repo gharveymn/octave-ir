@@ -8,14 +8,12 @@
 #ifndef OCTAVE_IR_STATIC_IR_IR_STATIC_VARIABLE_HPP
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_VARIABLE_HPP
 
-#include "ir-common.hpp"
-
 #include "ir-static-id.hpp"
 #include "ir-type.hpp"
 
-#include <gch/small_vector.hpp>
-
+#include <cstddef>
 #include <string>
+#include <string_view>
 
 namespace gch
 {

@@ -37,8 +37,12 @@ namespace gch
     ~ir_variable           (void)                   = default;
 
     ir_variable (const ir_component& c, std::string_view name, ir_type type);
+
     ir_variable (const ir_component& c, ir_type type);
+
     ir_variable (const ir_component& c, std::string_view name);
+
+    explicit
     ir_variable (const ir_component& c);
 
     [[nodiscard]]
@@ -76,7 +80,8 @@ namespace gch
   ir_type
   common_type (const ir_variable& lhs, const ir_variable& rhs);
 
-  template <typename ...Vars>
+  template <typename ...Vars,
+            std::enable_if_t<std::conjunction_v<std::is_same<ir_variable, Vars>...>> * = nullptr>
   inline
   ir_type
   common_type (const Vars&... vars)
