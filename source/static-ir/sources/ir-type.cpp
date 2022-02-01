@@ -15,7 +15,7 @@ namespace gch
 
   template struct ir_type_base::instance<long double *>;
   template struct ir_type_base::instance<double *>;
-  template struct ir_type_base::instance<single *>;
+  template struct ir_type_base::instance<float *>;
   template struct ir_type_base::instance<int64_t *>;
   template struct ir_type_base::instance<int32_t *>;
   template struct ir_type_base::instance<int16_t *>;
@@ -30,7 +30,7 @@ namespace gch
   template struct ir_type_base::instance<char16_t *>;
   template struct ir_type_base::instance<bool *>;
   template struct ir_type_base::instance<std::complex<double> *>;
-  template struct ir_type_base::instance<std::complex<single> *>;
+  template struct ir_type_base::instance<std::complex<float> *>;
 
 #if 0
 

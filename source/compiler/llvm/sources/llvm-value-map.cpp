@@ -362,10 +362,7 @@ namespace gch
   llvm_value_map::
   get_zero (ir_type type)
   {
-    if (type.is_integral ())
-      return *llvm::ConstantInt::get (&get_llvm_type (type), 0);
-    else
-      return *llvm::ConstantFP::get (&get_llvm_type (type), 0.0);
+    return *llvm::Constant::getNullValue (&get_llvm_type (type));
   }
 
 }

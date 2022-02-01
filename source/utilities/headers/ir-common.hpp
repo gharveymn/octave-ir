@@ -87,18 +87,14 @@ class octave_base_value;
 namespace gch
 {
 
+  inline constexpr
+  bool
+  OCTAVE_IR_DEBUG =
 #ifdef NDEBUG
-  inline constexpr
-  bool
-  OCTAVE_IR_DEBUG = false;
+    false;
 #else
-  inline constexpr
-  bool
-  OCTAVE_IR_DEBUG = true;
+    true;
 #endif
-
-  using any = octave_base_value *;
-  using single = float;
 
 }
 

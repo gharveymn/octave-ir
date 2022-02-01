@@ -31,6 +31,24 @@ main (void)
     test_binary<ir_opcode::add> (-1.F, -1.F,  0.F);
     test_binary<ir_opcode::add> (-1.F,  0.F, -1.F);
     test_binary<ir_opcode::add> (-2.F, -1.F, -1.F);
+
+    test_binary<ir_opcode::add> (0., 0., 0.);
+    test_binary<ir_opcode::add> (1., 1., 0.);
+    test_binary<ir_opcode::add> (1., 0., 1.);
+    test_binary<ir_opcode::add> (2., 1., 1.);
+
+    test_binary<ir_opcode::add> (-1., -1.,  0.);
+    test_binary<ir_opcode::add> (-1.,  0., -1.);
+    test_binary<ir_opcode::add> (-2., -1., -1.);
+
+    test_binary<ir_opcode::add> (0.L, 0.L, 0.L);
+    test_binary<ir_opcode::add> (1.L, 1.L, 0.L);
+    test_binary<ir_opcode::add> (1.L, 0.L, 1.L);
+    test_binary<ir_opcode::add> (2.L, 1.L, 1.L);
+
+    test_binary<ir_opcode::add> (-1.L, -1.L,  0.L);
+    test_binary<ir_opcode::add> (-1.L,  0.L, -1.L);
+    test_binary<ir_opcode::add> (-2.L, -1.L, -1.L);
   }
   catch (const std::exception& e)
   {

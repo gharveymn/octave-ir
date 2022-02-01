@@ -51,21 +51,32 @@ namespace gch
   get_constant (llvm_module_interface& module, const T& val)
   {
     llvm::Type& type = module.get_llvm_type<T> ();
-    if constexpr (std::is_floating_point_v<T>)
-      return *llvm::ConstantFP::get (&type, val);
-    else if constexpr (std::is_integral_v<T>)
+
+    if constexpr (std::is_integral_v<T>)
     {
       if constexpr (std::is_signed_v<T>)
         return *llvm::ConstantInt::getSigned (&type, val);
       else
         return *llvm::ConstantInt::get (&type, val);
     }
+    else if constexpr (std::is_same_v<T, long double>)
+    {
+      llvm::ArrayRef<std::uint64_t> arr (
+        reinterpret_cast<const std::uint64_t *> (&val),
+        reinterpret_cast<const std::uint64_t *> (std::next (&val)));
+
+      return *llvm::ConstantFP::get (
+        &type,
+        llvm::APFloat { type.getFltSemantics (), llvm::APInt { GCH_LONG_DOUBLE_BIT_WIDTH, arr } });
+    }
+    else if constexpr (std::is_floating_point_v<T>)
+      return *llvm::ConstantFP::get (&type, llvm::APFloat { val });
     else if constexpr (std::is_same_v<T, std::complex<double>>)
     {
       llvm::ArrayRef<uint64_t> a (reinterpret_cast<const uint64_t (&)[2]> (val));
       return *llvm::ConstantDataArray::getFP (&type, a);
     }
-    else if constexpr (std::is_same_v<T, std::complex<single>>)
+    else if constexpr (std::is_same_v<T, std::complex<float>>)
     {
       llvm::ArrayRef<uint32_t> a (reinterpret_cast<const uint32_t (&)[2]> (val));
       return *llvm::ConstantDataArray::getFP (&type, a);
@@ -84,7 +95,7 @@ namespace gch
         global_var->setUnnamedAddr (llvm::GlobalValue::UnnamedAddr::Global);
         global_var->setAlignment (llvm::Align (1));
 
-        llvm::Constant *zero = llvm::ConstantInt::get (llvm::Type::getInt32Ty (ctx), 0);
+        llvm::Constant *zero = llvm::ConstantInt::getNullValue (llvm::Type::getInt32Ty (ctx));
         llvm::ArrayRef<llvm::Constant *> indices { zero, zero };
         return llvm::ConstantExpr::getInBoundsGetElementPtr (
           global_var->getValueType (),

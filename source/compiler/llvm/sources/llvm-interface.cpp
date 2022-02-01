@@ -56,7 +56,7 @@ namespace gch
 
   llvm::Error
   llvm_interface::ast_layer::
-  add (llvm::orc::ResourceTrackerSP res_tracker, const ir_static_function& func)
+  add (const ir_static_function& func, llvm::orc::ResourceTrackerSP res_tracker)
   {
     return res_tracker->getJITDylib ().define (
       std::make_unique<materialization_unit> (*this, func),
@@ -158,7 +158,7 @@ namespace gch
     if (! res_tracker)
       res_tracker = m_jit_dylib.getDefaultResourceTracker ();
 
-    return m_ast_layer.add (res_tracker, func);
+    return m_ast_layer.add (func, res_tracker);
   }
 
   llvm::Expected<llvm::JITEvaluatedSymbol>
@@ -231,23 +231,24 @@ namespace gch
   llvm::Expected<llvm::orc::ThreadSafeModule>
   llvm_interface::
   optimize_module (llvm::orc::ThreadSafeModule module,
-                   const llvm::orc::MaterializationResponsibility& resp)
+                   const llvm::orc::MaterializationResponsibility&)
   {
     module.withModuleDo ([](llvm::Module& mod) {
       // Create a function pass manager.
-      auto function_pass_manager = std::make_unique<llvm::legacy::FunctionPassManager> (&mod);
+      llvm::legacy::FunctionPassManager function_pass_manager (&mod);
 
       // Add some optimizations.
-      function_pass_manager->add (llvm::createInstructionCombiningPass ());
-      function_pass_manager->add (llvm::createReassociatePass ());
-      function_pass_manager->add (llvm::createGVNPass ());
-      function_pass_manager->add (llvm::createCFGSimplificationPass ());
-      function_pass_manager->doInitialization();
+      function_pass_manager.add (llvm::createInstructionCombiningPass ());
+      function_pass_manager.add (llvm::createReassociatePass ());
+      function_pass_manager.add (llvm::createGVNPass ());
+      function_pass_manager.add (llvm::createCFGSimplificationPass ());
+      function_pass_manager.doInitialization ();
 
       // Run the optimizations over all functions in the module being added to
       // the JIT.
-      for (auto& func : mod)
-        function_pass_manager->run (func);
+      std::for_each (mod.begin (), mod.end (), [&](llvm::Function& func) {
+        function_pass_manager.run (func);
+      });
     });
 
     return module;

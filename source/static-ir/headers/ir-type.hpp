@@ -37,7 +37,7 @@ namespace gch
 
     long double,
     double,
-    single,
+    float,
     std::int64_t,
     std::int32_t,
     std::int16_t,
@@ -52,13 +52,13 @@ namespace gch
     char16_t,
     bool,
     std::complex<double>,
-    std::complex<single>,
+    std::complex<float>,
     std::string,
     ir_static_block_id,
 
     long double *,
     double *,
-    single *,
+    float *,
     std::int64_t *,
     std::int32_t *,
     std::int16_t *,
@@ -73,7 +73,7 @@ namespace gch
     char16_t *,
     bool *,
     std::complex<double> *,
-    std::complex<single> *,
+    std::complex<float> *,
 
     void *,
     ir_block *
@@ -603,9 +603,9 @@ namespace gch
   };
 
   template <>
-  struct ir_type_base::instance<single>
+  struct ir_type_base::instance<float>
   {
-    using type = single;
+    using type = float;
     static constexpr
     impl
     data = create_type<type> ("single", ir_type_v<double>);
@@ -754,13 +754,13 @@ namespace gch
   };
 
   template <>
-  struct ir_type_base::instance<std::complex<single>>
+  struct ir_type_base::instance<std::complex<float>>
   {
-    using type = std::complex<single>;
+    using type = std::complex<float>;
 
     static constexpr
     ir_type
-    m_members[] { ir_type_v<single>, ir_type_v<single> };
+    m_members[] { ir_type_v<float>, ir_type_v<float> };
 
     static_assert (ir_type_array (m_members).get_size () == sizeof (type),
               "The size of FloatComplex is not equal to its IR counterpart.");

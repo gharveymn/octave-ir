@@ -16,13 +16,6 @@ namespace gch
     : public abstract_inspector<Types>...
   {
   public:
-    abstract_inspector            (void)                          = default;
-    abstract_inspector            (const abstract_inspector&)     = default;
-    abstract_inspector            (abstract_inspector&&) noexcept = default;
-    abstract_inspector& operator= (const abstract_inspector&)     = default;
-    abstract_inspector& operator= (abstract_inspector&&) noexcept = default;
-    ~abstract_inspector           (void) override                 = 0;
-
     using abstract_inspector<Types>::visit...;
   };
 

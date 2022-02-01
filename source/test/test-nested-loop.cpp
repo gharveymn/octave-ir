@@ -99,6 +99,8 @@ main (void)
   auto jit = octave_jit_compiler::create<octave_jit_compiler_llvm> ();
   jit.enable_printing ();
 
+
+
   try
   {
     auto *proto = reinterpret_cast<int (*)(void)> (jit.compile (my_static_func));

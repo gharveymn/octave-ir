@@ -29,6 +29,7 @@
 #include "ir-optional-util.hpp"
 
 #include <gch/nonnull_ptr.hpp>
+#include <gch/optional_ref.hpp>
 #include <gch/small_vector.hpp>
 #include <gch/select-iterator.hpp>
 
@@ -156,20 +157,20 @@ namespace gch
     container.template emplace_back<ir_opcode::unreachable> ();
   }
 
-  static
-  bool
-  operator== (const ir_def_reference& lhs, const ir_def_reference& rhs)
-  {
-    // assert (&*lhs != &*rhs || lhs.is_indeterminate () == rhs.is_indeterminate ());
-    return &*lhs == &*rhs;
-  }
+  // static
+  // bool
+  // operator== (const ir_def_reference& lhs, const ir_def_reference& rhs)
+  // {
+  //   // assert (&*lhs != &*rhs || lhs.is_indeterminate () == rhs.is_indeterminate ());
+  //   return &*lhs == &*rhs;
+  // }
 
-  static
-  bool
-  operator!= (const ir_def_reference& lhs, const ir_def_reference& rhs)
-  {
-    return ! (lhs == rhs);
-  }
+  // static
+  // bool
+  // operator!= (const ir_def_reference& lhs, const ir_def_reference& rhs)
+  // {
+  //   return ! (lhs == rhs);
+  // }
 
   static
   ir_block_descriptor::injections_citer
@@ -609,13 +610,13 @@ namespace gch
     return std::nullopt;
   }
 
-  [[nodiscard]]
-  static
-  std::optional<ir_static_def_id>
-  find_determinator_phi_def (ir_static_variable_id det_id, const ir_block_descriptor& desc)
-  {
-    return find_determinator_phi_def (desc.injections_begin (), desc.injections_end (), det_id);
-  }
+  // [[nodiscard]]
+  // static
+  // std::optional<ir_static_def_id>
+  // find_determinator_phi_def (ir_static_variable_id det_id, const ir_block_descriptor& desc)
+  // {
+  //   return find_determinator_phi_def (desc.injections_begin (), desc.injections_end (), det_id);
+  // }
 
   [[nodiscard]]
   static
@@ -2178,20 +2179,18 @@ namespace gch
         {
           incoming_pair_vector& incoming_pairs = m_incoming[var];
 
-          if (optional_ref phi_ut { dt.maybe_get_incoming_timeline () })
+          // MSVC gets confused if we use CTAD here.
+          if (optional_cref<ir_use_timeline> phi_ut { dt.maybe_get_incoming_timeline () })
           {
+            std::optional<dominator_pair> phi_dom;
             if (! phi_ut->has_def ())
             {
               m_var_map.map_origin (*phi_ut, std::nullopt);
               m_resolver.add_uninit_phi (block, dt, m_var_map);
-
               if (! dt.has_local_timelines ())
               {
                 auto res = m_resolver.map_def_ref (*phi_ut, nullopt);
-                incoming_pairs.assign ({ {
-                  nonnull_ptr { block },
-                  dominator_pair { nonnull_ptr { res.value }, false }
-                } });
+                phi_dom.emplace<dominator_pair> ({ nonnull_ptr { res.value }, false });
               }
             }
             else if (incoming_pairs.empty ())
@@ -2202,14 +2201,10 @@ namespace gch
 
               m_var_map.map_origin (*phi_ut);
               m_resolver.add_fetch (block, *var, m_var_map.get_def_id (phi_ut->get_def ()));
-
               if (! dt.has_local_timelines ())
               {
-                auto res = m_resolver.map_def_ref (*phi_ut, nullopt);
-                incoming_pairs.assign ({ {
-                  nonnull_ptr { block },
-                  dominator_pair { nonnull_ptr { res.value }, false }
-                } });
+                auto res = m_resolver.map_def_ref (*phi_ut, phi_ut->get_def ());
+                phi_dom.emplace<dominator_pair> ({ nonnull_ptr { res.value }, false });
               }
             }
             else
@@ -2221,11 +2216,13 @@ namespace gch
 
               assert (! incoming_pairs.empty ());
 
-              dominator_pair phi_dom { incoming_pairs.front ().second };
-              def_reference& common_ref = *phi_dom.def_ref;
-              optional_ref common_def { common_ref.maybe_get_def () };
+              phi_dom.emplace (incoming_pairs.front ().second);
+              def_reference& common_ref = *phi_dom->def_ref;
 
-              phi_pairs.emplace_back (*incoming_pairs.front ().first, *phi_dom.def_ref);
+              // MSVC gets confused if we use CTAD here.
+              optional_cref<ir_def> common_def { common_ref.maybe_get_def () };
+
+              phi_pairs.emplace_back (*incoming_pairs.front ().first, common_ref);
 
               // Ensure this is true to simplify things.
               assert (! common_def.equal_pointer (&phi_def));
@@ -2251,12 +2248,12 @@ namespace gch
                         ||  (maybe_cast<ir_component_loop> (block.get_parent ())
                                >>= [&](const auto& loop) { return loop.is_condition (block); }));
 
-                    phi_dom.def_ref.emplace (res.value);
+                    phi_dom->def_ref.emplace (res.value);
                     common_def.reset ();
                   }
 
                   assert (curr_def || ! curr_dom.is_determinate);
-                  phi_dom.is_determinate &= curr_dom.is_determinate;
+                  phi_dom->is_determinate &= curr_dom.is_determinate;
                 }
               });
 
@@ -2272,7 +2269,7 @@ namespace gch
                 m_resolver.add_unresolved_phi (block, phi_def, std::move (phi_pairs));
 
               // Do stuff with indeterminates.
-              if (! phi_dom.is_determinate && phi_ut->has_uses ())
+              if (! phi_dom->is_determinate && phi_ut->has_uses ())
               {
                 m_resolver.create_determinator (
                   block,
@@ -2281,11 +2278,13 @@ namespace gch
                   m_var_map);
 
                 // We have determined the def, so indicate that the def is determinate.
-                phi_dom.is_determinate = true;
+                phi_dom->is_determinate = true;
               }
-
-              incoming_pairs.assign ({ { nonnull_ptr { block }, phi_dom } });
             }
+
+            if (! dt.has_local_timelines ())
+              incoming_pairs.assign ({ { nonnull_ptr { block }, *phi_dom} });
+
           }
 
           if (dt.has_local_timelines ())
@@ -2293,23 +2292,7 @@ namespace gch
         }
       });
 
-      std::for_each (m_incoming.begin (), m_incoming.end (), applied {
-        [&](nonnull_cptr<ir_variable> var, incoming_pair_vector& outgoing_pairs)
-        {
-          assert (outgoing_pairs.size () != 0);
-          assert (std::all_of (std::next (outgoing_pairs.begin ()), outgoing_pairs.end (), applied {
-            [common = outgoing_pairs[0].second](auto, const dominator_pair& pair)
-            {
-              return pair.def_ref == common.def_ref && pair.is_determinate == common.is_determinate;
-            }
-          }));
-
-          if (1 < outgoing_pairs.size ())
-            outgoing_pairs.erase (std::next (outgoing_pairs.begin ()), outgoing_pairs.end ());
-
-          outgoing_pairs[0].first.emplace (block);
-        }
-      });
+      normalize_outgoing (block);
     }
 
     void
@@ -2363,16 +2346,6 @@ namespace gch
       // Make sure they go after the start components so we can rely on some guarantees in the
       // block visitor to simplify the code. This will cause a small performance hit for now.
 
-      // auto it = m_incoming.begin ();
-      // while (it != m_incoming.end ())
-      // {
-      //   auto found = start_outgoing.find (it->first);
-      //   if (found == start_outgoing.end ())
-      //     start_outgoing.insert (m_incoming.extract (it++));
-      //   else
-      //     found->second.append (std::move ((it++)->second));
-      // }
-
       std::for_each (start_outgoing.begin (), start_outgoing.end (), applied {
         [&](nonnull_cptr<ir_variable> var, incoming_pair_vector& incoming_pairs)
         {
@@ -2390,9 +2363,7 @@ namespace gch
     void
     visit (const ir_component_sequence& seq) override
     {
-      std::for_each (seq.begin (), seq.end (), [&](const ir_component& c) {
-        c.accept (*this);
-      });
+      std::for_each (seq.begin (), seq.end (), [&](const ir_component& c) { c.accept (*this); });
     }
 
     void
@@ -2420,16 +2391,32 @@ namespace gch
       return { nonnull_ptr { res.value }, true };
     }
 
+    void
+    normalize_outgoing (const ir_block& block)
+    {
+      std::for_each (m_incoming.begin (), m_incoming.end (), applied {
+        [&](nonnull_cptr<ir_variable>, incoming_pair_vector& outgoing_pairs)
+        {
+          assert (outgoing_pairs.size () != 0);
+          assert (std::all_of (std::next (outgoing_pairs.begin ()), outgoing_pairs.end (), applied {
+            [common = outgoing_pairs[0].second](auto&&, const dominator_pair& pair)
+            {
+              return pair.def_ref == common.def_ref && pair.is_determinate == common.is_determinate;
+            }
+          }));
+
+          if (1 < outgoing_pairs.size ())
+            outgoing_pairs.erase (std::next (outgoing_pairs.begin ()), outgoing_pairs.end ());
+
+          outgoing_pairs[0].first.emplace (block);
+        }
+      });
+    }
+
     incoming_map
     dispatch_descender (const ir_component& c)
     {
       return def_resolver_visitor { m_resolver, m_var_map, m_incoming } (c);
-    }
-
-    incoming_map
-    move_dispatch_descender (const ir_component& c)
-    {
-      return def_resolver_visitor { m_resolver, m_var_map, std::move (m_incoming) } (c);
     }
 
     def_resolver&           m_resolver;
@@ -2442,11 +2429,6 @@ namespace gch
   operator() (void)
   {
     ir_static_variable_map ret (m_block_manager.get_function ());
-
-    // Resolve phi nodes and defs.
-    // std::for_each (m_block_manager.begin (), m_block_manager.end (), applied {
-    //   [&](nonnull_cptr<ir_block> block, auto&&) { resolve_block (*block, ret); }
-    // });
 
     def_resolver_visitor { *this, ret, { } } (m_block_manager.get_function ());
 

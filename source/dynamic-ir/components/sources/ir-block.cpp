@@ -11,6 +11,7 @@
 
 #include "ir-iterator.hpp"
 #include "structure/mutators/ir-ascending-def-propagator.hpp"
+#include "ir-all-subcomponent-visitors.hpp"
 
 #include <gch/select-iterator.hpp>
 

@@ -53,17 +53,4 @@ namespace gch
     return v.visit (static_cast<concrete_reference> (*this));
   }
 
-  extern template class abstract_inspector<ir_component_fork>;
-  extern template class abstract_inspector<ir_component_loop>;
-  extern template class abstract_inspector<ir_component_sequence>;
-  extern template class abstract_inspector<ir_function>;
-
-  template <>
-  abstract_inspector<ir_component_fork,
-                     ir_component_loop,
-                     ir_component_sequence,
-                     ir_function>::
-  ~abstract_inspector (void)
-  { };
-
 }

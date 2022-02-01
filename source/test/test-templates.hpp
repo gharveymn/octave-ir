@@ -24,6 +24,23 @@
 namespace gch
 {
 
+  template <typename LHSType, typename RHSType>
+  bool
+  binary_compare (LHSType lhs, RHSType rhs)
+  {
+    if constexpr (std::is_floating_point_v<LHSType> || std::is_floating_point_v<RHSType>)
+    {
+      LHSType abs_lhs = std::abs (lhs);
+      RHSType abs_rhs = std::abs (rhs);
+
+      return std::abs (lhs - rhs) <= (
+        (abs_lhs < abs_rhs) ? abs_rhs * std::numeric_limits<RHSType>::epsilon ()
+                            : abs_lhs * std::numeric_limits<LHSType>::epsilon ());
+    }
+    else
+      return lhs == rhs;
+  }
+
   template <ir_opcode Op, typename ResultType, typename LHSType, typename RHSType>
   void
   test_binary (ResultType expected, LHSType lhs, RHSType rhs, bool printing_enabled = false)
@@ -58,7 +75,7 @@ namespace gch
 
     auto sym = reinterpret_cast<prototype> (jit.compile (my_static_func));
     result_type res = sym (lhs, rhs);
-    if (expected != res)
+    if (! binary_compare (expected, res))
     {
       std::ostringstream sout;
 
@@ -107,7 +124,7 @@ namespace gch
 
     auto sym = reinterpret_cast<prototype> (jit.compile (my_static_func));
     result_type res = sym (arg);
-    if (expected != res)
+    if (! binary_compare (expected, res))
     {
       std::ostringstream sout;
 

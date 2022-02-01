@@ -27,7 +27,7 @@ namespace gch
 
     static constexpr
     const char
-    anonymous_name[] = "<@>";
+    anonymous_name[] = ".";
 
     ir_variable            (void)                   = delete;
     ir_variable            (const ir_variable&)     = delete;

@@ -97,18 +97,20 @@ set_target_properties (
     ON
 )
 
-include (CheckLinkerFlag)
-check_linker_flag (CXX -fuse-ld=lld HAVE_lld_LINK_OPTION)
-if (HAVE_lld_LINK_OPTION AND NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-  target_link_options (octave-ir.common INTERFACE -fuse-ld=lld)
+if (NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  include (CheckLinkerFlag)
+  check_linker_flag (CXX -fuse-ld=lld HAVE_lld_LINK_OPTION)
+  if (HAVE_lld_LINK_OPTION)
+    target_link_options (octave-ir.common INTERFACE -fuse-ld=lld)
+  endif ()
 endif ()
 
 add_library (gch::octave-ir.common ALIAS octave-ir.common)
 
-add_custom_target (octave-ir.ctest)
-
 macro (add_test_executable target_name)
   add_executable (${target_name} ${ARGN})
+
+  target_compile_features (${target_name} PRIVATE cxx_std_${GCH_OCTAVE_IR_CXX_STANDARD})
 
   if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options (
@@ -169,12 +171,21 @@ macro (add_test_executable target_name)
       ${target_name}
       PRIVATE
         /W4
+        /permissive-
     )
   endif ()
 
   if (GCH_OCTAVE_IR_ENABLE_ASAN)
     target_compile_options (${target_name} PRIVATE -fsanitize=address)
     target_link_options (${target_name} PRIVATE -fsanitize=address)
+  endif ()
+
+  if (NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    include (CheckLinkerFlag)
+    check_linker_flag (CXX -fuse-ld=lld HAVE_lld_LINK_OPTION)
+    if (HAVE_lld_LINK_OPTION)
+      target_link_options (${target_name} PRIVATE -fuse-ld=lld)
+    endif ()
   endif ()
 endmacro ()
 

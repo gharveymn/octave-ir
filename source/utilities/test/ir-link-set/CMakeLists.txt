@@ -23,7 +23,7 @@ macro (add_ctest_executables)
         ${_TARGET_NAME}
     )
 
-    add_dependencies(octave-ir.ctest ${_TARGET_NAME})
+    add_dependencies(octave-ir.utilities.ctest ${_TARGET_NAME})
   endforeach ()
 endmacro ()
 

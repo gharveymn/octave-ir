@@ -79,7 +79,7 @@ namespace gch
                  bool printing = false);
 
       llvm::Error
-      add (llvm::orc::ResourceTrackerSP res_tracker, const ir_static_function& func);
+      add (const ir_static_function& func, llvm::orc::ResourceTrackerSP res_tracker);
 
       void
       emit (std::unique_ptr<llvm::orc::MaterializationResponsibility> resp,

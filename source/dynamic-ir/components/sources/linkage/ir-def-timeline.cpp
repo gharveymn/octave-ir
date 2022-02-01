@@ -756,7 +756,7 @@ namespace gch
     return nullopt;
   }
 
-  optional_ref<const ir_use_timeline>
+  optional_cref<ir_use_timeline>
   ir_def_timeline::
   maybe_get_incoming_timeline (void) const noexcept
   {
@@ -771,7 +771,7 @@ namespace gch
     return maybe_get_incoming_timeline () >>= &ir_use_timeline::get_def_instruction;
   }
 
-  optional_ref<const ir_instruction>
+  optional_cref<ir_instruction>
   ir_def_timeline::
   maybe_get_incoming_instruction (void) const noexcept
   {

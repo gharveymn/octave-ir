@@ -8,6 +8,8 @@
 #ifndef OCTAVE_IR_DYNAMIC_IR_IR_USE_HPP
 #define OCTAVE_IR_DYNAMIC_IR_IR_USE_HPP
 
+#include "ir-instruction-fwd.hpp"
+
 #include <gch/nonnull_ptr.hpp>
 #include <gch/tracker/tracker.hpp>
 

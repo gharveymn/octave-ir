@@ -130,11 +130,6 @@ namespace gch
   std::ostream&
   operator<< (std::ostream& out, const ir_constant& c);
 
-  template <typename T = void>
-  struct variant_instantiator
-    : ir_constant::variant_type
-  { };
-
 }
 
 #endif

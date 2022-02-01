@@ -18,8 +18,41 @@ GCH_DISABLE_WARNINGS_MSVC
 
 GCH_ENABLE_WARNINGS_MSVC
 
+#include <cfloat>
 #include <complex>
 #include <iostream>
+
+#if LDBL_MANT_DIG == 113 // IEEE quad
+#  ifndef GCH_LONG_DOUBLE_BIT_WIDTH
+inline constexpr std::size_t GCH_LONG_DOUBLE_BIT_WIDTH = 128;
+#  endif
+#  ifndef GCH_LONG_DOUBLE_LLVM_TYPE_ID
+inline constexpr llvm::Type::TypeID GCH_LONG_DOUBLE_LLVM_TYPE_ID = llvm::Type::FP128TyID;
+#  endif
+#elif LDBL_MANT_DIG == 106 // PowerPC double-double
+#  ifndef GCH_LONG_DOUBLE_BIT_WIDTH
+inline constexpr std::size_t GCH_LONG_DOUBLE_BIT_WIDTH = 128;
+#  endif
+#  ifndef GCH_LONG_DOUBLE_LLVM_TYPE_ID
+inline constexpr llvm::Type::TypeID GCH_LONG_DOUBLE_LLVM_TYPE_ID = llvm::Type::PPC_FP128TyID;
+#  endif
+#elif LDBL_MANT_DIG == 64 // X87 extended precision
+#  ifndef GCH_LONG_DOUBLE_BIT_WIDTH
+inline constexpr std::size_t GCH_LONG_DOUBLE_BIT_WIDTH = 80;
+#  endif
+#  ifndef GCH_LONG_DOUBLE_LLVM_TYPE_ID
+inline constexpr llvm::Type::TypeID GCH_LONG_DOUBLE_LLVM_TYPE_ID = llvm::Type::X86_FP80TyID;
+#  endif
+#elif LDBL_MANT_DIG == 53 // Same as double
+#  ifndef GCH_LONG_DOUBLE_BIT_WIDTH
+inline constexpr std::size_t GCH_LONG_DOUBLE_BIT_WIDTH = 60;
+#  endif
+#  ifndef GCH_LONG_DOUBLE_LLVM_TYPE_ID
+inline constexpr llvm::Type::TypeID GCH_LONG_DOUBLE_LLVM_TYPE_ID = llvm::Type::DoubleTyID;
+#  endif
+#else
+#  error Unrecognized long double.
+#endif
 
 namespace gch
 {
@@ -28,7 +61,6 @@ namespace gch
   class ir_static_block_id;
 
   using any = octave_base_value *;
-  using single = float;
 
   template <typename T, typename Enable = void>
   struct llvm_type_function
@@ -37,9 +69,7 @@ namespace gch
     auto
     value = [](llvm::LLVMContext&) -> llvm::Type * {
       if constexpr (is_complete_v<T>)
-      {
         std::cerr << "LLVM type not mapped for type `" << typeid (T).name () << "`." << std::endl;
-      }
       else
         std::cerr << "LLVM type not mapped for incomplete type." << std::endl;
       return nullptr;
@@ -64,7 +94,9 @@ namespace gch
   {
     static constexpr
     auto
-    value = &llvm::Type::getFP128Ty;
+    value = [](llvm::LLVMContext& ctx) {
+      return llvm::Type::getPrimitiveType (ctx, GCH_LONG_DOUBLE_LLVM_TYPE_ID);
+    };
   };
 
   template <>
@@ -76,7 +108,7 @@ namespace gch
   };
 
   template <>
-  struct llvm_type_function<single>
+  struct llvm_type_function<float>
   {
     static constexpr
     auto
@@ -174,7 +206,7 @@ namespace gch
   };
 
   template <>
-  struct llvm_type_function<std::complex<single>>
+  struct llvm_type_function<std::complex<float>>
   {
     static constexpr
     auto
