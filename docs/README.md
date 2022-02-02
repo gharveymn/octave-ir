@@ -1,6 +1,6 @@
 # octave-ir
 
-This is a work-in-progress implementation of a JIT intended to (eventually) target the Octave language. Currently, it is not doing any translation of the actual AST coming from Octave, but it can compile pieces of code specified with C++. It can currently handle only very simple constructs like non-nested loops.
+This is a work-in-progress implementation of a JIT intended to (eventually) target the Octave language. Currently, it is not doing any translation of the actual AST coming from Octave, but it can compile pieces of code specified with C++. It is currently only tested for very simple expressions, but can generate code for things like nested loops and uninitialized/indeterminate variables.
 
 ## Concept
 
