@@ -17,20 +17,13 @@
 namespace gch
 {
 
-  ir_processed_id::
-  ir_processed_id (id_type id)
-    : m_id (id)
-  { }
-
   ir_static_function::
   ir_static_function (std::string_view name,
-                      ir_processed_id id,
                       container_type&& blocks,
                       std::vector<ir_static_variable>&& vars,
-                      small_vector<ir_static_variable_id>&& ret_ids,
-                      small_vector<ir_static_variable_id>&& arg_ids)
+                      small_vector<ir_variable_id>&& ret_ids,
+                      small_vector<ir_variable_id>&& arg_ids)
     : m_name      (name),
-      m_id        (id),
       m_blocks    (std::move (blocks)),
       m_variables (std::move (vars)),
       m_ret_ids   (std::move (ret_ids)),
@@ -134,14 +127,14 @@ namespace gch
     return m_variables.end ();
   }
 
-  small_vector<ir_static_variable_id>::const_iterator
+  small_vector<ir_variable_id>::const_iterator
   ir_static_function::
   returns_begin (void) const noexcept
   {
     return m_ret_ids.begin ();
   }
 
-  small_vector<ir_static_variable_id>::const_iterator
+  small_vector<ir_variable_id>::const_iterator
   ir_static_function::
   returns_end (void) const noexcept
   {
@@ -155,14 +148,14 @@ namespace gch
     return ! m_ret_ids.empty ();
   }
 
-  small_vector<ir_static_variable_id>::const_iterator
+  small_vector<ir_variable_id>::const_iterator
   ir_static_function::
   args_begin (void) const noexcept
   {
     return m_arg_ids.begin ();
   }
 
-  small_vector<ir_static_variable_id>::const_iterator
+  small_vector<ir_variable_id>::const_iterator
   ir_static_function::
   args_end (void) const noexcept
   {
@@ -176,13 +169,6 @@ namespace gch
     return m_name;
   }
 
-  ir_processed_id
-  ir_static_function::
-  get_id (void) const noexcept
-  {
-    return m_id;
-  }
-
   std::string
   ir_static_function::
   get_block_name (const ir_static_block& block) const
@@ -192,7 +178,7 @@ namespace gch
 
   const ir_static_variable&
   ir_static_function::
-  get_variable (ir_static_variable_id var_id) const
+  get_variable (ir_variable_id var_id) const
   {
     return m_variables[var_id];
   }
@@ -213,7 +199,7 @@ namespace gch
 
   std::string_view
   ir_static_function::
-  get_variable_name (ir_static_variable_id var_id) const
+  get_variable_name (ir_variable_id var_id) const
   {
     return get_variable (var_id).get_name ();
   }
@@ -234,7 +220,7 @@ namespace gch
 
   ir_type
   ir_static_function::
-  get_type (ir_static_variable_id var_id) const
+  get_type (ir_variable_id var_id) const
   {
     return get_variable (var_id).get_type ();
   }
@@ -332,14 +318,16 @@ namespace gch
       if (instr.has_def ())
         func.print (out, instr.get_def ()) << " = ";
 
-      out << instr.get_metadata ().get_name ()
+      assert (instr.has_args ());
+      out << as_constant<ir_external_function_info> (instr[0]).get_name ()
           << " (";
 
-      if (instr.has_args ())
+      if (1 < instr.num_args ())
       {
-        func.print (out, instr[0]);
-        std::for_each (std::next (instr.begin ()), instr.end (),
-                       [&](const ir_static_operand& op) { func.print (out << ", ",  op); });
+        func.print (out, instr[1]);
+        std::for_each (std::next (instr.begin (), 2), instr.end (), [&](const auto& op) {
+          func.print (out << ", ",  op);
+        });
       }
 
       return out << ')';

@@ -120,8 +120,10 @@ namespace gch
         [[fallthrough]];
       case id::update:
         return ascend (loop);
+#ifndef __clang__
       default:
         abort<reason::impossible> ();
+#endif
     }
   }
 

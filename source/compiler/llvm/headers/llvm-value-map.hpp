@@ -49,9 +49,9 @@ namespace gch
   using llvm_ir_builder_type = llvm::IRBuilder<llvm::NoFolder>;
 
   class ir_static_block;
-  class ir_static_block_id;
+  class ir_block_id;
   class ir_static_def;
-  class ir_static_def_id;
+  class ir_def_id;
   class ir_static_function;
   class ir_static_operand;
   class ir_static_use;
@@ -64,7 +64,7 @@ namespace gch
     llvm_def_map (llvm::AllocaInst& alloc, std::size_t num_defs);
 
     llvm::Value&
-    register_def (ir_static_def_id id, llvm::Value& llvm_value);
+    register_def (ir_def_id id, llvm::Value& llvm_value);
 
     [[nodiscard]]
     llvm::AllocaInst&
@@ -72,7 +72,7 @@ namespace gch
 
     [[nodiscard]]
     llvm::Value&
-    operator[] (ir_static_def_id id) const;
+    operator[] (ir_def_id id) const;
 
   private:
     nonnull_ptr<llvm::AllocaInst>          m_llvm_alloc;
@@ -202,7 +202,7 @@ namespace gch
                     const ir_static_function& func);
 
     llvm::BasicBlock&
-    operator[] (ir_static_block_id block_id) const;
+    operator[] (ir_block_id block_id) const;
 
     llvm::BasicBlock&
     operator[] (const ir_static_block& block) const;
@@ -246,7 +246,7 @@ namespace gch
     get_type (const ir_static_operand& op) const;
 
     llvm::Argument&
-    get_llvm_argument (ir_static_variable_id var_id);
+    get_llvm_argument (ir_variable_id var_id);
 
     llvm::Constant&
     get_zero (ir_type type);

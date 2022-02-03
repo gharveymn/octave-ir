@@ -101,8 +101,10 @@ namespace gch
         return { nonnull_ptr { as_mutable (get_entry_block (loop.get_update ())) } };
       case id::update:
         return { nonnull_ptr { as_mutable (loop.get_condition ()) } };
+#ifndef __clang__
       default:
         abort<reason::impossible> ();
+#endif
     }
   }
 

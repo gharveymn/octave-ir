@@ -39,7 +39,7 @@ namespace gch
     GCH_IMPLICIT_CONVERSION
     ir_static_operand (ir_static_use use) noexcept;
 
-    ir_static_operand (ir_static_variable_id var_id, std::optional<ir_static_def_id> id) noexcept;
+    ir_static_operand (ir_variable_id var_id, std::optional<ir_def_id> id) noexcept;
 
     template <typename ...Args,
               std::enable_if_t<std::is_constructible_v<ir_constant, Args...>> * = nullptr>

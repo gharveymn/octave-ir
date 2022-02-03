@@ -89,7 +89,9 @@ namespace gch
       case id::condition : return copy_leaves (loop.get_start (), loop.get_update ());
       case id::body      : return copy_leaves (loop.get_condition ());
       case id::update    : return copy_leaves (loop.get_body ());
+#ifndef __clang__
       default            : abort<reason::impossible> ();
+#endif
     }
   }
 

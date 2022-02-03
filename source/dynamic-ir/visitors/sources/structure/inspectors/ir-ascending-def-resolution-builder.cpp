@@ -16,6 +16,8 @@
 #include "ir-error.hpp"
 #include "component/inspectors/ir-descending-def-resolution-builder.hpp"
 
+// FIXME: There are a lot of unnecessary joins going on with this system, so it will need a rework.
+
 namespace gch
 {
 
@@ -159,11 +161,13 @@ namespace gch
         if (cond_res.is_resolvable ())
         {
           // FIXME: This doesn't need a join.
-          assert (! cond_res.get_stack ().has_leaves ());
-          cond_res.get_stack ().add_leaf (m_sub_result.release_stack ());
-
-          assert (cond_res.needs_join ());
-          return cond_res;
+          m_sub_result.get_stack ().push_frame (get_entry_block (loop.get_body ()),
+                                                cond_res.release_stack ());
+          return {
+            m_sub_result.release_stack (),
+            result_type::join<true>,
+            result_type::resolvable<true>
+          };
         }
         assert (! cond_res.needs_join ());
 
@@ -184,7 +188,6 @@ namespace gch
             return std::move (m_sub_result);
         }
 
-        // FIXME: Wrong.
         return ascend (loop);
       }
       case id::body:
@@ -205,11 +208,8 @@ namespace gch
         // We should never need a join because the condition is a single block.
         assert (! cond_res.needs_join ());
 
-        ir_def_resolution_stack      stack         { get_variable () };
-        result_type::join_type       needs_join    { result_type::join<false> };
-        result_type::resolvable_type is_resolvable { result_type::resolvable<false> };
-
-
+        ir_def_resolution_stack stack      { get_variable () };
+        result_type::join_type  needs_join { result_type::join<false> };
 
         // FIXME: This should only be dispatched up to the relevant block.
 
@@ -275,7 +275,6 @@ namespace gch
           }
         }
 
-        // FIXME: Wrong.
         return ascent_res;
       }
       case id::start:

@@ -11,7 +11,7 @@
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_FUNCTION_HPP
 
 #include "ir-static-block.hpp"
-#include "ir-static-id.hpp"
+#include "ir-object-id.hpp"
 #include "ir-static-variable.hpp"
 #include "ir-type.hpp"
 
@@ -100,11 +100,10 @@ namespace gch
     ~ir_static_function (void);
 
     ir_static_function (std::string_view name,
-                      ir_processed_id id,
-                      container_type&& blocks,
-                      std::vector<ir_static_variable>&& vars,
-                      small_vector<ir_static_variable_id>&& ret_ids,
-                      small_vector<ir_static_variable_id>&& arg_ids);
+                        container_type&& blocks,
+                        std::vector<ir_static_variable>&& vars,
+                        small_vector<ir_variable_id>&& ret_ids,
+                        small_vector<ir_variable_id>&& arg_ids);
 
     [[nodiscard]]
     const_iterator
@@ -155,11 +154,11 @@ namespace gch
     variables_end (void) const noexcept;
 
     [[nodiscard]]
-    small_vector<ir_static_variable_id>::const_iterator
+    small_vector<ir_variable_id>::const_iterator
     returns_begin (void) const noexcept;
 
     [[nodiscard]]
-    small_vector<ir_static_variable_id>::const_iterator
+    small_vector<ir_variable_id>::const_iterator
     returns_end (void) const noexcept;
 
     [[nodiscard]]
@@ -167,11 +166,11 @@ namespace gch
     has_returns (void) const noexcept;
 
     [[nodiscard]]
-    small_vector<ir_static_variable_id>::const_iterator
+    small_vector<ir_variable_id>::const_iterator
     args_begin (void) const noexcept;
 
     [[nodiscard]]
-    small_vector<ir_static_variable_id>::const_iterator
+    small_vector<ir_variable_id>::const_iterator
     args_end (void) const noexcept;
 
     [[nodiscard]]
@@ -179,16 +178,12 @@ namespace gch
     get_name (void) const noexcept;
 
     [[nodiscard]]
-    ir_processed_id
-    get_id (void) const noexcept;
-
-    [[nodiscard]]
     std::string
     get_block_name (const ir_static_block& block) const;
 
     [[nodiscard]]
     const ir_static_variable&
-    get_variable (ir_static_variable_id var_id) const;
+    get_variable (ir_variable_id var_id) const;
 
     [[nodiscard]]
     const ir_static_variable&
@@ -200,7 +195,7 @@ namespace gch
 
     [[nodiscard]]
     std::string_view
-    get_variable_name (ir_static_variable_id var_id) const;
+    get_variable_name (ir_variable_id var_id) const;
 
     [[nodiscard]]
     std::string_view
@@ -212,7 +207,7 @@ namespace gch
 
     [[nodiscard]]
     ir_type
-    get_type (ir_static_variable_id var_id) const;
+    get_type (ir_variable_id var_id) const;
 
     [[nodiscard]]
     ir_type
@@ -245,12 +240,11 @@ namespace gch
     }
 
   private:
-    std::string                         m_name;
-    ir_processed_id                     m_id;
-    container_type                      m_blocks;
-    variables_container_type            m_variables;
-    small_vector<ir_static_variable_id> m_ret_ids;
-    small_vector<ir_static_variable_id> m_arg_ids;
+    std::string                  m_name;
+    container_type               m_blocks;
+    variables_container_type     m_variables;
+    small_vector<ir_variable_id> m_ret_ids;
+    small_vector<ir_variable_id> m_arg_ids;
   };
 
   std::ostream&

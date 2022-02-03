@@ -110,8 +110,8 @@ namespace gch
     {
       return builder.CreateCondBr (
         &value_map[instr[0]],
-        &value_map[as_constant<ir_static_block_id> (instr[1])],
-        &value_map[as_constant<ir_static_block_id> (instr[2])]);
+        &value_map[as_constant<ir_block_id> (instr[1])],
+        &value_map[as_constant<ir_block_id> (instr[2])]);
     }
   };
 
@@ -124,7 +124,7 @@ namespace gch
                llvm_ir_builder_type&        builder,
                llvm_value_map&              value_map)
     {
-      return builder.CreateBr (&value_map[as_constant<ir_static_block_id> (instr[0])]);
+      return builder.CreateBr (&value_map[as_constant<ir_block_id> (instr[0])]);
     }
   };
 
@@ -472,9 +472,15 @@ namespace gch
       llvm::Type& ret_type = value_map.get_llvm_type (
         instr.has_def () ? value_map.get_type (instr.get_def ()) : ir_type_v<void>);
 
-      llvm::FunctionType& llvm_function_ty = *llvm::FunctionType::get (&ret_type, arg_types, false);
+      const auto& ext_func = as_constant<ir_external_function_info> (instr[0]);
+
+      llvm::FunctionType& llvm_function_ty = *llvm::FunctionType::get (
+        &ret_type,
+        arg_types,
+        ext_func.is_variadic ());
+
       optional_ref<llvm::Function> func {
-        value_map.get_external_function (as_constant<const char *> (instr[0]), llvm_function_ty)
+        value_map.get_external_function (ext_func.get_name (), llvm_function_ty)
       };
 
       llvm::SmallVector<llvm::Value *> args;

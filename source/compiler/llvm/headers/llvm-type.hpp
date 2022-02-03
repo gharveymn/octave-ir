@@ -58,7 +58,8 @@ namespace gch
 {
   class octave_base_value;
   class ir_block;
-  class ir_static_block_id;
+  class ir_block_id;
+  class ir_external_function_info;
 
   using any = octave_base_value *;
 
@@ -247,7 +248,7 @@ namespace gch
   };
 
   template <>
-  struct llvm_type_function<ir_static_block_id>
+  struct llvm_type_function<ir_block_id>
   {
     static constexpr
     auto
@@ -259,6 +260,17 @@ namespace gch
 
   template <>
   struct llvm_type_function<ir_block *>
+  {
+    static constexpr
+    auto
+    value = [](llvm::LLVMContext&) -> llvm::Type * {
+      // This should never be used.
+      return nullptr;
+    };
+  };
+
+  template <>
+  struct llvm_type_function<ir_external_function_info>
   {
     static constexpr
     auto

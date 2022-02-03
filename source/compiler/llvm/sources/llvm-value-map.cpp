@@ -67,7 +67,7 @@ namespace gch
 
   llvm::Value&
   llvm_def_map::
-  register_def (ir_static_def_id id, llvm::Value& llvm_value)
+  register_def (ir_def_id id, llvm::Value& llvm_value)
   {
     assert (! m_llvm_defs[id].has_value ());
     return m_llvm_defs[id].emplace (llvm_value);
@@ -82,7 +82,7 @@ namespace gch
 
   llvm::Value&
   llvm_def_map::
-  operator[] (ir_static_def_id id) const
+  operator[] (ir_def_id id) const
   {
     assert (m_llvm_defs[id].has_value ());
     return *m_llvm_defs[id];
@@ -225,7 +225,7 @@ namespace gch
 
   llvm::BasicBlock&
   llvm_value_map::
-  operator[] (ir_static_block_id block_id) const
+  operator[] (ir_block_id block_id) const
   {
     return *m_blocks[block_id];
   }
@@ -241,7 +241,7 @@ namespace gch
     assert (0 <= off);
     assert (static_cast<std::size_t> (off) < (std::numeric_limits<size_ty>::max) ());
 
-    return (*this)[ir_static_block_id (static_cast<size_ty> (off))];
+    return (*this)[ir_block_id (static_cast<size_ty> (off))];
   }
 
   llvm::AllocaInst&
@@ -346,7 +346,7 @@ namespace gch
 
   llvm::Argument&
   llvm_value_map::
-  get_llvm_argument (ir_static_variable_id var_id)
+  get_llvm_argument (ir_variable_id var_id)
   {
     // FIXME: We shouldn't need to do a search here.
     auto found = std::find (m_function.args_begin (), m_function.args_end (), var_id);

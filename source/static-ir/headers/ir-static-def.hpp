@@ -8,7 +8,7 @@
 #ifndef OCTAVE_IR_STATIC_IR_IR_STATIC_DEF_HPP
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_DEF_HPP
 
-#include "ir-static-id.hpp"
+#include "ir-object-id.hpp"
 
 namespace gch
 {
@@ -24,14 +24,14 @@ namespace gch
     ~ir_static_def           (void)                     = default;
 
     constexpr
-    ir_static_def (ir_static_variable_id var_id, ir_static_def_id id)
+    ir_static_def (ir_variable_id var_id, ir_def_id id) noexcept
       : m_var_id (var_id),
         m_id     (id)
     { }
 
     [[nodiscard]]
     constexpr
-    ir_static_variable_id
+    ir_variable_id
     get_variable_id (void) const noexcept
     {
       return m_var_id;
@@ -39,15 +39,15 @@ namespace gch
 
     [[nodiscard]]
     constexpr
-    ir_static_def_id
+    ir_def_id
     get_id (void) const noexcept
     {
       return m_id;
     }
 
   private:
-    ir_static_variable_id m_var_id;
-    ir_static_def_id      m_id;
+    ir_variable_id m_var_id;
+    ir_def_id      m_id;
   };
 
   constexpr

@@ -150,7 +150,7 @@ namespace gch
     optimize_module (llvm::orc::ThreadSafeModule module,
                      const llvm::orc::MaterializationResponsibility& resp);
 
-    static
+    [[noreturn]] static
     void
     handle_lazy_call_through_error (void);
 
@@ -162,7 +162,6 @@ namespace gch
     compile_layer_type                              m_compile_layer;
     llvm::orc::IRTransformLayer                     m_optimization_layer;
     ast_layer                                       m_ast_layer;
-
     llvm::orc::JITDylib&                            m_jit_dylib;
   };
 

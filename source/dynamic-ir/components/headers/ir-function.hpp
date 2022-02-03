@@ -111,7 +111,7 @@ namespace gch
     using returns_riter   = returns_reverse_iterator;
     using returns_criter  = returns_const_reverse_iterator;
 
-    struct ir_variable_pair
+    struct ir_variable_info
     {
       std::string_view name;
       ir_type          type;
@@ -129,9 +129,10 @@ namespace gch
       std::enable_if_t<std::is_constructible_v<
                          ir_variable,
                          const ir_function&,
+                         ir_variable_id,
                          decltype (*std::declval<It> ())>
                    ||  std::is_same_v<
-                         ir_variable_pair,
+                         ir_variable_info,
                          std::decay_t<decltype (*std::declval<It> ())>>>>
       : std::true_type
     { };
@@ -183,7 +184,7 @@ namespace gch
 
     template <typename ArgsIt,
               std::enable_if_t<is_ir_variable_constructor_iterator_v<ArgsIt>> * = nullptr>
-    ir_function (std::initializer_list<ir_variable_pair> rets,
+    ir_function (std::initializer_list<ir_variable_info> rets,
                  ArgsIt args_first, ArgsIt args_last,
                  std::string_view name = "")
       : ir_function (rets.begin (), rets.end (), args_first, args_last, name)
@@ -206,34 +207,34 @@ namespace gch
     ir_function (std::initializer_list<std::string_view> arg_names, std::string_view name = "");
 
     ir_function (std::initializer_list<std::string_view> ret_names,
-                 std::initializer_list<ir_variable_pair> args,
+                 std::initializer_list<ir_variable_info> args,
                  std::string_view name = "");
 
     ir_function (std::string_view ret_name,
-                 std::initializer_list<ir_variable_pair> args,
+                 std::initializer_list<ir_variable_info> args,
                  std::string_view name = "");
 
-    ir_function (std::initializer_list<ir_variable_pair> rets,
+    ir_function (std::initializer_list<ir_variable_info> rets,
                  std::initializer_list<std::string_view> arg_names,
                  std::string_view name = "");
 
-    ir_function (ir_variable_pair ret,
+    ir_function (ir_variable_info ret,
                  std::initializer_list<std::string_view> arg_names,
                  std::string_view name = "");
 
-    ir_function (std::initializer_list<ir_variable_pair> rets,
-                 std::initializer_list<ir_variable_pair> args,
+    ir_function (std::initializer_list<ir_variable_info> rets,
+                 std::initializer_list<ir_variable_info> args,
                  std::string_view name = "");
 
-    ir_function (ir_variable_pair ret,
-                 std::initializer_list<ir_variable_pair> args,
+    ir_function (ir_variable_info ret,
+                 std::initializer_list<ir_variable_info> args,
                  std::string_view name = "");
 
-    ir_function (std::initializer_list<ir_variable_pair> args,
+    ir_function (std::initializer_list<ir_variable_info> args,
                  std::string_view name = "");
 
     explicit
-    ir_function (ir_variable_pair ret, std::string_view name = "");
+    ir_function (ir_variable_info ret, std::string_view name = "");
 
     ir_function (std::string_view ret_name, std::string_view name);
 
@@ -261,12 +262,13 @@ namespace gch
     create_variable (ir_type type);
 
     ir_variable&
-    create_variable (ir_variable_pair pair);
+    create_variable (ir_variable_info pair);
 
     template <typename T, typename ...Args,
               std::enable_if_t<std::is_constructible_v<
                 ir_variable,
                 const ir_function&,
+                ir_variable_id,
                 T,
                 Args...
               >> * = nullptr>
@@ -507,6 +509,7 @@ namespace gch
       auto [position, inserted] = m_variable_map.try_emplace (
         name,
         *this,
+        ir_variable_id { m_variable_map.size () },
         std::forward<T> (name),
         std::forward<Args> (args)...);
 

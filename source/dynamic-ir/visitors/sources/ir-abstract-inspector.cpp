@@ -12,29 +12,10 @@
 namespace gch
 {
 
-  template <>
-  abstract_inspector<ir_block>::
-  ~abstract_inspector (void)
-  { };
-
-  template <>
-  abstract_inspector<ir_component_fork>::
-  ~abstract_inspector (void)
-  { };
-
-  template <>
-  abstract_inspector<ir_component_loop>::
-  ~abstract_inspector (void)
-  { };
-
-  template <>
-  abstract_inspector<ir_component_sequence>::
-  ~abstract_inspector (void)
-  { };
-
-  template <>
-  abstract_inspector<ir_function>::
-  ~abstract_inspector (void)
-  { };
+  template class abstract_inspector<ir_block>;
+  template class abstract_inspector<ir_component_fork>;
+  template class abstract_inspector<ir_component_loop>;
+  template class abstract_inspector<ir_component_sequence>;
+  template class abstract_inspector<ir_function>;
 
 }

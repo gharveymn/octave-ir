@@ -50,55 +50,55 @@ namespace gch
 
   ir_function::
   ir_function (std::initializer_list<std::string_view> ret_names,
-               std::initializer_list<ir_variable_pair> args,
+               std::initializer_list<ir_variable_info> args,
                std::string_view name)
     : ir_function (ret_names.begin (), ret_names.end (), args.begin (), args.end (), name)
   { }
 
   ir_function::
   ir_function (std::string_view ret_name,
-               std::initializer_list<ir_variable_pair> args,
+               std::initializer_list<ir_variable_info> args,
                std::string_view name)
     : ir_function ({ ret_name }, args.begin (), args.end (), name)
   { }
 
   ir_function::
-  ir_function (std::initializer_list<ir_variable_pair> rets,
+  ir_function (std::initializer_list<ir_variable_info> rets,
                std::initializer_list<std::string_view> arg_names,
                std::string_view name)
     : ir_function (rets.begin (), rets.end (), arg_names.begin (), arg_names.end (), name)
   { }
 
   ir_function::
-  ir_function (ir_variable_pair ret,
+  ir_function (ir_variable_info ret,
                std::initializer_list<std::string_view> arg_names,
                std::string_view name)
     : ir_function ({ ret }, arg_names.begin (), arg_names.end (), name)
   { }
 
   ir_function::
-  ir_function (std::initializer_list<ir_variable_pair> rets,
-               std::initializer_list<ir_variable_pair> args,
+  ir_function (std::initializer_list<ir_variable_info> rets,
+               std::initializer_list<ir_variable_info> args,
                std::string_view name)
     : ir_function (rets.begin (), rets.end (), args.begin (), args.end (), name)
   { }
 
   ir_function::
-  ir_function (ir_variable_pair ret,
-               std::initializer_list<ir_variable_pair> args,
+  ir_function (ir_variable_info ret,
+               std::initializer_list<ir_variable_info> args,
                std::string_view name)
     : ir_function ({ ret }, args.begin (), args.end (), name)
   { }
 
   ir_function::
-  ir_function (std::initializer_list<ir_variable_pair> args,
+  ir_function (std::initializer_list<ir_variable_info> args,
                std::string_view name)
     : ir_function (decltype (args) { }, args.begin (), args.end (), name)
   { }
 
   ir_function::
-  ir_function (ir_variable_pair ret, std::string_view name)
-    : ir_function (ret, std::initializer_list<ir_variable_pair> { }, name)
+  ir_function (ir_variable_info ret, std::string_view name)
+    : ir_function (ret, std::initializer_list<ir_variable_info> { }, name)
   { }
 
   ir_function::
@@ -145,14 +145,18 @@ namespace gch
   ir_function::
   create_variable (ir_type type)
   {
-    auto [it, ins] = m_variable_map.try_emplace (ir_variable::anonymous_name, *this, type);
-    assert (ins && "Tried to create a variable which already exists.");
-    return std::get<ir_variable> (*it);
+    auto [position, inserted] = m_variable_map.try_emplace (
+      ir_variable::anonymous_name,
+      *this,
+      ir_variable_id { m_variable_map.size () },
+      type);
+    assert (inserted && "Tried to create a variable which already exists.");
+    return std::get<ir_variable> (*position);
   }
 
   ir_variable&
   ir_function::
-  create_variable (ir_variable_pair pair)
+  create_variable (ir_variable_info pair)
   {
     return create_variable (pair.name, pair.type);
   }

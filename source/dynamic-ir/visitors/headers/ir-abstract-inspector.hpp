@@ -35,6 +35,10 @@ namespace gch
     visit (const T&) = 0;
   };
 
+  template <typename T>
+  abstract_inspector<T>::
+  ~abstract_inspector (void) = default;
+
 }
 
 #endif // OCTAVE_IR_DYNAMIC_IR_IR_ABSTRACT_INSPECTOR_HPP

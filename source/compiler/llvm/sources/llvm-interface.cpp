@@ -258,8 +258,7 @@ namespace gch
   llvm_interface::
   handle_lazy_call_through_error (void)
   {
-    std::cerr << "LazyCallThrough error: Could not find function body" << std::endl;
-    exit (1);
+    throw std::runtime_error ("Missing LLVM function body.");
   }
 
   void

@@ -8,8 +8,10 @@
 #ifndef OCTAVE_IR_STATIC_IR_IR_STATIC_VARIABLE_HPP
 #define OCTAVE_IR_STATIC_IR_IR_STATIC_VARIABLE_HPP
 
-#include "ir-static-id.hpp"
+#include "ir-object-id.hpp"
 #include "ir-type.hpp"
+
+#include <gch/small_vector.hpp>
 
 #include <cstddef>
 #include <string>
@@ -18,12 +20,10 @@
 namespace gch
 {
 
-  class ir_variable;
-
   class ir_static_variable
   {
   public:
-    ir_static_variable            (void)                          = delete;
+    ir_static_variable            (void);
     ir_static_variable            (const ir_static_variable&)     = delete;
     ir_static_variable            (ir_static_variable&&) noexcept = default;
     ir_static_variable& operator= (const ir_static_variable&)     = delete;
@@ -41,7 +41,7 @@ namespace gch
     get_type (void) const noexcept;
 
     [[nodiscard]]
-    ir_static_def_id
+    ir_def_id
     create_id (void) noexcept;
 
     [[nodiscard]]
@@ -49,9 +49,14 @@ namespace gch
     get_num_defs (void) const noexcept;
 
   private:
-    const std::string m_name;
-    const ir_type     m_type;
-    std::size_t       m_num_defs = 0;
+    friend class ir_static_variable_map;
+
+    void
+    initialize (std::string_view name, ir_type type, ir_def_id curr_id);
+
+    std::string m_name;
+    ir_type     m_type;
+    ir_def_id   m_curr_def_id;
   };
 
 }

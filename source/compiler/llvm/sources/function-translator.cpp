@@ -58,7 +58,7 @@ namespace gch
 
     llvm::SmallVector<llvm::Type *> arg_types;
     std::transform (func.args_begin (), func.args_end (), std::back_inserter (arg_types),
-                    [&](const ir_static_variable_id& id) {
+                    [&] (const ir_variable_id& id) {
       return &module_interface.get_llvm_type (func.get_type (id));
     });
 
@@ -101,8 +101,8 @@ namespace gch
           assert (is_use (value_op));
           const ir_static_use& value = as_use (value_op);
 
-          assert (is_a<ir_static_block_id> (block_id_c));
-          ir_static_block_id block_id { as<ir_static_block_id> (block_id_c) };
+          assert (is_a<ir_block_id> (block_id_c));
+          ir_block_id block_id { as<ir_block_id> (block_id_c) };
 
           phi_node.addIncoming (&value_map[value], &value_map[block_id]);
         }

@@ -109,7 +109,7 @@ namespace gch
   { }
 
   ir_static_operand::
-  ir_static_operand (ir_static_variable_id var_id, std::optional<ir_static_def_id> id) noexcept
+  ir_static_operand (ir_variable_id var_id, std::optional<ir_def_id> id) noexcept
     : m_use (var_id, id),
       m_tag (tag::use)
   { }

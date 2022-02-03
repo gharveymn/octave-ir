@@ -11,8 +11,6 @@
 namespace gch
 {
 
-
-
 }
 
 #endif // OCTAVE_IR_DYNAMIC_IR_IR_SUBCOMPONENT_INSPECTORS_HPP

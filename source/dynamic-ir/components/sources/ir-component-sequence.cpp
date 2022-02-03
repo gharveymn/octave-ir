@@ -309,7 +309,7 @@ namespace gch
     if (size () < new_size)
     {
       assert (new_size <= m_body.max_size ());
-      const auto change    = static_cast<diff_ty> (new_size - size ());
+
       const auto first_off = std::distance (begin (), first);
       const auto last_off  = std::distance (cbegin (), last);
       const auto old_size  = size ();
@@ -322,19 +322,20 @@ namespace gch
       const auto resolved_last_it  = std::next (m_body.begin (), last_off);
 
       const auto new_last_it = std::move_backward (resolved_last_it, old_end_it, m_body.end ());
-      assert (new_last_it == std::next (resolved_last_it, change));
+      assert (new_last_it == std::next (resolved_last_it,
+                                        static_cast<diff_ty> (new_size - old_size)));
 
       // the reset is noexcept
       // iterate backwards over the range to place new elements
       std::reverse_iterator<container_type::iterator> rcurr_it { new_last_it };
       std::for_each (std::make_reverse_iterator (resolved_last_it),
                      std::make_reverse_iterator (resolved_first_it),
-                     [&](ir_component_storage& u)
-                     {
+                     [&](ir_component_storage& u) {
                        if (optional_ref seq { maybe_cast<ir_component_sequence> (*u) })
                        {
-                         std::for_each (seq->begin (), seq->end (),
-                                        [this](ir_subcomponent& sub) { sub.set_parent (*this); });
+                         std::for_each (seq->begin (), seq->end (), [this](ir_subcomponent& sub) {
+                           sub.set_parent (*this);
+                         });
 
                          rcurr_it = std::move (seq->m_body.rbegin (), seq->m_body.rend (),
                                                rcurr_it);
@@ -369,8 +370,9 @@ namespace gch
     }
 
     // now flatten all subcomponents
-    std::for_each (begin (), end (), [](ir_subcomponent& sub)
-                                     { maybe_cast<ir_structure> (sub) >>= &gch::flatten; });
+    std::for_each (begin (), end (), [](ir_subcomponent& sub) {
+      maybe_cast<ir_structure> (sub) >>= &gch::flatten;
+    });
   }
 
   auto
@@ -391,14 +393,12 @@ namespace gch
   ir_component_sequence::
   recursive_collect_components (std::vector<ir_component_mover>& collector)
   {
-    std::for_each (m_body.begin (), m_body.end (),
-                   [&](ir_component_storage& u)
-                   {
-                     if (optional_ref seq { maybe_cast<ir_component_sequence> (*u) })
-                       seq->recursive_collect_components (collector);
-                     else
-                       collector.emplace_back (u);
-                   });
+    std::for_each (m_body.begin (), m_body.end (), [&](ir_component_storage& u) {
+      if (optional_ref seq { maybe_cast<ir_component_sequence> (*u) })
+        seq->recursive_collect_components (collector);
+      else
+        collector.emplace_back (u);
+    });
     return collector;
   }
 

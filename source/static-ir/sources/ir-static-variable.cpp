@@ -13,6 +13,11 @@ namespace gch
 {
 
   ir_static_variable::
+  ir_static_variable (void)
+    : m_type (ir_type_v<void>)
+  { }
+
+  ir_static_variable::
   ir_static_variable (std::string_view name, ir_type type)
     : m_name (name),
       m_type (type)
@@ -32,18 +37,27 @@ namespace gch
     return m_type;
   }
 
-  ir_static_def_id
+  ir_def_id
   ir_static_variable::
   create_id (void) noexcept
   {
-    return static_cast<ir_static_def_id> (m_num_defs++);
+    return m_curr_def_id++;
   }
 
   std::size_t
   ir_static_variable::
   get_num_defs (void) const noexcept
   {
-    return m_num_defs;
+    return m_curr_def_id;
+  }
+
+  void
+  ir_static_variable::
+  initialize (std::string_view name, ir_type type, ir_def_id curr_id)
+  {
+    m_name        = name;
+    m_type        = type;
+    m_curr_def_id = curr_id;
   }
 
 }

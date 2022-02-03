@@ -9,6 +9,8 @@
 #define OCTAVE_IR_DYNAMIC_IR_IR_VARIABLE_HPP
 
 #include "ir-type.hpp"
+#include "ir-object-id.hpp"
+#include "ir-static-variable.hpp"
 
 #include <gch/nonnull_ptr.hpp>
 
@@ -23,8 +25,6 @@ namespace gch
   class ir_variable
   {
   public:
-    using id_type = int;
-
     static constexpr
     const char
     anonymous_name[] = ".";
@@ -36,14 +36,16 @@ namespace gch
     ir_variable& operator= (ir_variable&&) noexcept = delete;
     ~ir_variable           (void)                   = default;
 
-    ir_variable (const ir_component& c, std::string_view name, ir_type type);
+    ir_variable (const ir_component& c, ir_variable_id id, std::string_view name, ir_type type);
 
-    ir_variable (const ir_component& c, ir_type type);
+    ir_variable (const ir_component& c, ir_variable_id id, std::string_view name);
 
-    ir_variable (const ir_component& c, std::string_view name);
+    ir_variable (const ir_component& c, ir_variable_id id, ir_type type);
 
-    explicit
-    ir_variable (const ir_component& c);
+    ir_variable (const ir_component& c, ir_variable_id id);
+
+    ir_variable_id
+    get_id (void) const noexcept;
 
     [[nodiscard]]
     std::string_view
@@ -67,14 +69,18 @@ namespace gch
       set_type (ir_type_v<T>);
     }
 
-    id_type
-    create_id (void) noexcept;
+    ir_def_id
+    create_def_id (void) noexcept;
+
+    std::size_t
+    get_num_defs (void) const noexcept;
 
    private:
     nonnull_cptr<ir_component> m_component;
-    const std::string          m_name     = anonymous_name;
-    ir_type                    m_type     = ir_type_v<void>;
-    id_type                    m_curr_id  = 0;
+    const ir_variable_id       m_id;
+    const std::string          m_name        = anonymous_name;
+    ir_type                    m_type        = ir_type_v<void>;
+    ir_def_id                  m_curr_def_id;
   };
 
   ir_type

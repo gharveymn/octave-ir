@@ -154,8 +154,10 @@ namespace gch
         dispatch_descender (loop.get_body ());
         break;
       }
+#ifndef __clang__
       default:
         abort<reason::impossible> ();
+#endif
     }
     return ascend (loop, { loop.get_condition () });
   }

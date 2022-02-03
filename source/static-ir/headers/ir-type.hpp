@@ -9,7 +9,8 @@
 #define OCTAVE_IR_STATIC_IR_IR_TYPE_HPP
 
 #include "ir-common.hpp"
-#include "ir-static-id.hpp"
+#include "ir-external-function-info.hpp"
+#include "ir-object-id.hpp"
 #include "ir-type-pack.hpp"
 #include "ir-type-traits.hpp"
 
@@ -54,7 +55,8 @@ namespace gch
     std::complex<double>,
     std::complex<float>,
     std::string,
-    ir_static_block_id,
+    ir_block_id,
+    ir_external_function_info,
 
     long double *,
     double *,
@@ -780,12 +782,12 @@ namespace gch
   };
 
   template <>
-  struct ir_type_base::instance<ir_static_block_id>
+  struct ir_type_base::instance<ir_block_id>
   {
-    using type = ir_static_block_id;
+    using type = ir_block_id;
     static constexpr
     impl
-    data = create_type<ir_static_block_id> ("ir_static_block_id", ir_type_v<std::size_t>);
+    data = create_type<ir_block_id> ("ir_block_id", get_null_type ());
   };
 
   template <>
@@ -795,6 +797,15 @@ namespace gch
     static constexpr
     impl
     data = create_type<ir_block *> ("ir_block *", get_null_type ());
+  };
+
+  template <>
+  struct ir_type_base::instance<ir_external_function_info>
+  {
+    using type = ir_external_function_info;
+    static constexpr
+    impl
+    data = create_type<ir_external_function_info> ("ir_external_function_info", get_null_type ());
   };
 
 }

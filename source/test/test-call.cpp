@@ -16,7 +16,10 @@ main (void)
 
   ir_block& block = get_entry_block (my_func);
 
-  block.append_instruction<ir_opcode::call> ("print_error", "myerror");
+  block.append_instruction<ir_opcode::call> (
+    { "printf", ir_external_function_info::variadic<true> },
+    "%s\n",
+    "myerror");
 
   ir_static_function my_static_func = generate_static_function (my_func);
 

@@ -11,6 +11,7 @@
 
 #include <ostream>
 #include <iostream>
+#include <iomanip>
 
 namespace gch
 {
@@ -48,12 +49,35 @@ namespace gch
       if constexpr (is_wide_char_v<T>)
       {
         auto ptr = as<T *> (c);
+        std::stringstream ss;
         while (T val = *ptr)
-          out << static_cast<char> (val);
-        return out;
+          ss << static_cast<char> (val);
+        return out << std::quoted (ss.str ());
       }
       else
         return out << as<T *> (c);
+    }
+  };
+
+  template <>
+  struct constant_printer<char *>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_constant& c)
+    {
+      return out << std::quoted (as<char *> (c));
+    }
+  };
+
+  template <>
+  struct constant_printer<std::string>
+  {
+    static
+    std::ostream&
+    print (std::ostream& out, const ir_constant& c)
+    {
+      return out << std::quoted (as<std::string> (c));
     }
   };
 
@@ -69,13 +93,13 @@ namespace gch
   };
 
   template <>
-  struct constant_printer<ir_static_block_id>
+  struct constant_printer<ir_block_id>
   {
     static
     std::ostream&
     print (std::ostream& out, const ir_constant& c)
     {
-      return out << "BLOCK" << static_cast<std::size_t> (as<ir_static_block_id> (c));
+      return out << "BLOCK" << static_cast<std::size_t> (as<ir_block_id> (c));
     }
   };
 

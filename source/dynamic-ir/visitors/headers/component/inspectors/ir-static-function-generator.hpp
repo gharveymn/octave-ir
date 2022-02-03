@@ -34,45 +34,10 @@ namespace gch
   class ir_static_variable_map;
   class ir_variable;
 
-  class ir_def_reference
-  {
-  public:
-    ir_def_reference            (void)                        = delete;
-    ir_def_reference            (const ir_def_reference&)     = default;
-    ir_def_reference            (ir_def_reference&&) noexcept = default;
-    ir_def_reference& operator= (const ir_def_reference&)     = default;
-    ir_def_reference& operator= (ir_def_reference&&) noexcept = default;
-    ~ir_def_reference           (void)                        = default;
-
-    ir_def_reference (const ir_def& d, bool is_indeterminate);
-
-    [[nodiscard]]
-    const ir_def&
-    operator* (void) const noexcept;
-
-    [[nodiscard]]
-    bool
-    is_indeterminate (void) const noexcept;
-
-    [[nodiscard]]
-    bool
-    is_determinate (void) const noexcept;
-
-    void
-    set_def (const ir_def& d) noexcept;
-
-    void
-    set_indeterminate_state (bool b) noexcept;
-
-  private:
-    nonnull_cptr<ir_def> m_def;
-    bool                 m_is_indeterminate;
-  };
-
   class ir_static_variable_map
   {
     using origin_map_type = std::unordered_map<nonnull_cptr<ir_use_timeline>,
-                                               std::optional<ir_def_reference>>;
+                                               optional_cref<ir_def>>;
 
   public:
     ir_static_variable_map            (void)                              = delete;
@@ -86,16 +51,16 @@ namespace gch
     ir_static_variable_map (const ir_function& func);
 
     ir_static_variable&
-    operator[] (ir_static_variable_id var_id);
+    operator[] (ir_variable_id var_id) noexcept;
 
     const ir_static_variable&
-    operator[] (ir_static_variable_id var_id) const;
+    operator[] (ir_variable_id var_id) const noexcept;
 
     ir_static_variable&
-    operator[] (const ir_variable& var);
+    operator[] (const ir_variable& var) noexcept;
 
     const ir_static_variable&
-    operator[] (const ir_variable& var) const;
+    operator[] (const ir_variable& var) const noexcept;
 
     ir_static_def
     create_static_def (const ir_def& def) const;
@@ -103,95 +68,57 @@ namespace gch
     ir_static_use
     create_static_use (const ir_use& use) const;
 
-    ir_static_variable_id
-    get_variable_id (const ir_variable& var) const;
-
-    ir_static_variable_id
+    ir_variable_id
     get_variable_id (const ir_static_variable& svar) const;
 
-    ir_static_def_id
-    get_def_id (const ir_def& def) const;
-
-    ir_static_def_id
-    get_def_id (const ir_def_reference& dr) const;
-
-    std::optional<ir_static_def_id>
+    std::optional<ir_def_id>
     origin_id (const ir_use_timeline& ut) const;
 
-    std::optional<ir_static_def_id>
+    std::optional<ir_def_id>
     origin_id (const ir_use& use) const;
 
-    std::optional<ir_static_def_id>
+    std::optional<ir_def_id>
     origin_id (optional_cref<ir_use_timeline> ut) const;
 
-    std::optional<ir_def_reference>&
+    optional_cref<ir_def>&
     map_origin (const ir_use_timeline& ut, const ir_def& def);
 
-    std::optional<ir_def_reference>&
+    optional_cref<ir_def>&
     map_origin (const ir_use_timeline& ut, optional_cref<ir_def> origin);
 
-    std::optional<ir_def_reference>&
-    map_origin (const ir_use_timeline& ut, const std::optional<ir_def_reference>& origin);
-
-    std::optional<ir_def_reference>&
+    optional_cref<ir_def>&
     map_origin (const ir_use_timeline& ut);
 
     bool
     has_origin (const ir_use_timeline& ut) const;
 
-    std::optional<ir_def_reference>&
-    get_origin (const ir_use_timeline& ut);
-
-    const std::optional<ir_def_reference>&
-    get_origin (const ir_use_timeline& ut) const;
-
-    optional_ref<std::optional<ir_def_reference>>
-    maybe_get_origin (const ir_use_timeline& ut);
-
-    optional_cref<std::optional<ir_def_reference>>
-    maybe_get_origin (const ir_use_timeline& ut) const;
-
     std::vector<ir_static_variable>&&
     release_variables (void) noexcept;
 
-    std::pair<nonnull_ptr<ir_static_variable>, ir_static_variable_id>
+    std::pair<nonnull_ptr<ir_static_variable>, ir_variable_id>
     add_orphaned_static_variable (const std::string& name, ir_type type);
 
   private:
-    ir_static_def_id
-    register_def (const ir_def& d);
-
-    origin_map_type                                                      m_origin_map;
-    std::unordered_map<nonnull_cptr<ir_variable>, ir_static_variable_id> m_var_id_map;
-    std::unordered_map<nonnull_cptr<ir_def>,      ir_static_def_id>      m_def_id_map;
-    std::vector<ir_static_variable>                                      m_variables;
+    origin_map_type                 m_origin_map;
+    std::vector<ir_static_variable> m_variables;
   };
 
   class ir_static_incoming_pair
   {
   public:
-    ir_static_incoming_pair (ir_static_block_id block_id,
-                             std::optional<ir_static_def_id> def_id) noexcept;
+    ir_static_incoming_pair (ir_block_id block_id, std::optional<ir_def_id> def_id) noexcept;
 
     [[nodiscard]]
-    ir_static_block_id
+    ir_block_id
     get_block_id (void) const noexcept;
 
     [[nodiscard]]
-    bool
-    has_def_id (void) const noexcept;
-
-    [[nodiscard]]
-    ir_static_def_id
-    get_def_id (void) const;
-
-    [[nodiscard]]
-    std::optional<ir_static_def_id>
+    std::optional<ir_def_id>
     maybe_get_def_id (void) const noexcept;
 
   private:
-    ir_static_block_id              m_block_id;
-    std::optional<ir_static_def_id> m_def_id;
+    ir_block_id              m_block_id;
+    std::optional<ir_def_id> m_def_id;
   };
 
   class ir_resolved_phi_node
@@ -204,10 +131,10 @@ namespace gch
     ir_resolved_phi_node& operator= (ir_resolved_phi_node&&) noexcept = default;
     ~ir_resolved_phi_node           (void)                            = default;
 
-    ir_resolved_phi_node (ir_static_def_id id, small_vector<ir_static_incoming_pair>&& incoming);
+    ir_resolved_phi_node (ir_def_id id, small_vector<ir_static_incoming_pair>&& incoming);
 
     [[nodiscard]]
-    ir_static_def_id
+    ir_def_id
     get_id (void) const noexcept;
 
     [[nodiscard]]
@@ -223,7 +150,7 @@ namespace gch
     has_incoming (void) const noexcept;
 
   private:
-    ir_static_def_id                      m_id;
+    ir_def_id                             m_id;
     small_vector<ir_static_incoming_pair> m_incoming;
   };
 
@@ -291,10 +218,6 @@ namespace gch
     [[nodiscard]]
     ir_instruction_citer
     get_injection_pos (void) const noexcept;
-
-    [[nodiscard]]
-    small_vector<ir_static_instruction>&&
-    release_instructions (void) noexcept;
 
     [[nodiscard]]
     bool
@@ -462,7 +385,7 @@ namespace gch
     using injections_riter   = injections_reverse_iterator;
     using injections_criter  = injections_const_reverse_iterator;
 
-    using successors_container_type          = small_vector<ir_static_block_id, 2>;
+    using successors_container_type          = small_vector<ir_block_id, 2>;
     using successors_value_type              = successors_container_type::value_type;
     using successors_allocator_type          = successors_container_type::allocator_type;
     using successors_size_type               = successors_container_type::size_type;
@@ -499,12 +422,12 @@ namespace gch
     ~ir_block_descriptor           (void)                           = default;
 
     explicit
-    ir_block_descriptor (ir_static_block_id id) noexcept;
+    ir_block_descriptor (ir_block_id id) noexcept;
 
-    ir_block_descriptor (ir_static_block_id id, successors_container_type&& successor_ids) noexcept;
+    ir_block_descriptor (ir_block_id id, successors_container_type&& successor_ids) noexcept;
 
     [[nodiscard]]
-    ir_static_block_id
+    ir_block_id
     get_id (void) const noexcept;
 
     [[nodiscard]]
@@ -572,10 +495,10 @@ namespace gch
     has_successors (void) const noexcept;
 
     void
-    add_successor (ir_static_block_id id);
+    add_successor (ir_block_id id);
 
     void
-    add_phi_node (const ir_variable& var, ir_static_def_id id,
+    add_phi_node (const ir_variable& var, ir_def_id id,
                   small_vector<ir_static_incoming_pair>&& incoming);
 
     template <typename ...Args>
@@ -617,7 +540,7 @@ namespace gch
     get_terminal_instruction (void) const noexcept;
 
   private:
-    ir_static_block_id                   m_id;
+    ir_block_id                          m_id;
     phi_map_type                         m_phi_nodes;
     injections_container_type            m_injections;
     successors_container_type            m_successors;
@@ -679,7 +602,7 @@ namespace gch
     operator[] (const ir_block& block) const;
 
     [[nodiscard]]
-    ir_static_block_id
+    ir_block_id
     create_injected_block (void) noexcept;
 
     [[nodiscard]]
@@ -697,10 +620,6 @@ namespace gch
     [[nodiscard]]
     bool
     contains (const ir_block& block) const;
-
-    [[nodiscard]]
-    ir_variable&
-    create_temp_variable (const ir_component& c, std::string_view name, ir_type ty);
 
     [[nodiscard]]
     iterator
@@ -735,7 +654,6 @@ namespace gch
 
     nonnull_cptr<ir_function> m_function;
     map_type                  m_descriptor_map;
-    std::list<ir_variable>    m_temp_variables;
     std::size_t               m_num_injected_blocks = 0;
   };
 

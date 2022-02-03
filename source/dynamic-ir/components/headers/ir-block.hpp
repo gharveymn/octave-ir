@@ -544,9 +544,13 @@ namespace gch
     // templated functions
     //
 
+    template <ir_opcode Op, typename Enable = void>
+    struct instruction_emplacer;
+
     // with return (places instruction immediately before `pos`)
     template <ir_opcode Op, typename ...Args,
-              std::enable_if_t<ir_instruction_traits<Op>::has_def> * = nullptr>
+              std::enable_if_t<ir_instruction_traits<Op>::has_def
+                           &&  Op != ir_opcode::call> * = nullptr>
     ir_instruction&
     emplace_instruction (const citer pos, ir_variable& var, Args&&... args)
     {
@@ -567,26 +571,83 @@ namespace gch
       return *it;
     }
 
+    template <ir_opcode Op, typename ...Args,
+              std::enable_if_t<ir_instruction_traits<Op>::has_def
+                           &&  Op == ir_opcode::call> * = nullptr>
+    ir_instruction&
+    emplace_instruction (const citer pos,
+                         ir_variable& var,
+                         const ir_external_function_info& info,
+                         Args&&... args)
+    {
+      iter it = emplace<range::body, Op> (
+        pos,
+        var,
+        ir_constant (info),
+        prepare_operand (pos, std::forward<Args> (args))...);
+
+      try
+      {
+        track_def_at (it, var);
+      }
+      catch (...)
+      {
+        erase<range::body> (it);
+        throw;
+      }
+      return *it;
+    }
+
     // no return (places instruction immediately before `pos`)
-    template <ir_opcode Op, typename ...Args>
+    template <ir_opcode Op, typename ...Args,
+              std::enable_if_t<Op != ir_opcode::call> * = nullptr>
     ir_instruction&
     emplace_instruction (const citer pos, Args&&... args)
     {
       return *emplace<range::body, Op> (pos, prepare_operand (pos, std::forward<Args> (args))...);
     }
 
-    template <ir_opcode Op, typename ...Args>
+    template <ir_opcode Op, typename ...Args,
+              std::enable_if_t<Op == ir_opcode::call> * = nullptr>
+    ir_instruction&
+    emplace_instruction (const citer pos, const ir_external_function_info& info, Args&&... args)
+    {
+      return *emplace<range::body, Op> (
+        pos,
+        ir_constant (info),
+        prepare_operand (pos, std::forward<Args> (args))...);
+    }
+
+    template <ir_opcode Op, typename ...Args,
+              std::enable_if_t<Op != ir_opcode::call> * = nullptr>
     ir_instruction&
     append_instruction (Args&&... args)
     {
       return emplace_instruction<Op> (end<range::body> (), std::forward<Args> (args)...);
     }
 
-    template <ir_opcode Op, typename ...Args>
+    template <ir_opcode Op, typename ...Args,
+              std::enable_if_t<Op == ir_opcode::call> * = nullptr>
+    ir_instruction&
+    append_instruction (const ir_external_function_info& info, Args&&... args)
+    {
+      return emplace_instruction<Op> (end<range::body> (), info, std::forward<Args> (args)...);
+    }
+
+    template <ir_opcode Op, typename ...Args,
+              std::enable_if_t<Op != ir_opcode::call> * = nullptr>
     ir_instruction&
     prepend_instruction (Args&&... args)
     {
       return emplace_instruction<Op> (begin<range::body> (), std::forward<Args> (args)...);
+    }
+
+    template <ir_opcode Op, typename ...Args,
+              std::enable_if_t<Op == ir_opcode::call> * = nullptr>
+    ir_instruction&
+    prepend_instruction (const ir_external_function_info& info, Args&&... args)
+    {
+      return emplace_instruction<Op> (begin<range::body> (), info, std::forward<Args> (args)...);
     }
 
     std::string_view

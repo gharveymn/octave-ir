@@ -13,13 +13,11 @@
 namespace gch
 {
 
-  static_assert (std::is_same_v<ir_def::id_type, ir_variable::id_type>, "id types should match");
-
   ir_def::
   ir_def (ir_instruction& instr, ir_variable& var) noexcept
     : m_instruction { instr },
       m_variable    { var },
-      m_id          { var.create_id () }
+      m_id          { var.create_def_id () }
   { }
 
   ir_def::
@@ -67,10 +65,9 @@ namespace gch
     return *m_variable;
   }
 
-  auto
+  ir_def_id
   ir_def::
   get_id (void) const noexcept
-    -> id_type
   {
     return m_id;
   }

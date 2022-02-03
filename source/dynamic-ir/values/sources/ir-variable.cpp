@@ -13,28 +13,39 @@ namespace gch
 {
 
   ir_variable::
-  ir_variable (const ir_component& c, std::string_view name, ir_type type)
+  ir_variable (const ir_component& c, ir_variable_id id, std::string_view name, ir_type type)
     : m_component (c),
+      m_id        (id),
       m_name      (name),
       m_type      (type)
   { }
 
   ir_variable::
-  ir_variable (const ir_component& c, ir_type type)
+  ir_variable (const ir_component& c, ir_variable_id id, std::string_view name)
     : m_component (c),
-      m_type      (type)
-  { }
-
-  ir_variable::
-  ir_variable (const ir_component& c, std::string_view name)
-    : m_component (c),
+      m_id        (id),
       m_name      (name)
   { }
 
   ir_variable::
-  ir_variable (const ir_component& c)
-    : m_component (c)
+  ir_variable (const ir_component& c, ir_variable_id id, ir_type type)
+    : m_component (c),
+      m_id        (id),
+      m_type      (type)
   { }
+
+  ir_variable::
+  ir_variable (const ir_component& c, ir_variable_id id)
+    : m_component (c),
+      m_id        (id)
+  { }
+
+  ir_variable_id
+  ir_variable::
+  get_id (void) const noexcept
+  {
+    return m_id;
+  }
 
   std::string_view
   ir_variable::
@@ -64,12 +75,18 @@ namespace gch
     m_type = ty;
   }
 
-  auto
+  ir_def_id
   ir_variable::
-  create_id (void) noexcept
-    -> id_type
+  create_def_id (void) noexcept
   {
-    return m_curr_id++;
+    return m_curr_def_id++;
+  }
+
+  std::size_t
+  ir_variable::
+  get_num_defs (void) const noexcept
+  {
+    return m_curr_def_id;
   }
 
   ir_type

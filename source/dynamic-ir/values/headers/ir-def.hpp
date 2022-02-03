@@ -8,6 +8,8 @@
 #ifndef OCTAVE_IR_DYNAMIC_IR_IR_DEF_HPP
 #define OCTAVE_IR_DYNAMIC_IR_IR_DEF_HPP
 
+#include "ir-object-id.hpp"
+
 #include <gch/nonnull_ptr.hpp>
 
 #include <string_view>
@@ -24,8 +26,6 @@ namespace gch
   class ir_def
   {
   public:
-    using id_type = int;
-
     ir_def            (void)                = delete;
     ir_def            (const ir_def&)       = delete;
     ir_def            (ir_def&& d) noexcept = default;
@@ -54,7 +54,7 @@ namespace gch
     get_variable (void) const noexcept;
 
     [[nodiscard]]
-    id_type
+    ir_def_id
     get_id (void) const noexcept;
 
     [[nodiscard]]
@@ -79,7 +79,7 @@ namespace gch
   private:
     nonnull_ptr<ir_instruction> m_instruction;
     nonnull_ptr<ir_variable>    m_variable;
-    id_type                     m_id;
+    ir_def_id                   m_id;
   };
 
 }

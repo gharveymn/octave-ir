@@ -15,6 +15,12 @@
 namespace gch
 {
 
+  extern template class abstract_inspector<ir_block>;
+  extern template class abstract_inspector<ir_component_fork>;
+  extern template class abstract_inspector<ir_component_loop>;
+  extern template class abstract_inspector<ir_component_sequence>;
+  extern template class abstract_inspector<ir_function>;
+
   class ir_abstract_component_inspector
     : public visitor_traits<ir_abstract_component_inspector>,
       public abstract_inspector<ir_block,
