@@ -58,7 +58,8 @@ namespace gch
 
     static constexpr
     result_type
-    visit (ir_function&) noexcept { }
+    visit (ir_function&) noexcept
+    { }
 
     result_type
     ascend (ir_substructure& sub, ir_link_set<ir_block>&& sub_result) const;

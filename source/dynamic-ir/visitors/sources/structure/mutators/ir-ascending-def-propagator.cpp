@@ -57,10 +57,10 @@ namespace gch
   template <>
   auto
   ir_ascending_def_propagator::acceptor_type<ir_function>::
-  accept (visitor_reference_t<ir_ascending_def_propagator> v)
+  accept (visitor_reference_t<ir_ascending_def_propagator>)
     -> result_type
   {
-    return v.visit (static_cast<concrete_reference> (*this));
+    return ir_ascending_def_propagator::visit (static_cast<concrete_reference> (*this));
   }
 
   ir_ascending_def_propagator::

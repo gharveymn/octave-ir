@@ -107,8 +107,9 @@ namespace gch
     -> result_type
   {
     return dispatch_descender (fork.get_condition ())
-       ||  std::all_of (fork.cases_begin (), fork.cases_end (),
-                        [this](ir_subcomponent& sub) { return dispatch_descender (sub); });
+       ||  std::all_of (fork.cases_begin (), fork.cases_end (), [&](ir_subcomponent& sub) {
+             return dispatch_descender (sub);
+           });
   }
 
   auto
@@ -127,8 +128,9 @@ namespace gch
   visit (ir_component_sequence& seq) const
     -> result_type
   {
-    return std::any_of (seq.begin (), seq.end (),
-                        [this](ir_subcomponent& sub) { return dispatch_descender (sub); });
+    return std::any_of (seq.begin (), seq.end (), [&](ir_subcomponent& sub) {
+      return dispatch_descender (sub);
+    });
   }
 
   auto

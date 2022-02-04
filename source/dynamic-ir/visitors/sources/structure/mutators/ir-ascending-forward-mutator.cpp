@@ -54,22 +54,22 @@ namespace gch
   template <>
   auto
   ir_ascending_forward_mutator::acceptor_type<ir_function>::
-  accept (visitor_reference_t<ir_ascending_forward_mutator> v)
+  accept (visitor_reference_t<ir_ascending_forward_mutator>)
     -> result_type
   {
-    return v.visit (static_cast<concrete_reference> (*this));
+    return ir_ascending_forward_mutator::visit (static_cast<concrete_reference> (*this));
   }
 
   ir_ascending_forward_mutator::
   ir_ascending_forward_mutator (ir_subcomponent& sub, const functor_type& functor)
     : ir_subcomponent_mutator (sub),
-      m_functor         (functor)
+      m_functor               (functor)
   { }
 
   ir_ascending_forward_mutator::
   ir_ascending_forward_mutator (ir_subcomponent& sub, functor_type&& functor)
     : ir_subcomponent_mutator (sub),
-      m_functor         (std::move (functor))
+      m_functor               (std::move (functor))
   { }
 
   auto
@@ -88,12 +88,11 @@ namespace gch
     if (! fork.is_condition (get_subcomponent ()))
       return ascend (fork);
 
-    bool all_stopped = std::all_of (fork.cases_begin (), fork.cases_end (),
-                                    [this](ir_subcomponent& sub)
-                                    {
-                                      return dispatch_descender (sub);
-                                    });
-    if (! all_stopped)
+    bool stop = std::all_of (fork.cases_begin (), fork.cases_end (), [&](ir_subcomponent& sub) {
+      return dispatch_descender (sub);
+    });
+
+    if (! stop)
       return ascend (fork);
   }
 
@@ -135,12 +134,11 @@ namespace gch
     auto pos = seq.find (get_subcomponent ());
     assert (pos != seq.end ());
 
-    bool found_stop = std::any_of (std::next (pos), seq.end (),
-                                   [this](ir_subcomponent& sub)
-                                   {
-                                     return dispatch_descender (sub);
-                                   });
-    if (! found_stop)
+    bool stop = std::any_of (std::next (pos), seq.end (), [&](ir_subcomponent& sub) {
+      return dispatch_descender (sub);
+    });
+
+    if (! stop)
       return ascend (seq);
   }
 
