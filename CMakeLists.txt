@@ -14,7 +14,7 @@ project (
 string (COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _EXTRAS_DEFAULT)
 
 option (
-  GCH_OCTAVE_IR_BUILD_TESTS
+  GCH_OCTAVE_IR_ENABLE_TESTS
   "Set to ON to build tests for gch::octave-ir."
   ${_EXTRAS_DEFAULT}
 )
@@ -89,7 +89,7 @@ add_subdirectory (external/small_vector)
 add_subdirectory (external/tracker)
 add_subdirectory (external/variant-iterator)
 
-if (GCH_OCTAVE_IR_BUILD_TESTS)
+if (GCH_OCTAVE_IR_ENABLE_TESTS)
   enable_testing ()
 endif ()
 

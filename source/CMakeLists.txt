@@ -12,6 +12,10 @@ add_library (octave-ir.common INTERFACE)
 
 target_compile_features (octave-ir.common INTERFACE cxx_std_${GCH_OCTAVE_IR_CXX_STANDARD})
 
+if (NOT DEFINED CMAKE_CXX_STANDARD_REQUIRED)
+  set (CMAKE_CXX_STANDARD_REQUIRED OFF)
+endif ()
+
 if (NOT DEFINED CMAKE_CXX_EXTENSIONS)
   set (CMAKE_CXX_EXTENSIONS OFF)
 endif ()
@@ -204,6 +208,6 @@ if (GCH_OCTAVE_IR_BUILD_COMPILER)
   add_subdirectory (compiler)
 endif ()
 
-if (GCH_OCTAVE_IR_BUILD_TESTS)
+if (GCH_OCTAVE_IR_ENABLE_TESTS)
   add_subdirectory (test)
 endif ()

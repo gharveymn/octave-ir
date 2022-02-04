@@ -1,4 +1,9 @@
-set (GCH_OCTAVE_IR_LLVM_PATH "" CACHE STRING "A user specified path to an LLVM installation")
+set (
+  GCH_OCTAVE_IR_LLVM_PATH
+  ""
+  CACHE PATH
+  "Specify the path to an LLVM installation."
+)
 
 if (GCH_OCTAVE_IR_LLVM_PATH)
   find_package (LLVM 13 EXACT REQUIRED CONFIG PATHS "${GCH_OCTAVE_IR_LLVM_PATH}" NO_DEFAULT_PATH)
