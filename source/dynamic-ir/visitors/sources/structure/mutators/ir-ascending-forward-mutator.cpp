@@ -103,6 +103,7 @@ namespace gch
   {
     using id = ir_component_loop::subcomponent_id;
 
+    // FIXME: Simplify.
     switch (loop.get_id (get_subcomponent ()))
     {
       case id::start:
@@ -110,20 +111,42 @@ namespace gch
           return;
         [[fallthrough]];
       case id::condition:
-        if (dispatch_descender (loop.get_body ()))
+        if (! dispatch_descender (loop.get_body ()))
+          dispatch_descender (loop.get_update ());
+
+        if (dispatch_descender (loop.get_after ()))
           return;
-        [[fallthrough]];
+        break;
       case id::body:
         if (dispatch_descender (loop.get_update ()))
           return;
-        [[fallthrough]];
+
+        if (dispatch_descender (loop.get_condition ()))
+          return;
+
+        if (dispatch_descender (loop.get_after ()))
+          return;
+
+        break;
       case id::update:
-        return ascend (loop);
+        if (dispatch_descender (loop.get_condition ()))
+          return;
+
+        dispatch_descender (loop.get_body ());
+
+        if (dispatch_descender (loop.get_after ()))
+          return;
+
+        break;
+      case id::after:
+        break;
 #ifndef __clang__
       default:
         abort<reason::impossible> ();
 #endif
     }
+
+    return ascend (loop);
   }
 
   auto

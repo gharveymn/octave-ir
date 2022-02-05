@@ -16,15 +16,26 @@ main (void)
 
   ir_block& block = get_entry_block (my_func);
 
+  ir_variable& stderr_var = my_func.create_variable<void *> ("stderr");
+  block.append_instruction_with_def<ir_opcode::call> (
+    stderr_var,
+    ir_external_function_info { "__acrt_iob_func" },
+    static_cast<std::uint32_t> (2));
+
   block.append_instruction<ir_opcode::call> (
-    { "fprintf" },
-    static_cast<void *> (stderr),
+    ir_external_function_info { "fprintf" },
+    stderr_var,
     "%s\n",
     "myerror");
 
+  block.append_instruction_with_def<ir_opcode::call> (
+    stderr_var,
+    ir_external_function_info { "__acrt_iob_func" },
+    static_cast<std::uint32_t> (2));
+
   block.append_instruction<ir_opcode::call> (
-    { "fflush" },
-    static_cast<void *> (stderr));
+    ir_external_function_info { "fflush" },
+    stderr_var);
 
   ir_static_function my_static_func = generate_static_function (my_func);
 
@@ -35,10 +46,9 @@ main (void)
 
   try
   {
-    auto *proto = reinterpret_cast<void (*)(void)> (jit.compile (my_static_func));
-    proto ();
+    invoke_compiled_function (jit.compile (my_static_func));
   }
-  catch (std::exception& e)
+  catch (const std::exception& e)
   {
     std::cerr << e.what () << std::endl;
     return 1;

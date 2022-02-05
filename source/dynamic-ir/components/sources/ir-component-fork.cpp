@@ -16,9 +16,22 @@ namespace gch
 {
 
   ir_component_fork::
-  ir_component_fork (ir_structure& parent, ir_variable& condition_var)
+  ir_component_fork (ir_structure& parent,
+                     ir_variable& condition_var,
+                     std::initializer_list<ir_component_mover> init)
     : ir_substructure (parent),
-      m_condition     (*this, condition_var)
+      m_condition     (*this, condition_var),
+      m_cases         (init.begin (), init.end ())
+  { }
+
+  ir_component_fork::
+  ir_component_fork (ir_structure& parent, ir_variable& condition_var, ir_component_mover init)
+    : ir_component_fork (parent, condition_var, { init })
+  { }
+
+  ir_component_fork::
+  ir_component_fork (ir_structure& parent, ir_variable& condition_var)
+    : ir_component_fork (parent, condition_var, { })
   { }
 
   ir_component_fork::

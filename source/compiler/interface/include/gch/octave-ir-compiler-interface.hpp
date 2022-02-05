@@ -17,7 +17,12 @@ namespace gch
   class octave_jit_compiler_impl
   {
   public:
-    virtual ~octave_jit_compiler_impl (void) = default;
+    octave_jit_compiler_impl            (void)                                = default;
+    octave_jit_compiler_impl            (const octave_jit_compiler_impl&)     = default;
+    octave_jit_compiler_impl            (octave_jit_compiler_impl&&) noexcept = default;
+    octave_jit_compiler_impl& operator= (const octave_jit_compiler_impl&)     = default;
+    octave_jit_compiler_impl& operator= (octave_jit_compiler_impl&&) noexcept = default;
+    virtual ~octave_jit_compiler_impl   (void)                                = default;
 
     virtual
     void *
@@ -25,10 +30,8 @@ namespace gch
 
     virtual
     void
-    enable_printing (bool printing = true)
-    {
-      static_cast<void> (printing);
-    }
+    enable_printing (bool)
+    { }
   };
 
   class octave_jit_compiler
@@ -51,20 +54,12 @@ namespace gch
       return m_impl->compile (func);
     }
 
-    template <typename T>
-    static
-    octave_jit_compiler
-    create (void)
-    {
-      return { type_tag<T> { } };
-    }
-
     template <typename T, typename ...Args>
     static
     octave_jit_compiler
     create (Args&&... args)
     {
-      return { type_tag<T> { }, std::forward<Args...> (args...) };
+      return octave_jit_compiler { type_tag<T> { }, std::forward<Args> (args)... };
     }
 
     void
@@ -74,14 +69,10 @@ namespace gch
     }
 
   private:
-    template <typename T>
-    octave_jit_compiler (type_tag<T>)
-      : m_impl (std::make_unique<T> ())
-    { }
-
     template <typename T, typename ...Args>
+    explicit
     octave_jit_compiler (type_tag<T>, Args&&... args)
-      : m_impl (std::make_unique<T> (std::forward<Args...> (args...)))
+      : m_impl (std::make_unique<T> (std::forward<Args> (args)...))
     { }
 
     std::unique_ptr<octave_jit_compiler_impl> m_impl;

@@ -54,6 +54,11 @@ namespace gch
       m_find_cache    { make_handle (begin ()) }
   { }
 
+  ir_component_sequence::
+  ir_component_sequence (ir_structure& parent, ir_component_mover init)
+    : ir_component_sequence (parent, { init })
+  { }
+
   auto
   ir_component_sequence::
   make_mutable (const citer cit)
@@ -250,9 +255,10 @@ namespace gch
     if (m_find_cache.contains (sub))
       return m_find_cache.get ();
 
-    iter found = std::find_if (as_mutable (*this).begin (),
-                               as_mutable (*this).end (),
-                               [&](const ir_component& cmp) { return &cmp == &sub; });
+    iter found = std::find_if (as_mutable (*this).begin (), as_mutable (*this).end (),
+                               [&](const ir_component& cmp) {
+                                 return &cmp == &sub;
+                               });
 
     if (found != end ())
       m_find_cache.emplace (make_handle (found));

@@ -12,34 +12,34 @@ using namespace gch;
 int
 main (void)
 {
-  static constexpr bool expected = false;
+  static constexpr bool expected = true;
 
-  ir_function my_func ("y", "myfunc");
-  ir_variable& var_x = my_func.get_variable ("x");
-  var_x.set_type<int> ();
+  ir_function my_func ({ "out", ir_type_v<bool> }, { { "in", ir_type_v<int> } }, "myfunc");
+  ir_variable& var_in = my_func.get_variable ("in");
+  ir_variable& var_out = my_func.get_variable ("out");
 
-  ir_variable& var_y = my_func.get_variable ("y");
-  var_y.set_type<bool> ();
-
-  ir_variable& var_tmp = my_func.get_variable ("tmp");
-  var_tmp.set_type<int> ();
+  ir_variable& var_cmp = my_func.create_variable<bool> ();
 
   auto& seq = dynamic_cast<ir_component_sequence&> (my_func.get_body ());
   ir_block& entry = get_entry_block (seq);
-  entry.append_instruction<ir_opcode::assign> (var_x, ir_constant (0));
 
-  auto& fork = seq.emplace_back<ir_component_fork> (var_tmp);
+  auto& fork = seq.emplace_back<ir_component_fork> (var_cmp);
   ir_block& condition_block = fork.get_condition ();
   auto& true_block = fork.add_case<ir_block> ();
   auto& false_block = fork.add_case<ir_block> ();
 
-  condition_block.append_instruction<ir_opcode::eq> (var_tmp, var_x, ir_constant (1));
+  entry          .set_name ("entry");
+  condition_block.set_name ("condition");
+  true_block     .set_name ("true");
+  false_block    .set_name ("false");
 
-  true_block.append_instruction<ir_opcode::assign> (var_y, ir_constant (true));
-  false_block.append_instruction<ir_opcode::assign> (var_y, ir_constant (false));
+  condition_block.append_instruction_with_def<ir_opcode::eq> (
+    condition_block.get_condition_variable (),
+    var_in,
+    ir_constant (1));
 
-  auto& after = seq.emplace_back<ir_block> ();
-  after.append_instruction<ir_opcode::ret> (var_y);
+  true_block.append_instruction_with_def<ir_opcode::assign> (var_out, expected);
+  // Do nothing in the false block.
 
   ir_static_function my_static_func = generate_static_function (my_func);
 
@@ -48,10 +48,11 @@ main (void)
   auto jit = octave_jit_compiler::create<octave_jit_compiler_llvm> ();
   jit.enable_printing ();
 
+  void *func = jit.compile (my_static_func);
   try
   {
-    auto *proto = reinterpret_cast<bool (*)(void)> (jit.compile (my_static_func));
-    bool res = proto ();
+    auto *proto = reinterpret_cast<bool (*)(int)> (func);
+    bool res = proto (1);
 
     std::cout << "Result:    " << res << "\n";
     std::cout << "Expected:  " << expected << std::endl;
@@ -59,11 +60,23 @@ main (void)
     if (expected != res)
       return 1;
   }
-  catch (std::exception& e)
+  catch (const std::exception& e)
   {
     std::cerr << e.what () << std::endl;
     return 1;
   }
 
-  return 0;
+  // We expect to fail the second time.
+  try
+  {
+    invoke_compiled_function (func, 0);
+  }
+  catch (const std::exception& e)
+  {
+    std::cerr << e.what () << std::endl;
+    return 0;
+  }
+
+  return 1;
+
 }

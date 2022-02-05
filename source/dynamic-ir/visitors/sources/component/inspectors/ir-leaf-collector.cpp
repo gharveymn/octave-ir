@@ -199,8 +199,9 @@ namespace gch
     -> result_type
   {
     result_type ret;
-    std::for_each (fork.cases_begin (), fork.cases_end (),
-                   [&](const ir_subcomponent& sub) { ret |= subcomponent_result (sub); });
+    std::for_each (fork.cases_begin (), fork.cases_end (), [&](const ir_subcomponent& sub) {
+      ret |= subcomponent_result (sub);
+    });
     return ret;
   }
 
@@ -209,7 +210,7 @@ namespace gch
   visit (const ir_component_loop& loop) const
     -> result_type
   {
-    return subcomponent_result (loop.get_condition ());
+    return subcomponent_result (loop.get_after ());
   }
 
   auto

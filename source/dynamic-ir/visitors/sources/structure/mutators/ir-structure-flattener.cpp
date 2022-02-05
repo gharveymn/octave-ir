@@ -70,8 +70,9 @@ namespace gch
   visit (ir_component_fork& fork) const
   {
     maybe_recurse (fork.get_condition ());
-    std::for_each (fork.cases_begin (), fork.cases_end (),
-                   [this](ir_subcomponent& sub) { maybe_recurse (sub); });
+    std::for_each (fork.cases_begin (), fork.cases_end (), [&](ir_subcomponent& sub) {
+      maybe_recurse (sub);
+    });
   }
 
   void
@@ -82,6 +83,7 @@ namespace gch
     maybe_recurse (loop.get_condition ());
     maybe_recurse (loop.get_body ());
     maybe_recurse (loop.get_update ());
+    maybe_recurse (loop.get_after ());
   }
 
   void
@@ -102,7 +104,7 @@ namespace gch
   ir_structure_flattener::
   maybe_recurse (ir_subcomponent& sub) const
   {
-    maybe_cast<ir_structure> (sub) >>= [this](ir_structure& s) { (*this) (s); };
+    maybe_cast<ir_structure> (sub) >>= [&](ir_structure& s) { (*this) (s); };
   }
 
 }

@@ -92,6 +92,8 @@ namespace gch
 
     ir_component_sequence (ir_structure& parent, std::initializer_list<ir_component_mover> init);
 
+    ir_component_sequence (ir_structure& parent, ir_component_mover init);
+
     [[nodiscard]]
     iter
     begin (void) noexcept;

@@ -151,6 +151,10 @@ namespace gch
   visit (const ir_component_loop& loop) const
     -> result_type
   {
+    result_type after_res { dispatch_descender (loop.get_after ()) };
+    if (after_res.is_resolvable ())
+      return after_res;
+
     result_type cond_res { dispatch_descender (loop.get_condition ()) };
     if (cond_res.is_resolvable ())
       return cond_res;

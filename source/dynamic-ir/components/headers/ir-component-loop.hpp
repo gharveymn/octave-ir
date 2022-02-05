@@ -25,6 +25,7 @@ namespace gch
       condition,
       body     ,
       update   ,
+      after    ,
     };
 
     using ptr  = ir_component_ptr;
@@ -38,6 +39,8 @@ namespace gch
     ~ir_component_loop (void) noexcept override;
 
     ir_component_loop (ir_structure& parent, ir_variable& condition_var);
+
+    ir_component_loop (ir_structure& parent, ir_variable& condition_var, ir_component_mover comp);
 
     [[nodiscard]]
     ir_subcomponent&
@@ -72,6 +75,14 @@ namespace gch
     get_update (void) const noexcept;
 
     [[nodiscard]]
+    ir_subcomponent&
+    get_after (void) noexcept;
+
+    [[nodiscard]]
+    const ir_subcomponent&
+    get_after (void) const noexcept;
+
+    [[nodiscard]]
     bool
     is_start (const ir_subcomponent& sub) const noexcept;
 
@@ -88,18 +99,23 @@ namespace gch
     is_update (const ir_subcomponent& sub) const noexcept;
 
     [[nodiscard]]
+    bool
+    is_after (const ir_subcomponent& sub) const noexcept;
+
+    [[nodiscard]]
     subcomponent_id
     get_id (const ir_subcomponent& c) const;
 
   private:
     std::unique_ptr<ir_subcomponent> m_start;     // preds: [pred]        | succs: condition
-    ir_block                         m_condition; // preds: start, update | succs: body, [succ]
+    ir_block                         m_condition; // preds: start, update | succs: body, after
     std::unique_ptr<ir_subcomponent> m_body;      // preds: condition     | succs: update
     std::unique_ptr<ir_subcomponent> m_update;    // preds: body          | succs: condition
+    std::unique_ptr<ir_subcomponent> m_after;     // preds: body          | succs: condition
 
-    //          +-----+     +---------+
-    // [] +---> |start| +-> |condition| +---> []
-    //          +-----+     +---------+
+    //          +-----+     +---------+     +-----+
+    // [] +---> |start| +-> |condition| +-> |after| +---> []
+    //          +-----+     +---------+     +-----+
     //
     //                      +         ^
     //                      |         |

@@ -14,15 +14,33 @@
 #  endif
 #endif
 
+#include "jit-exception.hpp"
+
 #include "gch/octave-ir-compiler-llvm.hpp"
 #include "ir-static-function.hpp"
 #include "ir-all-components.hpp"
 #include "ir-type-util.hpp"
 
+#include <csetjmp>
 #include <iostream>
+
+extern std::jmp_buf env_buffer;
+extern gch::jit_exception current_exception;
 
 namespace gch
 {
+
+  template <typename Ret = void, typename ...Args>
+  Ret
+  invoke_compiled_function (void *func, Args... args)
+  {
+    auto casted_func = reinterpret_cast<Ret (*)(Args...)> (func);
+
+    if (setjmp (env_buffer))
+      throw current_exception;
+
+    return std::invoke (casted_func, args...);
+  }
 
   template <typename LHSType, typename RHSType>
   bool
@@ -49,8 +67,6 @@ namespace gch
     using lhs_type    = LHSType;
     using rhs_type    = RHSType;
 
-    using prototype = result_type (*) (lhs_type, rhs_type);
-
     ir_function my_func (
       { "z", ir_type_v<result_type> },
       { { "x", ir_type_v<lhs_type> } ,
@@ -63,7 +79,7 @@ namespace gch
     ir_block& block = get_entry_block (my_func);
     block.set_name ("entry");
 
-    block.append_instruction<Op> (var_z, var_x, var_y);
+    block.append_instruction_with_def<Op> (var_z, var_x, var_y);
 
     ir_static_function my_static_func = generate_static_function (my_func);
 
@@ -73,8 +89,7 @@ namespace gch
     auto jit = octave_jit_compiler::create<octave_jit_compiler_llvm> ();
     jit.enable_printing (printing_enabled);
 
-    auto sym = reinterpret_cast<prototype> (jit.compile (my_static_func));
-    result_type res = sym (lhs, rhs);
+    auto res = invoke_compiled_function<result_type> (jit.compile (my_static_func), lhs, rhs);
     if (! binary_compare (expected, res))
     {
       std::ostringstream sout;
@@ -103,8 +118,6 @@ namespace gch
     using result_type = ResultType;
     using arg_type    = ArgType;
 
-    using prototype = result_type (*) (arg_type);
-
     ir_function my_func ({ "z", ir_type_v<result_type> }, { { "x", ir_type_v<arg_type> } });
     ir_variable& var_x = my_func.get_variable ("x");
     ir_variable& var_z = my_func.get_variable ("z");
@@ -112,7 +125,7 @@ namespace gch
     ir_block& block = get_entry_block (my_func);
     block.set_name ("entry");
 
-    block.append_instruction<Op> (var_z, var_x);
+    block.append_instruction_with_def<Op> (var_z, var_x);
 
     ir_static_function my_static_func = generate_static_function (my_func);
 
@@ -122,8 +135,7 @@ namespace gch
     if (printing_enabled)
       std::cout << my_static_func << std::endl;
 
-    auto sym = reinterpret_cast<prototype> (jit.compile (my_static_func));
-    result_type res = sym (arg);
+    auto res = invoke_compiled_function<result_type> (jit.compile (my_static_func), arg);
     if (! binary_compare (expected, res))
     {
       std::ostringstream sout;

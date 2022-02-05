@@ -104,7 +104,8 @@ namespace gch
     return subcomponent_result (loop.get_start ())
          + result_type (1) // condition block
          + subcomponent_result (loop.get_body ())
-         + subcomponent_result (loop.get_update ());
+         + subcomponent_result (loop.get_update ())
+         + subcomponent_result (loop.get_after ());
   }
 
   auto
@@ -113,8 +114,7 @@ namespace gch
     -> result_type
   {
     return std::accumulate (seq.begin (), seq.end (), result_type (0),
-                            [](result_type res, const ir_subcomponent& sub)
-                            {
+                            [](result_type res, const ir_subcomponent& sub) {
                               return res + subcomponent_result (sub);
                             });
   }

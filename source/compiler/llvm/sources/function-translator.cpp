@@ -40,7 +40,7 @@ namespace gch
         if (instr.has_def ())
           value_map.register_def (instr.get_def (), *val);
       }
-      catch (std::exception& e)
+      catch (const std::exception& e)
       {
         std::cerr << e.what () << std::endl;
         throw;

@@ -41,15 +41,15 @@ main (void)
   update_block   .set_name ("update");
   after_block    .set_name ("after");
 
-  entry_block.append_instruction<ir_opcode::assign> (var_x, 1);
+  entry_block.append_instruction_with_def<ir_opcode::assign> (var_x, 1);
 
-  start_block.append_instruction<ir_opcode::assign> (var_i, 0);
+  start_block.append_instruction_with_def<ir_opcode::assign> (var_i, 0);
 
-  update_block.append_instruction<ir_opcode::add> (var_i, var_i, 1);
+  update_block.append_instruction_with_def<ir_opcode::add> (var_i, var_i, 1);
 
-  body_block.append_instruction<ir_opcode::add> (var_x, var_x, 2);
+  body_block.append_instruction_with_def<ir_opcode::add> (var_x, var_x, 2);
 
-  condition_block.append_instruction<ir_opcode::lt> (var_tmp, var_i, 5);
+  condition_block.append_instruction_with_def<ir_opcode::lt> (var_tmp, var_i, 5);
 
   after_block.append_instruction<ir_opcode::ret> (var_x);
 
@@ -62,8 +62,7 @@ main (void)
 
   try
   {
-    auto *proto = reinterpret_cast<int (*)(void)> (jit.compile (my_static_func));
-    int res = proto ();
+    int res = invoke_compiled_function<int> (jit.compile (my_static_func));
 
     std::cout << "Result:    " << res << "\n";
     std::cout << "Expected:  " << expected << std::endl;
@@ -71,7 +70,7 @@ main (void)
     if (expected != res)
       return 1;
   }
-  catch (std::exception& e)
+  catch (const std::exception& e)
   {
     std::cerr << e.what () << std::endl;
     return 1;

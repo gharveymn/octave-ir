@@ -20,7 +20,18 @@ namespace gch
       m_start     { allocate_subcomponent<ir_block> () },
       m_condition (*this, condition_var),
       m_body      { allocate_subcomponent<ir_component_sequence> (ir_subcomponent_type<ir_block>) },
-      m_update    { allocate_subcomponent<ir_block> () }
+      m_update    { allocate_subcomponent<ir_block> () },
+      m_after     { allocate_subcomponent<ir_block> () }
+  { }
+
+  ir_component_loop::
+  ir_component_loop (ir_structure& parent, ir_variable& condition_var, ir_component_mover init)
+    : ir_substructure (parent),
+      m_start     { init },
+      m_condition (*this, condition_var),
+      m_body      { allocate_subcomponent<ir_component_sequence> (ir_subcomponent_type<ir_block>) },
+      m_update    { allocate_subcomponent<ir_block> () },
+      m_after     { allocate_subcomponent<ir_block> () }
   { }
 
   ir_component_loop::
@@ -82,6 +93,20 @@ namespace gch
     return as_mutable (*this).get_update ();
   }
 
+  ir_subcomponent&
+  ir_component_loop::
+  get_after (void) noexcept
+  {
+    return *m_after;
+  }
+
+  const ir_subcomponent&
+  ir_component_loop::
+  get_after (void) const noexcept
+  {
+    return as_mutable (*this).get_after ();
+  }
+
   bool
   ir_component_loop::
   is_start (const ir_subcomponent& sub) const noexcept
@@ -110,6 +135,13 @@ namespace gch
     return &sub == &get_update ();
   }
 
+  bool
+  ir_component_loop::
+  is_after (const ir_subcomponent& sub) const noexcept
+  {
+    return &sub == &get_after ();
+  }
+
   auto
   ir_component_loop::
   get_id (const ir_subcomponent& c) const
@@ -119,6 +151,7 @@ namespace gch
     if (is_condition (c)) return subcomponent_id::condition;
     if (is_body      (c)) return subcomponent_id::body;
     if (is_update    (c)) return subcomponent_id::update;
+    if (is_after     (c)) return subcomponent_id::after;
     abort<reason::logic_error> ("Could not find the specified component in the loop.");
   }
 

@@ -66,11 +66,9 @@ namespace gch
     result_type
     ascend (ir_substructure& sub) const;
 
-    [[nodiscard]]
     bool
     dispatch_descender (ir_subcomponent& sub) const;
 
-    [[nodiscard]]
     bool
     dispatch_descender (ir_block& block) const;
 

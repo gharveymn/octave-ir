@@ -54,19 +54,19 @@ test (void)
 
   auto& after_block = seq.emplace_back<ir_block> ();
 
-  entry_block.append_instruction<ir_opcode::assign> (var_x, 1);
+  entry_block.append_instruction_with_def<ir_opcode::assign> (var_x, 1);
 
-  start_block.append_instruction<ir_opcode::assign> (var_i, 0);
-  update_block.append_instruction<ir_opcode::add> (var_i, var_i, 1);
+  start_block.append_instruction_with_def<ir_opcode::assign> (var_i, 0);
+  update_block.append_instruction_with_def<ir_opcode::add> (var_i, var_i, 1);
 
-  start_block2.append_instruction<ir_opcode::assign> (var_j, 0);
-  update_block2.append_instruction<ir_opcode::add> (var_j, var_j, 1);
+  start_block2.append_instruction_with_def<ir_opcode::assign> (var_j, 0);
+  update_block2.append_instruction_with_def<ir_opcode::add> (var_j, var_j, 1);
 
-  body_block2.append_instruction<ir_opcode::add> (var_x, var_x, 2);
+  body_block2.append_instruction_with_def<ir_opcode::add> (var_x, var_x, 2);
 
-  condition_block2.append_instruction<ir_opcode::lt> (var_tmp, var_j, 3);
+  condition_block2.append_instruction_with_def<ir_opcode::lt> (var_tmp, var_j, 3);
 
-  condition_block.append_instruction<ir_opcode::lt> (var_tmp, var_i, 5);
+  condition_block.append_instruction_with_def<ir_opcode::lt> (var_tmp, var_i, 5);
 
   after_block.append_instruction<ir_opcode::ret> (var_x);
 
@@ -125,15 +125,15 @@ test2 (void)
   command::reset ();
 
   std::vector<command> commands;
-  /* 0 */commands.emplace_back ([&](void) { entry_block->append_instruction<ir_opcode::assign> (*var_x, 1); });
-  /* 1 */commands.emplace_back ([&](void) { entry_block->append_instruction<ir_opcode::assign> (*var_x, 1); });
-  /* 2 */commands.emplace_back ([&](void) { start_block->append_instruction<ir_opcode::assign> (*var_i, 0); });
-  /* 3 */commands.emplace_back ([&](void) { update_block->append_instruction<ir_opcode::add> (*var_i, *var_i, 1); });
-  /* 4 */commands.emplace_back ([&](void) { start_block2->append_instruction<ir_opcode::assign> (*var_j, 0); });
-  /* 5 */commands.emplace_back ([&](void) { update_block2->append_instruction<ir_opcode::add> (*var_j, *var_j, 1); });
-  /* 6 */commands.emplace_back ([&](void) { body_block2->append_instruction<ir_opcode::add> (*var_x, *var_x, 2); });
-  /* 7 */commands.emplace_back ([&](void) { condition_block2->append_instruction<ir_opcode::lt> (*var_tmp, *var_j, 3); });
-  /* 8 */commands.emplace_back ([&](void) { condition_block->append_instruction<ir_opcode::lt> (*var_tmp, *var_i, 5); });
+  /* 0 */commands.emplace_back ([&](void) { entry_block->append_instruction_with_def<ir_opcode::assign> (*var_x, 1); });
+  /* 1 */commands.emplace_back ([&](void) { entry_block->append_instruction_with_def<ir_opcode::assign> (*var_x, 1); });
+  /* 2 */commands.emplace_back ([&](void) { start_block->append_instruction_with_def<ir_opcode::assign> (*var_i, 0); });
+  /* 3 */commands.emplace_back ([&](void) { update_block->append_instruction_with_def<ir_opcode::add> (*var_i, *var_i, 1); });
+  /* 4 */commands.emplace_back ([&](void) { start_block2->append_instruction_with_def<ir_opcode::assign> (*var_j, 0); });
+  /* 5 */commands.emplace_back ([&](void) { update_block2->append_instruction_with_def<ir_opcode::add> (*var_j, *var_j, 1); });
+  /* 6 */commands.emplace_back ([&](void) { body_block2->append_instruction_with_def<ir_opcode::add> (*var_x, *var_x, 2); });
+  /* 7 */commands.emplace_back ([&](void) { condition_block2->append_instruction_with_def<ir_opcode::lt> (*var_tmp, *var_j, 3); });
+  /* 8 */commands.emplace_back ([&](void) { condition_block->append_instruction_with_def<ir_opcode::lt> (*var_tmp, *var_i, 5); });
   /* 9 */commands.emplace_back ([&](void) { after_block->append_instruction<ir_opcode::ret> (*var_x); });
 
   std::string cmp;
@@ -210,13 +210,25 @@ test2 (void)
       cmp = ss.str ();
     else
     {
-      if (cmp.size () != ss.str ().size ())
+      if (cmp != ss.str ())
       {
-        std::cerr << "Static functions are not the same!\nFirst:\n"
+        std::cerr << "Static functions are not the same!\n"
+                  << "\nFirst:\n"
+                  << "############################################\n"
                   << cmp
+                  << "############################################\n"
                   << "\nSecond:\n"
+                  << "############################################\n"
                   << ss.str ()
-                  <<std::endl;
+                  << "############################################\n"
+                  << "\n";
+        std::cerr << "Sequence: ";
+        std::accumulate (std::next (commands.begin ()), commands.end (),
+                         std::ref (std::cerr << commands[0].m_idx),
+                         [](std::ostream& out, const command& c) {
+                           return std::ref (out << ", " << c.m_idx);
+                         });
+        std::cerr << std::endl;
         abort ();
       }
       std::stringstream tmp;
@@ -240,7 +252,7 @@ main (void)
   //   DoNotOptimize (static_func);
   // }
   // test2 ();
-  //
+
   // return 0;
 
   static constexpr int expected = 31;
@@ -264,6 +276,7 @@ main (void)
   auto&     body_seq        = static_cast<ir_component_sequence&> (loop.get_body ());
   auto&     body_block      = static_cast<ir_block&> (body_seq.front ());
   auto&     update_block    = static_cast<ir_block&> (loop.get_update ());
+  auto&     after_block     = static_cast<ir_block&> (loop.get_after ());
 
   auto&     loop2            = body_seq.emplace_back<ir_component_loop> (var_tmp);
   auto&     start_block2     = static_cast<ir_block&> (loop2.get_start ());
@@ -271,8 +284,7 @@ main (void)
   auto&     body_seq2        = static_cast<ir_component_sequence&> (loop2.get_body ());
   auto&     body_block2      = static_cast<ir_block&> (body_seq2.front ());
   auto&     update_block2    = static_cast<ir_block&> (loop2.get_update ());
-
-  auto&     after_block     = seq.emplace_back<ir_block> ();
+  auto&     after_block2     = static_cast<ir_block&> (loop2.get_after ());
 
   entry_block     .set_name ("entry");
 
@@ -280,13 +292,13 @@ main (void)
   condition_block .set_name ("condition");
   body_block      .set_name ("body");
   update_block    .set_name ("update");
+  after_block     .set_name ("after");
 
   start_block2    .set_name ("start2");
   condition_block2.set_name ("condition2");
   body_block2     .set_name ("body2");
   update_block2   .set_name ("update2");
-
-  after_block     .set_name ("after");
+  after_block2    .set_name ("after2");
 
   auto print_dt = [](const ir_block& block, const ir_variable& var) {
     block.maybe_get_def_timeline (var) >>= [](auto& dt) { std::cout << dt << '\n' << std::endl; };
@@ -297,29 +309,30 @@ main (void)
     print_dt (start_block,     var_x);
     print_dt (condition_block, var_x);
     print_dt (body_block,      var_x);
-    print_dt (update_block,    var_x);
     print_dt (start_block2,    var_x);
     print_dt (condition_block2,var_x);
     print_dt (body_block2,     var_x);
     print_dt (update_block2,   var_x);
+    print_dt (after_block2,    var_x);
+    print_dt (update_block,    var_x);
     print_dt (after_block,     var_x);
   };
 
-  entry_block.append_instruction<ir_opcode::assign> (var_x, 1);
+  entry_block.append_instruction_with_def<ir_opcode::assign> (var_x, 1);
 
-  start_block.append_instruction<ir_opcode::assign> (var_i, 0);
-  update_block.append_instruction<ir_opcode::add> (var_i, var_i, 1);
+  start_block.append_instruction_with_def<ir_opcode::assign> (var_i, 0);
+  update_block.append_instruction_with_def<ir_opcode::add> (var_i, var_i, 1);
 
-  start_block2.append_instruction<ir_opcode::assign> (var_j, 0);
-  update_block2.append_instruction<ir_opcode::add> (var_j, var_j, 1);
+  start_block2.append_instruction_with_def<ir_opcode::assign> (var_j, 0);
+  update_block2.append_instruction_with_def<ir_opcode::add> (var_j, var_j, 1);
 
-  body_block2.append_instruction<ir_opcode::add> (var_x, var_x, 2);
+  body_block2.append_instruction_with_def<ir_opcode::add> (var_x, var_x, 2);
 
   print_dts ();
 
-  condition_block2.append_instruction<ir_opcode::lt> (var_tmp, var_j, 3);
+  condition_block2.append_instruction_with_def<ir_opcode::lt> (var_tmp, var_j, 3);
 
-  condition_block.append_instruction<ir_opcode::lt> (var_tmp, var_i, 5);
+  condition_block.append_instruction_with_def<ir_opcode::lt> (var_tmp, var_i, 5);
 
   after_block.append_instruction<ir_opcode::ret> (var_x);
 
@@ -332,8 +345,7 @@ main (void)
 
   try
   {
-    auto *proto = reinterpret_cast<int (*)(void)> (jit.compile (my_static_func));
-    int res = proto ();
+    int res = invoke_compiled_function<int> (jit.compile (my_static_func));
 
     std::cout << "Result:    " << res << "\n";
     std::cout << "Expected:  " << expected << std::endl;
@@ -341,7 +353,7 @@ main (void)
     if (expected != res)
       return 1;
   }
-  catch (std::exception& e)
+  catch (const std::exception& e)
   {
     std::cerr << e.what () << std::endl;
     return 1;

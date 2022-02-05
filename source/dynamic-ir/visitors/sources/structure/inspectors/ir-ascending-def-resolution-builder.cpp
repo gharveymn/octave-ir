@@ -112,6 +112,23 @@ namespace gch
 
     switch (loop.get_id (get_subcomponent ()))
     {
+      case id::after:
+      {
+        // condition
+        result_type cond_res { dispatch_descender (loop.get_condition ()) };
+        if (cond_res.is_resolvable ())
+        {
+          // FIXME: This doesn't need a join.
+          m_sub_result.get_stack ().push_frame (get_entry_block (loop.get_body ()),
+                                                cond_res.release_stack ());
+          return {
+            m_sub_result.release_stack (),
+            result_type::join<true>,
+            result_type::resolvable<true>
+          };
+        }
+        [[fallthrough]];
+      }
       case id::condition:
       {
         ir_def_resolution_stack& stack = m_sub_result.get_stack ();

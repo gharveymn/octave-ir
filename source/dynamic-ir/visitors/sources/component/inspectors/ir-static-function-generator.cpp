@@ -373,9 +373,13 @@ namespace gch
         }
       }
 
-      m_result.pairs.assign ({
-        incoming_pair { nonnull_ptr { loop.get_condition () }, m_dominator }
-      });
+      if (m_result.stopped)
+      {
+        m_result.pairs = pair_leaves_with_dominator (loop.get_after (), m_dominator);
+        return;
+      }
+
+      in_place_dispatch (loop.get_after ());
     }
 
     void
@@ -667,6 +671,7 @@ namespace gch
 
       switch (loop.get_id (get_subcomponent ()))
       {
+        case id::after:
         case id::update:
         case id::body:
           if (check_block (loop.get_condition ()))
@@ -1519,7 +1524,9 @@ namespace gch
   visit (const ir_component_fork& fork)
   {
     dispatch (fork.get_condition ());
-    std::for_each (fork.cases_begin (), fork.cases_end (), [&](const auto& c) { dispatch (c); });
+    std::for_each (fork.cases_begin (), fork.cases_end (), [&](const ir_subcomponent& c) {
+      dispatch (c);
+    });
   }
 
   void
@@ -1530,13 +1537,16 @@ namespace gch
     dispatch (loop.get_condition ());
     dispatch (loop.get_body ());
     dispatch (loop.get_update ());
+    dispatch (loop.get_after ());
   }
 
   void
   ir_dynamic_block_manager_builder::
   visit (const ir_component_sequence& seq)
   {
-    std::for_each (seq.begin (), seq.end (), [&](const auto& c) { dispatch (c); });
+    std::for_each (seq.begin (), seq.end (), [&](const ir_subcomponent& c) {
+      dispatch (c);
+    });
   }
 
   void
@@ -1578,6 +1588,12 @@ namespace gch
         m_def_ref (def_ref)
     { }
 
+    unresolved_incoming_pair (const ir_block& incoming_block,
+                              optional_cref<def_reference> def_ref) noexcept
+      : m_incoming_block (incoming_block),
+        m_def_ref (def_ref)
+    { }
+
     [[nodiscard]]
     const ir_block&
     get_block (void) const noexcept
@@ -1589,12 +1605,12 @@ namespace gch
     optional_cref<ir_def>
     maybe_get_def (void) const noexcept
     {
-      return m_def_ref->maybe_get_def ();
+      return m_def_ref >>= &def_reference::maybe_get_def;
     }
 
   private:
-    nonnull_cptr<ir_block>      m_incoming_block;
-    nonnull_cptr<def_reference> m_def_ref;
+    nonnull_cptr<ir_block>       m_incoming_block;
+    optional_cref<def_reference> m_def_ref;
   };
 
   class unresolved_phi_node
@@ -1680,6 +1696,12 @@ namespace gch
     }
 
     void
+    add_unterminated_condition_block (const ir_block& block)
+    {
+      m_cond_blocks.emplace_back (block);
+    }
+
+    void
     add_fetch (const ir_block& block, const ir_variable& var, ir_def_id def_id)
     {
       ir_block_descriptor& desc = m_block_manager[block];
@@ -1760,6 +1782,12 @@ namespace gch
                                      });
 
       create_determinator (block, dt.get_variable (), instr_pos, var_map);
+    }
+
+    ir_block_descriptor&
+    get_descriptor (const ir_block& block)
+    {
+      return m_block_manager[block];
     }
 
   private:
@@ -1884,75 +1912,11 @@ namespace gch
       return m_block_manager[block].get_id ();
     }
 
-    void
-    resolve_terminal_instruction (const ir_block& block, ir_static_variable_map& var_map)
-    {
-      ir_block_descriptor& desc = m_block_manager[block];
-      if (1 < desc.num_successors ())
-      {
-        assert (block.has_condition_variable () && "Condition block missing condition variable.");
-        const ir_variable& condition_var = block.get_condition_variable ();
-
-        optional_ref cond_ut {
-          block.maybe_get_def_timeline (condition_var)
-            >>= &ir_def_timeline::maybe_get_outgoing_timeline
-        };
-
-        small_vector<ir_static_operand, 2> cbranch_args;
-
-        ir_variable_id cond_var_id = condition_var.get_id ();
-        if (cond_ut)
-          cbranch_args.emplace_back (cond_var_id, var_map.origin_id (*cond_ut));
-        else
-          cbranch_args.emplace_back (cond_var_id, static_join_at (block, condition_var, var_map));
-
-        std::transform (desc.successors_begin (), desc.successors_end (),
-                        std::back_inserter (cbranch_args), create_block_operand);
-        desc.emplace_terminal_instruction<ir_opcode::cbranch> (std::move (cbranch_args));
-      }
-      else if (1 == desc.num_successors ())
-      {
-        assert (! block.has_condition_variable ());
-        desc.emplace_terminal_instruction<ir_opcode::ucbranch> (
-          create_block_operand (desc.successors_front ()));
-      }
-      else
-      {
-        assert (! block.has_condition_variable ());
-        assert (! desc.has_successors ());
-
-        // Return from the function.
-        const ir_function& func = m_block_manager.get_function ();
-
-        small_vector<ir_static_operand, 2> ret_args;
-        for (auto ret_it = func.returns_begin (); ret_it != func.returns_end (); ++ret_it)
-        {
-          const ir_variable& var = **ret_it;
-          if (optional_ref ret_dt { block.maybe_get_def_timeline (var) })
-          {
-            assert (ret_dt->has_outgoing_timeline ());
-            const ir_use_timeline& ret_ut = ret_dt->get_outgoing_timeline ();
-
-            if (optional_ref ret_def { ret_ut.maybe_get_def () })
-              ret_args.emplace_back (var.get_id (), ret_def->get_id ());
-            else
-            {
-              ir_injection& inj = desc.emplace_back_injection (block.end<ir_block::range::body> ());
-              append_determined_uninit_terminator (inj, var_map[var]);
-              return;
-            }
-          }
-          else
-            ret_args.emplace_back (var.get_id (), static_join_at (block, var, var_map));
-        }
-        desc.emplace_terminal_instruction<ir_opcode::ret> (std::move (ret_args));
-      }
-    }
-
     ir_dynamic_block_manager&                                           m_block_manager;
     determinator_manager                                                m_det_manager;
     def_reference_map                                                   m_def_map;
     std::vector<std::pair<nonnull_cptr<ir_block>, unresolved_phi_node>> m_unresolved_phi;
+    std::vector<nonnull_cptr<ir_block>>                                 m_cond_blocks;
   };
 
   class def_resolver_visitor
@@ -1965,12 +1929,12 @@ namespace gch
       bool                       is_determinate;
     };
 
-    using incoming_pair_vector = small_vector<std::pair<nonnull_cptr<ir_block>, dominator_pair>>;
-    using incoming_map = std::unordered_map<nonnull_cptr<ir_variable>, incoming_pair_vector>;
+    using incoming_map = std::unordered_map<nonnull_cptr<ir_variable>, dominator_pair>;
+    using incoming_map_vector = small_vector<std::pair<nonnull_cptr<ir_block>, incoming_map>>;
 
     def_resolver_visitor (def_resolver& resolver,
                           ir_static_variable_map& var_map,
-                          const incoming_map& incoming)
+                          const incoming_map_vector& incoming)
       : m_resolver (resolver),
         m_var_map (var_map),
         m_incoming (incoming)
@@ -1978,13 +1942,13 @@ namespace gch
 
     def_resolver_visitor (def_resolver& resolver,
                           ir_static_variable_map& var_map,
-                          incoming_map&& incoming)
+                          incoming_map_vector&& incoming)
       : m_resolver (resolver),
         m_var_map (var_map),
         m_incoming (std::move (incoming))
     { }
 
-    incoming_map
+    incoming_map_vector
     operator() (const ir_component& c)
     {
       c.accept (*this);
@@ -1994,142 +1958,39 @@ namespace gch
     void
     visit (const ir_block& block) override
     {
+      assert (get_predecessors (block).size () == m_incoming.size ());
+
+      if (m_incoming_needs_ucbranch)
+        add_ucbranch (m_incoming.begin (), m_incoming.end (), block);
+      m_incoming_needs_ucbranch = true;
+
+      incoming_map block_map;
       std::for_each (block.dt_map_begin (), block.dt_map_end (), applied {
         [&](nonnull_cptr<ir_variable> var, const ir_def_timeline& dt)
         {
-          incoming_pair_vector& incoming_pairs = m_incoming[var];
-
-          // MSVC gets confused if we use CTAD here.
-          if (optional_cref<ir_use_timeline> phi_ut { dt.maybe_get_incoming_timeline () })
-          {
-            std::optional<dominator_pair> phi_dom;
-            if (! phi_ut->has_def ())
-            {
-              m_var_map.map_origin (*phi_ut, nullopt);
-              m_resolver.add_uninit_phi (block, dt, m_var_map);
-              if (! dt.has_local_timelines ())
-              {
-                auto res = m_resolver.map_def_ref (*phi_ut, nullopt);
-                phi_dom.emplace<dominator_pair> ({ nonnull_ptr { res.value }, false });
-              }
-            }
-            else if (incoming_pairs.empty ())
-            {
-              // Assert that this is the entry block.
-              assert (get_predecessors (block).empty ());
-              assert (&get_entry_block (get_function (block)) == &block);
-
-              m_var_map.map_origin (*phi_ut);
-              m_resolver.add_fetch (block, *var, phi_ut->get_def ().get_id ());
-              if (! dt.has_local_timelines ())
-              {
-                auto res = m_resolver.map_def_ref (*phi_ut, phi_ut->get_def ());
-                phi_dom.emplace<dominator_pair> ({ nonnull_ptr { res.value }, false });
-              }
-            }
-            else
-            {
-              const ir_def& phi_def = phi_ut->get_def ();
-
-              small_vector<unresolved_incoming_pair> phi_pairs;
-              phi_pairs.reserve (incoming_pairs.size ());
-
-              assert (! incoming_pairs.empty ());
-
-              phi_dom.emplace (incoming_pairs.front ().second);
-              def_reference& common_ref = *phi_dom->def_ref;
-
-              // MSVC gets confused if we use CTAD here.
-              optional_cref<ir_def> common_def { common_ref.maybe_get_def () };
-
-              phi_pairs.emplace_back (*incoming_pairs.front ().first, common_ref);
-
-              // Ensure this is true to simplify things.
-              assert (! common_def.equal_pointer (&phi_def));
-
-              std::for_each (std::next (incoming_pairs.begin ()), incoming_pairs.end (), applied {
-                [&](nonnull_cptr<ir_block> incoming_block, dominator_pair& curr_dom)
-                {
-                  optional_ref curr_def { curr_dom.def_ref->maybe_get_def () };
-                  phi_pairs.emplace_back (*incoming_block, *curr_dom.def_ref);
-
-                  if (curr_def.equal_pointer (&phi_def))
-                    return;
-
-                  if (common_def)
-                  {
-                    if (curr_def.equal_pointer (common_def))
-                      return;
-
-                    auto res = m_resolver.map_def_ref (*phi_ut, phi_def);
-
-                    // Insertion will not occur when this is a loop condition block.
-                    assert (res.inserted
-                        ||  (maybe_cast<ir_component_loop> (block.get_parent ())
-                               >>= [&](const auto& loop) { return loop.is_condition (block); }));
-
-                    phi_dom->def_ref.emplace (res.value);
-                    common_def.reset ();
-                  }
-
-                  assert (curr_def || ! curr_dom.is_determinate);
-                  phi_dom->is_determinate &= curr_dom.is_determinate;
-                }
-              });
-
-              if (common_def)
-              {
-                // We can skip phi generation.
-                resolved_def& common_res = common_ref.get_resolution ();
-                auto res = m_resolver.map_def_ref (*phi_ut, common_res);
-                if (! res.inserted) // This will happen for loops. Maybe put a check here?
-                  res.value.repoint (common_res);
-              }
-              else // Create a phi node that is deferred in its construction.
-                m_resolver.add_unresolved_phi (block, phi_def, std::move (phi_pairs));
-
-              // Do stuff with indeterminates.
-              if (! phi_dom->is_determinate && phi_ut->has_uses ())
-              {
-                m_resolver.create_determinator (
-                  block,
-                  dt,
-                  phi_ut->front ().get_instruction (),
-                  m_var_map);
-
-                // We have determined the def, so indicate that the def is determinate.
-                phi_dom->is_determinate = true;
-              }
-            }
-
-            if (! dt.has_local_timelines ())
-              incoming_pairs.assign ({ { nonnull_ptr { block }, *phi_dom} });
-
-          }
-
-          if (dt.has_local_timelines ())
-            incoming_pairs.assign ({ { nonnull_ptr { block }, map_local (dt) } });
+          map_def_timeline (block, *var, dt) >>= [&](const dominator_pair& pair) {
+            block_map.try_emplace (var, pair);
+          };
         }
       });
 
-      normalize_outgoing (block);
+      normalize_outgoing (block_map, block);
+      m_incoming.assign ({ { nonnull_ptr { block }, std::move (block_map) } });
     }
 
     void
     visit (const ir_component_fork& fork) override
     {
       visit (fork.get_condition ());
-      incoming_map outgoing;
+      m_resolver.add_unterminated_condition_block (fork.get_condition ());
+
+      incoming_map_vector outgoing;
+      m_incoming_needs_ucbranch = false;
       std::for_each (fork.cases_begin (), fork.cases_end (), [&](const ir_component& c) {
-        incoming_map res = dispatch_descender (c);
-        std::for_each (res.begin (), res.end (), applied {
-          [&](nonnull_cptr<ir_variable> var, incoming_pair_vector& incoming_pairs)
-          {
-            outgoing[var].append (std::move (incoming_pairs));
-          }
-        });
+        outgoing.append (dispatch_descender (c));
       });
       m_incoming = std::move (outgoing);
+      m_incoming_needs_ucbranch = true;
     }
 
     void
@@ -2139,10 +2000,17 @@ namespace gch
 
       // Create a copy of the outgoing timelines from the start component.
       // FIXME: Optimize.
-      incoming_map start_outgoing = m_incoming;
+      incoming_map_vector start_outgoing = m_incoming;
+
+      const ir_block& cond_block = loop.get_condition ();
+      m_resolver.add_unterminated_condition_block (cond_block);
 
       // Create phony phi nodes in the condition block.
-      const ir_block& cond_block = loop.get_condition ();
+      assert (! m_incoming.empty ());
+      m_incoming.erase (std::next (m_incoming.begin ()), m_incoming.end ());
+      m_incoming[0].first.emplace (cond_block);
+      incoming_map& cond_map = m_incoming[0].second;
+
       std::for_each (cond_block.dt_map_begin (), cond_block.dt_map_end (), applied {
         [&](nonnull_cptr<ir_variable> var, const ir_def_timeline& dt)
         {
@@ -2150,15 +2018,13 @@ namespace gch
           {
             auto res = m_resolver.map_def_ref (*outgoing_ut, outgoing_ut->get_def ());
             assert (res.inserted);
-            m_incoming[var].assign ({
-              { nonnull_ptr { cond_block },
-                dominator_pair { nonnull_ptr { res.value }, true } }
-            });
+            cond_map.insert_or_assign (var, dominator_pair { nonnull_ptr { res.value }, true });
           }
         }
       });
 
       // Now descend into the body and update blocks.
+      m_incoming_needs_ucbranch = false;
       loop.get_body ().accept (*this);
       loop.get_update ().accept (*this);
 
@@ -2166,24 +2032,23 @@ namespace gch
       // Make sure they go after the start components so the block visitor can rely on some
       // guarantees to simplify the code.
 
-      std::for_each (start_outgoing.begin (), start_outgoing.end (), applied {
-        [&](nonnull_cptr<ir_variable> var, incoming_pair_vector& incoming_pairs)
-        {
-          auto found = m_incoming.find (var);
-          assert (found != m_incoming.end ());
-          incoming_pairs.append (std::move (found->second));
-          found->second = std::move (incoming_pairs);
-        }
-      });
+      start_outgoing.append (std::move (m_incoming));
+      m_incoming = std::move (start_outgoing);
 
       // Finally, visit the condition block.
-      visit (loop.get_condition ());
+      visit (cond_block);
+
+      // Now, visit the after block.
+      m_incoming_needs_ucbranch = false;
+      loop.get_after ().accept (*this);
     }
 
     void
     visit (const ir_component_sequence& seq) override
     {
-      std::for_each (seq.begin (), seq.end (), [&](const ir_component& c) { c.accept (*this); });
+      std::for_each (seq.begin (), seq.end (), [&](const ir_component& c) {
+        c.accept (*this);
+      });
     }
 
     void
@@ -2192,7 +2057,134 @@ namespace gch
       func.get_body ().accept (*this);
     }
 
+    static
+    optional_ref<dominator_pair>
+    maybe_get (incoming_map& map, const ir_variable& var)
+    {
+      if (auto found = map.find (nonnull_ptr { var }) ; found != map.end ())
+        return optional_ref { found->second };
+      return nullopt;
+    }
+
+    static
+    optional_cref<dominator_pair>
+    maybe_get (const incoming_map& map, const ir_variable& var)
+    {
+      return maybe_get (as_mutable (map), var);
+    }
+
   private:
+    std::optional<dominator_pair>
+    map_def_timeline (const ir_block& join_block, const ir_variable& var, const ir_def_timeline& dt)
+    {
+      std::optional<dominator_pair> ret_dom;
+
+      // MSVC gets confused if we use CTAD here.
+      if (optional_cref<ir_use_timeline> phi_ut { dt.maybe_get_incoming_timeline () })
+      {
+        if (! phi_ut->has_def ())
+          ret_dom = handle_uninit_phi (join_block, dt, *phi_ut);
+        else if (m_incoming.empty ())
+          ret_dom = handle_entry_phi (join_block, dt, *phi_ut);
+        else
+        {
+          const ir_def& phi_def = phi_ut->get_def ();
+
+          small_vector<unresolved_incoming_pair> phi_pairs;
+          phi_pairs.reserve (m_incoming.size ());
+
+          assert (! m_incoming.empty ());
+
+          optional_cref<ir_def> common_def;
+          if (optional_ref found { maybe_get (m_incoming.front ().second, var) })
+          {
+            phi_pairs.emplace_back (*m_incoming.front ().first, *found->def_ref);
+            common_def.emplace (found->def_ref->maybe_get_def ());
+            ret_dom.emplace (*found);
+          }
+          else
+          {
+            phi_pairs.emplace_back (*m_incoming.front ().first, nullopt);
+
+            auto res = m_resolver.map_def_ref (*phi_ut, phi_def);
+
+            // Insertion will not occur when this is a loop condition block.
+            assert (res.inserted
+                ||  (maybe_cast<ir_component_loop> (join_block.get_parent ())
+                       >>= [&](const auto& loop) { return loop.is_condition (join_block); }));
+
+            ret_dom.emplace (dominator_pair { nonnull_ptr { res.value }, false });
+          }
+          def_reference& common_ref = *ret_dom->def_ref;
+
+          // Ensure this is true to simplify things.
+          assert (! common_def.equal_pointer (&phi_def));
+
+          std::for_each (std::next (m_incoming.begin ()), m_incoming.end (), applied {
+            [&](nonnull_cptr<ir_block> incoming_block, incoming_map& curr_map)
+            {
+              if (optional_ref curr_dom { maybe_get (curr_map, var) })
+              {
+                optional_ref curr_def { curr_dom->def_ref->maybe_get_def () };
+                phi_pairs.emplace_back (*incoming_block, *curr_dom->def_ref);
+
+                if (curr_def.equal_pointer (common_def) && curr_def.equal_pointer (&phi_def))
+                  return;
+
+                ret_dom->is_determinate &= curr_dom->is_determinate;
+              }
+              else
+              {
+                phi_pairs.emplace_back (*incoming_block, nullopt);
+                ret_dom->is_determinate = false;
+              }
+
+              if (common_def)
+              {
+                auto actual_phi_dom = m_resolver.map_def_ref (*phi_ut, phi_def);
+
+                // Insertion will not occur when this is a loop condition block.
+                assert (actual_phi_dom.inserted
+                    ||  (maybe_cast<ir_component_loop> (join_block.get_parent ())
+                           >>= [&](const auto& loop) { return loop.is_condition (join_block); }));
+
+                ret_dom->def_ref.emplace (actual_phi_dom.value);
+                common_def.reset ();
+              }
+            }
+          });
+
+          if (common_def)
+          {
+            // We can skip phi generation.
+            resolved_def& common_res = common_ref.get_resolution ();
+            auto res = m_resolver.map_def_ref (*phi_ut, common_res);
+            if (! res.inserted) // This will happen for loops. Maybe put a check here?
+              res.value.repoint (common_res);
+          }
+          else // Create a phi node that is deferred in its construction.
+            m_resolver.add_unresolved_phi (join_block, phi_def, std::move (phi_pairs));
+
+          // Do stuff with indeterminates.
+          if (! ret_dom->is_determinate && phi_ut->has_uses ())
+          {
+            m_resolver.create_determinator (
+              join_block,
+              dt,
+              phi_ut->front ().get_instruction (),
+              m_var_map);
+
+            // We have determined the def, so indicate that the def is determinate.
+            ret_dom->is_determinate = true;
+          }
+        }
+      }
+
+      if (dt.has_local_timelines ())
+        return map_local (dt);
+      return ret_dom;
+    }
+
     dominator_pair
     map_local (const ir_def_timeline& dt)
     {
@@ -2211,31 +2203,93 @@ namespace gch
       return { nonnull_ptr { res.value }, true };
     }
 
-    void
-    normalize_outgoing (const ir_block& block)
+    incoming_map&
+    normalize_outgoing (incoming_map& outgoing, const ir_block& block) const
     {
-      std::for_each (m_incoming.begin (), m_incoming.end (), applied {
-        [&](nonnull_cptr<ir_variable>, incoming_pair_vector& outgoing_pairs)
+      if (m_incoming.empty ())
+        return outgoing;
+
+      const incoming_map& incoming = m_incoming[0].second;
+      std::for_each (incoming.begin (), incoming.end (), applied {
+        [&](nonnull_cptr<ir_variable> var, const dominator_pair& dom)
         {
-          assert (outgoing_pairs.size () != 0);
+          auto [it, in] = outgoing.try_emplace (var, dom);
+          assert (! in
+                ||  std::all_of (std::next (m_incoming.begin ()), m_incoming.end (), applied {
+                      [&](auto&&, const incoming_map& cmp)
+                      {
+                        auto found = cmp.find (var);
+                        return found != cmp.end ()
+                           &&  dom.def_ref == found->second.def_ref
+                           &&  dom.is_determinate == found->second.is_determinate;
+                      }
+                    }));
+        }
+      });
 
-          // Make sure all of the outgoing pairs are the same.
-          assert (std::all_of (std::next (outgoing_pairs.begin ()), outgoing_pairs.end (), applied {
-            [common = outgoing_pairs[0].second](auto&&, const dominator_pair& pair)
-            {
-              return pair.def_ref == common.def_ref && pair.is_determinate == common.is_determinate;
-            }
-          }));
+      return outgoing;
+    }
 
-          if (1 < outgoing_pairs.size ())
-            outgoing_pairs.erase (std::next (outgoing_pairs.begin ()), outgoing_pairs.end ());
+    std::optional<dominator_pair>
+    handle_uninit_phi (const ir_block& block, const ir_def_timeline& dt, const ir_use_timeline& ut)
+    {
+      m_var_map.map_origin (ut, nullopt);
+      m_resolver.add_uninit_phi (block, dt, m_var_map);
+      if (! dt.has_local_timelines ())
+      {
+        auto res = m_resolver.map_def_ref (ut, nullopt);
+        return dominator_pair { nonnull_ptr { res.value }, false };
+      }
+      return std::nullopt;
+    }
 
-          outgoing_pairs[0].first.emplace (block);
+    std::optional<dominator_pair>
+    handle_entry_phi (const ir_block& block, const ir_def_timeline& dt, const ir_use_timeline& ut)
+    {
+      // Assert that this is the entry block.
+      assert (get_predecessors (block).empty ());
+      assert (&get_entry_block (get_function (block)) == &block);
+
+      m_var_map.map_origin (ut);
+      m_resolver.add_fetch (block, dt.get_variable (), ut.get_def ().get_id ());
+      if (! dt.has_local_timelines ())
+      {
+        auto res = m_resolver.map_def_ref (ut, ut.get_def ());
+        return dominator_pair { nonnull_ptr { res.value }, true };
+      }
+      return std::nullopt;
+    }
+
+    void
+    add_ucbranch (const ir_block& from, const ir_block& to)
+    {
+      ir_block_id to_id = m_resolver.get_descriptor (to).get_id ();
+      ir_block_descriptor& desc = m_resolver.get_descriptor (from);
+      assert (! desc.has_terminal_instruction ());
+      desc.emplace_terminal_instruction<ir_opcode::ucbranch> (create_block_operand (to_id));
+    }
+
+    void
+    add_ucbranch (incoming_map_vector::const_iterator first,
+                  incoming_map_vector::const_iterator last,
+                  const ir_block& to)
+    {
+      ir_block_id to_id = m_resolver.get_descriptor (to).get_id ();
+      std::for_each (first, last, applied {
+        [&](nonnull_cptr<ir_block> incoming_block, auto&&)
+        {
+          if (incoming_block->empty<ir_block::range::body> ()
+           || ! is_a<ir_opcode::terminal> (incoming_block->back<ir_block::range::body> ()))
+          {
+            ir_block_descriptor& desc = m_resolver.get_descriptor (*incoming_block);
+            assert (! desc.has_terminal_instruction ());
+            desc.emplace_terminal_instruction<ir_opcode::ucbranch> (create_block_operand (to_id));
+          }
         }
       });
     }
 
-    incoming_map
+    incoming_map_vector
     dispatch_descender (const ir_component& c)
     {
       return def_resolver_visitor { m_resolver, m_var_map, m_incoming } (c);
@@ -2243,7 +2297,8 @@ namespace gch
 
     def_resolver&           m_resolver;
     ir_static_variable_map& m_var_map;
-    incoming_map            m_incoming;
+    incoming_map_vector     m_incoming;
+    bool                    m_incoming_needs_ucbranch = false;
   };
 
   ir_static_variable_map
@@ -2252,7 +2307,7 @@ namespace gch
   {
     ir_static_variable_map ret (m_block_manager.get_function ());
 
-    def_resolver_visitor { *this, ret, { } } (m_block_manager.get_function ());
+    auto outgoing = def_resolver_visitor { *this, ret, { } } (m_block_manager.get_function ());
 
     // Map all def references which were left unresolved when visiting the tree.
     std::for_each (m_def_map.begin (), m_def_map.end (), applied {
@@ -2265,13 +2320,74 @@ namespace gch
     // Add the phi nodes now that the def references are resolved.
     resolve_phi ();
 
-    // Resolve terminal instructions.
-    std::for_each (m_block_manager.begin (), m_block_manager.end (), applied {
-      [&](nonnull_cptr<ir_block> block, auto&&)
+    // Resolve the function returns.
+    const ir_function& func = m_block_manager.get_function ();
+    std::for_each (outgoing.begin (), outgoing.end (), applied {
+      [&](nonnull_cptr<ir_block> block, const auto& map)
       {
-        if (block->empty () ||! is_a<ir_opcode::terminal> (block->back ()))
-          resolve_terminal_instruction (*block, ret);
+        if (block->empty<ir_block::range::body> ()
+         || ! is_a<ir_opcode::terminal> (block->back<ir_block::range::body> ()))
+        {
+          ir_block_descriptor& desc = get_descriptor (*block);
+          assert (! desc.has_terminal_instruction ());
+
+          small_vector<ir_static_operand, 2> ret_args;
+          for (auto ret_it = func.returns_begin (); ret_it != func.returns_end (); ++ret_it)
+          {
+            const ir_variable& var = **ret_it;
+            if (optional_ref dom_pair { def_resolver_visitor::maybe_get (map, var) })
+            {
+              if (optional_ref ret_dt { block->maybe_get_def_timeline (var) })
+              {
+                assert (ret_dt->has_outgoing_timeline ());
+                const def_reference& def_ref = *dom_pair->def_ref;
+                if (optional_ref ret_def { def_ref.maybe_get_def () })
+                  ret_args.emplace_back (var.get_id (), ret_def->get_id ());
+                else
+                {
+                  auto& inj = desc.emplace_back_injection (block->end<ir_block::range::body> ());
+                  append_determined_uninit_terminator (inj, ret[var]);
+                  return;
+                }
+              }
+              else
+                ret_args.emplace_back (var.get_id (), static_join_at (*block, var, ret));
+            }
+            else
+            {
+              auto& inj = desc.emplace_back_injection (block->end<ir_block::range::body> ());
+              append_determined_uninit_terminator (inj, ret[var]);
+              return;
+            }
+          }
+          desc.emplace_terminal_instruction<ir_opcode::ret> (std::move (ret_args));
+        }
       }
+    });
+
+    // Resolve terminal instructions in condition blocks.
+    std::for_each (m_cond_blocks.begin (), m_cond_blocks.end (), [&](nonnull_cptr<ir_block> block) {
+      assert (block->has_condition_variable () && "Condition block missing condition variable.");
+      const ir_variable& condition_var = block->get_condition_variable ();
+
+      ir_block_descriptor& desc = get_descriptor (*block);
+
+      optional_ref cond_ut {
+        block->maybe_get_def_timeline (condition_var)
+          >>= &ir_def_timeline::maybe_get_outgoing_timeline
+      };
+
+      small_vector<ir_static_operand, 2> cbranch_args;
+
+      ir_variable_id cond_var_id = condition_var.get_id ();
+      if (cond_ut)
+        cbranch_args.emplace_back (cond_var_id, ret.origin_id (*cond_ut));
+      else
+        cbranch_args.emplace_back (cond_var_id, static_join_at (*block, condition_var, ret));
+
+      std::transform (desc.successors_begin (), desc.successors_end (),
+                      std::back_inserter (cbranch_args), create_block_operand);
+      desc.emplace_terminal_instruction<ir_opcode::cbranch> (std::move (cbranch_args));
     });
 
     return ret;

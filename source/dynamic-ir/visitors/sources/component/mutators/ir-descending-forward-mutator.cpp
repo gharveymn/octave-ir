@@ -117,10 +117,13 @@ namespace gch
   visit (ir_component_loop& loop) const
     -> result_type
   {
-    return dispatch_descender (loop.get_start ()    )
-       ||  dispatch_descender (loop.get_condition ())
-       ||  dispatch_descender (loop.get_body ()     )
-       ||  dispatch_descender (loop.get_update ()   );
+    if (dispatch_descender (loop.get_start ()) || dispatch_descender (loop.get_condition ()))
+      return true;
+
+    if (! dispatch_descender (loop.get_body ()))
+      dispatch_descender (loop.get_update ());
+
+    return dispatch_descender (loop.get_after ());
   }
 
   auto

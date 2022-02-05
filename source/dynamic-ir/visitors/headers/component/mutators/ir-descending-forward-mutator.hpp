@@ -72,11 +72,9 @@ namespace gch
     result_type
     visit (ir_function& func) const;
 
-    [[nodiscard]]
     result_type
     dispatch_descender (ir_subcomponent& sub) const;
 
-    [[nodiscard]]
     result_type
     dispatch_descender (ir_block& block) const;
 

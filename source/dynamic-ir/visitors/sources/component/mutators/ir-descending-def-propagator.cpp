@@ -147,7 +147,7 @@ namespace gch
       return cond_res;
 
     return std::accumulate (fork.cases_begin (), fork.cases_end (), result_type { },
-                            [this](auto&& curr_res, ir_subcomponent& sub) {
+                            [&](auto&& curr_res, ir_subcomponent& sub) {
       return std::move (curr_res) | dispatch_descender (sub);
     });
   }
@@ -167,11 +167,10 @@ namespace gch
     if (res.empty ())
       return res;
 
-    res = dispatch_descender (loop.get_body ());
-    if (res.empty ())
-      return res;
+    if (! dispatch_descender (loop.get_body ()).empty ())
+      dispatch_descender (loop.get_update ());
 
-    return dispatch_descender (loop.get_update ());
+    return dispatch_descender (loop.get_after ());
   }
 
   auto

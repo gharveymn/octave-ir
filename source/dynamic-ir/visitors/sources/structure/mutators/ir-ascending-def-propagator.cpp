@@ -131,6 +131,7 @@ namespace gch
         if (needs_stop (dispatch_descender (loop.get_update ())))
           return;
 
+        // Common body-update
         if (optional_ref s { maybe_cast<ir_structure> (loop.get_update ()) })
           m_incoming_block_cache = s->get_leaves ();
         else
@@ -138,11 +139,13 @@ namespace gch
 
         if (needs_stop (dispatch_descender (loop.get_condition ())))
           return;
+        // End common body-update
 
         break;
       }
       case id::update:
       {
+        // Common body-update
         if (optional_ref s { maybe_cast<ir_structure> (loop.get_update ()) })
           m_incoming_block_cache = s->get_leaves ();
         else
@@ -150,10 +153,14 @@ namespace gch
 
         if (needs_stop (dispatch_descender (loop.get_condition ())))
           return;
+        // End common body-update
 
         dispatch_descender (loop.get_body ());
         break;
       }
+      case id::after:
+        // Do nothing.
+        break;
 #ifndef __clang__
       default:
         abort<reason::impossible> ();

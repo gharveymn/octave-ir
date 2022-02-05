@@ -144,14 +144,11 @@ namespace gch
     }
   };
 
-  static constexpr
-  auto
-  ir_constant_printer_map = generate_ir_type_map<printer_mapper> ();
-
   std::ostream&
   operator<< (std::ostream& out, const ir_constant& c)
   {
-    return std::invoke (ir_constant_printer_map[c.get_type ()], out, c);
+    constexpr auto map = generate_ir_type_map<printer_mapper> ();
+    return std::invoke (map[c.get_type ()], out, c);
   }
 
 }

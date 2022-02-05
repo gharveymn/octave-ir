@@ -19,7 +19,7 @@ main (void)
   ir_variable& var_x = my_func.get_variable ("x");
   var_x.set_type<int> ();
 
-  block.append_instruction<ir_opcode::assign> (var_x, var_x);
+  block.append_instruction_with_def<ir_opcode::assign> (var_x, var_x);
 
   ir_static_function my_static_func = generate_static_function (my_func);
 
@@ -30,10 +30,9 @@ main (void)
 
   try
   {
-    auto *proto = reinterpret_cast<void (*)(void)> (jit.compile (my_static_func));
-    proto ();
+    invoke_compiled_function (jit.compile (my_static_func));
   }
-  catch (std::exception& e)
+  catch (const std::exception& e)
   {
     // We expect to catch an exception.
     std::cerr << e.what () << std::endl;

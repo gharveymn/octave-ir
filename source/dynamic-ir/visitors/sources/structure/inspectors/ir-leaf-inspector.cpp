@@ -80,7 +80,7 @@ namespace gch
   visit (const ir_component_loop& loop) const noexcept
     -> result_type
   {
-    return loop.is_condition (get_subcomponent ());
+    return loop.is_after (get_subcomponent ());
   }
 
   auto

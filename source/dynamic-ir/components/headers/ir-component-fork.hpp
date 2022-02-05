@@ -37,6 +37,12 @@ namespace gch
     ir_component_fork& operator= (ir_component_fork&&) noexcept = delete;
     ~ir_component_fork (void)       noexcept override;
 
+    ir_component_fork (ir_structure& parent,
+                       ir_variable& condition_var,
+                       std::initializer_list<ir_component_mover> init);
+
+    ir_component_fork (ir_structure& parent, ir_variable& condition_var, ir_component_mover init);
+
     ir_component_fork (ir_structure& parent, ir_variable& condition_var);
 
     [[nodiscard]]

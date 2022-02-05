@@ -94,13 +94,15 @@ namespace gch
       case id::condition:
       {
         result_type res { nonnull_ptr { as_mutable (get_entry_block (loop.get_body ())) } };
-        res.append (get_successors (loop));
+        res.emplace_back (as_mutable (get_entry_block (loop.get_after ())));
         return res;
       }
       case id::body:
         return { nonnull_ptr { as_mutable (get_entry_block (loop.get_update ())) } };
       case id::update:
         return { nonnull_ptr { as_mutable (loop.get_condition ()) } };
+      case id::after:
+        return get_successors (loop);
 #ifndef __clang__
       default:
         abort<reason::impossible> ();

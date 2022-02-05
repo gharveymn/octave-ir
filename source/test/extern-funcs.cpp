@@ -5,14 +5,21 @@
  * of the MIT license. See the LICENSE file for details.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include "jit-exception.hpp"
+
+#include <csetjmp>
 #include <cstdio>
-#include <stdexcept>
+#include <iostream>
+#include <memory>
 
 #ifdef _WIN32
 #  define DLLEXPORT __declspec(dllexport)
 #else
 #  define DLLEXPORT
 #endif
+
+std::jmp_buf env_buffer;
+gch::jit_exception current_exception;
 
 extern "C" DLLEXPORT
 void
@@ -33,5 +40,6 @@ extern "C"
 void
 throw_error (const char *s)
 {
-  throw std::runtime_error (s);
+  current_exception = gch::jit_exception (s);
+  std::longjmp (env_buffer, 1);
 }
