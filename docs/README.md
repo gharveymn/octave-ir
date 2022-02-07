@@ -6,7 +6,7 @@ This is a work-in-progress implementation of a JIT intended to (eventually) targ
 
 The idea behind this JIT is to eschew the SSA dominance tree algorithms for determining defs in favor of a well-defined hierarchy of components to be iterated over with visitors. We can do this because Octave does not have any arbitrary jumping control structures, so the basic control structures may be defined by a small set of components. 
 
-For example, a loop component consists of four subcomponents: `start`, `condition`, `body`, and `update`. If we need to figure out the location of a def for a use located from within the `body` block, a visitor will first visit `condition`. If there is no def located there, then it will check `update` and `start`. If a totally dominating def is located in the `start` component then the def is determined. Otherwise, the process continues to the parent. If a totally dominating def is not found, then code will be generated for handling whether the variable was initialized or not.
+For example, a loop component consists of five subcomponents: `start`, `condition`, `body`, `update`, and `after`. If we need to figure out the location of a def for a use located from within the `body` block, a visitor will first visit `condition`. If there is no def located there, then it will check `update` and `start`. If a totally dominating def is located in the `start` component then the def is determined. Otherwise, the process continues to the parent. If a totally dominating def is not found, then code will be generated for handling whether the variable was initialized or not.
 
 ## Methods
 
@@ -54,6 +54,12 @@ Other projects that are utilized by this project include
 - [gch::small_vector](https://github.com/gharveymn/small_vector) - An implementation of a vector with a small buffer optimization.
 - [gch::tracker](https://github.com/gharveymn/tracker) - A system for automatic tracking of remote object lifetimes.
 
-# License
+## TODO
+
+- Rework the def resolution system so it isn't so janky.
+- Type deduction (during static-ir generation).
+- AST integration.
+
+## License
 
 This software may be modified and distributed under the terms of the MIT license. See the LICENSE file for details.
