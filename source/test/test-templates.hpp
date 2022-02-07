@@ -25,7 +25,7 @@
 #include <iostream>
 
 extern std::jmp_buf env_buffer;
-extern gch::jit_exception current_exception;
+extern std::unique_ptr<std::exception> current_exception;
 
 namespace gch
 {
@@ -37,7 +37,7 @@ namespace gch
     auto casted_func = reinterpret_cast<Ret (*)(Args...)> (func);
 
     if (setjmp (env_buffer))
-      throw current_exception;
+      throw jit_exception { std::move (current_exception) };
 
     return std::invoke (casted_func, args...);
   }
@@ -79,7 +79,7 @@ namespace gch
     ir_block& block = get_entry_block (my_func);
     block.set_name ("entry");
 
-    block.append_instruction_with_def<Op> (var_z, var_x, var_y);
+    block.append_with_def<Op> (var_z, var_x, var_y);
 
     ir_static_function my_static_func = generate_static_function (my_func);
 
@@ -125,7 +125,7 @@ namespace gch
     ir_block& block = get_entry_block (my_func);
     block.set_name ("entry");
 
-    block.append_instruction_with_def<Op> (var_z, var_x);
+    block.append_with_def<Op> (var_z, var_x);
 
     ir_static_function my_static_func = generate_static_function (my_func);
 

@@ -19,7 +19,7 @@
 #endif
 
 std::jmp_buf env_buffer;
-gch::jit_exception current_exception;
+std::unique_ptr<std::exception> current_exception;
 
 extern "C" DLLEXPORT
 void
@@ -40,6 +40,14 @@ extern "C"
 void
 throw_error (const char *s)
 {
-  current_exception = gch::jit_exception (s);
+  try
+  {
+    current_exception = std::make_unique<std::runtime_error> (s);
+  }
+  catch (...)
+  {
+    // Ensure that this is reset.
+    current_exception.reset ();
+  }
   std::longjmp (env_buffer, 1);
 }

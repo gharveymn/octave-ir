@@ -149,6 +149,9 @@ namespace gch
     bool
     has_incoming (void) const noexcept;
 
+    void
+    append (small_vector<ir_static_incoming_pair>&& incoming);
+
   private:
     ir_def_id                             m_id;
     small_vector<ir_static_incoming_pair> m_incoming;
@@ -521,6 +524,9 @@ namespace gch
     {
       return *emplace_injection (injections_end (), std::forward<Args> (args)...);
     }
+
+    optional_ref<ir_resolved_phi_node>
+    maybe_get_phi (const ir_variable& var);
 
     optional_cref<ir_resolved_phi_node>
     maybe_get_phi (const ir_variable& var) const;

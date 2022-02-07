@@ -774,8 +774,15 @@ namespace gch
 
   ir_static_variable_map::
   ir_static_variable_map (const ir_function& func)
-    : m_variables (func.num_variables ())
+    : m_variables (func.num_variables () + 1)
   {
+    const ir_variable& anon_var = func.get_variable ();
+    ir_static_variable& anon_svar = m_variables[0];
+    anon_svar.initialize (
+      anon_var.get_name (),
+      anon_var.get_type (),
+      ir_def_id { anon_var.get_num_defs () });
+
     std::for_each (func.variables_begin (), func.variables_end (), applied {
       [&](std::string_view name, const ir_variable& var)
       {
@@ -965,9 +972,16 @@ namespace gch
 
   bool
   ir_resolved_phi_node::
-  has_incoming () const noexcept
+  has_incoming (void) const noexcept
   {
     return ! m_incoming.empty ();
+  }
+
+  void
+  ir_resolved_phi_node::
+  append (small_vector<ir_static_incoming_pair>&& incoming)
+  {
+    m_incoming.append (std::move (incoming));
   }
 
   //
@@ -1327,13 +1341,20 @@ namespace gch
     m_phi_nodes.try_emplace (nonnull_ptr { var }, id, std::move (incoming));
   }
 
-  optional_cref<ir_resolved_phi_node>
+  optional_ref<ir_resolved_phi_node>
   ir_block_descriptor::
-  maybe_get_phi (const ir_variable& var) const
+  maybe_get_phi (const ir_variable& var)
   {
     if (auto found = m_phi_nodes.find (nonnull_ptr { var }) ; found != phi_map_end ())
       return optional_ref { found->second };
     return nullopt;
+  }
+
+  optional_cref<ir_resolved_phi_node>
+  ir_block_descriptor::
+  maybe_get_phi (const ir_variable& var) const
+  {
+    return as_mutable (*this).maybe_get_phi (var);
   }
 
   bool
@@ -1821,7 +1842,7 @@ namespace gch
 
     [[nodiscard]]
     std::optional<ir_def_id>
-    static_join_at (const ir_block& block,
+    static_join_at (const ir_block& join_block,
                     const ir_variable& var,
                     const small_vector<static_def_resolution>& incoming,
                     ir_static_variable_map& var_map)
@@ -1829,7 +1850,36 @@ namespace gch
       if (incoming.empty ())
         return { };
 
-      // Note: In the case of loops we may be appending to a def-timeline which already exists.
+      ir_block_descriptor& desc = m_block_manager[join_block];
+      if (incoming.size () == 1)
+      {
+        bool has_phi { desc.maybe_get_phi (var) };
+        if (! has_phi)
+        {
+          ir_link_set<ir_block> preds = get_predecessors (join_block);
+          small_vector<ir_static_incoming_pair> incoming_pairs;
+          incoming_pairs.reserve (preds.size ());
+          std::transform (preds.begin (), preds.end (), std::back_inserter (incoming_pairs),
+                          [&](nonnull_ptr<ir_block> inc_block) -> ir_static_incoming_pair {
+                            return { get_block_id (*inc_block), incoming[0].def_id };
+                          });
+
+          if (! incoming[0].def_id)
+          {
+            create_determinator (
+              join_block,
+              var,
+              join_block.end<ir_block::range::body> (),
+              var_map);
+          }
+
+          ir_def_id phi_id = var_map[var].create_id ();
+          m_block_manager[join_block].add_phi_node (var, phi_id, std::move (incoming_pairs));
+        }
+
+        if (&join_block == incoming[0].leaf_block ||! has_phi)
+          return incoming[0].def_id;
+      }
 
       bool needs_determinator = false;
       small_vector<ir_static_incoming_pair> incoming_pairs;
@@ -1842,11 +1892,20 @@ namespace gch
         return { block_id, std::nullopt };
       });
 
-      ir_def_id phi_id = var_map[var].create_id ();
-      m_block_manager[block].add_phi_node (var, phi_id, std::move (incoming_pairs));
+      ir_def_id phi_id;
+      if (optional_ref phi { desc.maybe_get_phi (var) })
+      {
+        phi_id = phi->get_id ();
+        phi->append (std::move (incoming_pairs));
+      }
+      else
+      {
+        phi_id = var_map[var].create_id ();
+        m_block_manager[join_block].add_phi_node (var, phi_id, std::move (incoming_pairs));
+      }
 
       if (needs_determinator)
-        create_determinator (block, var, block.end<ir_block::range::body> (), var_map);
+        create_determinator (join_block, var, join_block.end<ir_block::range::body> (), var_map);
 
       return phi_id;
     }
@@ -1902,8 +1961,9 @@ namespace gch
       };
 
       small_vector<static_def_resolution> ret = static_resolve_with (res, { }, var_map);
-      assert (1 == ret.size ());
-      return ret[0].def_id;
+      auto phi_def = m_block_manager[block].maybe_get_phi (var);
+      assert (phi_def);
+      return phi_def->get_id ();
     }
 
     ir_block_id
@@ -2401,6 +2461,38 @@ namespace gch
   }
 
   static
+  ir_static_instruction
+  process_instruction (const ir_dynamic_block_manager& block_manager,
+                       const ir_static_variable_map&   var_map,
+                       const ir_instruction&           instr)
+  {
+    auto metadata = instr.get_metadata ();
+
+    small_vector<ir_static_operand, 2> sargs;
+    std::transform (instr.begin (), instr.end (), std::back_inserter (sargs),
+                    [&](const ir_operand& op) -> ir_static_operand {
+      if (optional_ref use { maybe_get<ir_use> (op) })
+        return var_map.create_static_use (*use);
+
+      const auto& c = get<ir_constant> (op);
+      if (optional_ref block_operand { maybe_as<ir_block *> (c) })
+        return create_block_operand (block_manager[**block_operand].get_id ());
+      return c;
+    });
+
+    if (instr.has_def ())
+    {
+      return {
+        metadata,
+        var_map.create_static_def (instr.get_def ()),
+        std::move (sargs)
+      };
+    }
+    else
+      return { metadata, std::move (sargs) };
+  }
+
+  static
   std::vector<ir_static_block>
   process_block_descriptors (const ir_dynamic_block_manager& block_manager,
                              const ir_static_variable_map&   var_map)
@@ -2412,6 +2504,8 @@ namespace gch
       [&](nonnull_cptr<ir_block> block, const ir_block_descriptor& desc)
       {
         nonnull_ptr<ir_static_block> curr_sblock { sblocks[desc.get_id ()] };
+
+        curr_sblock->set_name (block->get_name ());
 
         // Create phi instructions.
         std::transform (desc.phi_map_begin (), desc.phi_map_end (),
@@ -2437,40 +2531,16 @@ namespace gch
           }
         });
 
-        auto generate_subrange = [&](ir_instruction_citer first, ir_instruction_citer last) {
-          std::for_each (first, last, [&](const ir_instruction& instr) {
-            auto metadata = instr.get_metadata ();
-
-            small_vector<ir_static_operand, 2> sargs;
-            std::transform (instr.begin (), instr.end (), std::back_inserter (sargs),
-                            [&](const ir_operand& op) -> ir_static_operand {
-              if (optional_ref use { maybe_get<ir_use> (op) })
-                return var_map.create_static_use (*use);
-
-              const auto& c = get<ir_constant> (op);
-              if (optional_ref block_operand { maybe_as<ir_block *> (c) })
-                return create_block_operand (block_manager[**block_operand].get_id ());
-              return c;
-            });
-
-            if (instr.has_def ())
-            {
-              curr_sblock->push_back ({
-                metadata,
-                var_map.create_static_def (instr.get_def ()),
-                std::move (sargs)
-              });
-            }
-            else
-              curr_sblock->push_back ({ metadata, std::move (sargs) });
-          });
-        };
+        auto instruction_processor = gch::bind_front (process_instruction,
+                                                      std::ref (block_manager),
+                                                      std::ref (var_map));
 
         // create body instructions
         auto curr_first = block->begin<ir_block::range::body> ();
         for (auto inj_it = desc.injections_begin (); inj_it != desc.injections_end (); ++inj_it)
         {
-          generate_subrange (curr_first, inj_it->get_injection_pos ());
+          std::transform (curr_first, inj_it->get_injection_pos (),
+                          std::back_inserter (*curr_sblock), instruction_processor);
 
           std::copy (inj_it->begin (), inj_it->end (), std::back_inserter (*curr_sblock));
 
@@ -2483,7 +2553,8 @@ namespace gch
           curr_first = inj_it->get_injection_pos ();
         }
 
-        generate_subrange (curr_first, block->end<ir_block::range::body> ());
+        std::transform (curr_first, block->end<ir_block::range::body> (),
+                        std::back_inserter (*curr_sblock), instruction_processor);
 
         assert (args.empty ());
         assert (desc.has_terminal_instruction ()

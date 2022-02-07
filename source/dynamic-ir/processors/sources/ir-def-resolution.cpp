@@ -572,12 +572,12 @@ namespace gch
   {
     ir_def_resolution_stack stack { var };
     stack.push_frame (block, { var, block });
+    // stack.add_leaf (block);
     ir_def_resolution_build_result primer {
       std::move (stack),
       ir_def_resolution_build_result::join<true>,
       ir_def_resolution_build_result::join<false>
     };
-    stack.add_leaf (block);
     return ir_ascending_def_resolution_builder { block, std::move (primer) } ().release_stack ();
   }
 
@@ -594,7 +594,7 @@ namespace gch
 
     // Note: In the case of loops we may be appending to a def-timeline which already exists.
 
-    if (incoming.size () == 1 && &join_block == &incoming[0].get_leaf_block ())
+    if (1 == incoming.size () && &join_block == &incoming[0].get_leaf_block ())
     {
       if (! dt.has_incoming ())
       {

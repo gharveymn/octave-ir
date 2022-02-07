@@ -294,23 +294,9 @@ namespace gch
   private:
     template <range R, ir_opcode Op, typename ...Args>
     decltype (auto)
-    emplace_front (Args&&... args)
-    {
-      return get<R> ().emplace_front (ir_instruction::tag<Op>, std::forward<Args> (args)...);
-    }
-
-    template <range R, ir_opcode Op, typename ...Args>
-    decltype (auto)
-    emplace (citer pos, Args&&... args)
+    emplace_instruction (citer pos, Args&&... args)
     {
       return get<R> ().emplace (pos, ir_instruction::tag<Op>, std::forward<Args> (args)...);
-    }
-
-    template <range R, ir_opcode Op, typename ...Args>
-    decltype (auto)
-    emplace_back (Args&&... args)
-    {
-      return get<R> ().emplace_back (ir_instruction::tag<Op>, std::forward<Args> (args)...);
     }
 
     template <range R, typename ...Args>
@@ -320,62 +306,12 @@ namespace gch
       return get<R> ().splice (pos, other.get<R> (), std::forward<Args> (args)...);
     }
 
-    template <range R>
-    decltype (auto)
-    pop_front (void)
-    {
-      return get<R> ().pop_front ();
-    }
-
-    template <range R>
-    decltype (auto)
-    pop_back (void)
-    {
-      return get<R> ().pop_back ();
-    }
-
     template <range R, typename ...Args>
     decltype (auto)
     erase (Args&&... args)
     {
       return get<R> ().erase (std::forward<Args> (args)...);
     }
-
-    ir_use_timeline&
-    join_incoming (ir_def_timeline& dt);
-
-    optional_ref<ir_def_timeline>
-    maybe_join_incoming (ir_variable& var);
-
-    std::vector<nonnull_ptr<ir_def_timeline>>
-    collect_defs_incoming (ir_variable& var);
-
-    std::vector<nonnull_ptr<ir_def_timeline>>
-    forward_incoming_timelines (ir_variable& var);
-
-    std::vector<nonnull_ptr<ir_def_timeline>>
-    forward_outgoing_timelines (ir_variable& var);
-
-    ir_def_timeline&
-    append_incoming (ir_variable& var, ir_def_timeline& dt, ir_block& incoming_block,
-                     ir_def_timeline& pred);
-
-    ir_def_timeline&
-    append_incoming (ir_variable& var, ir_def_timeline& dt, ir_block& incoming_block,
-                     const std::vector<nonnull_ptr<ir_def_timeline>>& preds);
-
-    ir_def_timeline&
-    resolve_undefined_incoming (ir_variable& undef_var, ir_def_timeline& var_dt);
-
-    ir_def_timeline&
-    resolve_undefined_outgoing (ir_variable& undef_var, ir_def_timeline& var_dt);
-
-    void
-    propagate_def_timeline (ir_variable& var, ir_block& incoming_block,
-                            ir_def_timeline& remote);
-
-    ir_def_timeline&
-    set_undefined_state (ir_variable& undef_var, bool state);
 
     ir_use_info
     prepare_operand (citer pos, ir_variable& var);
@@ -548,14 +484,14 @@ namespace gch
     template <ir_opcode Op, typename ...Args,
               std::enable_if_t<ir_instruction_traits<Op>::has_def> * = nullptr>
     ir_instruction&
-    emplace_instruction_with_def (const citer pos, ir_variable& var, Args&&... args)
+    emplace_with_def (const citer pos, ir_variable& var, Args&&... args)
     {
       static_assert (Op != ir_opcode::call
                  ||  std::is_same_v<remove_cvref_t<pack_front_t<type_pack<Args...>>>,
                                     ir_external_function_info>,
                      "The first argument to a call instruction must be ir_external_function_info");
 
-      iter it = emplace<range::body, Op> (
+      iter it = emplace_instruction<range::body, Op> (
         pos,
         var,
         prepare_operand (pos, std::forward<Args> (args))...);
@@ -575,21 +511,23 @@ namespace gch
     // no return (places instruction immediately before `pos`)
     template <ir_opcode Op, typename ...Args>
     ir_instruction&
-    emplace_instruction (const citer pos, Args&&... args)
+    emplace (const citer pos, Args&&... args)
     {
       static_assert (Op != ir_opcode::call
                  ||  std::is_same_v<remove_cvref_t<pack_front_t<type_pack<Args...>>>,
                                     ir_external_function_info>,
                      "The first argument to a call instruction must be ir_external_function_info");
 
-      return *emplace<range::body, Op> (pos, prepare_operand (pos, std::forward<Args> (args))...);
+      return *emplace_instruction<range::body, Op> (
+        pos,
+        prepare_operand (pos, std::forward<Args> (args))...);
     }
 
     template <ir_opcode Op, typename ...Args>
     ir_instruction&
-    append_instruction_with_def (ir_variable& var, Args&&... args)
+    append_with_def (ir_variable& var, Args&&... args)
     {
-      return emplace_instruction_with_def<Op> (
+      return emplace_with_def<Op> (
         end<range::body> (),
         var,
         std::forward<Args> (args)...);
@@ -597,16 +535,16 @@ namespace gch
 
     template <ir_opcode Op, typename ...Args>
     ir_instruction&
-    append_instruction (Args&&... args)
+    append (Args&&... args)
     {
-      return emplace_instruction<Op> (end<range::body> (), std::forward<Args> (args)...);
+      return emplace<Op> (end<range::body> (), std::forward<Args> (args)...);
     }
 
     template <ir_opcode Op, typename ...Args>
     ir_instruction&
-    prepend_instruction_with_def (ir_variable& var, Args&&... args)
+    prepend_with_def (ir_variable& var, Args&&... args)
     {
-      return emplace_instruction_with_def<Op> (
+      return emplace_with_def<Op> (
         begin<range::body> (),
         var,
         std::forward<Args> (args)...);
@@ -614,9 +552,9 @@ namespace gch
 
     template <ir_opcode Op, typename ...Args>
     ir_instruction&
-    prepend_instruction (Args&&... args)
+    prepend (Args&&... args)
     {
-      return emplace_instruction<Op> (begin<range::body> (), std::forward<Args> (args)...);
+      return emplace<Op> (begin<range::body> (), std::forward<Args> (args)...);
     }
 
     std::string_view

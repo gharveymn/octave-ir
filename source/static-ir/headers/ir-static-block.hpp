@@ -56,6 +56,8 @@ namespace gch
     ir_static_block& operator= (ir_static_block&&) noexcept = default;
     ~ir_static_block           (void)                       = default;
 
+    ir_static_block (std::string_view name);
+
     [[nodiscard]]
     const_iterator
     begin (void) const noexcept;
@@ -106,7 +108,14 @@ namespace gch
     void
     push_back (ir_static_instruction&& instr);
 
+    void
+    set_name (std::string_view name);
+
+    std::string_view
+    get_name (void) const noexcept;
+
   private:
+    std::string    m_name;
     container_type m_instructions;
   };
 

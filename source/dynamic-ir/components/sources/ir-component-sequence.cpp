@@ -48,6 +48,11 @@ namespace gch
   ~ir_component_sequence (void) = default;
 
   ir_component_sequence::
+  ir_component_sequence (ir_structure& parent)
+    : ir_component_sequence (parent, ir_subcomponent_type<ir_block>)
+  { }
+
+  ir_component_sequence::
   ir_component_sequence (ir_structure& parent, std::initializer_list<ir_component_mover> init)
     : ir_substructure { parent },
       m_body          (init.begin (), init.end ()),

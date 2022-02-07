@@ -58,7 +58,8 @@ namespace gch
   template <typename Subcomponent>
   inline constexpr
   ir_subcomponent_type_t<Subcomponent>
-  ir_subcomponent_type { };
+  ir_subcomponent_type
+  { };
 
 }
 

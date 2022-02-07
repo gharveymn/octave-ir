@@ -14,19 +14,16 @@ main (void)
 {
   static constexpr int expected = 11;
 
-  ir_function my_func ("x", "myloopfunc");
+  ir_function my_func ({ "x", ir_type_v<int> }, "myloopfunc");
 
   ir_variable& var_x = my_func.get_variable ("x");
-  var_x.set_type<int> ();
-
   ir_variable& var_i = my_func.create_variable<int> ("i");
-
-  ir_variable& var_tmp = my_func.create_variable<bool> ();
+  my_func.set_anonymous_variable_type<bool> ();
 
   auto& seq = dynamic_cast<ir_component_sequence&> (my_func.get_body ());
 
   ir_block& entry_block     = get_entry_block (seq);
-  auto&     loop            = seq.emplace_back<ir_component_loop> (var_tmp);
+  auto&     loop            = seq.emplace_back<ir_component_loop> (my_func.get_variable ());
   auto&     start_block     = static_cast<ir_block&> (loop.get_start ());
   ir_block& condition_block = loop.get_condition ();
   auto&     body_seq        = static_cast<ir_component_sequence&> (loop.get_body ());
@@ -41,17 +38,11 @@ main (void)
   update_block   .set_name ("update");
   after_block    .set_name ("after");
 
-  entry_block.append_instruction_with_def<ir_opcode::assign> (var_x, 1);
-
-  start_block.append_instruction_with_def<ir_opcode::assign> (var_i, 0);
-
-  update_block.append_instruction_with_def<ir_opcode::add> (var_i, var_i, 1);
-
-  body_block.append_instruction_with_def<ir_opcode::add> (var_x, var_x, 2);
-
-  condition_block.append_instruction_with_def<ir_opcode::lt> (var_tmp, var_i, 5);
-
-  after_block.append_instruction<ir_opcode::ret> (var_x);
+  entry_block    .append_with_def<ir_opcode::assign> (var_x, 1);
+  start_block    .append_with_def<ir_opcode::assign> (var_i, 0);
+  update_block   .append_with_def<ir_opcode::add>    (var_i, var_i, 1);
+  body_block     .append_with_def<ir_opcode::add>    (var_x, var_x, 2);
+  condition_block.append_with_def<ir_opcode::lt>     (condition_block.get_condition_variable (), var_i, 5);
 
   ir_static_function my_static_func = generate_static_function (my_func);
 

@@ -14,6 +14,11 @@
 namespace gch
 {
 
+  ir_static_block::
+  ir_static_block (std::string_view name)
+    : m_name (name)
+  { }
+
   auto
   ir_static_block::
   begin (void) const noexcept
@@ -97,6 +102,20 @@ namespace gch
   push_back (ir_static_instruction&& instr)
   {
     m_instructions.emplace_back (std::move (instr));
+  }
+
+  void
+  ir_static_block::
+  set_name (std::string_view name)
+  {
+    m_name = name;
+  }
+
+  std::string_view
+  ir_static_block::
+  get_name (void) const noexcept
+  {
+    return m_name;
   }
 
 }

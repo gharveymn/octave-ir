@@ -173,7 +173,10 @@ namespace gch
   ir_static_function::
   get_block_name (const ir_static_block& block) const
   {
-    return std::string ("BLOCK").append (std::to_string (std::distance (&m_blocks[0], &block)));
+    std::string_view name = block.get_name ();
+    if (name.empty ())
+      return std::string ("BLOCK").append (std::to_string (std::distance (&m_blocks[0], &block)));
+    return std::string (name);
   }
 
   const ir_static_variable&

@@ -177,7 +177,7 @@ namespace gch
         &module.get_llvm_type<std::uint64_t> (),
         reinterpret_cast<std::size_t> (val));
 
-      return *llvm::ConstantExpr::getPointerCast (&addr, &module.get_llvm_type<void *> ());
+      return *llvm::ConstantExpr::getIntToPtr (&addr, &module.get_llvm_type<void *> ());
     }
   };
 

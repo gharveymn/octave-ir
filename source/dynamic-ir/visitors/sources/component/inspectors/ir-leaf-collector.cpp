@@ -99,7 +99,7 @@ namespace gch
   visit (const ir_component_loop& loop) const
     -> result_type
   {
-    return subcomponent_result (loop.get_condition ());
+    return subcomponent_result (loop.get_after ());
   }
 
   auto

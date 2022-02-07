@@ -290,6 +290,15 @@ namespace gch
     };
   };
 
+  // Note: LLVM doesn't like pointers to void, so we use i8* instead.
+  template <>
+  struct llvm_type_function<void *>
+  {
+    static constexpr
+    auto
+    value = llvm_type_function_v<std::int8_t *>;
+  };
+
   template <typename CharT>
   struct llvm_type_function<std::basic_string<CharT>>
   {

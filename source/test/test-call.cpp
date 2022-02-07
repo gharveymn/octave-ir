@@ -16,26 +16,15 @@ main (void)
 
   ir_block& block = get_entry_block (my_func);
 
-  ir_variable& stderr_var = my_func.create_variable<void *> ("stderr");
-  block.append_instruction_with_def<ir_opcode::call> (
-    stderr_var,
-    ir_external_function_info { "__acrt_iob_func" },
-    static_cast<std::uint32_t> (2));
-
-  block.append_instruction<ir_opcode::call> (
+  block.append<ir_opcode::call> (
     ir_external_function_info { "fprintf" },
-    stderr_var,
+    static_cast<void*> (stderr),
     "%s\n",
     "myerror");
 
-  block.append_instruction_with_def<ir_opcode::call> (
-    stderr_var,
-    ir_external_function_info { "__acrt_iob_func" },
-    static_cast<std::uint32_t> (2));
-
-  block.append_instruction<ir_opcode::call> (
+  block.append<ir_opcode::call> (
     ir_external_function_info { "fflush" },
-    stderr_var);
+    static_cast<void*> (stderr));
 
   ir_static_function my_static_func = generate_static_function (my_func);
 

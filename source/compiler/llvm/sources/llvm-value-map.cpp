@@ -196,13 +196,16 @@ namespace gch
       m_llvm_function (llvm_func),
       m_function      (func)
   {
-    llvm_ir_builder_type builder { invoke_with_context (
-      [](auto& context) { return llvm_ir_builder_type { context }; }) };
+    llvm_ir_builder_type builder {
+      invoke_with_context ([](llvm::LLVMContext& ctx) {
+        return llvm_ir_builder_type { ctx };
+      })
+    };
 
     m_blocks.reserve (func.num_blocks ());
 
     // init entry block
-    llvm::BasicBlock& first_block = create_block ("entry");
+    llvm::BasicBlock& first_block = create_block (func.get_block_name (func.front ()));
     m_blocks.emplace_back (&first_block);
     builder.SetInsertPoint (&first_block);
 
@@ -211,16 +214,22 @@ namespace gch
                    [&](const ir_static_variable& var) {
       llvm::Type& ty   = get_llvm_type (var.get_type ());
       llvm::Twine name = create_twine (var.get_name ());
-      m_var_map.try_emplace (nonnull_ptr { var },
-                             *builder.CreateAlloca (&ty, nullptr, name),
-                             var.get_num_defs ());
+      std::size_t num_defs = var.get_num_defs ();
+      if (0 < num_defs)
+      {
+        assert (ir_type_v<void> != var.get_type () && "Variable cannot have type void.");
+        m_var_map.try_emplace (
+          nonnull_ptr { var },
+          *builder.CreateAlloca (&ty, nullptr, name),
+          num_defs);
+      }
     });
 
     // init blocks
     std::transform (std::next (func.begin ()), func.end (), std::back_inserter (m_blocks),
                     [&](const ir_static_block& block) {
-      return &create_block (m_function.get_block_name (block));
-    });
+                      return &create_block (func.get_block_name (block));
+                    });
   }
 
   llvm::BasicBlock&

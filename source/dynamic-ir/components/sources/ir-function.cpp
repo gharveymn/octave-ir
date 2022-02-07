@@ -25,7 +25,8 @@ namespace gch
   ir_function (std::string_view name)
     : ir_structure (),
       m_name (name),
-      m_body (allocate_subcomponent<ir_component_sequence> (ir_subcomponent_type<ir_block>))
+      m_body (allocate_subcomponent<ir_component_sequence> ()),
+      m_anonymous_var (*this, ir_variable_id { 0U })
   { }
 
   ir_function::
@@ -143,15 +144,16 @@ namespace gch
 
   ir_variable&
   ir_function::
-  create_variable (ir_type type)
+  get_variable (void) noexcept
   {
-    auto [position, inserted] = m_variable_map.try_emplace (
-      ir_variable::anonymous_name,
-      *this,
-      ir_variable_id { m_variable_map.size () },
-      type);
-    assert (inserted && "Tried to create a variable which already exists.");
-    return std::get<ir_variable> (*position);
+    return m_anonymous_var;
+  }
+
+  const ir_variable&
+  ir_function::
+  get_variable (void) const noexcept
+  {
+    return as_mutable (*this).get_variable ();
   }
 
   ir_variable&
@@ -159,6 +161,13 @@ namespace gch
   create_variable (ir_variable_info pair)
   {
     return create_variable (pair.name, pair.type);
+  }
+
+  void
+  ir_function::
+  set_anonymous_variable_type (ir_type type)
+  {
+    m_anonymous_var.set_type (type);
   }
 
   void
@@ -559,6 +568,14 @@ namespace gch
     if (m_name.empty ())
       return "function@" + std::to_string (reinterpret_cast<std::size_t> (this));
     return m_name;
+  }
+
+  ir_variable_id
+  ir_function::
+  get_current_variable_id (void) const noexcept
+  {
+    // Note: The 0 id is reserved for the anonymous variable.
+    return ir_variable_id { 1U + m_variable_map.size () };
   }
 
   ir_block&

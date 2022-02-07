@@ -19,7 +19,7 @@ namespace gch
     : ir_substructure (parent),
       m_start     { allocate_subcomponent<ir_block> () },
       m_condition (*this, condition_var),
-      m_body      { allocate_subcomponent<ir_component_sequence> (ir_subcomponent_type<ir_block>) },
+      m_body      { allocate_subcomponent<ir_component_sequence> () },
       m_update    { allocate_subcomponent<ir_block> () },
       m_after     { allocate_subcomponent<ir_block> () }
   { }
@@ -29,7 +29,7 @@ namespace gch
     : ir_substructure (parent),
       m_start     { init },
       m_condition (*this, condition_var),
-      m_body      { allocate_subcomponent<ir_component_sequence> (ir_subcomponent_type<ir_block>) },
+      m_body      { allocate_subcomponent<ir_component_sequence> () },
       m_update    { allocate_subcomponent<ir_block> () },
       m_after     { allocate_subcomponent<ir_block> () }
   { }

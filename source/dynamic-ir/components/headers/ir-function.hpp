@@ -250,16 +250,27 @@ namespace gch
     bool
     is_body (const ir_subcomponent& sub) const noexcept;
 
+    ir_variable&
+    get_variable (void) noexcept;
+
+    const ir_variable&
+    get_variable (void) const noexcept;
+
     template <typename T, std::enable_if_t<std::is_convertible_v<T, std::string_view>> * = nullptr>
     ir_variable&
     get_variable (T&& name)
     {
+      if constexpr (std::is_same_v<remove_all_cv_t<std::decay_t<T>>, char *>)
+      {
+        if (! *name)
+          return get_variable ();
+      }
+      else if (std::empty (name))
+        return get_variable ();
+
       auto [it, ins] = try_emplace_variable (std::forward<T> (name));
       return std::get<ir_variable> (*it);
     }
-
-    ir_variable&
-    create_variable (ir_type type);
 
     ir_variable&
     create_variable (ir_variable_info pair);
@@ -275,6 +286,11 @@ namespace gch
     ir_variable&
     create_variable (T&& name, Args&&... args)
     {
+      if constexpr (std::is_same_v<remove_all_cv_t<std::decay_t<T>>, char *>)
+        assert (*name && "The anonymous variable has already been created.");
+      else
+        assert (! std::empty (name) && "The anonymous variable has already been created.");
+
       auto [it, ins] = try_emplace_variable (std::forward<T> (name), std::forward<Args> (args)...);
       assert (ins && "Tried to create a variable which already exists.");
       return std::get<ir_variable> (*it);
@@ -288,15 +304,18 @@ namespace gch
       return create_variable (std::forward<S> (name), ir_type_v<T>);
     }
 
-    template <typename T>
-    ir_variable&
-    create_variable (void)
-    {
-      return create_variable (ir_type_v<T>);
-    }
+    void
+    set_anonymous_variable_type (ir_type type);
 
     void
     set_variable_type (const std::string& name, ir_type type);
+
+    template <typename T>
+    void
+    set_anonymous_variable_type (void)
+    {
+      m_anonymous_var.set_type<T> ();
+    }
 
     template <typename T>
     void
@@ -502,6 +521,9 @@ namespace gch
     get_name (void) const noexcept;
 
   private:
+    ir_variable_id
+    get_current_variable_id (void) const noexcept;
+
     template <typename T, typename ...Args>
     std::pair<std::unordered_map<std::string_view, ir_variable>::iterator, bool>
     try_emplace_variable (T&& name, Args&&... args)
@@ -509,7 +531,7 @@ namespace gch
       auto [position, inserted] = m_variable_map.try_emplace (
         name,
         *this,
-        ir_variable_id { m_variable_map.size () },
+        get_current_variable_id (),
         std::forward<T> (name),
         std::forward<Args> (args)...);
 
@@ -523,11 +545,12 @@ namespace gch
       return { position, inserted };
     }
 
-    variables_container_type               m_variable_map;
     std::string                            m_name;
     small_vector<nonnull_ptr<ir_variable>> m_ret;
     small_vector<nonnull_ptr<ir_variable>> m_args;
     ir_component_storage                   m_body;
+    variables_container_type               m_variable_map;
+    ir_variable                            m_anonymous_var;
   };
 
   [[nodiscard]]

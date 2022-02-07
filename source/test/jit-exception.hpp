@@ -9,6 +9,7 @@
 #define OCTAVE_IR_JIT_EXCEPTION_HPP
 
 #include <stdexcept>
+#include <memory>
 
 namespace gch
 {
@@ -17,26 +18,24 @@ namespace gch
     : public std::exception
   {
   public:
-    jit_exception            (void)                     = default;
-    jit_exception            (const jit_exception&)     = default;
-    jit_exception            (jit_exception&&) noexcept = default;
-    jit_exception& operator= (const jit_exception&)     = default;
-    jit_exception& operator= (jit_exception&&) noexcept = default;
-    ~jit_exception           (void)                     = default;
+    jit_exception (void) = default;
 
-    jit_exception (std::string_view str)
-      : m_error_string (str)
+    explicit
+    jit_exception (std::unique_ptr<std::exception>&& except) noexcept
+      : m_except (std::move (except))
     { }
 
     [[nodiscard]]
     const char *
     what (void) const noexcept override
     {
-      return m_error_string.c_str ();
+      if (m_except)
+        return m_except->what ();
+      return "Failed to allocate for an exception.";
     }
 
   private:
-    std::string m_error_string;
+    std::unique_ptr<std::exception> m_except;
   };
 
 }

@@ -33,19 +33,19 @@ test (void)
 
   ir_variable& var_j = my_func.create_variable<int> ("j");
 
-  ir_variable& var_tmp = my_func.create_variable<bool> ();
+  my_func.set_anonymous_variable_type<bool> ();
 
   auto& seq = dynamic_cast<ir_component_sequence&> (my_func.get_body ());
 
   ir_block& entry_block = get_entry_block (seq);
-  auto& loop = seq.emplace_back<ir_component_loop> (var_tmp);
+  auto& loop = seq.emplace_back<ir_component_loop> (my_func.get_variable ());
   auto& start_block = static_cast<ir_block&> (loop.get_start ());
   ir_block& condition_block = loop.get_condition ();
   auto& body_seq = static_cast<ir_component_sequence&> (loop.get_body ());
   auto& body_block = static_cast<ir_block&> (body_seq.front ());
   auto& update_block = static_cast<ir_block&> (loop.get_update ());
 
-  auto& loop2 = body_seq.emplace_back<ir_component_loop> (var_tmp);
+  auto& loop2 = body_seq.emplace_back<ir_component_loop> (my_func.get_variable ());
   auto& start_block2 = static_cast<ir_block&> (loop2.get_start ());
   ir_block& condition_block2 = loop2.get_condition ();
   auto& body_seq2 = static_cast<ir_component_sequence&> (loop2.get_body ());
@@ -54,21 +54,21 @@ test (void)
 
   auto& after_block = seq.emplace_back<ir_block> ();
 
-  entry_block.append_instruction_with_def<ir_opcode::assign> (var_x, 1);
+  entry_block.append_with_def<ir_opcode::assign> (var_x, 1);
 
-  start_block.append_instruction_with_def<ir_opcode::assign> (var_i, 0);
-  update_block.append_instruction_with_def<ir_opcode::add> (var_i, var_i, 1);
+  start_block.append_with_def<ir_opcode::assign> (var_i, 0);
+  update_block.append_with_def<ir_opcode::add> (var_i, var_i, 1);
 
-  start_block2.append_instruction_with_def<ir_opcode::assign> (var_j, 0);
-  update_block2.append_instruction_with_def<ir_opcode::add> (var_j, var_j, 1);
+  start_block2.append_with_def<ir_opcode::assign> (var_j, 0);
+  update_block2.append_with_def<ir_opcode::add> (var_j, var_j, 1);
 
-  body_block2.append_instruction_with_def<ir_opcode::add> (var_x, var_x, 2);
+  body_block2.append_with_def<ir_opcode::add> (var_x, var_x, 2);
 
-  condition_block2.append_instruction_with_def<ir_opcode::lt> (var_tmp, var_j, 3);
+  condition_block2.append_with_def<ir_opcode::lt> (condition_block2.get_condition_variable (), var_j, 3);
 
-  condition_block.append_instruction_with_def<ir_opcode::lt> (var_tmp, var_i, 5);
+  condition_block.append_with_def<ir_opcode::lt> (condition_block.get_condition_variable (), var_i, 5);
 
-  after_block.append_instruction<ir_opcode::ret> (var_x);
+  after_block.append<ir_opcode::ret> (var_x);
 
   return generate_static_function (my_func);
 }
@@ -109,7 +109,6 @@ test2 (void)
   ir_variable *var_x;
   ir_variable *var_i;
   ir_variable *var_j;
-  ir_variable *var_tmp;
 
   ir_block *entry_block;
   ir_block *start_block;
@@ -125,16 +124,25 @@ test2 (void)
   command::reset ();
 
   std::vector<command> commands;
-  /* 0 */commands.emplace_back ([&](void) { entry_block->append_instruction_with_def<ir_opcode::assign> (*var_x, 1); });
-  /* 1 */commands.emplace_back ([&](void) { entry_block->append_instruction_with_def<ir_opcode::assign> (*var_x, 1); });
-  /* 2 */commands.emplace_back ([&](void) { start_block->append_instruction_with_def<ir_opcode::assign> (*var_i, 0); });
-  /* 3 */commands.emplace_back ([&](void) { update_block->append_instruction_with_def<ir_opcode::add> (*var_i, *var_i, 1); });
-  /* 4 */commands.emplace_back ([&](void) { start_block2->append_instruction_with_def<ir_opcode::assign> (*var_j, 0); });
-  /* 5 */commands.emplace_back ([&](void) { update_block2->append_instruction_with_def<ir_opcode::add> (*var_j, *var_j, 1); });
-  /* 6 */commands.emplace_back ([&](void) { body_block2->append_instruction_with_def<ir_opcode::add> (*var_x, *var_x, 2); });
-  /* 7 */commands.emplace_back ([&](void) { condition_block2->append_instruction_with_def<ir_opcode::lt> (*var_tmp, *var_j, 3); });
-  /* 8 */commands.emplace_back ([&](void) { condition_block->append_instruction_with_def<ir_opcode::lt> (*var_tmp, *var_i, 5); });
-  /* 9 */commands.emplace_back ([&](void) { after_block->append_instruction<ir_opcode::ret> (*var_x); });
+  /* 0 */commands.emplace_back ([&](void) {
+    entry_block->append_with_def<ir_opcode::assign> (*var_x, 1); });
+  /* 1 */commands.emplace_back ([&](void) {
+    entry_block->append_with_def<ir_opcode::assign> (*var_x, 1); });
+  /* 2 */commands.emplace_back ([&](void) {
+    start_block->append_with_def<ir_opcode::assign> (*var_i, 0); });
+  /* 3 */commands.emplace_back ([&](void) {
+    update_block->append_with_def<ir_opcode::add> (*var_i, *var_i, 1); });
+  /* 4 */commands.emplace_back ([&](void) {
+    start_block2->append_with_def<ir_opcode::assign> (*var_j, 0); });
+  /* 5 */commands.emplace_back ([&](void) {
+    update_block2->append_with_def<ir_opcode::add> (*var_j, *var_j, 1); });
+  /* 6 */commands.emplace_back ([&](void) {
+    body_block2->append_with_def<ir_opcode::add> (*var_x, *var_x, 2); });
+  /* 7 */commands.emplace_back ([&](void) {
+    condition_block2->append_with_def<ir_opcode::lt> (condition_block2->get_condition_variable (), *var_j, 3); });
+  /* 8 */commands.emplace_back ([&](void) {
+    condition_block->append_with_def<ir_opcode::lt> (condition_block->get_condition_variable (), *var_i, 5); });
+  /* 9 */commands.emplace_back ([&](void) { after_block->append<ir_opcode::ret> (*var_x); });
 
   std::string cmp;
 
@@ -156,12 +164,12 @@ test2 (void)
 
     var_i = &my_func.create_variable<int> ("i");
     var_j = &my_func.create_variable<int> ("j");
-    var_tmp = &my_func.create_variable<bool> ();
+    my_func.set_anonymous_variable_type<bool> ();
 
     auto& seq = static_cast<ir_component_sequence&> (my_func.get_body ());
-    auto& loop = seq.emplace_back<ir_component_loop> (*var_tmp);
+    auto& loop = seq.emplace_back<ir_component_loop> (my_func.get_variable ());
     auto& body_seq = static_cast<ir_component_sequence&> (loop.get_body ());
-    auto& loop2 = body_seq.emplace_back<ir_component_loop> (*var_tmp);
+    auto& loop2 = body_seq.emplace_back<ir_component_loop> (my_func.get_variable ());
     auto& body_seq2 = static_cast<ir_component_sequence&> (loop2.get_body ());
 
     entry_block = &get_entry_block (seq);
@@ -265,12 +273,12 @@ main (void)
 
   ir_variable& var_j = my_func.create_variable<int> ("j");
 
-  ir_variable& var_tmp = my_func.create_variable<bool> ();
+  my_func.set_anonymous_variable_type<bool> ();
 
   auto& seq = dynamic_cast<ir_component_sequence&> (my_func.get_body ());
 
   ir_block& entry_block     = get_entry_block (seq);
-  auto&     loop            = seq.emplace_back<ir_component_loop> (var_tmp);
+  auto&     loop            = seq.emplace_back<ir_component_loop> (my_func.get_variable ());
   auto&     start_block     = static_cast<ir_block&> (loop.get_start ());
   ir_block& condition_block = loop.get_condition ();
   auto&     body_seq        = static_cast<ir_component_sequence&> (loop.get_body ());
@@ -278,7 +286,7 @@ main (void)
   auto&     update_block    = static_cast<ir_block&> (loop.get_update ());
   auto&     after_block     = static_cast<ir_block&> (loop.get_after ());
 
-  auto&     loop2            = body_seq.emplace_back<ir_component_loop> (var_tmp);
+  auto&     loop2            = body_seq.emplace_back<ir_component_loop> (my_func.get_variable ());
   auto&     start_block2     = static_cast<ir_block&> (loop2.get_start ());
   ir_block& condition_block2 = loop2.get_condition ();
   auto&     body_seq2        = static_cast<ir_component_sequence&> (loop2.get_body ());
@@ -318,23 +326,23 @@ main (void)
     print_dt (after_block,     var_x);
   };
 
-  entry_block.append_instruction_with_def<ir_opcode::assign> (var_x, 1);
+  entry_block.append_with_def<ir_opcode::assign> (var_x, 1);
 
-  start_block.append_instruction_with_def<ir_opcode::assign> (var_i, 0);
-  update_block.append_instruction_with_def<ir_opcode::add> (var_i, var_i, 1);
+  start_block.append_with_def<ir_opcode::assign> (var_i, 0);
+  update_block.append_with_def<ir_opcode::add> (var_i, var_i, 1);
 
-  start_block2.append_instruction_with_def<ir_opcode::assign> (var_j, 0);
-  update_block2.append_instruction_with_def<ir_opcode::add> (var_j, var_j, 1);
+  start_block2.append_with_def<ir_opcode::assign> (var_j, 0);
+  update_block2.append_with_def<ir_opcode::add> (var_j, var_j, 1);
 
-  body_block2.append_instruction_with_def<ir_opcode::add> (var_x, var_x, 2);
+  body_block2.append_with_def<ir_opcode::add> (var_x, var_x, 2);
 
   print_dts ();
 
-  condition_block2.append_instruction_with_def<ir_opcode::lt> (var_tmp, var_j, 3);
+  condition_block2.append_with_def<ir_opcode::lt> (condition_block2.get_condition_variable (), var_j, 3);
 
-  condition_block.append_instruction_with_def<ir_opcode::lt> (var_tmp, var_i, 5);
+  condition_block.append_with_def<ir_opcode::lt> (condition_block.get_condition_variable (), var_i, 5);
 
-  after_block.append_instruction<ir_opcode::ret> (var_x);
+  after_block.append<ir_opcode::ret> (var_x);
 
   ir_static_function my_static_func = generate_static_function (my_func);
 

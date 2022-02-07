@@ -90,6 +90,9 @@ namespace gch
       m_find_cache.emplace (make_handle (begin ()));
     }
 
+    explicit
+    ir_component_sequence (ir_structure& parent);
+
     ir_component_sequence (ir_structure& parent, std::initializer_list<ir_component_mover> init);
 
     ir_component_sequence (ir_structure& parent, ir_component_mover init);

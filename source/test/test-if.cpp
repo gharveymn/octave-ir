@@ -18,12 +18,12 @@ main (void)
   ir_variable& var_in = my_func.get_variable ("in");
   ir_variable& var_out = my_func.get_variable ("out");
 
-  ir_variable& var_cmp = my_func.create_variable<bool> ();
+  my_func.set_anonymous_variable_type<bool> ();
 
   auto& seq = dynamic_cast<ir_component_sequence&> (my_func.get_body ());
   ir_block& entry = get_entry_block (seq);
 
-  auto& fork = seq.emplace_back<ir_component_fork> (var_cmp);
+  auto& fork = seq.emplace_back<ir_component_fork> (my_func.get_variable ());
   ir_block& condition_block = fork.get_condition ();
   auto& true_block = fork.add_case<ir_block> ();
   auto& false_block = fork.add_case<ir_block> ();
@@ -33,12 +33,12 @@ main (void)
   true_block     .set_name ("true");
   false_block    .set_name ("false");
 
-  condition_block.append_instruction_with_def<ir_opcode::eq> (
+  condition_block.append_with_def<ir_opcode::eq> (
     condition_block.get_condition_variable (),
     var_in,
     ir_constant (1));
 
-  true_block.append_instruction_with_def<ir_opcode::assign> (var_out, expected);
+  true_block.append_with_def<ir_opcode::assign> (var_out, expected);
   // Do nothing in the false block.
 
   ir_static_function my_static_func = generate_static_function (my_func);

@@ -288,7 +288,7 @@ namespace gch
   create_phi (ir_variable& var)
     -> iter
   {
-    emplace_back<range::phi, ir_opcode::phi> (var);
+    emplace_instruction<range::phi, ir_opcode::phi> (end<range::phi> (), var);
     return std::prev (end<range::phi> ());
   }
 
