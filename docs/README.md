@@ -58,6 +58,8 @@ Other projects that are utilized by this project include
 
 - Rework the def resolution system so it isn't so janky.
 - Type deduction (during static-ir generation).
+- Handling for unreachable code.
+- `break` instructions.
 - AST integration.
 
 ## License
